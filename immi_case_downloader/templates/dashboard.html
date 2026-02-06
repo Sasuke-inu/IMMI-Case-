@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+{% if stats.total == 0 %}
+<div class="empty-state">
+  <div class="empty-icon"><i class="bi bi-briefcase"></i></div>
+  <h4>Welcome to IMMI-Case</h4>
+  <p>Your immigration case research hub. Get started by searching for cases from Australian courts and tribunals.</p>
+  <div class="onboarding-steps">
+    <a href="{{ url_for('search_page') }}" class="onboarding-step hover-lift">
+      <div class="step-num">1</div>
+      <div class="step-title">Search Cases</div>
+      <div class="step-desc">Find immigration cases from AAT, Federal Court, and more</div>
+    </a>
+    <a href="{{ url_for('download_page') }}" class="onboarding-step hover-lift">
+      <div class="step-num">2</div>
+      <div class="step-title">Download Texts</div>
+      <div class="step-desc">Download full judgment texts and extract key details</div>
+    </a>
+    <a href="{{ url_for('case_list') }}" class="onboarding-step hover-lift">
+      <div class="step-num">3</div>
+      <div class="step-title">Browse & Annotate</div>
+      <div class="step-desc">Filter, tag, and add notes to build your research</div>
+    </a>
+  </div>
+</div>
+{% else %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Dashboard</h4>
+  <div class="btn-group btn-group-sm">
+    <a href="{{ url_for('search_page') }}" class="btn btn-primary"><i class="bi bi-search me-1"></i>Search New</a>
+    <a href="{{ url_for('export_data', fmt='csv') }}" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Export</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card blue hover-lift">
+      <div class="card-body py-3 d-flex justify-content-between align-items-center">
+        <div><div class="stat-label">Total Cases</div><div class="stat-value">{{ "{:,}".format(stats.total) }}</div></div>
+        <i class="bi bi-folder2-open stat-icon text-primary"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card green hover-lift">
+      <div class="card-body py-3 d-flex justify-content-between align-items-center">
+        <div><div class="stat-label">Texts Downloaded</div><div class="stat-value">{{ "{:,}".format(stats.with_full_text) }}</div></div>
+        <i class="bi bi-file-earmark-text stat-icon text-success"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card orange hover-lift">
+      <div class="card-body py-3 d-flex justify-content-between align-items-center">
+        <div><div class="stat-label">Courts</div><div class="stat-value">{{ stats.by_court | length }}</div></div>
+        <i class="bi bi-bank stat-icon text-warning"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card purple hover-lift">
+      <div class="card-body py-3 d-flex justify-content-between align-items-center">
+        <div><div class="stat-label">Visa Types</div><div class="stat-value">{{ stats.visa_types | length }}</div></div>
+        <i class="bi bi-passport stat-icon" style="color:#8e44ad;"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% set pct = ((stats.with_full_text / stats.total) * 100) | int if stats.total > 0 else 0 %}
+<div class="card mb-4 hover-lift">
+  <div class="card-body py-2 d-flex align-items-center gap-3">
+    <span class="small fw-semibold text-nowrap" style="min-width:130px;">Download Progress</span>
+    <div class="progress flex-grow-1" style="height:10px;"><div class="progress-bar {% if pct == 100 %}bg-success{% endif %}" style="width:{{ pct }}%;"></div></div>
+    <span class="small text-muted text-nowrap">{{ stats.with_full_text }}/{{ stats.total }} ({{ pct }}%)</span>
+    {% if pct < 100 %}<a href="{{ url_for('download_page') }}" class="btn btn-sm btn-outline-primary text-nowrap">Download More</a>{% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between"><span>Cases by Court</span><a href="{{ url_for('case_list') }}" class="small text-decoration-none">View all &rarr;</a></div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0"><tbody>
+          {% set max_court = stats.by_court.values() | max if stats.by_court else 1 %}
+          {% for court, count in stats.by_court.items() %}
+          <tr>
+            <td style="width:55%;"><span class="small">{{ court }}</span></td>
+            <td class="text-end fw-bold small">{{ "{:,}".format(count) }}</td>
+            <td style="width:30%;"><div class="progress" style="height:6px;"><div class="progress-bar bg-primary" style="width:{{ (count / max_court * 100) | int }}%;"></div></div></td>
+          </tr>
+          {% endfor %}
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">Cases by Year</div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0"><tbody>
+          {% set max_year = stats.by_year.values() | max if stats.by_year else 1 %}
+          {% for year, count in stats.by_year.items() %}{% if year %}
+          <tr>
+            <td style="width:60px;" class="fw-semibold">{{ year }}</td>
+            <td class="text-end small fw-bold" style="width:70px;">{{ "{:,}".format(count) }}</td>
+            <td><div class="progress" style="height:14px;"><div class="progress-bar bg-primary" style="width:{{ (count / max_year * 100) | int }}%;">{% if (count / max_year * 100) > 20 %}<span class="small">{{ "{:,}".format(count) }}</span>{% endif %}</div></div></td>
+          </tr>
+          {% endif %}{% endfor %}
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+  {% if stats.visa_types %}
+  <div class="col-lg-6">
+    <div class="card"><div class="card-header">Visa Types Detected</div><div class="card-body">
+      {% for vt in stats.visa_types %}<a href="{{ url_for('case_list', visa_type=vt) }}" class="badge bg-light text-dark border me-1 mb-1 text-decoration-none">{{ vt }}</a>{% endfor %}
+    </div></div>
+  </div>
+  {% endif %}
+  <div class="col-lg-6">
+    <div class="card"><div class="card-header">Quick Actions</div><div class="card-body">
+      <div class="d-grid gap-2">
+        <a href="{{ url_for('search_page') }}" class="btn btn-primary"><i class="bi bi-search me-2"></i>Search for New Cases</a>
+        <a href="{{ url_for('download_page') }}" class="btn btn-outline-primary"><i class="bi bi-cloud-download me-2"></i>Download Case Texts</a>
+        <div class="btn-group">
+          <a href="{{ url_for('export_data', fmt='csv') }}" class="btn btn-outline-success"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+          <a href="{{ url_for('export_data', fmt='json') }}" class="btn btn-outline-success"><i class="bi bi-filetype-json me-1"></i>JSON</a>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

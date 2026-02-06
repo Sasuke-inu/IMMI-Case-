@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}{{ case.citation or case.title[:40] }}{% endblock %}
+
+{% block content %}
+<!-- Hero / header -->
+<div class="case-hero">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-2 small">
+      <li class="breadcrumb-item"><a href="{{ url_for('case_list') }}" class="text-decoration-none">Cases</a></li>
+      <li class="breadcrumb-item active">{{ case.citation or case.case_id[:12] }}</li>
+    </ol>
+  </nav>
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+      <div class="citation-display">
+        {{ case.citation or 'No citation' }}
+        {% if case.citation %}
+        <button class="copy-btn" onclick="copyText('{{ case.citation }}', this)" title="Copy citation"><i class="bi bi-clipboard"></i></button>
+        {% endif %}
+        <span class="badge badge-court badge-{{ case.court_code }} ms-1">{{ case.court_code }}</span>
+        {% if case.outcome %}
+          {% set ol = case.outcome.lower() %}
+          <span class="badge badge-outcome {% if 'affirm' in ol or 'dismiss' in ol or 'refus' in ol %}affirm{% elif 'set aside' in ol or 'allow' in ol or 'remit' in ol or 'grant' in ol %}setaside{% else %}unknown{% endif %}">
+            {% if 'affirm' in ol %}Affirmed{% elif 'dismiss' in ol %}Dismissed{% elif 'set aside' in ol %}Set aside{% elif 'allow' in ol %}Allowed{% elif 'remit' in ol %}Remitted{% elif 'grant' in ol %}Granted{% elif 'refus' in ol %}Refused{% else %}Decided{% endif %}
+          </span>
+        {% endif %}
+      </div>
+      <div class="case-title mt-1">{{ case.title }}</div>
+    </div>
+    <div class="d-flex gap-2 flex-shrink-0">
+      {% if case.url %}<a href="{{ case.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary"><i class="bi bi-box-arrow-up-right me-1"></i>Source</a>{% endif %}
+      <a href="{{ url_for('case_edit', case_id=case.case_id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1"></i>Edit</a>
+      <form method="post" action="{{ url_for('case_delete', case_id=case.case_id) }}" class="d-inline" onsubmit="return confirm('Delete this case permanently?')">
+        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Metadata grid -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">Case Details</div>
+      <div class="card-body">
+        <div class="meta-grid">
+          <div class="meta-item"><div class="meta-label">Court / Tribunal</div><div class="meta-value"><span class="badge badge-court badge-{{ case.court_code }} me-1">{{ case.court_code }}</span>{{ case.court }}</div></div>
+          <div class="meta-item"><div class="meta-label">Decision Date</div><div class="meta-value">{{ case.date or 'Unknown' }}</div></div>
+          <div class="meta-item"><div class="meta-label">Year</div><div class="meta-value">{{ case.year or 'Unknown' }}</div></div>
+          <div class="meta-item"><div class="meta-label">Judge(s) / Member(s)</div><div class="meta-value">{{ case.judges or 'Not extracted' }}</div></div>
+          <div class="meta-item"><div class="meta-label">Visa Type</div><div class="meta-value">{{ case.visa_type or 'Not detected' }}</div></div>
+          <div class="meta-item"><div class="meta-label">Source</div><div class="meta-value">{{ case.source }}</div></div>
+        </div>
+
+        {% if case.outcome %}
+        <div class="mt-3 p-2 rounded" style="background:#f8f9fa;">
+          <div class="meta-label mb-1">Outcome / Decision</div>
+          <div class="small">{{ case.outcome }}</div>
+        </div>
+        {% endif %}
+
+        {% if case.legislation %}
+        <div class="mt-2 p-2 rounded" style="background:#f8f9fa;">
+          <div class="meta-label mb-1">Legislation</div>
+          <div class="small">{{ case.legislation }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <!-- Notes & Tags -->
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        Notes & Tags
+        <a href="{{ url_for('case_edit', case_id=case.case_id) }}" class="btn btn-sm btn-outline-secondary py-0 px-1"><i class="bi bi-pencil"></i></a>
+      </div>
+      <div class="card-body">
+        {% if case.tags %}
+        <div class="mb-2">{% for tag in case.tags.split(',') %}{% set t = tag.strip() %}{% if t %}<a href="{{ url_for('case_list', tag=t) }}" class="badge bg-info text-dark me-1 text-decoration-none">{{ t }}</a>{% endif %}{% endfor %}</div>
+        {% endif %}
+        {% if case.user_notes %}
+        <div class="small" style="white-space:pre-wrap;">{{ case.user_notes }}</div>
+        {% else %}
+        <p class="text-muted small mb-0">No notes yet. <a href="{{ url_for('case_edit', case_id=case.case_id) }}">Add notes</a></p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Catchwords -->
+    <div class="card">
+      <div class="card-header">Catchwords</div>
+      <div class="card-body">
+        {% if case.catchwords %}
+        <div class="small">{{ case.catchwords }}</div>
+        {% else %}
+        <p class="text-muted small mb-0">Not extracted. Download full text to populate.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Full text viewer -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Full Case Text</span>
+    {% if full_text %}<span class="badge bg-success">{{ full_text | length }} chars</span>{% endif %}
+  </div>
+  {% if full_text %}
+  <div class="case-text-viewer">
+    <div class="text-toolbar">
+      <i class="bi bi-search" style="font-size:.8rem;"></i>
+      <input type="text" id="textSearch" placeholder="Search within case text..." oninput="searchInText(this.value)">
+      <span class="small text-muted" id="searchCount"></span>
+      <button class="btn btn-sm btn-outline-secondary py-0 ms-auto" onclick="window.print()" title="Print"><i class="bi bi-printer"></i></button>
+    </div>
+    <div class="text-content" id="caseTextContent">{{ full_text }}</div>
+  </div>
+  {% else %}
+  <div class="card-body">
+    <div class="empty-state py-4">
+      <div class="empty-icon" style="font-size:2rem;"><i class="bi bi-file-earmark-text"></i></div>
+      <p class="text-muted">Full text not yet downloaded.</p>
+      <a href="{{ url_for('download_page') }}" class="btn btn-outline-primary btn-sm">Download Case Texts</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(function() {
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="bi bi-check"></i>';
+    setTimeout(function() { btn.classList.remove('copied'); btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 2000);
+  });
+}
+function searchInText(query) {
+  var el = document.getElementById('caseTextContent');
+  var countEl = document.getElementById('searchCount');
+  if (!el._original) el._original = el.textContent;
+  if (!query || query.length < 2) { el.textContent = el._original; countEl.textContent = ''; return; }
+  var text = el._original;
+  var re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  var matches = text.match(re);
+  countEl.textContent = matches ? matches.length + ' found' : 'No matches';
+  el.innerHTML = text.replace(re, '<mark>$1</mark>');
+}
+</script>
+{% endblock %}

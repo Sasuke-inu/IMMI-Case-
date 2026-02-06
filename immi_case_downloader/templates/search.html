@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Search Cases{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+  <li class="breadcrumb-item active">Search for New Cases</li>
+</ol></nav>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div><h4 class="mb-0">Search for New Cases</h4><small class="text-muted">Find immigration, home affairs, and refugee cases from Australian courts &amp; tribunals</small></div>
+</div>
+
+<form method="post" id="searchForm">
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <!-- AustLII database cards -->
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-bank me-1"></i>AustLII Databases</span>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="toggleAll(true)">Select All</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="toggleAll(false)">Clear</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            {% for code, info in databases.items() %}
+            <div class="col-md-6 col-lg-4">
+              <label class="source-card d-flex align-items-start gap-2 w-100 {% if code in ('AATA', 'FCA', 'FCCA', 'FedCFamC2G') %}selected{% endif %}" for="db_{{ code }}" id="label_db_{{ code }}">
+                <div class="check-icon mt-1"><i class="bi bi-check-lg" style="font-size:.7rem;"></i></div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="badge badge-court badge-{{ code }}">{{ code }}</span>
+                  </div>
+                  <div class="source-name mt-1">{{ info.name }}</div>
+                  <div class="source-desc">{{ info.description }}</div>
+                </div>
+                <input type="checkbox" name="databases" value="{{ code }}" id="db_{{ code }}"
+                  {% if code in ('AATA', 'FCA', 'FCCA', 'FedCFamC2G') %}checked{% endif %}
+                  onchange="this.closest('.source-card').classList.toggle('selected', this.checked)">
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Federal Court source -->
+      <div class="card">
+        <div class="card-header"><i class="bi bi-globe me-1"></i>Other Sources</div>
+        <div class="card-body">
+          <label class="source-card d-flex align-items-start gap-2 w-100 selected" for="src_fedcourt" id="label_src_fedcourt">
+            <div class="check-icon mt-1"><i class="bi bi-check-lg" style="font-size:.7rem;"></i></div>
+            <div class="flex-grow-1">
+              <div class="source-code">Federal Court Judgment Search</div>
+              <div class="source-desc">search2.fedcourt.gov.au &mdash; direct search of Federal Court judgments database</div>
+            </div>
+            <input type="checkbox" name="sources" value="fedcourt" id="src_fedcourt" checked
+              onchange="this.closest('.source-card').classList.toggle('selected', this.checked)">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parameters sidebar -->
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-sliders me-1"></i>Search Parameters</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label small">Start Year</label>
+            <input type="number" name="start_year" class="form-control form-control-sm" value="{{ start_year }}" min="2000" max="2030">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">End Year</label>
+            <input type="number" name="end_year" class="form-control form-control-sm" value="{{ end_year }}" min="2000" max="2030">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Max Results per Database</label>
+            <select name="max_results" class="form-select form-select-sm">
+              <option value="100">100 (quick)</option>
+              <option value="250">250</option>
+              <option value="500" selected>500 (recommended)</option>
+              <option value="1000">1,000</option>
+              <option value="5000">5,000 (slow)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-grid gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-search me-2"></i>Start Search</button>
+      </div>
+      <div class="text-center mt-2">
+        <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Search runs in background. Monitor on <a href="{{ url_for('job_status_page') }}">Job Status</a> page.</small>
+      </div>
+
+      <!-- Info box -->
+      <div class="card mt-3 border-info">
+        <div class="card-body small">
+          <div class="fw-semibold mb-1"><i class="bi bi-lightbulb me-1 text-warning"></i>How it works</div>
+          <ol class="mb-0 ps-3" style="font-size:.8rem;">
+            <li class="mb-1">Searches selected databases for immigration-related cases within the date range</li>
+            <li class="mb-1">Filters by title keywords: (Migration), (Refugee), etc.</li>
+            <li class="mb-1">Saves results and merges with your existing records</li>
+            <li>Use the <a href="{{ url_for('download_page') }}">Download</a> page to fetch full judgment texts</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleAll(state) {
+  document.querySelectorAll('#searchForm .source-card input[type="checkbox"]').forEach(function(cb) {
+    cb.checked = state;
+    cb.closest('.source-card').classList.toggle('selected', state);
+  });
+}
+</script>
+{% endblock %}
