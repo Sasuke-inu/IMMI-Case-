@@ -2,192 +2,211 @@
 {% block title %}Data Dictionary{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Data Dictionary - Spreadsheet Fields</h2>
-<p class="text-muted">Below are all the data points captured for each immigration case. These columns appear in the exported CSV/JSON files.</p>
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+  <li class="breadcrumb-item active">Data Dictionary</li>
+</ol></nav>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div><h4 class="mb-0">Data Dictionary</h4><small class="text-muted">All data points captured for each immigration case</small></div>
+  <div class="d-flex gap-1">
+    <a href="{{ url_for('export_data', fmt='csv') }}" class="btn btn-sm btn-outline-success"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+    <a href="{{ url_for('export_data', fmt='json') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-filetype-json me-1"></i>JSON</a>
+  </div>
+</div>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-header bg-primary text-white"><h6 class="mb-0">Core Identification Fields</h6></div>
+<!-- Data population stages overview -->
+<div class="card mb-4">
+  <div class="card-header"><i class="bi bi-diagram-3 me-1"></i>Data Population Pipeline</div>
+  <div class="card-body">
+    <div class="row g-3 text-center">
+      <div class="col-md-4">
+        <div class="stage-badge search mb-2"><i class="bi bi-search"></i> Stage 1: Search</div>
+        <div class="small text-muted">Core identification fields scraped from court listing pages</div>
+        <div class="mt-1"><code class="me-1">citation</code><code class="me-1">title</code><code class="me-1">court</code><code class="me-1">court_code</code><code class="me-1">year</code><code class="me-1">url</code><code>source</code></div>
+      </div>
+      <div class="col-md-4">
+        <div class="stage-badge download mb-2"><i class="bi bi-cloud-download"></i> Stage 2: Download</div>
+        <div class="small text-muted">Detailed fields extracted from full judgment text via pattern matching</div>
+        <div class="mt-1"><code class="me-1">judges</code><code class="me-1">date</code><code class="me-1">catchwords</code><code class="me-1">outcome</code><code class="me-1">visa_type</code><code class="me-1">legislation</code><code>full_text_path</code></div>
+      </div>
+      <div class="col-md-4">
+        <div class="stage-badge user mb-2"><i class="bi bi-pencil"></i> Stage 3: Your Edits</div>
+        <div class="small text-muted">Your personal annotations, plus corrections to any field</div>
+        <div class="mt-1"><code class="me-1">user_notes</code><code>tags</code></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Core ID fields -->
+<div class="card dict-section mb-3">
+  <div class="card-header"><span class="stage-badge search me-2"><i class="bi bi-key"></i> Core</span>Identification Fields</div>
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead class="table-light"><tr><th style="width:160px">Column</th><th style="width:120px">Type</th><th>Description</th><th>Example</th></tr></thead>
+    <table class="table table-hover table-sm mb-0">
+      <thead class="table-light"><tr><th style="width:140px">Column</th><th style="width:100px">Type</th><th>Description</th><th style="width:260px">Example</th></tr></thead>
       <tbody>
         <tr>
           <td><code>case_id</code></td>
-          <td>Text (12 chars)</td>
-          <td>Auto-generated unique identifier (SHA-256 hash of citation/URL). Used internally to link records.</td>
-          <td><code>a3f8b2c1d4e5</code></td>
+          <td class="small">Text (12)</td>
+          <td class="small">Auto-generated unique identifier (SHA-256 hash of citation/URL). Used internally to link records.</td>
+          <td class="small"><code>a3f8b2c1d4e5</code></td>
         </tr>
         <tr>
           <td><code>citation</code></td>
-          <td>Text</td>
-          <td><strong>Legal citation</strong> &mdash; the official reference used to cite the case in legal documents. Format: <code>[Year] CourtCode Number</code>.</td>
-          <td><code>[2024] AATA 1234</code><br><code>[2023] FCA 567</code></td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Legal citation</strong> &mdash; the official reference for citing in legal documents. Format: <code>[Year] CourtCode Number</code></td>
+          <td class="small"><code>[2024] AATA 1234</code></td>
         </tr>
         <tr>
           <td><code>title</code></td>
-          <td>Text</td>
-          <td><strong>Case title / parties</strong> &mdash; typically the applicant's name (or anonymized code) vs. the Minister/Department. AATA cases include a marker like <code>(Migration)</code> or <code>(Refugee)</code>.</td>
-          <td><code>JSWC and Minister for Immigration, Citizenship and Multicultural Affairs (Migration) [2024] AATA 2</code></td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Case title / parties</strong> &mdash; typically applicant vs. Minister/Department. AATA cases include <code>(Migration)</code> or <code>(Refugee)</code> markers.</td>
+          <td class="small"><code>JSWC and Minister for Immigration... (Migration)</code></td>
         </tr>
       </tbody>
     </table>
   </div>
 </div>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-header bg-primary text-white"><h6 class="mb-0">Court & Date Fields</h6></div>
+<!-- Court & Date fields -->
+<div class="card dict-section mb-3">
+  <div class="card-header"><span class="stage-badge search me-2"><i class="bi bi-bank"></i> Court</span>Court &amp; Date Fields</div>
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead class="table-light"><tr><th style="width:160px">Column</th><th style="width:120px">Type</th><th>Description</th><th>Example</th></tr></thead>
+    <table class="table table-hover table-sm mb-0">
+      <thead class="table-light"><tr><th style="width:140px">Column</th><th style="width:100px">Type</th><th>Description</th><th style="width:260px">Example</th></tr></thead>
       <tbody>
         <tr>
           <td><code>court</code></td>
-          <td>Text</td>
-          <td><strong>Full court name</strong> &mdash; the court or tribunal that decided the case.</td>
-          <td><code>Administrative Appeals Tribunal</code><br><code>Federal Court of Australia</code></td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Full court name</strong> of the deciding court or tribunal.</td>
+          <td class="small"><code>Administrative Appeals Tribunal</code></td>
         </tr>
         <tr>
           <td><code>court_code</code></td>
-          <td>Text (short)</td>
-          <td><strong>Court abbreviation</strong> used in citations and for filtering.</td>
-          <td><code>AATA</code>, <code>FCA</code>, <code>FCCA</code>, <code>FedCFamC2G</code>, <code>HCA</code>, <code>RRTA</code>, <code>MRTA</code></td>
+          <td class="small">Text (short)</td>
+          <td class="small"><strong>Court abbreviation</strong> used in citations and for filtering.</td>
+          <td class="small">
+            <span class="badge badge-court badge-AATA me-1">AATA</span>
+            <span class="badge badge-court badge-FCA me-1">FCA</span>
+            <span class="badge badge-court badge-FCCA me-1">FCCA</span>
+            <span class="badge badge-court badge-HCA me-1">HCA</span>
+            <span class="badge badge-court badge-RRTA me-1">RRTA</span>
+            <span class="badge badge-court badge-MRTA">MRTA</span>
+          </td>
         </tr>
         <tr>
           <td><code>date</code></td>
-          <td>Text</td>
-          <td><strong>Decision date</strong> &mdash; when the judgment or decision was handed down. Extracted from the case document.</td>
-          <td><code>2 January 2024</code><br><code>15 March 2023</code></td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Decision date</strong> when the judgment was handed down. Extracted from the case document.</td>
+          <td class="small"><code>2 January 2024</code></td>
         </tr>
         <tr>
           <td><code>year</code></td>
-          <td>Integer</td>
-          <td><strong>Decision year</strong> &mdash; numeric year for easy filtering and sorting.</td>
-          <td><code>2024</code></td>
+          <td class="small">Integer</td>
+          <td class="small"><strong>Decision year</strong> for easy filtering and sorting.</td>
+          <td class="small"><code>2024</code></td>
         </tr>
       </tbody>
     </table>
   </div>
 </div>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-header bg-primary text-white"><h6 class="mb-0">Case Content Fields</h6></div>
+<!-- Case content fields -->
+<div class="card dict-section mb-3">
+  <div class="card-header"><span class="stage-badge download me-2"><i class="bi bi-file-earmark-text"></i> Content</span>Case Content Fields</div>
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead class="table-light"><tr><th style="width:160px">Column</th><th style="width:120px">Type</th><th>Description</th><th>Example</th></tr></thead>
+    <table class="table table-hover table-sm mb-0">
+      <thead class="table-light"><tr><th style="width:140px">Column</th><th style="width:100px">Type</th><th>Description</th><th style="width:260px">Example</th></tr></thead>
       <tbody>
         <tr>
           <td><code>judges</code></td>
-          <td>Text</td>
-          <td><strong>Decision-maker(s)</strong> &mdash; name of the judge, justice, or tribunal member who decided the case. Extracted from the case document header.</td>
-          <td><code>Gabrielle Cullen</code><br><code>Rares J</code></td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Decision-maker(s)</strong> &mdash; judge, justice, or tribunal member. Extracted from case document header.</td>
+          <td class="small"><code>Gabrielle Cullen</code></td>
         </tr>
         <tr>
           <td><code>catchwords</code></td>
-          <td>Text (long)</td>
-          <td><strong>Legal catchwords/topics</strong> &mdash; standardized keywords summarizing the legal issues. These are assigned by the court and appear at the top of judgments.</td>
-          <td><code>MIGRATION - Protection visa - whether applicant is a person in respect of whom Australia has protection obligations...</code></td>
+          <td class="small">Text (long)</td>
+          <td class="small"><strong>Legal catchwords/topics</strong> &mdash; standardized keywords summarizing legal issues, assigned by the court.</td>
+          <td class="small"><code>MIGRATION - Protection visa - whether applicant...</code></td>
         </tr>
         <tr>
           <td><code>outcome</code></td>
-          <td>Text</td>
-          <td><strong>Decision outcome</strong> &mdash; what the court/tribunal actually decided. Typically: affirm, set aside, remit, dismiss, allow, refuse.</td>
-          <td><code>The Tribunal affirms the decision under review</code><br><code>Appeal dismissed with costs</code></td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Decision outcome</strong> &mdash; what the court decided. Displayed as colour-coded badges: <span class="badge badge-outcome affirm">Affirmed</span> <span class="badge badge-outcome setaside">Set aside</span></td>
+          <td class="small"><code>The Tribunal affirms the decision under review</code></td>
         </tr>
         <tr>
           <td><code>visa_type</code></td>
-          <td>Text</td>
-          <td><strong>Visa type involved</strong> &mdash; automatically detected from case text. Identifies which visa subclass or category is at issue.</td>
-          <td><code>protection visa</code><br><code>Subclass 500 visa</code><br><code>partner visa</code><br><code>bridging visa</code></td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Visa type involved</strong> &mdash; auto-detected from case text. Identifies visa subclass or category.</td>
+          <td class="small"><code>protection visa</code>, <code>partner visa</code></td>
         </tr>
         <tr>
           <td><code>legislation</code></td>
-          <td>Text</td>
-          <td><strong>Legislation cited</strong> &mdash; key Acts and sections referenced in the case.</td>
-          <td><code>Migration Act 1958 s 36; Migration Regulations 1994</code></td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Legislation cited</strong> &mdash; key Acts and sections referenced.</td>
+          <td class="small"><code>Migration Act 1958 s 36</code></td>
         </tr>
         <tr>
           <td><code>text_snippet</code></td>
-          <td>Text</td>
-          <td><strong>Short excerpt</strong> &mdash; brief snippet from search results or case summary.</td>
-          <td>(first ~300 chars of case summary)</td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Short excerpt</strong> from search results or case summary.</td>
+          <td class="small">(first ~300 chars)</td>
         </tr>
       </tbody>
     </table>
   </div>
 </div>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-header bg-primary text-white"><h6 class="mb-0">Source & File Fields</h6></div>
+<!-- Source & File fields -->
+<div class="card dict-section mb-3">
+  <div class="card-header"><span class="stage-badge search me-2"><i class="bi bi-link-45deg"></i> Source</span>Source &amp; File Fields</div>
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead class="table-light"><tr><th style="width:160px">Column</th><th style="width:120px">Type</th><th>Description</th><th>Example</th></tr></thead>
+    <table class="table table-hover table-sm mb-0">
+      <thead class="table-light"><tr><th style="width:140px">Column</th><th style="width:100px">Type</th><th>Description</th><th style="width:260px">Example</th></tr></thead>
       <tbody>
         <tr>
           <td><code>url</code></td>
-          <td>URL</td>
-          <td><strong>Source URL</strong> &mdash; direct link to the case on AustLII or the Federal Court website.</td>
-          <td><code>https://www.austlii.edu.au/cgi-bin/viewdoc/au/cases/cth/AATA/2024/16.html</code></td>
+          <td class="small">URL</td>
+          <td class="small"><strong>Source URL</strong> &mdash; direct link to the case on AustLII or the Federal Court website.</td>
+          <td class="small"><code>https://www.austlii.edu.au/.../2024/16.html</code></td>
         </tr>
         <tr>
           <td><code>full_text_path</code></td>
-          <td>File path</td>
-          <td><strong>Local file path</strong> to the downloaded full-text .txt file (populated after running the download step).</td>
-          <td><code>downloaded_cases/case_texts/[2024] AATA 16.txt</code></td>
+          <td class="small">File path</td>
+          <td class="small"><strong>Local file path</strong> to the downloaded full-text .txt file (populated after download step).</td>
+          <td class="small"><code>downloaded_cases/case_texts/[2024] AATA 16.txt</code></td>
         </tr>
         <tr>
           <td><code>source</code></td>
-          <td>Text</td>
-          <td><strong>Data source</strong> &mdash; which database the case was found in.</td>
-          <td><code>AustLII</code>, <code>Federal Court</code>, <code>Manual Entry</code></td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Data source</strong> &mdash; which database the case was found in.</td>
+          <td class="small"><code>AustLII</code>, <code>Federal Court</code>, <code>Manual Entry</code></td>
         </tr>
       </tbody>
     </table>
   </div>
 </div>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-header bg-success text-white"><h6 class="mb-0">User-Editable Fields (your own annotations)</h6></div>
+<!-- User fields -->
+<div class="card dict-section mb-3">
+  <div class="card-header"><span class="stage-badge user me-2"><i class="bi bi-pencil"></i> User</span>Your Annotations</div>
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead class="table-light"><tr><th style="width:160px">Column</th><th style="width:120px">Type</th><th>Description</th><th>Example</th></tr></thead>
+    <table class="table table-hover table-sm mb-0">
+      <thead class="table-light"><tr><th style="width:140px">Column</th><th style="width:100px">Type</th><th>Description</th><th style="width:260px">Example</th></tr></thead>
       <tbody>
         <tr>
           <td><code>user_notes</code></td>
-          <td>Text (long)</td>
-          <td><strong>Your personal notes</strong> &mdash; analysis, observations, cross-references, or reminders. Editable via the web interface.</td>
-          <td><code>Key case for s501 character test. Compare with XYZ [2023] FCA 100.</code></td>
+          <td class="small">Text (long)</td>
+          <td class="small"><strong>Your personal notes</strong> &mdash; analysis, observations, cross-references. Editable via web interface.</td>
+          <td class="small"><code>Key case for s501 character test. Compare with XYZ [2023] FCA 100.</code></td>
         </tr>
         <tr>
           <td><code>tags</code></td>
-          <td>Text (comma-sep)</td>
-          <td><strong>Custom tags</strong> &mdash; your own labels for categorizing and filtering cases. Comma-separated.</td>
-          <td><code>important, character-test, s501, appeal-won</code></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<div class="card shadow-sm">
-  <div class="card-header"><h6 class="mb-0">Data Population Stages</h6></div>
-  <div class="card-body">
-    <table class="table table-sm">
-      <thead><tr><th>Stage</th><th>Fields Populated</th><th>How</th></tr></thead>
-      <tbody>
-        <tr>
-          <td><span class="badge bg-primary">1. Search</span></td>
-          <td><code>citation</code>, <code>title</code>, <code>court</code>, <code>court_code</code>, <code>year</code>, <code>url</code>, <code>source</code></td>
-          <td>Scraped from AustLII / Federal Court listing pages</td>
-        </tr>
-        <tr>
-          <td><span class="badge bg-warning text-dark">2. Download</span></td>
-          <td><code>judges</code>, <code>date</code>, <code>catchwords</code>, <code>outcome</code>, <code>visa_type</code>, <code>legislation</code>, <code>full_text_path</code></td>
-          <td>Extracted from full case text using pattern matching</td>
-        </tr>
-        <tr>
-          <td><span class="badge bg-success">3. User Edit</span></td>
-          <td><code>user_notes</code>, <code>tags</code>, plus corrections to any field</td>
-          <td>Manually entered/updated via web interface or spreadsheet</td>
+          <td class="small">Text (CSV)</td>
+          <td class="small"><strong>Custom tags</strong> &mdash; your own labels for categorization. Comma-separated, filterable in Browse view.</td>
+          <td class="small"><code>important, character-test, s501</code></td>
         </tr>
       </tbody>
     </table>

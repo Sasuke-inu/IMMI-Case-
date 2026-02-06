@@ -57,6 +57,12 @@ _job_status = {
 }
 
 
+@app.context_processor
+def inject_globals():
+    """Inject global template variables (job status, etc.)."""
+    return {"job_running": _job_status.get("running", False)}
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────
 
 def _get_output_dir():

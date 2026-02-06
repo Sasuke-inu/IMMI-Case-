@@ -1,0 +1,29 @@
+<nav class="nav flex-column py-2">
+  <div class="sidebar-section">Main</div>
+  <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+    <i class="bi bi-speedometer2 me-2"></i>Dashboard
+  </a>
+  <a class="nav-link {% if request.endpoint in ('case_list','case_detail','case_edit') %}active{% endif %}" href="{{ url_for('case_list') }}">
+    <i class="bi bi-folder2-open me-2"></i>Browse Cases
+  </a>
+
+  <div class="sidebar-section">Actions</div>
+  <a class="nav-link {% if request.endpoint == 'search_page' %}active{% endif %}" href="{{ url_for('search_page') }}">
+    <i class="bi bi-search me-2"></i>Search New Cases
+  </a>
+  <a class="nav-link {% if request.endpoint == 'download_page' %}active{% endif %}" href="{{ url_for('download_page') }}">
+    <i class="bi bi-cloud-download me-2"></i>Download Texts
+  </a>
+  <a class="nav-link {% if request.endpoint == 'case_add' %}active{% endif %}" href="{{ url_for('case_add') }}">
+    <i class="bi bi-plus-circle me-2"></i>Add Case
+  </a>
+  <a class="nav-link {% if request.endpoint == 'job_status_page' %}active{% endif %}" href="{{ url_for('job_status_page') }}">
+    <i class="bi bi-activity me-2"></i>Job Status
+    {% if job_running %}<span class="spinner-grow spinner-grow-sm text-warning ms-auto" style="width:.5rem;height:.5rem;"></span>{% endif %}
+  </a>
+
+  <div class="sidebar-section">Reference</div>
+  <a class="nav-link {% if request.endpoint == 'data_dictionary' %}active{% endif %}" href="{{ url_for('data_dictionary') }}">
+    <i class="bi bi-book me-2"></i>Data Dictionary
+  </a>
+</nav>

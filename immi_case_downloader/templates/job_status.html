@@ -2,99 +2,150 @@
 {% block title %}Job Status{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Job Status</h2>
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+  <li class="breadcrumb-item active">Job Status</li>
+</ol></nav>
+<h4 class="mb-3">Job Status</h4>
 
-<div class="card shadow-sm" id="job-card">
+<div class="card" id="job-card">
+  {% if job.running %}
+  <!-- Active job -->
+  <div class="card-header d-flex align-items-center gap-2">
+    <span class="spinner-border spinner-border-sm text-primary"></span>
+    <span class="fw-semibold">{{ job.type | capitalize }} in Progress</span>
+    <span class="ms-auto badge bg-primary" id="elapsed-badge">Running...</span>
+  </div>
   <div class="card-body">
-    {% if job.running %}
-    <div class="d-flex align-items-center mb-3">
-      <div class="spinner-border text-primary me-3" role="status"></div>
-      <div>
-        <h5 class="mb-0">{{ job.type | capitalize }} in Progress</h5>
-        <p class="text-muted mb-0" id="progress-text">{{ job.progress }}</p>
-      </div>
-    </div>
+    <p class="text-muted small mb-2" id="progress-text">{{ job.progress }}</p>
 
     {% if job.total > 0 %}
-    <div class="progress mb-3" style="height: 24px;">
-      <div class="progress-bar progress-bar-striped progress-bar-animated"
-           id="progress-bar"
-           style="width: {{ (job.completed / job.total * 100) | int }}%">
-        {{ job.completed }} / {{ job.total }}
+    {% set pct = (job.completed / job.total * 100) | int %}
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <div class="progress flex-grow-1" style="height:20px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated {% if pct > 80 %}bg-success{% endif %}"
+             id="progress-bar" role="progressbar"
+             style="width:{{ pct }}%">
+          {{ job.completed }} / {{ job.total }}
+        </div>
       </div>
+      <span class="small fw-semibold text-muted" id="progress-pct">{{ pct }}%</span>
     </div>
     {% endif %}
 
-    {% else %}
-
-    {% if job.type %}
-    <div class="d-flex align-items-center mb-3">
-      <i class="bi bi-check-circle-fill fs-3 text-success me-3"></i>
-      <div>
-        <h5 class="mb-0">{{ job.type | capitalize }} Complete</h5>
-        <p class="text-muted mb-0">{{ job.progress }}</p>
-      </div>
-    </div>
-    {% else %}
-    <div class="text-center py-4">
-      <i class="bi bi-clock-history fs-1 text-muted"></i>
-      <p class="text-muted mt-2">No jobs running. Start a <a href="{{ url_for('search_page') }}">search</a> or <a href="{{ url_for('download_page') }}">download</a>.</p>
-    </div>
-    {% endif %}
-    {% endif %}
-
+    <!-- Live results feed -->
     {% if job.results %}
-    <h6>Results</h6>
-    <ul class="list-group list-group-flush mb-3">
-      {% for r in job.results %}
-      <li class="list-group-item py-1 small"><i class="bi bi-check text-success me-1"></i>{{ r }}</li>
-      {% endfor %}
-    </ul>
+    <div class="mb-3">
+      <div class="small fw-semibold text-muted mb-1">Recent Activity</div>
+      <div class="job-timeline" id="results-feed" style="max-height:200px; overflow-y:auto;">
+        {% for r in job.results[-10:] %}
+        <div class="timeline-item"><div class="timeline-dot success"></div><div>{{ r }}</div></div>
+        {% endfor %}
+      </div>
+    </div>
     {% endif %}
 
     {% if job.errors %}
-    <h6 class="text-danger">Errors ({{ job.errors | length }})</h6>
-    <div class="border border-danger rounded p-2" style="max-height: 200px; overflow-y: auto;">
-      {% for e in job.errors %}
-      <div class="small text-danger">{{ e }}</div>
-      {% endfor %}
+    <details class="mb-2">
+      <summary class="small text-danger fw-semibold"><i class="bi bi-exclamation-triangle me-1"></i>Errors ({{ job.errors | length }})</summary>
+      <div class="border border-danger rounded p-2 mt-1" style="max-height:150px; overflow-y:auto;">
+        {% for e in job.errors %}
+        <div class="timeline-item"><div class="timeline-dot error"></div><div class="small text-danger">{{ e }}</div></div>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
+  </div>
+
+  {% elif job.type %}
+  <!-- Completed job -->
+  <div class="card-header d-flex align-items-center gap-2">
+    <i class="bi bi-check-circle-fill text-success"></i>
+    <span class="fw-semibold">{{ job.type | capitalize }} Complete</span>
+  </div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">{{ job.progress }}</p>
+
+    {% if job.results %}
+    <div class="mb-3">
+      <div class="small fw-semibold text-muted mb-1">Results ({{ job.results | length }})</div>
+      <div class="job-timeline" style="max-height:300px; overflow-y:auto;">
+        {% for r in job.results %}
+        <div class="timeline-item"><div class="timeline-dot success"></div><div>{{ r }}</div></div>
+        {% endfor %}
+      </div>
     </div>
     {% endif %}
 
-    {% if not job.running and job.type %}
-    <hr>
-    <a href="{{ url_for('case_list') }}" class="btn btn-primary"><i class="bi bi-folder2-open me-1"></i>View Cases</a>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+    {% if job.errors %}
+    <details class="mb-3">
+      <summary class="small text-danger fw-semibold"><i class="bi bi-exclamation-triangle me-1"></i>Errors ({{ job.errors | length }})</summary>
+      <div class="border border-danger rounded p-2 mt-1" style="max-height:150px; overflow-y:auto;">
+        {% for e in job.errors %}
+        <div class="timeline-item"><div class="timeline-dot error"></div><div class="small text-danger">{{ e }}</div></div>
+        {% endfor %}
+      </div>
+    </details>
     {% endif %}
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('case_list') }}" class="btn btn-primary btn-sm"><i class="bi bi-folder2-open me-1"></i>View Cases</a>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+      <a href="{{ url_for('search_page') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-search me-1"></i>New Search</a>
+      <a href="{{ url_for('download_page') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-cloud-download me-1"></i>Download More</a>
+    </div>
   </div>
+
+  {% else %}
+  <!-- No job -->
+  <div class="card-body">
+    <div class="empty-state py-4">
+      <div class="empty-icon" style="font-size:2.5rem;"><i class="bi bi-clock-history"></i></div>
+      <h5>No Active Jobs</h5>
+      <p>Start a search or download to see progress here.</p>
+      <div class="d-flex gap-2 justify-content-center mt-3">
+        <a href="{{ url_for('search_page') }}" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Search Cases</a>
+        <a href="{{ url_for('download_page') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-cloud-download me-1"></i>Download Texts</a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
 {% if job.running %}
 <script>
-  // Auto-refresh job status every 3 seconds
-  function refreshStatus() {
-    fetch('{{ url_for("job_status_api") }}')
-      .then(r => r.json())
-      .then(data => {
-        document.getElementById('progress-text').textContent = data.progress;
-        if (data.total > 0) {
-          const pct = Math.round(data.completed / data.total * 100);
-          const bar = document.getElementById('progress-bar');
-          bar.style.width = pct + '%';
-          bar.textContent = data.completed + ' / ' + data.total;
-        }
-        if (!data.running) {
-          // Job finished, reload page for final state
-          window.location.reload();
-        } else {
-          setTimeout(refreshStatus, 3000);
-        }
-      })
-      .catch(() => setTimeout(refreshStatus, 5000));
-  }
-  setTimeout(refreshStatus, 3000);
+var startTime = Date.now();
+function updateElapsed() {
+  var secs = Math.floor((Date.now() - startTime) / 1000);
+  var m = Math.floor(secs / 60), s = secs % 60;
+  document.getElementById('elapsed-badge').textContent = (m > 0 ? m + 'm ' : '') + s + 's elapsed';
+}
+setInterval(updateElapsed, 1000);
+
+function refreshStatus() {
+  fetch('{{ url_for("job_status_api") }}')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      document.getElementById('progress-text').textContent = data.progress;
+      if (data.total > 0) {
+        var pct = Math.round(data.completed / data.total * 100);
+        var bar = document.getElementById('progress-bar');
+        bar.style.width = pct + '%';
+        bar.textContent = data.completed + ' / ' + data.total;
+        var pctEl = document.getElementById('progress-pct');
+        if (pctEl) pctEl.textContent = pct + '%';
+      }
+      if (!data.running) {
+        window.location.reload();
+      } else {
+        setTimeout(refreshStatus, 3000);
+      }
+    })
+    .catch(function() { setTimeout(refreshStatus, 5000); });
+}
+setTimeout(refreshStatus, 3000);
 </script>
 {% endif %}
 {% endblock %}

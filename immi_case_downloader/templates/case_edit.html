@@ -1,92 +1,46 @@
 {% extends "base.html" %}
 {% block title %}Edit {{ case.citation or case.title[:40] }}{% endblock %}
-
 {% block content %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{{ url_for('case_list') }}">Cases</a></li>
-    <li class="breadcrumb-item"><a href="{{ url_for('case_detail', case_id=case.case_id) }}">{{ case.citation or case.case_id }}</a></li>
-    <li class="breadcrumb-item active">Edit</li>
-  </ol>
-</nav>
-
-<h3 class="mb-4">Edit Case</h3>
-
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('case_list') }}">Cases</a></li>
+  <li class="breadcrumb-item"><a href="{{ url_for('case_detail', case_id=case.case_id) }}">{{ case.citation or case.case_id[:12] }}</a></li>
+  <li class="breadcrumb-item active">Edit</li>
+</ol></nav>
+<h4 class="mb-3">Edit Case</h4>
 <form method="post">
-  <div class="row g-4">
+  <div class="row g-3">
     <div class="col-lg-8">
-      <div class="card shadow-sm">
-        <div class="card-header"><h6 class="mb-0">Case Metadata</h6></div>
+      <div class="card">
+        <div class="card-header">Case Metadata</div>
         <div class="card-body">
           <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label">Citation</label>
-              <input type="text" name="citation" class="form-control" value="{{ case.citation }}" placeholder="e.g. [2024] AATA 1234">
-            </div>
-            <div class="col-12">
-              <label class="form-label">Title</label>
-              <input type="text" name="title" class="form-control" value="{{ case.title }}">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Court</label>
-              <input type="text" name="court" class="form-control" value="{{ case.court }}" placeholder="Full name">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Court Code</label>
-              <input type="text" name="court_code" class="form-control" value="{{ case.court_code }}" placeholder="e.g. AATA">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Year</label>
-              <input type="number" name="year" class="form-control" value="{{ case.year }}" min="1900" max="2100">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Decision Date</label>
-              <input type="text" name="date" class="form-control" value="{{ case.date }}" placeholder="e.g. 15 March 2024">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Judge(s) / Member(s)</label>
-              <input type="text" name="judges" class="form-control" value="{{ case.judges }}">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Visa Type</label>
-              <input type="text" name="visa_type" class="form-control" value="{{ case.visa_type }}" placeholder="e.g. protection visa">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">URL</label>
-              <input type="url" name="url" class="form-control" value="{{ case.url }}">
-            </div>
-            <div class="col-12">
-              <label class="form-label">Catchwords</label>
-              <textarea name="catchwords" class="form-control" rows="2">{{ case.catchwords }}</textarea>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Outcome / Decision</label>
-              <textarea name="outcome" class="form-control" rows="2">{{ case.outcome }}</textarea>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Legislation</label>
-              <textarea name="legislation" class="form-control" rows="2">{{ case.legislation }}</textarea>
-            </div>
+            <div class="col-md-6"><label class="form-label small">Citation</label><input type="text" name="citation" class="form-control form-control-sm" value="{{ case.citation }}" placeholder="[2024] AATA 1234"></div>
+            <div class="col-12"><label class="form-label small">Title</label><input type="text" name="title" class="form-control form-control-sm" value="{{ case.title }}"></div>
+            <div class="col-md-5"><label class="form-label small">Court</label><input type="text" name="court" class="form-control form-control-sm" value="{{ case.court }}"></div>
+            <div class="col-md-3"><label class="form-label small">Court Code</label>
+              <select name="court_code" class="form-select form-select-sm"><option value="">--</option>{% for code in ['AATA','FCA','FCCA','FedCFamC2G','HCA','RRTA','MRTA'] %}<option value="{{ code }}" {% if case.court_code == code %}selected{% endif %}>{{ code }}</option>{% endfor %}</select></div>
+            <div class="col-md-2"><label class="form-label small">Year</label><input type="number" name="year" class="form-control form-control-sm" value="{{ case.year }}" min="1900" max="2100"></div>
+            <div class="col-md-2"><label class="form-label small">Date</label><input type="text" name="date" class="form-control form-control-sm" value="{{ case.date }}" placeholder="15 Mar 2024"></div>
+            <div class="col-md-6"><label class="form-label small">Judge(s)</label><input type="text" name="judges" class="form-control form-control-sm" value="{{ case.judges }}"></div>
+            <div class="col-md-6"><label class="form-label small">Visa Type</label><input type="text" name="visa_type" class="form-control form-control-sm" value="{{ case.visa_type }}"></div>
+            <div class="col-12"><label class="form-label small">URL</label><input type="url" name="url" class="form-control form-control-sm" value="{{ case.url }}"></div>
+            <div class="col-12"><label class="form-label small">Catchwords</label><textarea name="catchwords" class="form-control form-control-sm" rows="2">{{ case.catchwords }}</textarea></div>
+            <div class="col-12"><label class="form-label small">Outcome</label><textarea name="outcome" class="form-control form-control-sm" rows="2">{{ case.outcome }}</textarea></div>
+            <div class="col-12"><label class="form-label small">Legislation</label><textarea name="legislation" class="form-control form-control-sm" rows="2">{{ case.legislation }}</textarea></div>
           </div>
         </div>
       </div>
     </div>
-
     <div class="col-lg-4">
-      <div class="card shadow-sm mb-3">
-        <div class="card-header"><h6 class="mb-0">Your Notes</h6></div>
+      <div class="card mb-3">
+        <div class="card-header">Your Annotations</div>
         <div class="card-body">
-          <div class="mb-3">
-            <label class="form-label">Tags <small class="text-muted">(comma separated)</small></label>
-            <input type="text" name="tags" class="form-control" value="{{ case.tags }}" placeholder="e.g. important, appeal, s501">
-          </div>
-          <div>
-            <label class="form-label">Notes</label>
-            <textarea name="user_notes" class="form-control" rows="6" placeholder="Your analysis, observations, or reminders...">{{ case.user_notes }}</textarea>
-          </div>
+          <label class="form-label small">Tags <span class="text-muted">(comma separated)</span></label>
+          <input type="text" name="tags" class="form-control form-control-sm mb-3" value="{{ case.tags }}" placeholder="important, s501, appeal-won">
+          <label class="form-label small">Notes</label>
+          <textarea name="user_notes" class="form-control form-control-sm" rows="8" placeholder="Your analysis, observations...">{{ case.user_notes }}</textarea>
         </div>
       </div>
-
       <div class="d-grid gap-2">
         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
         <a href="{{ url_for('case_detail', case_id=case.case_id) }}" class="btn btn-outline-secondary">Cancel</a>

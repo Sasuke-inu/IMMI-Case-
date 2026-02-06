@@ -2,76 +2,124 @@
 {% block title %}Download Case Texts{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Download Full Case Texts</h2>
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+  <li class="breadcrumb-item active">Download Case Texts</li>
+</ol></nav>
+<h4 class="mb-3">Download Full Case Texts</h4>
 
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <div class="card stat-card blue shadow-sm">
-      <div class="card-body text-center">
-        <div class="text-muted small">Total Cases</div>
-        <div class="fs-2 fw-bold">{{ total_cases }}</div>
+{% set downloaded = total_cases - without_text %}
+{% set pct = ((downloaded / total_cases) * 100) | int if total_cases > 0 else 0 %}
+{% set circ = 377 %}
+{% set offset = circ - (circ * pct / 100) %}
+
+<div class="row g-3 mb-4 align-items-center">
+  <!-- Completion ring -->
+  <div class="col-auto">
+    <div class="completion-ring">
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        <circle class="ring-bg" cx="70" cy="70" r="60" />
+        <circle class="ring-progress" cx="70" cy="70" r="60" stroke-dasharray="{{ circ }}" stroke-dashoffset="{{ offset }}" />
+      </svg>
+      <div class="ring-text">
+        <div class="ring-pct">{{ pct }}%</div>
+        <div class="ring-label">downloaded</div>
       </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card stat-card orange shadow-sm">
-      <div class="card-body text-center">
-        <div class="text-muted small">Awaiting Download</div>
-        <div class="fs-2 fw-bold text-warning">{{ without_text }}</div>
+
+  <!-- Stats -->
+  <div class="col">
+    <div class="row g-2">
+      <div class="col-sm-4">
+        <div class="card stat-card blue">
+          <div class="card-body py-2 text-center">
+            <div class="stat-label">Total Cases</div>
+            <div class="stat-value" style="font-size:1.4rem;">{{ "{:,}".format(total_cases) }}</div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card stat-card green shadow-sm">
-      <div class="card-body text-center">
-        <div class="text-muted small">Already Downloaded</div>
-        <div class="fs-2 fw-bold text-success">{{ total_cases - without_text }}</div>
+      <div class="col-sm-4">
+        <div class="card stat-card green">
+          <div class="card-body py-2 text-center">
+            <div class="stat-label">Downloaded</div>
+            <div class="stat-value text-success" style="font-size:1.4rem;">{{ "{:,}".format(downloaded) }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="card stat-card orange">
+          <div class="card-body py-2 text-center">
+            <div class="stat-label">Remaining</div>
+            <div class="stat-value text-warning" style="font-size:1.4rem;">{{ "{:,}".format(without_text) }}</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 {% if without_text > 0 %}
-<div class="card shadow-sm">
-  <div class="card-header"><h6 class="mb-0">Download Options</h6></div>
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-cloud-download me-1"></i>Download Options</span>
+    <small class="text-muted">{{ "{:,}".format(without_text) }} cases waiting</small>
+  </div>
   <div class="card-body">
     <form method="post">
       <div class="row g-3 align-items-end">
         <div class="col-md-4">
-          <label class="form-label">Filter by Court</label>
-          <select name="court" class="form-select">
-            <option value="">All Courts</option>
+          <label class="form-label small">Filter by Court</label>
+          <select name="court" class="form-select form-select-sm">
+            <option value="">All Courts ({{ "{:,}".format(without_text) }} remaining)</option>
             {% for code in courts %}
             <option value="{{ code }}">{{ code }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-4">
-          <label class="form-label">Limit (number of cases)</label>
-          <select name="limit" class="form-select">
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50" selected>50</option>
-            <option value="100">100</option>
-            <option value="250">250</option>
-            <option value="500">500</option>
+        <div class="col-md-3">
+          <label class="form-label small">Batch Size</label>
+          <select name="limit" class="form-select form-select-sm">
+            <option value="10">10 cases</option>
+            <option value="25">25 cases</option>
+            <option value="50" selected>50 cases</option>
+            <option value="100">100 cases</option>
+            <option value="250">250 cases</option>
+            <option value="500">500 cases</option>
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <button type="submit" class="btn btn-primary w-100"><i class="bi bi-cloud-download me-2"></i>Start Download</button>
+        </div>
+        <div class="col-md-2 text-end">
+          <a href="{{ url_for('job_status_page') }}" class="btn btn-outline-secondary w-100"><i class="bi bi-clock-history me-1"></i>Status</a>
         </div>
       </div>
     </form>
-    <p class="text-muted small mt-3">Downloads run in the background with a 1-second delay between requests. Monitor progress on the <a href="{{ url_for('job_status_page') }}">Job Status</a> page.</p>
   </div>
 </div>
+
+<div class="card border-info">
+  <div class="card-body py-2 small">
+    <i class="bi bi-info-circle text-info me-1"></i>
+    Downloads run in the background with a 1-second delay between requests to be respectful of source servers.
+    Each download extracts <strong>judge names, decision date, catchwords, outcome, visa type,</strong> and <strong>legislation</strong> from the full text.
+  </div>
+</div>
+
 {% else %}
-<div class="card shadow-sm">
+
+<div class="card">
   <div class="card-body text-center py-5">
-    <i class="bi bi-check-circle fs-1 text-success"></i>
+    <i class="bi bi-check-circle-fill text-success" style="font-size:3rem;"></i>
     <h5 class="mt-3">All case texts downloaded!</h5>
-    <p class="text-muted">Or <a href="{{ url_for('search_page') }}">search for more cases</a> first.</p>
+    <p class="text-muted">Every case in your collection has full text available.</p>
+    <div class="d-flex gap-2 justify-content-center mt-3">
+      <a href="{{ url_for('case_list') }}" class="btn btn-primary"><i class="bi bi-folder2-open me-1"></i>Browse Cases</a>
+      <a href="{{ url_for('search_page') }}" class="btn btn-outline-primary"><i class="bi bi-search me-1"></i>Search for More</a>
+    </div>
   </div>
 </div>
+
 {% endif %}
 {% endblock %}

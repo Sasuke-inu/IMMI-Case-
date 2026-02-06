@@ -1,158 +1,90 @@
 {% extends "base.html" %}
 {% block title %}Browse Cases{% endblock %}
-
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="mb-0">Browse Cases <small class="text-muted fs-6">({{ total }} results)</small></h2>
-  <div>
-    <a href="{{ url_for('case_add') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle me-1"></i>Add Case</a>
-    <a href="{{ url_for('export_data', fmt='csv') }}" class="btn btn-sm btn-outline-success"><i class="bi bi-download me-1"></i>Export CSV</a>
+  <div><h4 class="mb-0">Browse Cases</h4><small class="text-muted">{{ "{:,}".format(total) }} result{{ 's' if total != 1 }}</small></div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('case_add') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle me-1"></i>Add</a>
+    <a href="{{ url_for('export_data', fmt='csv') }}" class="btn btn-sm btn-outline-success"><i class="bi bi-download me-1"></i>CSV</a>
   </div>
 </div>
 
 <!-- Filters -->
-<div class="card shadow-sm mb-3">
-  <div class="card-body py-2">
-    <form method="get" class="row g-2 align-items-end">
-      <div class="col-md-2">
-        <label class="form-label small mb-0">Keyword</label>
-        <input type="text" name="q" class="form-control form-control-sm" value="{{ filters.q }}" placeholder="Search titles, judges...">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small mb-0">Court</label>
-        <select name="court" class="form-select form-select-sm">
-          <option value="">All Courts</option>
-          {% for code in courts %}
-          <option value="{{ code }}" {% if filters.court == code %}selected{% endif %}>
-            {{ databases.get(code, {}).get('name', code) if code in databases else code }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-1">
-        <label class="form-label small mb-0">Year</label>
-        <select name="year" class="form-select form-select-sm">
-          <option value="">All</option>
-          {% for y in years %}
-          <option value="{{ y }}" {% if filters.year == y|string %}selected{% endif %}>{{ y }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small mb-0">Visa Type</label>
-        <input type="text" name="visa_type" class="form-control form-control-sm" value="{{ filters.visa_type }}" placeholder="e.g. protection">
-      </div>
-      <div class="col-md-1">
-        <label class="form-label small mb-0">Source</label>
-        <select name="source" class="form-select form-select-sm">
-          <option value="">All</option>
-          {% for s in sources %}
-          <option value="{{ s }}" {% if filters.source == s %}selected{% endif %}>{{ s }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-1">
-        <label class="form-label small mb-0">Tag</label>
-        <select name="tag" class="form-select form-select-sm">
-          <option value="">All</option>
-          {% for t in all_tags %}
-          <option value="{{ t }}" {% if filters.tag == t %}selected{% endif %}>{{ t }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-1">
-        <label class="form-label small mb-0">Sort</label>
-        <select name="sort" class="form-select form-select-sm">
-          <option value="year" {% if filters.sort == 'year' %}selected{% endif %}>Year</option>
-          <option value="date" {% if filters.sort == 'date' %}selected{% endif %}>Date</option>
-          <option value="title" {% if filters.sort == 'title' %}selected{% endif %}>Title</option>
-          <option value="court" {% if filters.sort == 'court' %}selected{% endif %}>Court</option>
-        </select>
-      </div>
-      <div class="col-md-1">
-        <label class="form-label small mb-0">Dir</label>
-        <select name="dir" class="form-select form-select-sm">
-          <option value="desc" {% if filters.dir == 'desc' %}selected{% endif %}>Newest</option>
-          <option value="asc" {% if filters.dir == 'asc' %}selected{% endif %}>Oldest</option>
-        </select>
-      </div>
-      <div class="col-md-1">
-        <button type="submit" class="btn btn-primary btn-sm w-100">Filter</button>
-      </div>
-    </form>
+<div class="filter-bar p-2 px-3 mb-3 shadow-sm">
+  <form method="get">
+    <div class="row g-2 align-items-end">
+      <div class="col-lg-3 col-md-4"><label class="form-label">Search</label><input type="text" name="q" class="form-control form-control-sm" value="{{ filters.q }}" placeholder="Title, citation, judge, notes..."></div>
+      <div class="col-lg-2 col-md-3"><label class="form-label">Court</label><select name="court" class="form-select form-select-sm"><option value="">All Courts</option>{% for code in courts %}<option value="{{ code }}" {% if filters.court == code %}selected{% endif %}>{{ code }}{% if code in databases %} - {{ databases[code].name[:25] }}{% endif %}</option>{% endfor %}</select></div>
+      <div class="col-lg-1 col-md-2 col-4"><label class="form-label">Year</label><select name="year" class="form-select form-select-sm"><option value="">All</option>{% for y in years %}<option value="{{ y }}" {% if filters.year == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
+      <div class="col-lg-2 col-md-3 col-4"><label class="form-label">Visa Type</label><input type="text" name="visa_type" class="form-control form-control-sm" value="{{ filters.visa_type }}" placeholder="e.g. protection"></div>
+      <div class="col-lg-1 col-md-2 col-4"><label class="form-label">Sort</label><select name="sort" class="form-select form-select-sm"><option value="year" {% if filters.sort == 'year' %}selected{% endif %}>Year</option><option value="date" {% if filters.sort == 'date' %}selected{% endif %}>Date</option><option value="title" {% if filters.sort == 'title' %}selected{% endif %}>Title</option><option value="court" {% if filters.sort == 'court' %}selected{% endif %}>Court</option></select></div>
+      <div class="col-lg-1 col-md-2 col-4"><label class="form-label">&nbsp;</label><select name="dir" class="form-select form-select-sm"><option value="desc" {% if filters.dir == 'desc' %}selected{% endif %}>Newest</option><option value="asc" {% if filters.dir == 'asc' %}selected{% endif %}>Oldest</option></select></div>
+      <input type="hidden" name="source" value="{{ filters.source }}"><input type="hidden" name="tag" value="{{ filters.tag }}">
+      <div class="col-lg-2 col-md-2 col-4 d-flex gap-1"><button type="submit" class="btn btn-primary btn-sm flex-grow-1"><i class="bi bi-funnel me-1"></i>Filter</button><a href="{{ url_for('case_list') }}" class="btn btn-outline-secondary btn-sm" title="Clear all filters"><i class="bi bi-x-lg"></i></a></div>
+    </div>
+  </form>
+  {% set has_filters = filters.q or filters.court or filters.year or filters.visa_type or filters.source or filters.tag %}
+  {% if has_filters %}
+  <div class="active-filters mt-2 pt-2 border-top">
+    {% if filters.q %}<span class="filter-pill"><i class="bi bi-search"></i> {{ filters.q }}</span>{% endif %}
+    {% if filters.court %}<span class="filter-pill"><i class="bi bi-bank"></i> {{ filters.court }}</span>{% endif %}
+    {% if filters.year %}<span class="filter-pill"><i class="bi bi-calendar"></i> {{ filters.year }}</span>{% endif %}
+    {% if filters.visa_type %}<span class="filter-pill"><i class="bi bi-passport"></i> {{ filters.visa_type }}</span>{% endif %}
+    {% if filters.source %}<span class="filter-pill">{{ filters.source }}</span>{% endif %}
+    {% if filters.tag %}<span class="filter-pill"><i class="bi bi-tag"></i> {{ filters.tag }}</span>{% endif %}
   </div>
+  {% endif %}
 </div>
 
 <!-- Cases table -->
 <div class="card shadow-sm">
   <div class="table-responsive">
     <table class="table table-hover table-cases mb-0">
-      <thead class="table-light">
-        <tr>
-          <th>Citation</th>
-          <th>Title</th>
-          <th>Court</th>
-          <th>Year</th>
-          <th>Date</th>
-          <th>Visa Type</th>
-          <th>Text</th>
-          <th></th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th style="width:140px;">Citation</th><th>Title</th><th style="width:90px;">Court</th><th style="width:50px;">Year</th><th style="width:80px;">Visa</th><th style="width:40px;" class="text-center" title="Full text"><i class="bi bi-file-text"></i></th><th style="width:30px;"></th>
+      </tr></thead>
       <tbody>
         {% for case in cases %}
         <tr>
-          <td><a href="{{ url_for('case_detail', case_id=case.case_id) }}" class="text-decoration-none fw-semibold">{{ case.citation or '---' }}</a></td>
-          <td class="truncate" title="{{ case.title }}">{{ case.title[:80] }}{% if case.title|length > 80 %}...{% endif %}</td>
           <td>
-            <span class="badge bg-secondary badge-court">{{ case.court_code }}</span>
+            <a href="{{ url_for('case_detail', case_id=case.case_id) }}" class="text-decoration-none fw-semibold">{{ case.citation or '---' }}</a>
+            {% if case.tags %}<div class="mt-1">{% for tag in case.tags.split(',')[:2] %}{% set t = tag.strip() %}{% if t %}<span class="badge bg-light text-dark border" style="font-size:.6rem;">{{ t }}</span> {% endif %}{% endfor %}</div>{% endif %}
           </td>
-          <td>{{ case.year or '' }}</td>
-          <td class="text-nowrap">{{ case.date or '' }}</td>
-          <td>{{ case.visa_type or '' }}</td>
-          <td class="text-center">
-            {% if case.full_text_path %}
-            <i class="bi bi-check-circle-fill text-success" title="Full text available"></i>
-            {% else %}
-            <i class="bi bi-dash text-muted"></i>
+          <td class="title-cell">
+            <span class="title-text" title="{{ case.title }}">{{ case.title }}</span>
+            {% if case.outcome %}{% set ol = case.outcome.lower() %}
+            <span class="badge badge-outcome ms-1 {% if 'affirm' in ol or 'dismiss' in ol or 'refus' in ol %}affirm{% elif 'set aside' in ol or 'allow' in ol or 'remit' in ol or 'grant' in ol %}setaside{% else %}unknown{% endif %}">{% if 'affirm' in ol %}Affirmed{% elif 'dismiss' in ol %}Dismissed{% elif 'set aside' in ol %}Set aside{% elif 'allow' in ol %}Allowed{% elif 'remit' in ol %}Remitted{% elif 'grant' in ol %}Granted{% elif 'refus' in ol %}Refused{% else %}Decided{% endif %}</span>
             {% endif %}
           </td>
-          <td>
-            <div class="btn-group btn-group-sm">
-              <a href="{{ url_for('case_detail', case_id=case.case_id) }}" class="btn btn-outline-primary btn-sm" title="View"><i class="bi bi-eye"></i></a>
-              <a href="{{ url_for('case_edit', case_id=case.case_id) }}" class="btn btn-outline-secondary btn-sm" title="Edit"><i class="bi bi-pencil"></i></a>
-            </div>
-          </td>
+          <td><span class="badge badge-court badge-{{ case.court_code }}">{{ case.court_code }}</span></td>
+          <td class="small">{{ case.year or '' }}</td>
+          <td class="small text-truncate" style="max-width:100px;" title="{{ case.visa_type }}">{{ case.visa_type or '' }}</td>
+          <td class="text-center">{% if case.full_text_path %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-circle text-muted" style="font-size:.6rem;"></i>{% endif %}</td>
+          <td><a href="{{ url_for('case_detail', case_id=case.case_id) }}" class="btn btn-sm btn-outline-primary py-0 px-1"><i class="bi bi-chevron-right"></i></a></td>
         </tr>
         {% endfor %}
         {% if not cases %}
-        <tr><td colspan="8" class="text-center text-muted py-4">No cases found. Try adjusting filters or <a href="{{ url_for('search_page') }}">search for cases</a>.</td></tr>
+        <tr><td colspan="7">
+          <div class="empty-state py-4">
+            <div class="empty-icon" style="font-size:2.5rem;"><i class="bi bi-search"></i></div>
+            <h5>No cases found</h5>
+            {% if has_filters %}<p>Try adjusting filters or <a href="{{ url_for('case_list') }}">clear all</a>.</p>{% else %}<p><a href="{{ url_for('search_page') }}">Search for cases</a> to get started.</p>{% endif %}
+          </div>
+        </td></tr>
         {% endif %}
       </tbody>
     </table>
   </div>
 </div>
 
-<!-- Pagination -->
 {% if total_pages > 1 %}
-<nav class="mt-3">
-  <ul class="pagination pagination-sm justify-content-center">
-    <li class="page-item {% if page == 1 %}disabled{% endif %}">
-      <a class="page-link" href="?page={{ page - 1 }}&{{ request.query_string.decode().replace('page=' ~ page, '') }}">Prev</a>
-    </li>
-    {% for p in range(1, total_pages + 1) %}
-      {% if p == page or (p >= page - 2 and p <= page + 2) or p == 1 or p == total_pages %}
-      <li class="page-item {% if p == page %}active{% endif %}">
-        <a class="page-link" href="?page={{ p }}&court={{ filters.court }}&year={{ filters.year }}&q={{ filters.q }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">{{ p }}</a>
-      </li>
-      {% elif p == page - 3 or p == page + 3 %}
-      <li class="page-item disabled"><span class="page-link">...</span></li>
-      {% endif %}
-    {% endfor %}
-    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-      <a class="page-link" href="?page={{ page + 1 }}&court={{ filters.court }}&year={{ filters.year }}&q={{ filters.q }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">Next</a>
-    </li>
-  </ul>
-</nav>
+<div class="d-flex justify-content-between align-items-center mt-3">
+  <small class="text-muted">Showing {{ ((page-1)*50)+1 }}--{{ [page*50, total] | min }} of {{ "{:,}".format(total) }}</small>
+  <nav><ul class="pagination pagination-sm mb-0">
+    <li class="page-item {% if page == 1 %}disabled{% endif %}"><a class="page-link" href="?page={{ page-1 }}&q={{ filters.q }}&court={{ filters.court }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">&laquo;</a></li>
+    {% for p in range(1, total_pages + 1) %}{% if p == page or (p >= page - 2 and p <= page + 2) or p == 1 or p == total_pages %}<li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&q={{ filters.q }}&court={{ filters.court }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">{{ p }}</a></li>{% elif p == page - 3 or p == page + 3 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}{% endfor %}
+    <li class="page-item {% if page == total_pages %}disabled{% endif %}"><a class="page-link" href="?page={{ page+1 }}&q={{ filters.q }}&court={{ filters.court }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">&raquo;</a></li>
+  </ul></nav>
+</div>
 {% endif %}
 {% endblock %}
