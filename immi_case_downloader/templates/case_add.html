@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Add Case{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('case_list') }}">Cases</a></li>
+    <li class="breadcrumb-item active">Add New Case</li>
+  </ol>
+</nav>
+
+<h3 class="mb-4">Add Case Manually</h3>
+
+<form method="post">
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header"><h6 class="mb-0">Case Details</h6></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Citation <span class="text-danger">*</span></label>
+              <input type="text" name="citation" class="form-control" placeholder="e.g. [2024] AATA 1234" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Title / Parties <span class="text-danger">*</span></label>
+              <input type="text" name="title" class="form-control" placeholder="e.g. Smith v Minister for Immigration" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Court</label>
+              <select name="court" class="form-select">
+                <option value="">-- Select --</option>
+                <option value="Administrative Appeals Tribunal">Administrative Appeals Tribunal (AAT)</option>
+                <option value="Federal Court of Australia">Federal Court of Australia</option>
+                <option value="Federal Circuit Court of Australia">Federal Circuit Court</option>
+                <option value="Federal Circuit and Family Court (Div 2)">Federal Circuit and Family Court (Div 2)</option>
+                <option value="High Court of Australia">High Court of Australia</option>
+                <option value="Refugee Review Tribunal">Refugee Review Tribunal</option>
+                <option value="Migration Review Tribunal">Migration Review Tribunal</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Court Code</label>
+              <select name="court_code" class="form-select">
+                <option value="">--</option>
+                <option value="AATA">AATA</option>
+                <option value="FCA">FCA</option>
+                <option value="FCCA">FCCA</option>
+                <option value="FedCFamC2G">FedCFamC2G</option>
+                <option value="HCA">HCA</option>
+                <option value="RRTA">RRTA</option>
+                <option value="MRTA">MRTA</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Year</label>
+              <input type="number" name="year" class="form-control" min="1900" max="2100" placeholder="2024">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Decision Date</label>
+              <input type="text" name="date" class="form-control" placeholder="e.g. 15 March 2024">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Judge(s) / Member(s)</label>
+              <input type="text" name="judges" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Visa Type</label>
+              <input type="text" name="visa_type" class="form-control" placeholder="e.g. protection visa, subclass 500">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Source URL</label>
+              <input type="url" name="url" class="form-control" placeholder="https://...">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Catchwords</label>
+              <textarea name="catchwords" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Outcome / Decision</label>
+              <textarea name="outcome" class="form-control" rows="2" placeholder="e.g. Application dismissed, Tribunal affirms decision..."></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Legislation</label>
+              <textarea name="legislation" class="form-control" rows="2" placeholder="e.g. Migration Act 1958 s 501"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header"><h6 class="mb-0">Your Notes</h6></div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Tags <small class="text-muted">(comma separated)</small></label>
+            <input type="text" name="tags" class="form-control" placeholder="e.g. important, character-test">
+          </div>
+          <div>
+            <label class="form-label">Notes</label>
+            <textarea name="user_notes" class="form-control" rows="6" placeholder="Your analysis or observations..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-grid gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Add Case</button>
+        <a href="{{ url_for('case_list') }}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

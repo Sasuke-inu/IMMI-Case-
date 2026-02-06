@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Dashboard</h2>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="card stat-card blue shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="text-muted small text-uppercase">Total Cases</div>
+            <div class="fs-2 fw-bold">{{ stats.total }}</div>
+          </div>
+          <div class="align-self-center"><i class="bi bi-folder2-open fs-1 text-primary opacity-50"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="card stat-card green shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="text-muted small text-uppercase">Full Texts Downloaded</div>
+            <div class="fs-2 fw-bold">{{ stats.with_full_text }}</div>
+          </div>
+          <div class="align-self-center"><i class="bi bi-file-text fs-1 text-success opacity-50"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="card stat-card orange shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="text-muted small text-uppercase">Courts / Tribunals</div>
+            <div class="fs-2 fw-bold">{{ stats.by_court | length }}</div>
+          </div>
+          <div class="align-self-center"><i class="bi bi-bank fs-1 text-warning opacity-50"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="card stat-card purple shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="text-muted small text-uppercase">Visa Types Detected</div>
+            <div class="fs-2 fw-bold">{{ stats.visa_types | length }}</div>
+          </div>
+          <div class="align-self-center"><i class="bi bi-passport fs-1 text-purple opacity-50"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Cases by Court -->
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header"><h6 class="mb-0">Cases by Court / Tribunal</h6></div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Court</th><th class="text-end">Cases</th></tr></thead>
+          <tbody>
+            {% for court, count in stats.by_court.items() %}
+            <tr>
+              <td>{{ court }}</td>
+              <td class="text-end fw-bold">{{ count }}</td>
+            </tr>
+            {% endfor %}
+            {% if not stats.by_court %}
+            <tr><td colspan="2" class="text-muted text-center py-3">No cases yet. <a href="{{ url_for('search_page') }}">Search now</a></td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cases by Year -->
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header"><h6 class="mb-0">Cases by Year</h6></div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Year</th><th class="text-end">Cases</th><th style="width:50%"></th></tr></thead>
+          <tbody>
+            {% set max_count = stats.by_year.values() | max if stats.by_year else 1 %}
+            {% for year, count in stats.by_year.items() %}
+            <tr>
+              <td>{{ year }}</td>
+              <td class="text-end fw-bold">{{ count }}</td>
+              <td>
+                <div class="progress" style="height: 18px;">
+                  <div class="progress-bar bg-primary" style="width: {{ (count / max_count * 100) | int }}%"></div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not stats.by_year %}
+            <tr><td colspan="3" class="text-muted text-center py-3">No cases yet.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header"><h6 class="mb-0">Quick Actions</h6></div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="{{ url_for('search_page') }}" class="btn btn-primary"><i class="bi bi-search me-2"></i>Search for New Cases</a>
+          <a href="{{ url_for('download_page') }}" class="btn btn-outline-primary"><i class="bi bi-cloud-download me-2"></i>Download Case Texts</a>
+          <a href="{{ url_for('case_add') }}" class="btn btn-outline-secondary"><i class="bi bi-plus-circle me-2"></i>Add Case Manually</a>
+          <a href="{{ url_for('export_data', fmt='csv') }}" class="btn btn-outline-success"><i class="bi bi-filetype-csv me-2"></i>Export All as CSV</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visa Types -->
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header"><h6 class="mb-0">Visa Types Detected</h6></div>
+      <div class="card-body">
+        {% if stats.visa_types %}
+          {% for vt in stats.visa_types %}
+          <span class="badge bg-info text-dark me-1 mb-1">{{ vt }}</span>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted mb-0">No visa types detected yet. Download full case texts to extract visa types.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,6 +1,8 @@
-# IMMI-Case - Immigration Case Downloader
+# IMMI-Case - Immigration Case Downloader & Manager
 
-A Python tool to download and extract Australian immigration, home affairs, and refugee-related court and tribunal appeal cases from the last 10 years.
+A Python tool to download, extract, browse, and manage Australian immigration, home affairs, and refugee-related court and tribunal appeal cases from the last 10 years.
+
+Includes a **web interface** for searching, browsing, editing, and exporting cases.
 
 ## Data Sources
 
@@ -20,58 +22,62 @@ Cases are sourced from [AustLII](https://www.austlii.edu.au) (Australasian Legal
 ## Setup
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-## Usage
+## Web Interface
+
+Start the web interface:
+
+```bash
+python web.py                    # http://localhost:5000
+python web.py --port 8080        # Custom port
+python web.py --debug            # Debug mode
+```
+
+### Web Interface Features
+
+| Page | What you can do |
+|------|-----------------|
+| **Dashboard** | View stats: total cases, cases by court/year, visa types, quick actions |
+| **Browse Cases** | Filter by court, year, visa type, source, keyword, tags. Sort and paginate |
+| **Case Detail** | View all metadata, full case text, notes, tags. Link to source |
+| **Edit Case** | Update any field: metadata, notes, tags, corrections |
+| **Add Case** | Manually enter a case not found in online sources |
+| **Delete Case** | Remove cases from your collection |
+| **Search New** | Launch background searches across AustLII / Federal Court |
+| **Download Texts** | Batch download full case texts with progress tracking |
+| **Job Status** | Monitor running search/download jobs with live progress |
+| **Export** | Download all data as CSV or JSON |
+| **Data Dictionary** | Reference guide for all spreadsheet columns |
+
+## CLI Usage
 
 ### Search for cases
 
-Search all sources for immigration cases from the last 10 years:
-
 ```bash
-python run.py search
-```
-
-Search specific databases:
-
-```bash
-# Only AAT and Federal Court
-python run.py search --databases AATA FCA
-
-# Only AustLII sources (not Federal Court search)
-python run.py search --sources austlii
-
-# Custom year range
-python run.py search --start-year 2020 --end-year 2025
-
-# Increase max results per database
-python run.py search --max-results 1000
+python run.py search                                    # All sources, last 10 years
+python run.py search --databases AATA FCA               # Only AAT and Federal Court
+python run.py search --start-year 2020 --end-year 2025  # Custom year range
+python run.py search --max-results 1000                 # More results per database
 ```
 
 ### Download full case texts
 
-After searching, download the full text of found cases:
-
 ```bash
-# Download all found cases
-python run.py download
-
-# Download only Federal Court cases
-python run.py download --courts FCA
-
-# Limit to 50 downloads
-python run.py download --limit 50
+python run.py download                      # Download all found cases
+python run.py download --courts FCA         # Download only Federal Court cases
+python run.py download --limit 50           # Limit to 50 downloads
 ```
 
-### List available databases
+### Other CLI commands
 
 ```bash
-python run.py list-databases
+python run.py list-databases    # List available databases
+python run.py --help            # Full help
 ```
 
-### Options
+### CLI Options
 
 ```
 -v, --verbose       Enable verbose/debug logging
@@ -94,35 +100,52 @@ downloaded_cases/
     ...
 ```
 
-### CSV/JSON fields
+## Spreadsheet Data Points (CSV/JSON columns)
 
-| Field | Description |
-|-------|-------------|
-| case_id | Unique case identifier |
-| citation | Legal citation (e.g., [2024] AATA 1234) |
-| title | Case title / parties |
-| court | Court or tribunal name |
-| court_code | Court code (AATA, FCA, etc.) |
-| date | Decision date |
-| year | Decision year |
-| url | Source URL |
-| judges | Judge(s) or tribunal member(s) |
-| catchwords | Legal catchwords/topics |
-| outcome | Decision outcome |
-| visa_type | Visa type involved (if detected) |
-| legislation | Relevant legislation |
-| source | Data source (AustLII, Federal Court) |
+There are **18 data fields** per case, populated in stages:
 
-## Search Keywords
+### Stage 1: Search (auto-populated from listing pages)
 
-The tool searches for cases matching these immigration indicators:
-- Minister for Immigration / Home Affairs
-- Department of Home Affairs / Immigration
-- Migration Act / Migration Regulations
-- Protection visa, bridging visa, visa cancellation
-- Refugee, deportation, removal
-- Character test (s 501)
-- Migration/Refugee Review Tribunal
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `case_id` | Text | Auto-generated unique ID (12-char hash) | `a3f8b2c1d4e5` |
+| `citation` | Text | Legal citation | `[2024] AATA 1234` |
+| `title` | Text | Case title / parties | `Smith v Minister for Immigration` |
+| `court` | Text | Full court name | `Administrative Appeals Tribunal` |
+| `court_code` | Text | Court abbreviation | `AATA`, `FCA`, `FCCA`, `HCA` |
+| `year` | Integer | Decision year | `2024` |
+| `url` | URL | Link to source document | `https://austlii.edu.au/...` |
+| `source` | Text | Where found | `AustLII`, `Federal Court` |
+
+### Stage 2: Download (extracted from full case text)
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `date` | Text | Decision date | `15 March 2024` |
+| `judges` | Text | Judge / tribunal member | `Gabrielle Cullen` |
+| `catchwords` | Text | Legal topics/keywords | `MIGRATION - Protection visa...` |
+| `outcome` | Text | Decision result | `Tribunal affirms the decision` |
+| `visa_type` | Text | Visa type involved | `protection visa`, `Subclass 500` |
+| `legislation` | Text | Acts/sections cited | `Migration Act 1958 s 36` |
+| `text_snippet` | Text | Brief excerpt | (first ~300 chars) |
+| `full_text_path` | Path | Local .txt file path | `downloaded_cases/case_texts/...` |
+
+### Stage 3: User annotations (editable via web interface)
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `user_notes` | Text | Your personal notes/analysis | `Key case for s501 character test` |
+| `tags` | Text | Comma-separated labels | `important, character-test, s501` |
+
+## Expanding & Updating Records
+
+The tool is designed to grow your collection over time:
+
+- **Run search again** to find newly published cases (deduplicates automatically)
+- **Edit any field** via the web interface (Browse > click case > Edit)
+- **Add cases manually** via web interface (Add Case page)
+- **Tag and annotate** cases with your own notes and labels
+- **Export updated data** anytime as CSV or JSON
 
 ## Module Usage
 
@@ -148,7 +171,7 @@ text = scraper.download_case_detail(cases[0])
 
 ## Rate Limiting
 
-The tool includes built-in rate limiting (default: 1 second between requests) to be respectful to source servers. Adjust with `--delay`.
+Built-in rate limiting (default: 1 second between requests) to be respectful to source servers. Adjust with `--delay` (CLI) or in config.
 
 ## License
 

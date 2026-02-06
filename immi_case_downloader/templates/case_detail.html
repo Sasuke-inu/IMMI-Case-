@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ case.citation or case.title[:40] }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('case_list') }}">Cases</a></li>
+        <li class="breadcrumb-item active">{{ case.citation or case.case_id }}</li>
+      </ol>
+    </nav>
+    <h3 class="mb-0">{{ case.title }}</h3>
+  </div>
+  <div class="btn-group">
+    <a href="{{ url_for('case_edit', case_id=case.case_id) }}" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i>Edit</a>
+    <form method="post" action="{{ url_for('case_delete', case_id=case.case_id) }}" class="d-inline"
+          onsubmit="return confirm('Delete this case permanently?')">
+      <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i>Delete</button>
+    </form>
+  </div>
+</div>
+
+<!-- Metadata cards -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-header"><h6 class="mb-0">Case Details</h6></div>
+      <div class="card-body">
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th style="width:160px">Citation</th><td class="fw-semibold">{{ case.citation or '---' }}</td></tr>
+          <tr><th>Court / Tribunal</th><td><span class="badge bg-secondary me-1">{{ case.court_code }}</span> {{ case.court }}</td></tr>
+          <tr><th>Decision Date</th><td>{{ case.date or 'Unknown' }}</td></tr>
+          <tr><th>Year</th><td>{{ case.year or 'Unknown' }}</td></tr>
+          <tr><th>Judge(s) / Member(s)</th><td>{{ case.judges or 'Not extracted' }}</td></tr>
+          <tr><th>Visa Type</th><td>{{ case.visa_type or 'Not detected' }}</td></tr>
+          <tr><th>Outcome</th><td>{{ case.outcome or 'Not extracted' }}</td></tr>
+          <tr><th>Legislation</th><td>{{ case.legislation or 'Not extracted' }}</td></tr>
+          <tr><th>Source</th><td>{{ case.source }}</td></tr>
+          <tr>
+            <th>URL</th>
+            <td>
+              {% if case.url %}
+              <a href="{{ case.url }}" target="_blank" rel="noopener">{{ case.url[:80] }}{% if case.url|length > 80 %}...{% endif %} <i class="bi bi-box-arrow-up-right"></i></a>
+              {% else %}---{% endif %}
+            </td>
+          </tr>
+          <tr><th>Case ID</th><td class="text-muted small">{{ case.case_id }}</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <!-- Notes & Tags -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header d-flex justify-content-between">
+        <h6 class="mb-0">Notes & Tags</h6>
+        <a href="{{ url_for('case_edit', case_id=case.case_id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+      </div>
+      <div class="card-body">
+        {% if case.tags %}
+        <div class="mb-2">
+          {% for tag in case.tags.split(',') %}
+            {% set t = tag.strip() %}
+            {% if t %}
+            <span class="badge bg-info text-dark me-1">{{ t }}</span>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if case.user_notes %}
+        <p class="mb-0">{{ case.user_notes }}</p>
+        {% else %}
+        <p class="text-muted mb-0">No notes yet. Click edit to add.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Catchwords -->
+    <div class="card shadow-sm">
+      <div class="card-header"><h6 class="mb-0">Catchwords</h6></div>
+      <div class="card-body">
+        {% if case.catchwords %}
+        <p class="small mb-0">{{ case.catchwords }}</p>
+        {% else %}
+        <p class="text-muted small mb-0">Not extracted. Download full text to populate.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Full text -->
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="mb-0">Full Case Text</h6>
+    {% if full_text %}
+    <span class="badge bg-success">{{ full_text | length | filesizeformat if full_text else '' }}</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    {% if full_text %}
+    <div class="case-text-box">{{ full_text }}</div>
+    {% else %}
+    <div class="text-center py-4">
+      <i class="bi bi-file-earmark-text fs-1 text-muted"></i>
+      <p class="text-muted mt-2">Full text not yet downloaded.</p>
+      <a href="{{ url_for('download_page') }}" class="btn btn-outline-primary">Download Case Texts</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

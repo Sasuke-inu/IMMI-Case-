@@ -30,6 +30,8 @@ CASE_FIELDS = [
     "text_snippet",
     "full_text_path",
     "source",
+    "user_notes",
+    "tags",
 ]
 
 
@@ -159,3 +161,101 @@ def generate_summary_report(cases: list[ImmigrationCase], base_dir: str = OUTPUT
 
     logger.info(f"Summary report saved to {filepath}")
     return filepath
+
+
+# ---------------------------------------------------------------------------
+# CRUD helpers for the web interface
+# ---------------------------------------------------------------------------
+
+def load_all_cases(base_dir: str = OUTPUT_DIR) -> list[ImmigrationCase]:
+    """Load all cases from CSV as ImmigrationCase objects."""
+    records = load_cases_csv(base_dir)
+    cases = []
+    for r in records:
+        case = ImmigrationCase.from_dict(r)
+        case.ensure_id()
+        cases.append(case)
+    return cases
+
+
+def get_case_by_id(case_id: str, base_dir: str = OUTPUT_DIR) -> ImmigrationCase | None:
+    """Find a single case by its case_id."""
+    for case in load_all_cases(base_dir):
+        if case.case_id == case_id:
+            return case
+    return None
+
+
+def update_case(case_id: str, updates: dict, base_dir: str = OUTPUT_DIR) -> bool:
+    """Update fields of an existing case and persist."""
+    cases = load_all_cases(base_dir)
+    for case in cases:
+        if case.case_id == case_id:
+            for key, value in updates.items():
+                if hasattr(case, key) and key != "case_id":
+                    setattr(case, key, value)
+            save_cases_csv(cases, base_dir)
+            save_cases_json(cases, base_dir)
+            return True
+    return False
+
+
+def delete_case(case_id: str, base_dir: str = OUTPUT_DIR) -> bool:
+    """Delete a case by its case_id."""
+    cases = load_all_cases(base_dir)
+    original_len = len(cases)
+    cases = [c for c in cases if c.case_id != case_id]
+    if len(cases) < original_len:
+        save_cases_csv(cases, base_dir)
+        save_cases_json(cases, base_dir)
+        return True
+    return False
+
+
+def add_case_manual(case_data: dict, base_dir: str = OUTPUT_DIR) -> ImmigrationCase:
+    """Add a manually entered case."""
+    case = ImmigrationCase.from_dict(case_data)
+    case.source = case.source or "Manual Entry"
+    case.ensure_id()
+
+    cases = load_all_cases(base_dir)
+    cases.append(case)
+    ensure_output_dirs(base_dir)
+    save_cases_csv(cases, base_dir)
+    save_cases_json(cases, base_dir)
+    return case
+
+
+def get_case_full_text(case: ImmigrationCase) -> str | None:
+    """Read the full text file for a case."""
+    if not case.full_text_path or not os.path.exists(case.full_text_path):
+        return None
+    with open(case.full_text_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def get_statistics(base_dir: str = OUTPUT_DIR) -> dict:
+    """Compute dashboard statistics."""
+    cases = load_all_cases(base_dir)
+    by_court: dict[str, int] = {}
+    by_year: dict[int, int] = {}
+    visa_types: set[str] = set()
+    with_text = 0
+
+    for c in cases:
+        by_court[c.court or "Unknown"] = by_court.get(c.court or "Unknown", 0) + 1
+        if c.year:
+            by_year[c.year] = by_year.get(c.year, 0) + 1
+        if c.visa_type:
+            visa_types.add(c.visa_type)
+        if c.full_text_path and os.path.exists(c.full_text_path):
+            with_text += 1
+
+    return {
+        "total": len(cases),
+        "by_court": dict(sorted(by_court.items())),
+        "by_year": dict(sorted(by_year.items())),
+        "visa_types": sorted(visa_types),
+        "with_full_text": with_text,
+        "sources": sorted({c.source for c in cases if c.source}),
+    }
