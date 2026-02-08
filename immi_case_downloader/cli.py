@@ -92,26 +92,31 @@ def cmd_download(args):
 
     ensure_output_dirs(args.output)
 
-    # Load previously found cases
+    # Load ALL cases (kept intact for saving back)
     case_records = load_cases_csv(args.output)
     if not case_records:
         print("No cases found. Run 'search' first to find cases.")
         return
 
-    cases = []
-    for record in case_records:
-        case = ImmigrationCase(**{k: v for k, v in record.items() if k in ImmigrationCase.__dataclass_fields__})
-        cases.append(case)
+    all_cases = [ImmigrationCase.from_dict(record) for record in case_records]
 
-    # Filter by court if specified
+    # Select subset to download
+    targets = list(all_cases)
     if args.courts:
-        cases = [c for c in cases if c.court_code in args.courts]
+        targets = [c for c in targets if c.court_code in args.courts]
 
-    # Limit number of downloads
+    # Skip cases that already have full text on disk
+    import os
+    before_skip = len(targets)
+    targets = [c for c in targets if not (c.full_text_path and os.path.exists(c.full_text_path))]
+    skipped = before_skip - len(targets)
+    if skipped:
+        print(f"Skipping {skipped} cases that already have full text.")
+
     if args.limit:
-        cases = cases[: args.limit]
+        targets = targets[: args.limit]
 
-    print(f"Downloading full text for {len(cases)} cases...")
+    print(f"Downloading full text for {len(targets)} cases...")
 
     austlii = AustLIIScraper(delay=args.delay)
     fedcourt = FederalCourtScraper(delay=args.delay)
@@ -119,8 +124,8 @@ def cmd_download(args):
     downloaded = 0
     failed = 0
 
-    for i, case in enumerate(cases):
-        print(f"  [{i+1}/{len(cases)}] {case.citation or case.title[:60]}...", end=" ")
+    for i, case in enumerate(targets):
+        print(f"  [{i+1}/{len(targets)}] {case.citation or case.title[:60]}...", end=" ")
 
         try:
             if case.source == "Federal Court":
@@ -140,9 +145,20 @@ def cmd_download(args):
             print(f"FAILED ({e})")
             logger.exception(f"Failed to download {case.url}")
 
-    # Update CSV/JSON with any new metadata extracted during download
-    save_cases_csv(cases, args.output)
-    save_cases_json(cases, args.output)
+    # Merge updated metadata from downloaded targets back into all_cases
+    target_map = {c.case_id: c for c in targets}
+    for c in all_cases:
+        if c.case_id in target_map:
+            t = target_map[c.case_id]
+            for field in ("date", "judges", "catchwords", "outcome",
+                          "visa_type", "legislation", "full_text_path"):
+                val = getattr(t, field, "")
+                if val:
+                    setattr(c, field, val)
+
+    # Save ALL cases (not just the downloaded subset)
+    save_cases_csv(all_cases, args.output)
+    save_cases_json(all_cases, args.output)
 
     print(f"\nDownloaded: {downloaded}, Failed: {failed}")
 

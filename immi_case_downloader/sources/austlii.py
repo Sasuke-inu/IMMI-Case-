@@ -82,16 +82,18 @@ class AustLIIScraper(BaseScraper):
         end_year: int,
         max_results: int,
     ) -> list[ImmigrationCase]:
-        """Search a specific AustLII database for immigration cases."""
+        """Search a specific AustLII database for immigration cases.
+
+        Browses every year without per-year caps. The max_results limit
+        is only applied at the very end as a total cap.
+        """
         cases = []
 
-        # Strategy 1: Browse year-by-year case listings and filter
+        # Browse every year — no early exit so all years get coverage
         for year in range(start_year, end_year + 1):
             year_cases = self._browse_year(db_code, db_info, year, keywords)
             cases.extend(year_cases)
-            if len(cases) >= max_results:
-                cases = cases[:max_results]
-                break
+            logger.debug(f"  {db_code}/{year}: {len(year_cases)} cases found")
 
         # Strategy 2: If browsing found few results, try keyword search
         if len(cases) < 10:
