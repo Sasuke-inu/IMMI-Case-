@@ -31,9 +31,10 @@ python -m immi_case_downloader search
 ```
 run.py              → CLI entry point → immi_case_downloader.cli.main()
 web.py              → Web entry point → immi_case_downloader.webapp.create_app()
+postprocess.py      → Post-download field extraction (regex + LLM sub-agents)
 
 immi_case_downloader/
-  models.py         → ImmigrationCase dataclass (18 fields, SHA-256 ID generation)
+  models.py         → ImmigrationCase dataclass (20 fields, SHA-256 ID generation)
   config.py         → Constants: AustLII URLs, court database definitions, keywords, rate limits
   storage.py        → CSV/JSON persistence (pandas), CRUD helpers for web UI
   webapp.py         → Flask app with background threading for search/download jobs
@@ -69,9 +70,19 @@ immi_case_downloader/
 | AATA, FCA, FCCA, FedCFamC2G, HCA, RRTA, MRTA | AustLII | `austlii.edu.au/au/cases/cth/{code}/{year}/` |
 | fedcourt | Federal Court | `search2.fedcourt.gov.au/s/search.html` |
 
+## Gotchas
+
+- **`cmd_search` overwrites CSV** — does NOT merge with existing data; back up first
+- **`config.py START_YEAR`** — dynamic (`CURRENT_YEAR - 10`); use `--start-year` flag to override
+- **pandas NaN** — empty CSV fields become `float('nan')`; always use `ImmigrationCase.from_dict()`
+- **Federal Court DNS** — `search2.fedcourt.gov.au` doesn't resolve; all FCA data via AustLII
+- **RRTA/MRTA** — return 0 results (pre-2015 tribunals merged into AATA)
+- **Port 5000** — conflicts with macOS AirPlay; use `--port 8080`
+- **AustLII timeouts** — common during bulk scraping; retry logic in BaseScraper handles most
+
 ## Important Notes
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
 - Rate limiting is enforced at the `BaseScraper` level; respect the default 1-second delay
-- No test suite exists yet
+- No test suite exists yet — `.claude/settings.json` has hooks for lint/data protection
 - The webapp uses a hardcoded `secret_key` in `webapp.py:46` — should be replaced via `SECRET_KEY` env var in production

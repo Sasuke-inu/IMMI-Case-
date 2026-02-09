@@ -1,0 +1,73 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -qE 'downloaded_cases/'; then echo 'BLOCK: 資料檔案請用 Python 腳本處理，勿直接編輯' >&2; exit 2; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_COMMAND\" | grep -qE '(run\\.py search|run\\.py download|postprocess\\.py)'; then echo '提醒: 長時間爬蟲/處理任務，建議在 tmux 中執行'; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -qE '\\.py$'; then ruff check --fix --silent \"$CLAUDE_FILE_PATH\" 2>/dev/null; ruff format --quiet \"$CLAUDE_FILE_PATH\" 2>/dev/null; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -qE '\\.py$' && grep -n '^[[:space:]]*print(' \"$CLAUDE_FILE_PATH\" > /dev/null 2>&1; then echo '注意: 檔案中有 print() 語句，考慮改用 logging'; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -qE '\\.html$'; then python3 -c \"from jinja2 import Environment; Environment().parse(open('$CLAUDE_FILE_PATH').read())\" 2>&1 | head -3; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_COMMAND\" | grep -qE 'to_csv|immigration_cases\\.csv'; then [ -f downloaded_cases/immigration_cases.csv ] && cp downloaded_cases/immigration_cases.csv downloaded_cases/immigration_cases.csv.bak 2>/dev/null && echo 'CSV 已自動備份為 .csv.bak'; fi"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/d/Developer/IMMI-Case- && if git diff --stat HEAD 2>/dev/null | grep -q '.'; then echo '有未提交的程式碼變更'; git diff --stat HEAD; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
