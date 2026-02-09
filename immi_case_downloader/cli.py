@@ -9,6 +9,7 @@ from .sources.austlii import AustLIIScraper
 from .sources.federal_court import FederalCourtScraper
 from .storage import (
     ensure_output_dirs,
+    load_all_cases,
     save_cases_csv,
     save_cases_json,
     save_case_text,
@@ -74,12 +75,29 @@ def cmd_search(args):
         print("No cases found. Try adjusting search parameters.")
         return
 
-    # Save results
-    csv_path = save_cases_csv(all_cases, args.output)
-    json_path = save_cases_json(all_cases, args.output)
-    report_path = generate_summary_report(all_cases, args.output)
+    # Assign IDs to new cases
+    for case in all_cases:
+        case.ensure_id()
 
-    print(f"\nTotal cases found: {len(all_cases)}")
+    # Merge with existing data (never overwrite)
+    existing = load_all_cases(args.output)
+    existing_urls = {c.url for c in existing}
+    added = 0
+    for case in all_cases:
+        if case.url not in existing_urls:
+            existing.append(case)
+            existing_urls.add(case.url)
+            added += 1
+
+    # Save merged results
+    csv_path = save_cases_csv(existing, args.output)
+    json_path = save_cases_json(existing, args.output)
+    report_path = generate_summary_report(existing, args.output)
+
+    print(f"\nSearch found: {len(all_cases)} cases")
+    print(f"New cases added: {added}")
+    print(f"Already existed: {len(all_cases) - added}")
+    print(f"Total in database: {len(existing)}")
     print(f"CSV saved to: {csv_path}")
     print(f"JSON saved to: {json_path}")
     print(f"Summary report: {report_path}")
