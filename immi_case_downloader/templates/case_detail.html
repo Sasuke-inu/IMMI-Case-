@@ -15,7 +15,7 @@
       <div class="citation-display">
         {{ case.citation or 'No citation' }}
         {% if case.citation %}
-        <button class="copy-btn" onclick="copyText('{{ case.citation }}', this)" title="Copy citation"><i class="bi bi-clipboard"></i></button>
+        <button class="copy-btn" data-copy="{{ case.citation|e }}" title="Copy citation"><i class="bi bi-clipboard"></i></button>
         {% endif %}
         <span class="badge badge-court badge-{{ case.court_code }} ms-1">{{ case.court_code }}</span>
         {% if case.case_nature %}<span class="badge badge-nature badge-nature-{{ case.case_nature | lower | replace(' ', '-') }} ms-1">{{ case.case_nature }}</span>{% endif %}
@@ -143,23 +143,38 @@
 
 {% block extra_js %}
 <script>
-function copyText(text, btn) {
-  navigator.clipboard.writeText(text).then(function() {
-    btn.classList.add('copied');
-    btn.innerHTML = '<i class="bi bi-check"></i>';
-    setTimeout(function() { btn.classList.remove('copied'); btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 2000);
+document.querySelectorAll('.copy-btn[data-copy]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    navigator.clipboard.writeText(btn.getAttribute('data-copy')).then(function() {
+      btn.classList.add('copied');
+      var icon = btn.querySelector('i');
+      icon.className = 'bi bi-check';
+      setTimeout(function() { btn.classList.remove('copied'); icon.className = 'bi bi-clipboard'; }, 2000);
+    });
   });
-}
+});
 function searchInText(query) {
   var el = document.getElementById('caseTextContent');
   var countEl = document.getElementById('searchCount');
   if (!el._original) el._original = el.textContent;
   if (!query || query.length < 2) { el.textContent = el._original; countEl.textContent = ''; return; }
   var text = el._original;
-  var re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
-  var matches = text.match(re);
-  countEl.textContent = matches ? matches.length + ' found' : 'No matches';
-  el.innerHTML = text.replace(re, '<mark>$1</mark>');
+  var escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  var re = new RegExp(escaped, 'gi');
+  var frag = document.createDocumentFragment();
+  var lastIndex = 0, match, count = 0;
+  while ((match = re.exec(text)) !== null) {
+    count++;
+    if (match.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+    var mark = document.createElement('mark');
+    mark.textContent = match[0];
+    frag.appendChild(mark);
+    lastIndex = re.lastIndex;
+  }
+  if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+  countEl.textContent = count ? count + ' found' : 'No matches';
+  el.textContent = '';
+  el.appendChild(frag);
 }
 </script>
 {% endblock %}

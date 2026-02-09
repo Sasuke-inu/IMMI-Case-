@@ -71,38 +71,16 @@ def _get_output_dir():
 
 ITEMS_PER_PAGE = 50
 
-EDITABLE_FIELDS = [
-    "citation", "title", "court", "court_code", "date", "year", "url",
-    "judges", "catchwords", "outcome", "visa_type", "legislation",
-    "user_notes", "tags", "case_nature", "legal_concepts",
-]
 
-
-# ── Routes ────────────────────────────────────────────────────────────────
-
-@app.route("/")
-def dashboard():
-    """Dashboard with statistics and quick actions."""
-    out = _get_output_dir()
-    ensure_output_dirs(out)
-    stats = get_statistics(out)
-    return render_template("dashboard.html", stats=stats, databases=AUSTLII_DATABASES)
-
-
-@app.route("/cases")
-def case_list():
-    """Browse, filter, and sort cases."""
-    out = _get_output_dir()
-    cases = load_all_cases(out)
-
-    # Filters
-    court_filter = request.args.get("court", "")
-    year_filter = request.args.get("year", "")
-    visa_filter = request.args.get("visa_type", "")
-    keyword = request.args.get("q", "")
-    source_filter = request.args.get("source", "")
-    tag_filter = request.args.get("tag", "")
-    nature_filter = request.args.get("nature", "")
+def _filter_cases(cases: list, args) -> list:
+    """Apply standard query-param filters to a case list. Returns filtered copy."""
+    court_filter = args.get("court", "")
+    year_filter = args.get("year", "")
+    visa_filter = args.get("visa_type", "")
+    keyword = args.get("q", "")
+    source_filter = args.get("source", "")
+    tag_filter = args.get("tag", "")
+    nature_filter = args.get("nature", "")
 
     if court_filter:
         cases = [c for c in cases if c.court_code == court_filter]
@@ -132,6 +110,33 @@ def case_list():
             or kw in c.case_nature.lower()
             or kw in c.legal_concepts.lower()
         ]
+    return cases
+
+
+EDITABLE_FIELDS = [
+    "citation", "title", "court", "court_code", "date", "year", "url",
+    "judges", "catchwords", "outcome", "visa_type", "legislation",
+    "user_notes", "tags", "case_nature", "legal_concepts",
+]
+
+
+# ── Routes ────────────────────────────────────────────────────────────────
+
+@app.route("/")
+def dashboard():
+    """Dashboard with statistics and quick actions."""
+    out = _get_output_dir()
+    ensure_output_dirs(out)
+    stats = get_statistics(out)
+    return render_template("dashboard.html", stats=stats, databases=AUSTLII_DATABASES)
+
+
+@app.route("/cases")
+def case_list():
+    """Browse, filter, and sort cases."""
+    out = _get_output_dir()
+    all_loaded = load_all_cases(out)
+    cases = _filter_cases(list(all_loaded), request.args)
 
     # Sort
     sort_by = request.args.get("sort", "year")
@@ -141,21 +146,23 @@ def case_list():
         cases.sort(key=lambda c: getattr(c, sort_by, ""), reverse=reverse)
 
     # Pagination
-    page = max(1, int(request.args.get("page", 1)))
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except (ValueError, TypeError):
+        page = 1
     total = len(cases)
     total_pages = max(1, (total + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
     page = min(page, total_pages)
     start = (page - 1) * ITEMS_PER_PAGE
     page_cases = cases[start : start + ITEMS_PER_PAGE]
 
-    # Collect unique values for filter dropdowns
-    all_cases = load_all_cases(out)
-    courts = sorted({c.court_code for c in all_cases if c.court_code})
-    years = sorted({c.year for c in all_cases if c.year}, reverse=True)
-    sources = sorted({c.source for c in all_cases if c.source})
-    natures = sorted({c.case_nature for c in all_cases if c.case_nature})
+    # Collect unique values for filter dropdowns (reuse already-loaded data)
+    courts = sorted({c.court_code for c in all_loaded if c.court_code})
+    years = sorted({c.year for c in all_loaded if c.year}, reverse=True)
+    sources = sorted({c.source for c in all_loaded if c.source})
+    natures = sorted({c.case_nature for c in all_loaded if c.case_nature})
     all_tags = set()
-    for c in all_cases:
+    for c in all_loaded:
         if c.tags:
             for t in c.tags.split(","):
                 t = t.strip()
@@ -174,13 +181,13 @@ def case_list():
         natures=natures,
         all_tags=sorted(all_tags),
         filters={
-            "court": court_filter,
-            "year": year_filter,
-            "visa_type": visa_filter,
-            "q": keyword,
-            "source": source_filter,
-            "tag": tag_filter,
-            "nature": nature_filter,
+            "court": request.args.get("court", ""),
+            "year": request.args.get("year", ""),
+            "visa_type": request.args.get("visa_type", ""),
+            "q": request.args.get("q", ""),
+            "source": request.args.get("source", ""),
+            "tag": request.args.get("tag", ""),
+            "nature": request.args.get("nature", ""),
             "sort": sort_by,
             "dir": sort_dir,
         },
@@ -226,7 +233,7 @@ def case_edit(case_id):
             flash("Failed to update case.", "error")
         return redirect(url_for("case_detail", case_id=case_id))
 
-    return render_template("case_edit.html", case=case, editable_fields=EDITABLE_FIELDS)
+    return render_template("case_edit.html", case=case, editable_fields=EDITABLE_FIELDS, databases=AUSTLII_DATABASES)
 
 
 @app.route("/cases/<case_id>/delete", methods=["POST"])
@@ -250,7 +257,7 @@ def case_add():
         flash(f"Case added: {case.citation or case.title}", "success")
         return redirect(url_for("case_detail", case_id=case.case_id))
 
-    return render_template("case_add.html", editable_fields=EDITABLE_FIELDS)
+    return render_template("case_add.html", editable_fields=EDITABLE_FIELDS, databases=AUSTLII_DATABASES)
 
 
 # ── Search ────────────────────────────────────────────────────────────────
@@ -336,9 +343,9 @@ def job_status_api():
 
 @app.route("/export/<fmt>")
 def export_data(fmt):
-    """Export cases as CSV or JSON download."""
+    """Export cases as CSV or JSON download. Accepts same filter params as /cases."""
     out = _get_output_dir()
-    cases = load_all_cases(out)
+    cases = _filter_cases(load_all_cases(out), request.args)
 
     if fmt == "csv":
         si = io.StringIO()

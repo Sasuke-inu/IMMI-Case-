@@ -12,6 +12,12 @@ Australian immigration court/tribunal case downloader and manager. Scrapes case 
 # Install dependencies
 pip install -r requirements.txt
 
+# Run tests
+pip install -r requirements-test.txt
+python3 -m pytest                       # all tests with coverage
+python3 -m pytest tests/test_models.py  # models only
+python3 -m pytest -x                    # stop on first failure
+
 # CLI - search for cases
 python run.py search
 python run.py search --databases AATA FCA --start-year 2020 --end-year 2025

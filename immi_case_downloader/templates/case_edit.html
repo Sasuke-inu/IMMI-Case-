@@ -18,7 +18,7 @@
             <div class="col-12"><label class="form-label small">Title</label><input type="text" name="title" class="form-control form-control-sm" value="{{ case.title }}"></div>
             <div class="col-md-5"><label class="form-label small">Court</label><input type="text" name="court" class="form-control form-control-sm" value="{{ case.court }}"></div>
             <div class="col-md-3"><label class="form-label small">Court Code</label>
-              <select name="court_code" class="form-select form-select-sm"><option value="">--</option>{% for code in ['AATA','FCA','FCCA','FedCFamC2G','HCA','RRTA','MRTA'] %}<option value="{{ code }}" {% if case.court_code == code %}selected{% endif %}>{{ code }}</option>{% endfor %}</select></div>
+              <select name="court_code" class="form-select form-select-sm"><option value="">--</option>{% for code in databases %}<option value="{{ code }}" {% if case.court_code == code %}selected{% endif %}>{{ code }}</option>{% endfor %}</select></div>
             <div class="col-md-2"><label class="form-label small">Year</label><input type="number" name="year" class="form-control form-control-sm" value="{{ case.year }}" min="1900" max="2100"></div>
             <div class="col-md-2"><label class="form-label small">Date</label><input type="text" name="date" class="form-control form-control-sm" value="{{ case.date }}" placeholder="15 Mar 2024"></div>
             <div class="col-md-6"><label class="form-label small">Judge(s)</label><input type="text" name="judges" class="form-control form-control-sm" value="{{ case.judges }}"></div>

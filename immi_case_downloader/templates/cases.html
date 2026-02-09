@@ -84,9 +84,10 @@
 <div class="d-flex justify-content-between align-items-center mt-3">
   <small class="text-muted">Showing {{ ((page-1)*50)+1 }}--{{ [page*50, total] | min }} of {{ "{:,}".format(total) }}</small>
   <nav><ul class="pagination pagination-sm mb-0">
-    <li class="page-item {% if page == 1 %}disabled{% endif %}"><a class="page-link" href="?page={{ page-1 }}&q={{ filters.q }}&court={{ filters.court }}&nature={{ filters.nature }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">&laquo;</a></li>
-    {% for p in range(1, total_pages + 1) %}{% if p == page or (p >= page - 2 and p <= page + 2) or p == 1 or p == total_pages %}<li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&q={{ filters.q }}&court={{ filters.court }}&nature={{ filters.nature }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">{{ p }}</a></li>{% elif p == page - 3 or p == page + 3 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}{% endfor %}
-    <li class="page-item {% if page == total_pages %}disabled{% endif %}"><a class="page-link" href="?page={{ page+1 }}&q={{ filters.q }}&court={{ filters.court }}&nature={{ filters.nature }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">&raquo;</a></li>
+    {% set fq = {'q': filters.q, 'court': filters.court, 'nature': filters.nature, 'year': filters.year, 'visa_type': filters.visa_type, 'source': filters.source, 'tag': filters.tag, 'sort': filters.sort, 'dir': filters.dir} %}
+    <li class="page-item {% if page == 1 %}disabled{% endif %}"><a class="page-link" href="?page={{ page-1 }}&{{ fq|urlencode }}">&laquo;</a></li>
+    {% for p in range(1, total_pages + 1) %}{% if p == page or (p >= page - 2 and p <= page + 2) or p == 1 or p == total_pages %}<li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&{{ fq|urlencode }}">{{ p }}</a></li>{% elif p == page - 3 or p == page + 3 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}{% endfor %}
+    <li class="page-item {% if page == total_pages %}disabled{% endif %}"><a class="page-link" href="?page={{ page+1 }}&{{ fq|urlencode }}">&raquo;</a></li>
   </ul></nav>
 </div>
 {% endif %}

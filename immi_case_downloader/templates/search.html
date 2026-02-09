@@ -49,13 +49,13 @@
       <div class="card">
         <div class="card-header"><i class="bi bi-globe me-1"></i>Other Sources</div>
         <div class="card-body">
-          <label class="source-card d-flex align-items-start gap-2 w-100 selected" for="src_fedcourt" id="label_src_fedcourt">
+          <label class="source-card d-flex align-items-start gap-2 w-100" for="src_fedcourt" id="label_src_fedcourt">
             <div class="check-icon mt-1"><i class="bi bi-check-lg" style="font-size:.7rem;"></i></div>
             <div class="flex-grow-1">
               <div class="source-code">Federal Court Judgment Search</div>
-              <div class="source-desc">search2.fedcourt.gov.au &mdash; direct search of Federal Court judgments database</div>
+              <div class="source-desc">search2.fedcourt.gov.au &mdash; direct search of Federal Court judgments database (often unavailable)</div>
             </div>
-            <input type="checkbox" name="sources" value="fedcourt" id="src_fedcourt" checked
+            <input type="checkbox" name="sources" value="fedcourt" id="src_fedcourt"
               onchange="this.closest('.source-card').classList.toggle('selected', this.checked)">
           </label>
         </div>
@@ -115,7 +115,7 @@
 {% block extra_js %}
 <script>
 function toggleAll(state) {
-  document.querySelectorAll('#searchForm .source-card input[type="checkbox"]').forEach(function(cb) {
+  document.querySelectorAll('#searchForm input[name="databases"]').forEach(function(cb) {
     cb.checked = state;
     cb.closest('.source-card').classList.toggle('selected', state);
   });
