@@ -15,6 +15,7 @@
     <div class="row g-2 align-items-end">
       <div class="col-lg-3 col-md-4"><label class="form-label">Search</label><input type="text" name="q" class="form-control form-control-sm" value="{{ filters.q }}" placeholder="Title, citation, judge, notes..."></div>
       <div class="col-lg-2 col-md-3"><label class="form-label">Court</label><select name="court" class="form-select form-select-sm"><option value="">All Courts</option>{% for code in courts %}<option value="{{ code }}" {% if filters.court == code %}selected{% endif %}>{{ code }}{% if code in databases %} - {{ databases[code].name[:25] }}{% endif %}</option>{% endfor %}</select></div>
+      <div class="col-lg-1 col-md-2 col-4"><label class="form-label">Nature</label><select name="nature" class="form-select form-select-sm"><option value="">All</option>{% for n in natures %}<option value="{{ n }}" {% if filters.nature == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
       <div class="col-lg-1 col-md-2 col-4"><label class="form-label">Year</label><select name="year" class="form-select form-select-sm"><option value="">All</option>{% for y in years %}<option value="{{ y }}" {% if filters.year == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
       <div class="col-lg-2 col-md-3 col-4"><label class="form-label">Visa Type</label><input type="text" name="visa_type" class="form-control form-control-sm" value="{{ filters.visa_type }}" placeholder="e.g. protection"></div>
       <div class="col-lg-1 col-md-2 col-4"><label class="form-label">Sort</label><select name="sort" class="form-select form-select-sm"><option value="year" {% if filters.sort == 'year' %}selected{% endif %}>Year</option><option value="date" {% if filters.sort == 'date' %}selected{% endif %}>Date</option><option value="title" {% if filters.sort == 'title' %}selected{% endif %}>Title</option><option value="court" {% if filters.sort == 'court' %}selected{% endif %}>Court</option></select></div>
@@ -23,11 +24,12 @@
       <div class="col-lg-2 col-md-2 col-4 d-flex gap-1"><button type="submit" class="btn btn-primary btn-sm flex-grow-1"><i class="bi bi-funnel me-1"></i>Filter</button><a href="{{ url_for('case_list') }}" class="btn btn-outline-secondary btn-sm" title="Clear all filters"><i class="bi bi-x-lg"></i></a></div>
     </div>
   </form>
-  {% set has_filters = filters.q or filters.court or filters.year or filters.visa_type or filters.source or filters.tag %}
+  {% set has_filters = filters.q or filters.court or filters.year or filters.visa_type or filters.source or filters.tag or filters.nature %}
   {% if has_filters %}
   <div class="active-filters mt-2 pt-2 border-top">
     {% if filters.q %}<span class="filter-pill"><i class="bi bi-search"></i> {{ filters.q }}</span>{% endif %}
     {% if filters.court %}<span class="filter-pill"><i class="bi bi-bank"></i> {{ filters.court }}</span>{% endif %}
+    {% if filters.nature %}<span class="filter-pill"><i class="bi bi-diagram-3"></i> {{ filters.nature }}</span>{% endif %}
     {% if filters.year %}<span class="filter-pill"><i class="bi bi-calendar"></i> {{ filters.year }}</span>{% endif %}
     {% if filters.visa_type %}<span class="filter-pill"><i class="bi bi-passport"></i> {{ filters.visa_type }}</span>{% endif %}
     {% if filters.source %}<span class="filter-pill">{{ filters.source }}</span>{% endif %}
@@ -41,7 +43,7 @@
   <div class="table-responsive">
     <table class="table table-hover table-cases mb-0">
       <thead><tr>
-        <th style="width:140px;">Citation</th><th>Title</th><th style="width:90px;">Court</th><th style="width:50px;">Year</th><th style="width:80px;">Visa</th><th style="width:40px;" class="text-center" title="Full text"><i class="bi bi-file-text"></i></th><th style="width:30px;"></th>
+        <th style="width:140px;">Citation</th><th>Title</th><th style="width:90px;">Court</th><th style="width:110px;">Nature</th><th style="width:50px;">Year</th><th style="width:80px;">Visa</th><th style="width:40px;" class="text-center" title="Full text"><i class="bi bi-file-text"></i></th><th style="width:30px;"></th>
       </tr></thead>
       <tbody>
         {% for case in cases %}
@@ -57,6 +59,7 @@
             {% endif %}
           </td>
           <td><span class="badge badge-court badge-{{ case.court_code }}">{{ case.court_code }}</span></td>
+          <td>{% if case.case_nature %}<span class="badge badge-nature badge-nature-{{ case.case_nature | lower | replace(' ', '-') }}">{{ case.case_nature }}</span>{% endif %}</td>
           <td class="small">{{ case.year or '' }}</td>
           <td class="small text-truncate" style="max-width:100px;" title="{{ case.visa_type }}">{{ case.visa_type or '' }}</td>
           <td class="text-center">{% if case.full_text_path %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-circle text-muted" style="font-size:.6rem;"></i>{% endif %}</td>
@@ -64,7 +67,7 @@
         </tr>
         {% endfor %}
         {% if not cases %}
-        <tr><td colspan="7">
+        <tr><td colspan="8">
           <div class="empty-state py-4">
             <div class="empty-icon" style="font-size:2.5rem;"><i class="bi bi-search"></i></div>
             <h5>No cases found</h5>
@@ -81,9 +84,9 @@
 <div class="d-flex justify-content-between align-items-center mt-3">
   <small class="text-muted">Showing {{ ((page-1)*50)+1 }}--{{ [page*50, total] | min }} of {{ "{:,}".format(total) }}</small>
   <nav><ul class="pagination pagination-sm mb-0">
-    <li class="page-item {% if page == 1 %}disabled{% endif %}"><a class="page-link" href="?page={{ page-1 }}&q={{ filters.q }}&court={{ filters.court }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">&laquo;</a></li>
-    {% for p in range(1, total_pages + 1) %}{% if p == page or (p >= page - 2 and p <= page + 2) or p == 1 or p == total_pages %}<li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&q={{ filters.q }}&court={{ filters.court }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">{{ p }}</a></li>{% elif p == page - 3 or p == page + 3 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}{% endfor %}
-    <li class="page-item {% if page == total_pages %}disabled{% endif %}"><a class="page-link" href="?page={{ page+1 }}&q={{ filters.q }}&court={{ filters.court }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">&raquo;</a></li>
+    <li class="page-item {% if page == 1 %}disabled{% endif %}"><a class="page-link" href="?page={{ page-1 }}&q={{ filters.q }}&court={{ filters.court }}&nature={{ filters.nature }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">&laquo;</a></li>
+    {% for p in range(1, total_pages + 1) %}{% if p == page or (p >= page - 2 and p <= page + 2) or p == 1 or p == total_pages %}<li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&q={{ filters.q }}&court={{ filters.court }}&nature={{ filters.nature }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">{{ p }}</a></li>{% elif p == page - 3 or p == page + 3 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}{% endfor %}
+    <li class="page-item {% if page == total_pages %}disabled{% endif %}"><a class="page-link" href="?page={{ page+1 }}&q={{ filters.q }}&court={{ filters.court }}&nature={{ filters.nature }}&year={{ filters.year }}&visa_type={{ filters.visa_type }}&source={{ filters.source }}&tag={{ filters.tag }}&sort={{ filters.sort }}&dir={{ filters.dir }}">&raquo;</a></li>
   </ul></nav>
 </div>
 {% endif %}

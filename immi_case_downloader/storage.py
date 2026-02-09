@@ -32,6 +32,8 @@ CASE_FIELDS = [
     "source",
     "user_notes",
     "tags",
+    "case_nature",
+    "legal_concepts",
 ]
 
 
@@ -239,6 +241,7 @@ def get_statistics(base_dir: str = OUTPUT_DIR) -> dict:
     cases = load_all_cases(base_dir)
     by_court: dict[str, int] = {}
     by_year: dict[int, int] = {}
+    by_nature: dict[str, int] = {}
     visa_types: set[str] = set()
     with_text = 0
 
@@ -248,6 +251,8 @@ def get_statistics(base_dir: str = OUTPUT_DIR) -> dict:
             by_year[c.year] = by_year.get(c.year, 0) + 1
         if c.visa_type:
             visa_types.add(c.visa_type)
+        if c.case_nature:
+            by_nature[c.case_nature] = by_nature.get(c.case_nature, 0) + 1
         if c.full_text_path and os.path.exists(c.full_text_path):
             with_text += 1
 
@@ -255,6 +260,7 @@ def get_statistics(base_dir: str = OUTPUT_DIR) -> dict:
         "total": len(cases),
         "by_court": dict(sorted(by_court.items())),
         "by_year": dict(sorted(by_year.items())),
+        "by_nature": dict(sorted(by_nature.items(), key=lambda x: x[1], reverse=True)),
         "visa_types": sorted(visa_types),
         "with_full_text": with_text,
         "sources": sorted({c.source for c in cases if c.source}),

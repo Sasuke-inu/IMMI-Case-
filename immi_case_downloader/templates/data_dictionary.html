@@ -19,17 +19,22 @@
   <div class="card-header"><i class="bi bi-diagram-3 me-1"></i>Data Population Pipeline</div>
   <div class="card-body">
     <div class="row g-3 text-center">
-      <div class="col-md-4">
+      <div class="col-md-3">
         <div class="stage-badge search mb-2"><i class="bi bi-search"></i> Stage 1: Search</div>
         <div class="small text-muted">Core identification fields scraped from court listing pages</div>
         <div class="mt-1"><code class="me-1">citation</code><code class="me-1">title</code><code class="me-1">court</code><code class="me-1">court_code</code><code class="me-1">year</code><code class="me-1">url</code><code>source</code></div>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
         <div class="stage-badge download mb-2"><i class="bi bi-cloud-download"></i> Stage 2: Download</div>
         <div class="small text-muted">Detailed fields extracted from full judgment text via pattern matching</div>
         <div class="mt-1"><code class="me-1">judges</code><code class="me-1">date</code><code class="me-1">catchwords</code><code class="me-1">outcome</code><code class="me-1">visa_type</code><code class="me-1">legislation</code><code>full_text_path</code></div>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
+        <div class="stage-badge postprocess mb-2"><i class="bi bi-cpu"></i> Stage 2.5: Post-process</div>
+        <div class="small text-muted">LLM-assisted classification and concept extraction</div>
+        <div class="mt-1"><code class="me-1">case_nature</code><code>legal_concepts</code></div>
+      </div>
+      <div class="col-md-3">
         <div class="stage-badge user mb-2"><i class="bi bi-pencil"></i> Stage 3: Your Edits</div>
         <div class="small text-muted">Your personal annotations, plus corrections to any field</div>
         <div class="mt-1"><code class="me-1">user_notes</code><code>tags</code></div>
@@ -183,6 +188,39 @@
           <td class="small">Text</td>
           <td class="small"><strong>Data source</strong> &mdash; which database the case was found in.</td>
           <td class="small"><code>AustLII</code>, <code>Federal Court</code>, <code>Manual Entry</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Analysis fields (post-processing) -->
+<div class="card dict-section mb-3">
+  <div class="card-header"><span class="stage-badge postprocess me-2"><i class="bi bi-cpu"></i> Analysis</span>Post-processing Fields (Stage 2.5)</div>
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0">
+      <thead class="table-light"><tr><th style="width:140px">Column</th><th style="width:100px">Type</th><th>Description</th><th style="width:260px">Example</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>case_nature</code></td>
+          <td class="small">Text</td>
+          <td class="small"><strong>Case nature / type</strong> &mdash; the broad classification of the case. Assigned by post-processing pipeline using LLM sub-agents or regex. Values include:
+            <span class="badge badge-nature badge-nature-merits-review me-1">Merits Review</span>
+            <span class="badge badge-nature badge-nature-judicial-review me-1">Judicial Review</span>
+            <span class="badge badge-nature badge-nature-appeal me-1">Appeal</span>
+            <span class="badge badge-nature badge-nature-visa-cancellation me-1">Visa Cancellation</span>
+            <span class="badge badge-nature badge-nature-visa-refusal me-1">Visa Refusal</span>
+            <span class="badge badge-nature badge-nature-detention-challenge me-1">Detention Challenge</span>
+            <span class="badge badge-nature badge-nature-deportation me-1">Deportation</span>
+            <span class="badge badge-nature badge-nature-constitutional">Constitutional</span>
+          </td>
+          <td class="small"><code>Merits Review</code></td>
+        </tr>
+        <tr>
+          <td><code>legal_concepts</code></td>
+          <td class="small">Text (semicolons)</td>
+          <td class="small"><strong>Legal concepts</strong> &mdash; key legal principles or doctrines involved. Semicolon-separated. Extracted by LLM analysis of catchwords and judgment text. Displayed as clickable concept tags in case detail view.</td>
+          <td class="small"><code>Jurisdictional error; Procedural fairness; Unreasonableness</code></td>
         </tr>
       </tbody>
     </table>

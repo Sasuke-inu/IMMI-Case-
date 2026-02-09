@@ -26,6 +26,9 @@
             <div class="col-12"><label class="form-label small">Catchwords</label><textarea name="catchwords" class="form-control form-control-sm" rows="2"></textarea></div>
             <div class="col-12"><label class="form-label small">Outcome</label><textarea name="outcome" class="form-control form-control-sm" rows="2" placeholder="Application dismissed..."></textarea></div>
             <div class="col-12"><label class="form-label small">Legislation</label><textarea name="legislation" class="form-control form-control-sm" rows="2" placeholder="Migration Act 1958 s 501"></textarea></div>
+            <div class="col-md-4"><label class="form-label small">Case Nature</label>
+              <select name="case_nature" class="form-select form-select-sm"><option value="">--</option>{% for n in ['Merits Review','Judicial Review','Appeal','Visa Cancellation','Visa Refusal','Detention Challenge','Deportation','Constitutional'] %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select></div>
+            <div class="col-md-8"><label class="form-label small">Legal Concepts <span class="text-muted">(semicolon separated)</span></label><textarea name="legal_concepts" class="form-control form-control-sm" rows="2" placeholder="Jurisdictional error; Procedural fairness; Unreasonableness"></textarea></div>
           </div>
         </div>
       </div>

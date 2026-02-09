@@ -18,6 +18,7 @@
         <button class="copy-btn" onclick="copyText('{{ case.citation }}', this)" title="Copy citation"><i class="bi bi-clipboard"></i></button>
         {% endif %}
         <span class="badge badge-court badge-{{ case.court_code }} ms-1">{{ case.court_code }}</span>
+        {% if case.case_nature %}<span class="badge badge-nature badge-nature-{{ case.case_nature | lower | replace(' ', '-') }} ms-1">{{ case.case_nature }}</span>{% endif %}
         {% if case.outcome %}
           {% set ol = case.outcome.lower() %}
           <span class="badge badge-outcome {% if 'affirm' in ol or 'dismiss' in ol or 'refus' in ol %}affirm{% elif 'set aside' in ol or 'allow' in ol or 'remit' in ol or 'grant' in ol %}setaside{% else %}unknown{% endif %}">
@@ -89,7 +90,7 @@
     </div>
 
     <!-- Catchwords -->
-    <div class="card">
+    <div class="card mb-3">
       <div class="card-header">Catchwords</div>
       <div class="card-body">
         {% if case.catchwords %}
@@ -99,6 +100,16 @@
         {% endif %}
       </div>
     </div>
+
+    <!-- Legal Concepts -->
+    {% if case.legal_concepts %}
+    <div class="card">
+      <div class="card-header">Legal Concepts</div>
+      <div class="card-body">
+        {% for concept in case.legal_concepts.split(';') %}{% set c = concept.strip() %}{% if c %}<a href="{{ url_for('case_list', q=c) }}" class="concept-tag">{{ c }}</a>{% endif %}{% endfor %}
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 

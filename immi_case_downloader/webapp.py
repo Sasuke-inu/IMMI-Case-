@@ -74,7 +74,7 @@ ITEMS_PER_PAGE = 50
 EDITABLE_FIELDS = [
     "citation", "title", "court", "court_code", "date", "year", "url",
     "judges", "catchwords", "outcome", "visa_type", "legislation",
-    "user_notes", "tags",
+    "user_notes", "tags", "case_nature", "legal_concepts",
 ]
 
 
@@ -102,6 +102,7 @@ def case_list():
     keyword = request.args.get("q", "")
     source_filter = request.args.get("source", "")
     tag_filter = request.args.get("tag", "")
+    nature_filter = request.args.get("nature", "")
 
     if court_filter:
         cases = [c for c in cases if c.court_code == court_filter]
@@ -116,6 +117,8 @@ def case_list():
         cases = [c for c in cases if c.source == source_filter]
     if tag_filter:
         cases = [c for c in cases if tag_filter.lower() in c.tags.lower()]
+    if nature_filter:
+        cases = [c for c in cases if c.case_nature == nature_filter]
     if keyword:
         kw = keyword.lower()
         cases = [
@@ -126,6 +129,8 @@ def case_list():
             or kw in c.judges.lower()
             or kw in c.outcome.lower()
             or kw in c.user_notes.lower()
+            or kw in c.case_nature.lower()
+            or kw in c.legal_concepts.lower()
         ]
 
     # Sort
@@ -148,6 +153,7 @@ def case_list():
     courts = sorted({c.court_code for c in all_cases if c.court_code})
     years = sorted({c.year for c in all_cases if c.year}, reverse=True)
     sources = sorted({c.source for c in all_cases if c.source})
+    natures = sorted({c.case_nature for c in all_cases if c.case_nature})
     all_tags = set()
     for c in all_cases:
         if c.tags:
@@ -165,6 +171,7 @@ def case_list():
         courts=courts,
         years=years,
         sources=sources,
+        natures=natures,
         all_tags=sorted(all_tags),
         filters={
             "court": court_filter,
@@ -173,6 +180,7 @@ def case_list():
             "q": keyword,
             "source": source_filter,
             "tag": tag_filter,
+            "nature": nature_filter,
             "sort": sort_by,
             "dir": sort_dir,
         },

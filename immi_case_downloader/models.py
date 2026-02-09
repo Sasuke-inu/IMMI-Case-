@@ -27,6 +27,8 @@ class ImmigrationCase:
     source: str = ""
     user_notes: str = ""
     tags: str = ""
+    case_nature: str = ""
+    legal_concepts: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
