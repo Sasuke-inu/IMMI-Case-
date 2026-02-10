@@ -14,6 +14,13 @@
   <a class="nav-link {% if request.endpoint == 'download_page' %}active{% endif %}" href="{{ url_for('download_page') }}">
     <i class="bi bi-cloud-download me-2"></i>Download Texts
   </a>
+  <a class="nav-link {% if request.endpoint == 'update_db_page' %}active{% endif %}" href="{{ url_for('update_db_page') }}">
+    <i class="bi bi-arrow-repeat me-2"></i>Update Database
+  </a>
+  <a class="nav-link {% if request.endpoint == 'pipeline_page' %}active{% endif %}" href="{{ url_for('pipeline_page') }}">
+    <i class="bi bi-gear-wide-connected me-2"></i>Smart Pipeline
+    {% if pipeline_running %}<span class="spinner-grow spinner-grow-sm text-info ms-auto" style="width:.5rem;height:.5rem;"></span>{% endif %}
+  </a>
   <a class="nav-link {% if request.endpoint == 'case_add' %}active{% endif %}" href="{{ url_for('case_add') }}">
     <i class="bi bi-plus-circle me-2"></i>Add Case
   </a>

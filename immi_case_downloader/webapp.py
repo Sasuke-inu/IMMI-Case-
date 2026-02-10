@@ -19,7 +19,7 @@ from flask import (
     jsonify,
 )
 
-from .config import OUTPUT_DIR, AUSTLII_DATABASES, START_YEAR, END_YEAR
+from .config import OUTPUT_DIR, AUSTLII_DATABASES, START_YEAR, END_YEAR, IMMIGRATION_KEYWORDS
 from .models import ImmigrationCase
 from .storage import (
     ensure_output_dirs,
@@ -59,8 +59,13 @@ _job_status = {
 
 @app.context_processor
 def inject_globals():
-    """Inject global template variables (job status, etc.)."""
-    return {"job_running": _job_status.get("running", False)}
+    """Inject global template variables (job status, pipeline status)."""
+    from .pipeline import get_pipeline_status
+    ps = get_pipeline_status()
+    return {
+        "job_running": _job_status.get("running", False),
+        "pipeline_running": ps.get("running", False),
+    }
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────
@@ -539,6 +544,356 @@ def _run_download_job(court_filter, limit):
         _job_status["progress"] = f"Failed: {e}"
 
     _job_status["running"] = False
+
+
+# ── Update Database ───────────────────────────────────────────────────────
+
+@app.route("/update-db", methods=["GET", "POST"])
+def update_db_page():
+    """One-stop page to crawl new cases and download full texts."""
+    out = _get_output_dir()
+    cases = load_all_cases(out)
+
+    # Build coverage matrix: court_code -> {year: count}
+    coverage = {}
+    for c in cases:
+        court = c.court_code
+        yr = c.year
+        if court and yr:
+            coverage.setdefault(court, {})
+            coverage[court][yr] = coverage[court].get(yr, 0) + 1
+
+    without_text = sum(
+        1 for c in cases if not c.full_text_path or not os.path.exists(c.full_text_path)
+    )
+
+    # Available year ranges per DB on AustLII
+    db_year_ranges = {
+        "AATA": (2000, 2024),
+        "FCA": (2000, END_YEAR),
+        "FCCA": (2013, 2021),
+        "FedCFamC2G": (2021, END_YEAR),
+        "HCA": (2000, END_YEAR),
+    }
+
+    if request.method == "POST":
+        if _job_status["running"]:
+            flash("A job is already running. Please wait.", "warning")
+            return redirect(url_for("job_status_page"))
+
+        action = request.form.get("action", "")
+
+        if action == "quick_update":
+            # Fetch latest year for all active DBs
+            thread = threading.Thread(
+                target=_run_update_job,
+                args=("quick",),
+                kwargs={
+                    "delay": float(request.form.get("delay", 0.5)),
+                    "output_dir": out,
+                },
+                daemon=True,
+            )
+            thread.start()
+            flash("Quick update started — fetching latest cases.", "success")
+            return redirect(url_for("job_status_page"))
+
+        elif action == "custom_crawl":
+            databases = request.form.getlist("databases")
+            start_year = int(request.form.get("start_year", END_YEAR))
+            end_year = int(request.form.get("end_year", END_YEAR))
+            delay = float(request.form.get("delay", 0.5))
+
+            thread = threading.Thread(
+                target=_run_update_job,
+                args=("custom",),
+                kwargs={
+                    "databases": databases,
+                    "start_year": start_year,
+                    "end_year": end_year,
+                    "delay": delay,
+                    "output_dir": out,
+                },
+                daemon=True,
+            )
+            thread.start()
+            flash(
+                f"Custom crawl started: {', '.join(databases)} ({start_year}-{end_year}).",
+                "success",
+            )
+            return redirect(url_for("job_status_page"))
+
+        elif action == "bulk_download":
+            court_filter = request.form.get("court", "")
+            limit = int(request.form.get("limit", 1000))
+            delay = float(request.form.get("delay", 0.5))
+
+            thread = threading.Thread(
+                target=_run_bulk_download_job,
+                args=(court_filter, limit, delay, out),
+                daemon=True,
+            )
+            thread.start()
+            flash(f"Bulk download started: {limit} cases.", "success")
+            return redirect(url_for("job_status_page"))
+
+    return render_template(
+        "update_db.html",
+        databases=AUSTLII_DATABASES,
+        coverage=coverage,
+        total_cases=len(cases),
+        without_text=without_text,
+        start_year=START_YEAR,
+        end_year=END_YEAR,
+        db_year_ranges=db_year_ranges,
+    )
+
+
+def _run_update_job(mode, databases=None, start_year=None, end_year=None,
+                    delay=0.5, output_dir=None):
+    """Background job: crawl AustLII for new cases and merge."""
+    global _job_status
+    out = output_dir or _get_output_dir()
+
+    from .sources.austlii import AustLIIScraper
+    from .storage import save_cases_csv, save_cases_json
+
+    if mode == "quick":
+        # Quick update: current year + previous year for all main DBs
+        databases = ["AATA", "FCA", "FedCFamC2G", "HCA"]
+        years = [END_YEAR, END_YEAR - 1]
+        total_steps = len(databases) * len(years)
+    else:
+        databases = databases or ["AATA"]
+        start_year = start_year or END_YEAR
+        end_year = end_year or END_YEAR
+        years = list(range(start_year, end_year + 1))
+        total_steps = len(databases) * len(years)
+
+    _job_status = {
+        "running": True,
+        "type": "update",
+        "progress": "Initializing...",
+        "total": total_steps,
+        "completed": 0,
+        "errors": [],
+        "results": [],
+    }
+
+    try:
+        scraper = AustLIIScraper(delay=delay)
+        ensure_output_dirs(out)
+
+        existing = load_all_cases(out)
+        existing_urls = {c.url for c in existing}
+        total_added = 0
+
+        for db_code in databases:
+            if db_code not in AUSTLII_DATABASES:
+                _job_status["errors"].append(f"Unknown database: {db_code}")
+                continue
+
+            db_info = AUSTLII_DATABASES[db_code]
+
+            for year in years:
+                _job_status["progress"] = f"Crawling {db_code} {year}..."
+                try:
+                    cases = scraper._browse_year(
+                        db_code, db_info, year, IMMIGRATION_KEYWORDS
+                    )
+                    added = 0
+                    for case in cases:
+                        if case.url not in existing_urls:
+                            case.ensure_id()
+                            existing.append(case)
+                            existing_urls.add(case.url)
+                            added += 1
+                    total_added += added
+                    _job_status["results"].append(
+                        f"{db_code} {year}: {len(cases)} found, {added} new"
+                    )
+                except Exception as e:
+                    _job_status["errors"].append(f"{db_code} {year}: {e}")
+
+                _job_status["completed"] += 1
+
+        # Save merged results
+        save_cases_csv(existing, out)
+        save_cases_json(existing, out)
+
+        _job_status["progress"] = (
+            f"Done! Added {total_added} new cases. Total: {len(existing)}."
+        )
+
+    except Exception as e:
+        _job_status["errors"].append(f"Fatal: {e}")
+        _job_status["progress"] = f"Failed: {e}"
+
+    _job_status["running"] = False
+
+
+def _run_bulk_download_job(court_filter, limit, delay, output_dir):
+    """Background job: download full text for many cases at once."""
+    global _job_status
+    out = output_dir or _get_output_dir()
+
+    from .sources.austlii import AustLIIScraper
+    from .storage import save_case_text, save_cases_csv, save_cases_json
+
+    cases = load_all_cases(out)
+    targets = [
+        c for c in cases
+        if not c.full_text_path or not os.path.exists(c.full_text_path)
+    ]
+    if court_filter:
+        targets = [c for c in targets if c.court_code == court_filter]
+    targets = targets[:limit]
+
+    _job_status = {
+        "running": True,
+        "type": "bulk download",
+        "progress": f"Downloading {len(targets)} cases...",
+        "total": len(targets),
+        "completed": 0,
+        "errors": [],
+        "results": [],
+    }
+
+    try:
+        scraper = AustLIIScraper(delay=delay)
+        ok = 0
+        fail = 0
+
+        for case in targets:
+            _job_status["progress"] = (
+                f"[{_job_status['completed']+1}/{len(targets)}] "
+                f"{case.citation or case.title[:50]}"
+            )
+            try:
+                text = scraper.download_case_detail(case)
+                if text:
+                    save_case_text(case, text, out)
+                    ok += 1
+                else:
+                    fail += 1
+            except Exception as e:
+                fail += 1
+                if fail <= 20:
+                    _job_status["errors"].append(
+                        f"{case.citation or case.case_id}: {e}"
+                    )
+            _job_status["completed"] += 1
+
+            if ok > 0 and ok % 200 == 0:
+                _job_status["results"].append(f"Checkpoint: {ok} downloaded so far")
+                # Save progress
+                all_cases = load_all_cases(out)
+                target_map = {c.case_id: c for c in targets[:_job_status["completed"]]}
+                for c in all_cases:
+                    if c.case_id in target_map and target_map[c.case_id].full_text_path:
+                        c.full_text_path = target_map[c.case_id].full_text_path
+                save_cases_csv(all_cases, out)
+
+        # Final save
+        all_cases = load_all_cases(out)
+        target_map = {c.case_id: c for c in targets}
+        for c in all_cases:
+            if c.case_id in target_map and target_map[c.case_id].full_text_path:
+                c.full_text_path = target_map[c.case_id].full_text_path
+        save_cases_csv(all_cases, out)
+        save_cases_json(all_cases, out)
+
+        _job_status["progress"] = f"Done! Downloaded {ok}/{len(targets)} cases."
+        _job_status["results"].append(f"Total: {ok} downloaded, {fail} failed")
+
+    except Exception as e:
+        _job_status["errors"].append(f"Fatal: {e}")
+        _job_status["progress"] = f"Failed: {e}"
+
+    _job_status["running"] = False
+
+
+# ── Smart Pipeline ────────────────────────────────────────────────────────
+
+@app.route("/pipeline", methods=["GET", "POST"])
+def pipeline_page():
+    """Smart Pipeline: configure, launch, and monitor."""
+    from .pipeline import PipelineConfig, start_pipeline, get_pipeline_status
+
+    if request.method == "POST":
+        ps = get_pipeline_status()
+        if ps["running"]:
+            flash("Pipeline is already running.", "warning")
+            return redirect(url_for("pipeline_page"))
+        if _job_status["running"]:
+            flash("Another job is running. Please wait.", "warning")
+            return redirect(url_for("pipeline_page"))
+
+        config = PipelineConfig.from_form(request.form)
+        out = _get_output_dir()
+        if start_pipeline(config, out):
+            flash("Smart Pipeline started!", "success")
+        else:
+            flash("Failed to start pipeline.", "error")
+        return redirect(url_for("pipeline_page"))
+
+    out = _get_output_dir()
+    cases = load_all_cases(out)
+    without_text = sum(
+        1 for c in cases if not c.full_text_path or not os.path.exists(c.full_text_path)
+    )
+    ps = get_pipeline_status()
+
+    return render_template(
+        "pipeline.html",
+        databases=AUSTLII_DATABASES,
+        start_year=START_YEAR,
+        end_year=END_YEAR,
+        total_cases=len(cases),
+        without_text=without_text,
+        pipeline=ps,
+    )
+
+
+@app.route("/api/pipeline-status")
+def pipeline_status_api():
+    """JSON API for real-time pipeline monitoring."""
+    from .pipeline import get_pipeline_status
+    return jsonify(get_pipeline_status())
+
+
+@app.route("/api/pipeline-log")
+def pipeline_log_api():
+    """JSON API for structured debug logs with optional filtering."""
+    from .pipeline import get_pipeline_status
+    ps = get_pipeline_status()
+    log = ps.get("log", [])
+
+    phase = request.args.get("phase", "")
+    level = request.args.get("level", "")
+    limit = int(request.args.get("limit", 200))
+
+    if phase:
+        log = [e for e in log if e.get("phase") == phase]
+    if level:
+        log = [e for e in log if e.get("level") == level]
+
+    return jsonify(log[-limit:])
+
+
+@app.route("/api/pipeline-action", methods=["POST"])
+def pipeline_action_api():
+    """Handle user actions: stop pipeline."""
+    from .pipeline import request_pipeline_stop
+
+    data = request.get_json(silent=True) or {}
+    action = data.get("action", "")
+
+    if action == "stop":
+        request_pipeline_stop()
+        return jsonify({"ok": True, "message": "Stop requested."})
+
+    return jsonify({"ok": False, "message": f"Unknown action: {action}"}), 400
 
 
 # ── App factory ───────────────────────────────────────────────────────────

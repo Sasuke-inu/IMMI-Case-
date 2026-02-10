@@ -18,6 +18,7 @@ class BaseScraper:
         self.delay = delay
         self.session = self._create_session()
         self._last_request_time = 0.0
+        self.last_error: dict | None = None
 
     def _create_session(self) -> requests.Session:
         session = requests.Session()
@@ -44,12 +45,30 @@ class BaseScraper:
         self._last_request_time = time.time()
 
     def fetch(self, url: str, params: dict = None) -> requests.Response | None:
-        """Fetch a URL with rate limiting and error handling."""
+        """Fetch a URL with rate limiting and error handling.
+
+        Sets self.last_error with structured info on failure for pipeline use.
+        Backward-compatible: existing code checking ``if not response:`` still works.
+        """
         self._rate_limit()
+        self.last_error = None
         try:
             response = self.session.get(url, params=params, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
             return response
+        except requests.Timeout:
+            self.last_error = {"category": "http_timeout", "url": url}
+        except requests.ConnectionError as e:
+            is_dns = "Name or service not known" in str(e) or "nodename nor servname" in str(e)
+            self.last_error = {
+                "category": "dns_error" if is_dns else "connection_error",
+                "url": url,
+                "error": str(e),
+            }
+        except requests.HTTPError as e:
+            status = e.response.status_code if e.response is not None else 0
+            self.last_error = {"category": f"http_{status}", "url": url, "status": status}
         except requests.RequestException as e:
-            logger.warning(f"Failed to fetch {url}: {e}")
-            return None
+            self.last_error = {"category": "request_error", "url": url, "error": str(e)}
+        logger.warning(f"Failed to fetch {url}: {self.last_error}")
+        return None
