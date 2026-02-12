@@ -2,7 +2,7 @@
 {% block title %}Browse Cases{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <div><h4 class="mb-0">Browse Cases</h4><small class="text-muted">{{ "{:,}".format(total) }} result{{ 's' if total != 1 }}</small></div>
+  <div><h4 class="mb-0 font-serif">Browse Cases</h4><small class="text-muted">{{ "{:,}".format(total) }} result{{ 's' if total != 1 }}</small></div>
   <div class="d-flex gap-2">
     <a href="{{ url_for('case_add') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle me-1"></i>Add</a>
     <a href="{{ url_for('export_data', fmt='csv') }}" class="btn btn-sm btn-outline-success"><i class="bi bi-download me-1"></i>CSV</a>
@@ -11,20 +11,33 @@
 
 <!-- Filters -->
 <div class="filter-bar p-2 px-3 mb-3 shadow-sm">
-  <form method="get">
+  <form method="get" id="filterForm">
+    <!-- Primary row: always visible -->
     <div class="row g-2 align-items-end">
-      <div class="col-lg-3 col-md-4"><label class="form-label">Search</label><input type="text" name="q" class="form-control form-control-sm" value="{{ filters.q }}" placeholder="Title, citation, judge, notes..."></div>
+      <div class="col-lg-4 col-md-5"><label class="form-label">Search</label><input type="text" name="q" class="form-control form-control-sm" value="{{ filters.q }}" placeholder="Title, citation, judge, notes..."></div>
       <div class="col-lg-2 col-md-3"><label class="form-label">Court</label><select name="court" class="form-select form-select-sm"><option value="">All Courts</option>{% for code in courts %}<option value="{{ code }}" {% if filters.court == code %}selected{% endif %}>{{ code }}{% if code in databases %} - {{ databases[code].name[:25] }}{% endif %}</option>{% endfor %}</select></div>
-      <div class="col-lg-1 col-md-2 col-4"><label class="form-label">Nature</label><select name="nature" class="form-select form-select-sm"><option value="">All</option>{% for n in natures %}<option value="{{ n }}" {% if filters.nature == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
-      <div class="col-lg-1 col-md-2 col-4"><label class="form-label">Year</label><select name="year" class="form-select form-select-sm"><option value="">All</option>{% for y in years %}<option value="{{ y }}" {% if filters.year == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
-      <div class="col-lg-2 col-md-3 col-4"><label class="form-label">Visa Type</label><input type="text" name="visa_type" class="form-control form-control-sm" value="{{ filters.visa_type }}" placeholder="e.g. protection"></div>
-      <div class="col-lg-1 col-md-2 col-4"><label class="form-label">Sort</label><select name="sort" class="form-select form-select-sm"><option value="year" {% if filters.sort == 'year' %}selected{% endif %}>Year</option><option value="date" {% if filters.sort == 'date' %}selected{% endif %}>Date</option><option value="title" {% if filters.sort == 'title' %}selected{% endif %}>Title</option><option value="court" {% if filters.sort == 'court' %}selected{% endif %}>Court</option></select></div>
-      <div class="col-lg-1 col-md-2 col-4"><label class="form-label">&nbsp;</label><select name="dir" class="form-select form-select-sm"><option value="desc" {% if filters.dir == 'desc' %}selected{% endif %}>Newest</option><option value="asc" {% if filters.dir == 'asc' %}selected{% endif %}>Oldest</option></select></div>
-      <input type="hidden" name="source" value="{{ filters.source }}"><input type="hidden" name="tag" value="{{ filters.tag }}">
-      <div class="col-lg-2 col-md-2 col-4 d-flex gap-1"><button type="submit" class="btn btn-primary btn-sm flex-grow-1"><i class="bi bi-funnel me-1"></i>Filter</button><a href="{{ url_for('case_list') }}" class="btn btn-outline-secondary btn-sm" title="Clear all filters"><i class="bi bi-x-lg"></i></a></div>
+      <div class="col-auto d-flex gap-1 align-items-end">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Filter</button>
+        <button class="btn btn-outline-secondary btn-sm filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters" aria-expanded="false" aria-label="Toggle advanced filters">
+          <i class="bi bi-sliders me-1"></i>More
+        </button>
+        {% set has_filters = filters.q or filters.court or filters.year or filters.visa_type or filters.source or filters.tag or filters.nature %}
+        {% if has_filters %}<a href="{{ url_for('case_list') }}" class="btn btn-outline-secondary btn-sm" title="Clear all filters"><i class="bi bi-x-lg"></i></a>{% endif %}
+      </div>
     </div>
+    <!-- Advanced filters: collapsible -->
+    <div class="collapse {% if filters.nature or filters.year or filters.visa_type or (filters.sort and filters.sort != 'year') %}show{% endif %}" id="advancedFilters">
+      <div class="row g-2 mt-1">
+        <div class="col-lg-2 col-md-3 col-6"><label class="form-label">Nature</label><select name="nature" class="form-select form-select-sm"><option value="">All</option>{% for n in natures %}<option value="{{ n }}" {% if filters.nature == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="col-lg-1 col-md-2 col-6"><label class="form-label">Year</label><select name="year" class="form-select form-select-sm"><option value="">All</option>{% for y in years %}<option value="{{ y }}" {% if filters.year == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
+        <div class="col-lg-2 col-md-3 col-6"><label class="form-label">Visa Type</label><input type="text" name="visa_type" class="form-control form-control-sm" value="{{ filters.visa_type }}" placeholder="e.g. protection"></div>
+        <div class="col-lg-1 col-md-2 col-6"><label class="form-label">Sort</label><select name="sort" class="form-select form-select-sm"><option value="year" {% if filters.sort == 'year' %}selected{% endif %}>Year</option><option value="date" {% if filters.sort == 'date' %}selected{% endif %}>Date</option><option value="title" {% if filters.sort == 'title' %}selected{% endif %}>Title</option><option value="court" {% if filters.sort == 'court' %}selected{% endif %}>Court</option></select></div>
+        <div class="col-lg-1 col-md-2 col-6"><label class="form-label">Order</label><select name="dir" class="form-select form-select-sm"><option value="desc" {% if filters.dir == 'desc' %}selected{% endif %}>Newest</option><option value="asc" {% if filters.dir == 'asc' %}selected{% endif %}>Oldest</option></select></div>
+      </div>
+    </div>
+    <input type="hidden" name="source" value="{{ filters.source }}"><input type="hidden" name="tag" value="{{ filters.tag }}">
   </form>
-  {% set has_filters = filters.q or filters.court or filters.year or filters.visa_type or filters.source or filters.tag or filters.nature %}
+
   {% if has_filters %}
   <div class="active-filters mt-2 pt-2 border-top">
     {% if filters.q %}<span class="filter-pill"><i class="bi bi-search"></i> {{ filters.q }}</span>{% endif %}
@@ -38,19 +51,21 @@
   {% endif %}
 </div>
 
-<!-- Cases table -->
-<div class="card shadow-sm">
+<!-- Desktop Table View -->
+<div class="card shadow-sm d-none d-md-block">
   <div class="table-responsive">
     <table class="table table-hover table-cases mb-0">
       <thead><tr>
+        <th><input type="checkbox" class="batch-checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)" title="Select all"></th>
         <th style="width:140px;">Citation</th><th>Title</th><th style="width:90px;">Court</th><th style="width:110px;">Nature</th><th style="width:50px;">Year</th><th style="width:80px;">Visa</th><th style="width:40px;" class="text-center" title="Full text"><i class="bi bi-file-text"></i></th><th style="width:30px;"></th>
       </tr></thead>
       <tbody>
         {% for case in cases %}
-        <tr>
+        <tr data-case-id="{{ case.case_id }}">
+          <td><input type="checkbox" class="batch-checkbox case-check" value="{{ case.case_id }}" onchange="updateBatchBar()"></td>
           <td>
             <a href="{{ url_for('case_detail', case_id=case.case_id) }}" class="text-decoration-none fw-semibold">{{ case.citation or '---' }}</a>
-            {% if case.tags %}<div class="mt-1">{% for tag in case.tags.split(',')[:2] %}{% set t = tag.strip() %}{% if t %}<span class="badge bg-light text-dark border" style="font-size:.6rem;">{{ t }}</span> {% endif %}{% endfor %}</div>{% endif %}
+            {% if case.tags %}<div class="mt-1">{% for tag in case.tags.split(',')[:2] %}{% set t = tag.strip() %}{% if t %}<span class="badge bg-accent-muted text-accent" style="font-size:.6rem;">{{ t }}</span> {% endif %}{% endfor %}</div>{% endif %}
           </td>
           <td class="title-cell">
             <span class="title-text" title="{{ case.title }}">{{ case.title }}</span>
@@ -62,12 +77,12 @@
           <td>{% if case.case_nature %}<span class="badge badge-nature badge-nature-{{ case.case_nature | lower | replace(' ', '-') }}">{{ case.case_nature }}</span>{% endif %}</td>
           <td class="small">{{ case.year or '' }}</td>
           <td class="small text-truncate" style="max-width:100px;" title="{{ case.visa_type }}">{{ case.visa_type or '' }}</td>
-          <td class="text-center">{% if case.full_text_path %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-circle text-muted" style="font-size:.6rem;"></i>{% endif %}</td>
-          <td><a href="{{ url_for('case_detail', case_id=case.case_id) }}" class="btn btn-sm btn-outline-primary py-0 px-1"><i class="bi bi-chevron-right"></i></a></td>
+          <td class="text-center">{% if case.full_text_path %}<i class="bi bi-check-circle-fill" style="color:var(--immi-success);"></i>{% else %}<i class="bi bi-circle text-muted" style="font-size:.6rem;"></i>{% endif %}</td>
+          <td><a href="{{ url_for('case_detail', case_id=case.case_id) }}" class="btn btn-sm btn-outline-primary py-0 px-1" aria-label="View case"><i class="bi bi-chevron-right"></i></a></td>
         </tr>
         {% endfor %}
         {% if not cases %}
-        <tr><td colspan="8">
+        <tr><td colspan="9">
           <div class="empty-state py-4">
             <div class="empty-icon" style="font-size:2.5rem;"><i class="bi bi-search"></i></div>
             <h5>No cases found</h5>
@@ -80,10 +95,43 @@
   </div>
 </div>
 
+<!-- Mobile Card View -->
+<div class="d-md-none">
+  {% for case in cases %}
+  <a href="{{ url_for('case_detail', case_id=case.case_id) }}" class="case-card-mobile d-block text-decoration-none">
+    <div class="case-card-citation">{{ case.citation or '---' }}</div>
+    <div class="case-card-title">{{ case.title }}</div>
+    <div class="case-card-meta">
+      <span class="badge badge-court badge-{{ case.court_code }}">{{ case.court_code }}</span>
+      {% if case.case_nature %}<span class="badge badge-nature badge-nature-{{ case.case_nature | lower | replace(' ', '-') }}">{{ case.case_nature }}</span>{% endif %}
+      {% if case.outcome %}{% set ol = case.outcome.lower() %}
+        <span class="badge badge-outcome {% if 'affirm' in ol or 'dismiss' in ol or 'refus' in ol %}affirm{% elif 'set aside' in ol or 'allow' in ol or 'remit' in ol or 'grant' in ol %}setaside{% else %}unknown{% endif %}">{% if 'affirm' in ol %}Affirmed{% elif 'dismiss' in ol %}Dismissed{% elif 'set aside' in ol %}Set aside{% elif 'allow' in ol %}Allowed{% elif 'remit' in ol %}Remitted{% elif 'grant' in ol %}Granted{% elif 'refus' in ol %}Refused{% else %}Decided{% endif %}</span>
+      {% endif %}
+      {% if case.year %}<span class="small text-muted">{{ case.year }}</span>{% endif %}
+      {% if case.full_text_path %}<i class="bi bi-file-text" style="color:var(--immi-success);font-size:.75rem;"></i>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+  {% if not cases %}
+  <div class="empty-state py-4">
+    <div class="empty-icon" style="font-size:2.5rem;"><i class="bi bi-search"></i></div>
+    <h5>No cases found</h5>
+    {% if has_filters %}<p>Try adjusting filters or <a href="{{ url_for('case_list') }}">clear all</a>.</p>{% else %}<p><a href="{{ url_for('search_page') }}">Search for cases</a> to get started.</p>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Batch Action Bar -->
+<div class="batch-bar d-none d-md-flex" id="batchBar">
+  <span class="batch-count"><span id="batchCount">0</span> selected</span>
+  <button class="btn btn-sm btn-outline-light" onclick="exportSelectedCSV()"><i class="bi bi-download me-1"></i>Export CSV</button>
+  <button class="btn btn-sm btn-outline-light ms-auto" onclick="clearSelection()"><i class="bi bi-x-lg me-1"></i>Clear</button>
+</div>
+
 {% if total_pages > 1 %}
 <div class="d-flex justify-content-between align-items-center mt-3">
   <small class="text-muted">Showing {{ ((page-1)*50)+1 }}--{{ [page*50, total] | min }} of {{ "{:,}".format(total) }}</small>
-  <nav><ul class="pagination pagination-sm mb-0">
+  <nav aria-label="Pagination"><ul class="pagination pagination-sm mb-0">
     {% set fq = {'q': filters.q, 'court': filters.court, 'nature': filters.nature, 'year': filters.year, 'visa_type': filters.visa_type, 'source': filters.source, 'tag': filters.tag, 'sort': filters.sort, 'dir': filters.dir} %}
     <li class="page-item {% if page == 1 %}disabled{% endif %}"><a class="page-link" href="?page={{ page-1 }}&{{ fq|urlencode }}">&laquo;</a></li>
     {% for p in range(1, total_pages + 1) %}{% if p == page or (p >= page - 2 and p <= page + 2) or p == 1 or p == total_pages %}<li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&{{ fq|urlencode }}">{{ p }}</a></li>{% elif p == page - 3 or p == page + 3 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}{% endfor %}
@@ -91,4 +139,68 @@
   </ul></nav>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* Batch operations */
+function toggleSelectAll(checked) {
+  document.querySelectorAll('.case-check').forEach(function(cb) { cb.checked = checked; });
+  updateBatchBar();
+}
+function updateBatchBar() {
+  var checked = document.querySelectorAll('.case-check:checked');
+  var bar = document.getElementById('batchBar');
+  var count = document.getElementById('batchCount');
+  if (checked.length > 0) {
+    bar.classList.add('show');
+    count.textContent = checked.length;
+  } else {
+    bar.classList.remove('show');
+  }
+}
+function clearSelection() {
+  document.querySelectorAll('.case-check').forEach(function(cb) { cb.checked = false; });
+  document.getElementById('selectAll').checked = false;
+  updateBatchBar();
+}
+function exportSelectedCSV() {
+  var ids = [];
+  document.querySelectorAll('.case-check:checked').forEach(function(cb) { ids.push(cb.value); });
+  if (!ids.length) return;
+  /* Build CSV from visible table rows */
+  var rows = [['Citation','Title','Court','Nature','Year','Visa']];
+  ids.forEach(function(id) {
+    var tr = document.querySelector('tr[data-case-id="'+id+'"]');
+    if (!tr) return;
+    var cells = tr.querySelectorAll('td');
+    rows.push([
+      (cells[1] ? cells[1].textContent.trim() : ''),
+      (cells[2] ? cells[2].querySelector('.title-text').textContent.trim() : ''),
+      (cells[3] ? cells[3].textContent.trim() : ''),
+      (cells[4] ? cells[4].textContent.trim() : ''),
+      (cells[5] ? cells[5].textContent.trim() : ''),
+      (cells[6] ? cells[6].textContent.trim() : '')
+    ]);
+  });
+  var csv = rows.map(function(r) { return r.map(function(c) { return '"'+c.replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  var blob = new Blob([csv], {type: 'text/csv'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'selected_cases_' + ids.length + '.csv';
+  a.click();
+}
+
+/* j/k keyboard navigation */
+var currentRow = -1;
+document.addEventListener('keydown', function(e) {
+  var tag = document.activeElement ? document.activeElement.tagName : '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  var rows = document.querySelectorAll('.table-cases tbody tr[data-case-id]');
+  if (!rows.length) return;
+  if (e.key === 'j') { currentRow = Math.min(currentRow + 1, rows.length - 1); rows[currentRow].scrollIntoView({block:'nearest'}); rows.forEach(function(r){r.style.background='';}); rows[currentRow].style.background='var(--immi-accent-muted)'; }
+  if (e.key === 'k') { currentRow = Math.max(currentRow - 1, 0); rows[currentRow].scrollIntoView({block:'nearest'}); rows.forEach(function(r){r.style.background='';}); rows[currentRow].style.background='var(--immi-accent-muted)'; }
+  if (e.key === 'Enter' && currentRow >= 0) { var link = rows[currentRow].querySelector('a'); if (link) link.click(); }
+});
+</script>
 {% endblock %}

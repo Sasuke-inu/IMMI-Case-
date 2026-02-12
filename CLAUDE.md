@@ -30,6 +30,9 @@ python web.py --port 8080 --debug
 
 # Run as module
 python -m immi_case_downloader search
+
+# Bulk download full text (resumable, saves every 200)
+python download_fulltext.py              # delay=0.5, ~2 cases/sec
 ```
 
 ## Architecture
@@ -73,16 +76,23 @@ immi_case_downloader/
 
 | Code | Source | URL Pattern |
 |------|--------|-------------|
-| AATA, FCA, FCCA, FedCFamC2G, HCA, RRTA, MRTA | AustLII | `austlii.edu.au/au/cases/cth/{code}/{year}/` |
+| AATA, ARTA, FCA, FCCA, FedCFamC2G, HCA, RRTA, MRTA | AustLII | `austlii.edu.au/au/cases/cth/{code}/{year}/` |
 | fedcourt | Federal Court | `search2.fedcourt.gov.au/s/search.html` |
+
+- **AustLII viewdb URL**: `austlii.edu.au/cgi-bin/viewdb/au/cases/cth/{DB}/` — reliable year index page
+- **AATA ended Oct 2024**: replaced by ART (Administrative Review Tribunal), database code ARTA
+- **ARTA**: ART decisions from Oct 2024 onwards; 3,656+ cases; same URL/title format as AATA
+- **AATA 2025-2026**: direct listing returns 500; only ~10 cases via viewdb fallback (use ARTA for 2025+)
+- **FCCA ended 2021**: replaced by FedCFamC2G (Federal Circuit and Family Court restructure)
 
 ## Gotchas
 
-- **`cmd_search` overwrites CSV** — does NOT merge with existing data; back up first
+- **`cmd_search` merge logic** — now merges by URL dedup; `max_results` defaults to 500/db (use large value for full crawl)
 - **`config.py START_YEAR`** — dynamic (`CURRENT_YEAR - 10`); use `--start-year` flag to override
 - **pandas NaN** — empty CSV fields become `float('nan')`; always use `ImmigrationCase.from_dict()`
 - **Federal Court DNS** — `search2.fedcourt.gov.au` doesn't resolve; all FCA data via AustLII
 - **RRTA/MRTA** — return 0 results (pre-2015 tribunals merged into AATA)
+- **AATA vs ARTA** — AATA covers up to Oct 2024; ARTA covers Oct 2024 onwards. For 2025+ use ARTA
 - **Port 5000** — conflicts with macOS AirPlay; use `--port 8080`
 - **AustLII timeouts** — common during bulk scraping; retry logic in BaseScraper handles most
 
@@ -90,5 +100,5 @@ immi_case_downloader/
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
 - Rate limiting is enforced at the `BaseScraper` level; respect the default 1-second delay
-- No test suite exists yet — `.claude/settings.json` has hooks for lint/data protection
+- Test suite: 71 tests in `tests/` (models, storage, cli, webapp) — run `python3 -m pytest`
 - The webapp uses a hardcoded `secret_key` in `webapp.py:46` — should be replaced via `SECRET_KEY` env var in production

@@ -6,7 +6,7 @@
   <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
   <li class="breadcrumb-item active">Download Case Texts</li>
 </ol></nav>
-<h4 class="mb-3">Download Full Case Texts</h4>
+<h4 class="mb-3 font-serif">Download Full Case Texts</h4>
 
 {% set downloaded = total_cases - without_text %}
 {% set pct = ((downloaded / total_cases) * 100) | int if total_cases > 0 else 0 %}
@@ -17,7 +17,7 @@
   <!-- Completion ring -->
   <div class="col-auto">
     <div class="completion-ring">
-      <svg width="140" height="140" viewBox="0 0 140 140">
+      <svg width="140" height="140" viewBox="0 0 140 140" role="img" aria-label="Download progress {{ pct }}%">
         <circle class="ring-bg" cx="70" cy="70" r="60" />
         <circle class="ring-progress" cx="70" cy="70" r="60" stroke-dasharray="{{ circ }}" stroke-dashoffset="{{ offset }}" />
       </svg>
@@ -43,7 +43,7 @@
         <div class="card stat-card green">
           <div class="card-body py-2 text-center">
             <div class="stat-label">Downloaded</div>
-            <div class="stat-value text-success" style="font-size:1.4rem;">{{ "{:,}".format(downloaded) }}</div>
+            <div class="stat-value" style="font-size:1.4rem;color:var(--immi-success);">{{ "{:,}".format(downloaded) }}</div>
           </div>
         </div>
       </div>
@@ -51,7 +51,7 @@
         <div class="card stat-card orange">
           <div class="card-body py-2 text-center">
             <div class="stat-label">Remaining</div>
-            <div class="stat-value text-warning" style="font-size:1.4rem;">{{ "{:,}".format(without_text) }}</div>
+            <div class="stat-value" style="font-size:1.4rem;color:var(--immi-warning);">{{ "{:,}".format(without_text) }}</div>
           </div>
         </div>
       </div>
@@ -69,8 +69,8 @@
     <form method="post">
       <div class="row g-3 align-items-end">
         <div class="col-md-4">
-          <label class="form-label small">Filter by Court</label>
-          <select name="court" class="form-select form-select-sm">
+          <label class="form-label small" for="dl_court">Filter by Court</label>
+          <select name="court" id="dl_court" class="form-select form-select-sm">
             <option value="">All Courts ({{ "{:,}".format(without_text) }} remaining)</option>
             {% for code in courts %}
             <option value="{{ code }}">{{ code }}</option>
@@ -78,8 +78,8 @@
           </select>
         </div>
         <div class="col-md-3">
-          <label class="form-label small">Batch Size</label>
-          <select name="limit" class="form-select form-select-sm">
+          <label class="form-label small" for="dl_limit">Batch Size</label>
+          <select name="limit" id="dl_limit" class="form-select form-select-sm">
             <option value="10">10 cases</option>
             <option value="25">25 cases</option>
             <option value="50" selected>50 cases</option>
@@ -99,9 +99,9 @@
   </div>
 </div>
 
-<div class="card border-info">
+<div class="card border-accent">
   <div class="card-body py-2 small">
-    <i class="bi bi-info-circle text-info me-1"></i>
+    <i class="bi bi-info-circle me-1 text-accent"></i>
     Downloads run in the background with a 1-second delay between requests to be respectful of source servers.
     Each download extracts <strong>judge names, decision date, catchwords, outcome, visa type,</strong> and <strong>legislation</strong> from the full text.
   </div>
@@ -111,8 +111,8 @@
 
 <div class="card">
   <div class="card-body text-center py-5">
-    <i class="bi bi-check-circle-fill text-success" style="font-size:3rem;"></i>
-    <h5 class="mt-3">All case texts downloaded!</h5>
+    <i class="bi bi-check-circle-fill" style="font-size:3rem;color:var(--immi-success);"></i>
+    <h5 class="mt-3 font-serif">All case texts downloaded!</h5>
     <p class="text-muted">Every case in your collection has full text available.</p>
     <div class="d-flex gap-2 justify-content-center mt-3">
       <a href="{{ url_for('case_list') }}" class="btn btn-primary"><i class="bi bi-folder2-open me-1"></i>Browse Cases</a>

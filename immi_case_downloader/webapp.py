@@ -276,7 +276,7 @@ def search_page():
             flash("A job is already running. Please wait.", "warning")
             return redirect(url_for("job_status_page"))
 
-        databases = request.form.getlist("databases") or ["AATA", "FCA"]
+        databases = request.form.getlist("databases") or ["AATA", "ARTA", "FCA"]
         start_year = int(request.form.get("start_year", START_YEAR))
         end_year = int(request.form.get("end_year", END_YEAR))
         max_results = int(request.form.get("max_results", 500))
@@ -570,6 +570,7 @@ def update_db_page():
     # Available year ranges per DB on AustLII
     db_year_ranges = {
         "AATA": (2000, 2024),
+        "ARTA": (2024, END_YEAR),
         "FCA": (2000, END_YEAR),
         "FCCA": (2013, 2021),
         "FedCFamC2G": (2021, END_YEAR),
@@ -660,7 +661,7 @@ def _run_update_job(mode, databases=None, start_year=None, end_year=None,
 
     if mode == "quick":
         # Quick update: current year + previous year for all main DBs
-        databases = ["AATA", "FCA", "FedCFamC2G", "HCA"]
+        databases = ["AATA", "ARTA", "FCA", "FedCFamC2G", "HCA"]
         years = [END_YEAR, END_YEAR - 1]
         total_steps = len(databases) * len(years)
     else:

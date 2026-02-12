@@ -1,4 +1,4 @@
-<nav class="nav flex-column py-2">
+<nav class="nav flex-column py-2" aria-label="Sidebar navigation">
   <div class="sidebar-section">Main</div>
   <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
     <i class="bi bi-speedometer2 me-2"></i>Dashboard
@@ -19,14 +19,14 @@
   </a>
   <a class="nav-link {% if request.endpoint == 'pipeline_page' %}active{% endif %}" href="{{ url_for('pipeline_page') }}">
     <i class="bi bi-gear-wide-connected me-2"></i>Smart Pipeline
-    {% if pipeline_running %}<span class="spinner-grow spinner-grow-sm text-info ms-auto" style="width:.5rem;height:.5rem;"></span>{% endif %}
+    {% if pipeline_running %}<span class="spinner-grow spinner-grow-sm ms-auto" style="width:.5rem;height:.5rem;color:var(--immi-accent);"></span>{% endif %}
   </a>
   <a class="nav-link {% if request.endpoint == 'case_add' %}active{% endif %}" href="{{ url_for('case_add') }}">
     <i class="bi bi-plus-circle me-2"></i>Add Case
   </a>
   <a class="nav-link {% if request.endpoint == 'job_status_page' %}active{% endif %}" href="{{ url_for('job_status_page') }}">
     <i class="bi bi-activity me-2"></i>Job Status
-    {% if job_running %}<span class="spinner-grow spinner-grow-sm text-warning ms-auto" style="width:.5rem;height:.5rem;"></span>{% endif %}
+    {% if job_running %}<span class="spinner-grow spinner-grow-sm ms-auto" style="width:.5rem;height:.5rem;color:var(--immi-accent);"></span>{% endif %}
   </a>
 
   <div class="sidebar-section">Reference</div>

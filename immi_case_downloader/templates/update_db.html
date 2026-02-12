@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}Update Database{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+  <li class="breadcrumb-item active">Update Database</li>
+</ol></nav>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div><h4 class="mb-0 font-serif"><i class="bi bi-arrow-repeat me-2"></i>Update Database</h4><small class="text-muted">Crawl new cases &amp; download full texts &mdash; no coding required</small></div>
+</div>
+
+<!-- Stats overview -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card blue">
+      <div class="card-body py-3 text-center">
+        <div class="stat-label">Total Cases</div>
+        <div class="stat-value">{{ "{:,}".format(total_cases) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card green">
+      <div class="card-body py-3 text-center">
+        <div class="stat-label">With Full Text</div>
+        <div class="stat-value" style="color:var(--immi-success);">{{ "{:,}".format(total_cases - without_text) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card orange">
+      <div class="card-body py-3 text-center">
+        <div class="stat-label">Missing Full Text</div>
+        <div class="stat-value" style="color:var(--immi-warning);">{{ "{:,}".format(without_text) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card stat-card purple">
+      <div class="card-body py-3 text-center">
+        <div class="stat-label">Databases</div>
+        <div class="stat-value">{{ coverage | length }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- LEFT COLUMN: Actions -->
+  <div class="col-lg-7">
+
+    <!-- Quick Update -->
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-lightning-charge me-1 text-accent"></i>Quick Update</span>
+        <span class="badge" style="background:var(--immi-success);color:#fff;">Recommended</span>
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-3">Fetches the latest cases from all active databases (current year + previous year). Merges with existing data automatically.</p>
+        <form method="post">
+          <input type="hidden" name="action" value="quick_update">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label small" for="qu_delay">Request Delay</label>
+              <select name="delay" id="qu_delay" class="form-select form-select-sm">
+                <option value="0.3">0.3s (fast)</option>
+                <option value="0.5" selected>0.5s (balanced)</option>
+                <option value="1.0">1.0s (gentle)</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <button type="submit" class="btn btn-success w-100"><i class="bi bi-lightning-charge me-1"></i>Quick Update</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Custom Crawl -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-gear me-1"></i>Custom Crawl</div>
+      <div class="card-body">
+        <p class="small text-muted mb-3">Choose specific databases and year ranges to crawl. Use this to fill gaps or do a full re-crawl.</p>
+        <form method="post" id="customCrawlForm">
+          <input type="hidden" name="action" value="custom_crawl">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Databases</label>
+            <div class="row g-2">
+              {% for code, info in databases.items() %}
+              {% if code not in ('RRTA', 'MRTA') %}
+              <div class="col-6 col-lg-4">
+                <label class="source-card d-flex align-items-center gap-2 w-100 {{ 'selected' if code in ('AATA', 'ARTA', 'FCA', 'FedCFamC2G') }}" for="upd_db_{{ code }}">
+                  <input type="checkbox" name="databases" value="{{ code }}" id="upd_db_{{ code }}"
+                    {{ 'checked' if code in ('AATA', 'ARTA', 'FCA', 'FedCFamC2G') }}
+                    onchange="this.closest('.source-card').classList.toggle('selected', this.checked)">
+                  <div>
+                    <span class="badge badge-court badge-{{ code }}">{{ code }}</span>
+                    <div class="small text-muted mt-1">{{ info.name }}</div>
+                    {% if code in db_year_ranges %}
+                    <div class="small text-muted">{{ db_year_ranges[code][0] }}-{{ db_year_ranges[code][1] }}</div>
+                    {% endif %}
+                  </div>
+                </label>
+              </div>
+              {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+              <label class="form-label small" for="cc_start">Start Year</label>
+              <input type="number" name="start_year" id="cc_start" class="form-control form-control-sm" value="{{ end_year - 1 }}" min="2000" max="2030">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small" for="cc_end">End Year</label>
+              <input type="number" name="end_year" id="cc_end" class="form-control form-control-sm" value="{{ end_year }}" min="2000" max="2030">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small" for="cc_delay">Delay</label>
+              <select name="delay" id="cc_delay" class="form-select form-select-sm">
+                <option value="0.3">0.3s</option>
+                <option value="0.5" selected>0.5s</option>
+                <option value="1.0">1.0s</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <button type="submit" class="btn btn-primary w-100"><i class="bi bi-play-fill me-1"></i>Start Crawl</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Bulk Download Full Text -->
+    {% if without_text > 0 %}
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-cloud-download me-1"></i>Bulk Download Full Texts</span>
+        <span class="badge" style="background:var(--immi-accent);color:#fff;">{{ "{:,}".format(without_text) }} pending</span>
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-3">Download full judgment texts for cases that only have metadata. Extracts judges, outcome, visa type, and more.</p>
+        <form method="post">
+          <input type="hidden" name="action" value="bulk_download">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+              <label class="form-label small" for="bd_court">Court</label>
+              <select name="court" id="bd_court" class="form-select form-select-sm">
+                <option value="">All Courts</option>
+                {% for code in coverage.keys() | sort %}
+                <option value="{{ code }}">{{ code }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small" for="bd_limit">Batch Size</label>
+              <select name="limit" id="bd_limit" class="form-select form-select-sm">
+                <option value="100">100</option>
+                <option value="500">500</option>
+                <option value="1000" selected>1,000</option>
+                <option value="5000">5,000</option>
+                <option value="50000">All ({{ "{:,}".format(without_text) }})</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small" for="bd_delay">Delay</label>
+              <select name="delay" id="bd_delay" class="form-select form-select-sm">
+                <option value="0.3">0.3s (fast)</option>
+                <option value="0.5" selected>0.5s</option>
+                <option value="1.0">1.0s (gentle)</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <button type="submit" class="btn w-100" style="background:var(--immi-accent);color:#fff;border:none;"><i class="bi bi-cloud-download me-1"></i>Download</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- RIGHT COLUMN: Coverage Matrix -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-grid-3x3-gap me-1"></i>Coverage Matrix</div>
+      <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:600px; overflow-y:auto;">
+          <table class="table table-sm table-hover coverage-matrix mb-0" style="font-size:.75rem;">
+            <thead class="sticky-top" style="background:var(--immi-surface);">
+              <tr>
+                <th style="min-width:50px;">Year</th>
+                {% for code in coverage.keys() | sort %}
+                <th class="text-center">{{ code }}</th>
+                {% endfor %}
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set all_years = [] %}
+              {% for court_data in coverage.values() %}
+                {% for yr in court_data.keys() %}
+                  {% if yr not in all_years %}
+                    {% if all_years.append(yr) %}{% endif %}
+                  {% endif %}
+                {% endfor %}
+              {% endfor %}
+              {% for yr in all_years | sort(reverse=true) %}
+              {% if yr > 0 %}
+              <tr>
+                <td class="fw-semibold">{{ yr }}</td>
+                {% set row_total = [] %}
+                {% for code in coverage.keys() | sort %}
+                {% set count = coverage[code].get(yr, 0) %}
+                {% if row_total.append(count) %}{% endif %}
+                <td class="text-center">
+                  {% if count > 0 %}
+                  <span class="badge {% if count > 1000 %}bg-success{% elif count > 100 %}bg-primary{% elif count > 0 %}bg-secondary{% endif %}" style="min-width:40px;">{{ "{:,}".format(count) }}</span>
+                  {% else %}
+                  <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                {% endfor %}
+                <td class="text-end fw-bold small">{{ "{:,}".format(row_total | sum) }}</td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info box -->
+    <div class="card mt-3 border-accent">
+      <div class="card-body small">
+        <div class="fw-semibold mb-2 font-serif"><i class="bi bi-lightbulb me-1 text-accent"></i>Tips</div>
+        <ul class="mb-0 ps-3" style="font-size:.8rem;">
+          <li class="mb-1"><strong>Quick Update</strong> checks the current + previous year for new cases</li>
+          <li class="mb-1"><strong>Custom Crawl</strong> fills specific gaps (check the coverage matrix)</li>
+          <li class="mb-1"><strong>Bulk Download</strong> fetches full judgment texts for metadata-only records</li>
+          <li class="mb-1">All operations merge with existing data &mdash; no duplicates</li>
+          <li class="mb-1">FCCA ended in 2021 (replaced by FedCFamC2G)</li>
+          <li class="mb-1">AATA ended Oct 2024 (replaced by ART/ARTA)</li>
+          <li>For 2025+ cases, use <strong>ARTA</strong> instead of AATA</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

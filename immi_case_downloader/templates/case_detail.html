@@ -15,7 +15,7 @@
       <div class="citation-display">
         {{ case.citation or 'No citation' }}
         {% if case.citation %}
-        <button class="copy-btn" data-copy="{{ case.citation|e }}" title="Copy citation"><i class="bi bi-clipboard"></i></button>
+        <button class="copy-btn" data-copy="{{ case.citation|e }}" title="Copy citation" aria-label="Copy citation"><i class="bi bi-clipboard"></i></button>
         {% endif %}
         <span class="badge badge-court badge-{{ case.court_code }} ms-1">{{ case.court_code }}</span>
         {% if case.case_nature %}<span class="badge badge-nature badge-nature-{{ case.case_nature | lower | replace(' ', '-') }} ms-1">{{ case.case_nature }}</span>{% endif %}
@@ -31,9 +31,29 @@
     <div class="d-flex gap-2 flex-shrink-0">
       {% if case.url %}<a href="{{ case.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary"><i class="bi bi-box-arrow-up-right me-1"></i>Source</a>{% endif %}
       <a href="{{ url_for('case_edit', case_id=case.case_id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1"></i>Edit</a>
-      <form method="post" action="{{ url_for('case_delete', case_id=case.case_id) }}" class="d-inline" onsubmit="return confirm('Delete this case permanently?')">
-        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-      </form>
+      <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal" aria-label="Delete case"><i class="bi bi-trash"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade delete-modal" id="deleteModal" tabindex="-1" aria-label="Confirm delete">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title font-serif"><i class="bi bi-exclamation-triangle me-2" style="color:var(--immi-danger);"></i>Delete Case</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body small">
+        <p>Are you sure you want to permanently delete this case?</p>
+        <p class="fw-semibold mb-0">{{ case.citation or case.title[:50] }}</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{{ url_for('case_delete', case_id=case.case_id) }}" class="d-inline">
+          <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash me-1"></i>Delete</button>
+        </form>
+      </div>
     </div>
   </div>
 </div>
@@ -54,14 +74,14 @@
         </div>
 
         {% if case.outcome %}
-        <div class="mt-3 p-2 rounded" style="background:#f8f9fa;">
+        <div class="mt-3 p-2 rounded" style="background:var(--immi-surface);">
           <div class="meta-label mb-1">Outcome / Decision</div>
           <div class="small">{{ case.outcome }}</div>
         </div>
         {% endif %}
 
         {% if case.legislation %}
-        <div class="mt-2 p-2 rounded" style="background:#f8f9fa;">
+        <div class="mt-2 p-2 rounded" style="background:var(--immi-surface);">
           <div class="meta-label mb-1">Legislation</div>
           <div class="small">{{ case.legislation }}</div>
         </div>
@@ -75,11 +95,11 @@
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
         Notes & Tags
-        <a href="{{ url_for('case_edit', case_id=case.case_id) }}" class="btn btn-sm btn-outline-secondary py-0 px-1"><i class="bi bi-pencil"></i></a>
+        <a href="{{ url_for('case_edit', case_id=case.case_id) }}" class="btn btn-sm btn-outline-secondary py-0 px-1" aria-label="Edit notes"><i class="bi bi-pencil"></i></a>
       </div>
       <div class="card-body">
         {% if case.tags %}
-        <div class="mb-2">{% for tag in case.tags.split(',') %}{% set t = tag.strip() %}{% if t %}<a href="{{ url_for('case_list', tag=t) }}" class="badge bg-info text-dark me-1 text-decoration-none">{{ t }}</a>{% endif %}{% endfor %}</div>
+        <div class="mb-2">{% for tag in case.tags.split(',') %}{% set t = tag.strip() %}{% if t %}<a href="{{ url_for('case_list', tag=t) }}" class="badge bg-accent-muted text-accent me-1 text-decoration-none">{{ t }}</a>{% endif %}{% endfor %}</div>
         {% endif %}
         {% if case.user_notes %}
         <div class="small" style="white-space:pre-wrap;">{{ case.user_notes }}</div>
@@ -117,7 +137,7 @@
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
     <span>Full Case Text</span>
-    {% if full_text %}<span class="badge bg-success">{{ full_text | length }} chars</span>{% endif %}
+    {% if full_text %}<span class="badge bg-accent-muted text-accent">{{ full_text | length }} chars</span>{% endif %}
   </div>
   {% if full_text %}
   <div class="case-text-viewer">
@@ -125,7 +145,7 @@
       <i class="bi bi-search" style="font-size:.8rem;"></i>
       <input type="text" id="textSearch" placeholder="Search within case text..." oninput="searchInText(this.value)">
       <span class="small text-muted" id="searchCount"></span>
-      <button class="btn btn-sm btn-outline-secondary py-0 ms-auto" onclick="window.print()" title="Print"><i class="bi bi-printer"></i></button>
+      <button class="btn btn-sm btn-outline-secondary py-0 ms-auto" onclick="window.print()" title="Print" aria-label="Print case"><i class="bi bi-printer"></i></button>
     </div>
     <div class="text-content" id="caseTextContent">{{ full_text }}</div>
   </div>
@@ -143,6 +163,7 @@
 
 {% block extra_js %}
 <script>
+/* Copy button */
 document.querySelectorAll('.copy-btn[data-copy]').forEach(function(btn) {
   btn.addEventListener('click', function() {
     navigator.clipboard.writeText(btn.getAttribute('data-copy')).then(function() {
@@ -153,6 +174,8 @@ document.querySelectorAll('.copy-btn[data-copy]').forEach(function(btn) {
     });
   });
 });
+
+/* In-text search */
 function searchInText(query) {
   var el = document.getElementById('caseTextContent');
   var countEl = document.getElementById('searchCount');
@@ -176,5 +199,14 @@ function searchInText(query) {
   el.textContent = '';
   el.appendChild(frag);
 }
+
+/* e = edit shortcut */
+document.addEventListener('keydown', function(e) {
+  var tag = document.activeElement ? document.activeElement.tagName : '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (e.key === 'e' && !e.ctrlKey && !e.metaKey) {
+    window.location.href = '{{ url_for("case_edit", case_id=case.case_id) }}';
+  }
+});
 </script>
 {% endblock %}

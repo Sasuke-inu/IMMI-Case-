@@ -6,15 +6,15 @@
   <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
   <li class="breadcrumb-item active">Job Status</li>
 </ol></nav>
-<h4 class="mb-3">Job Status</h4>
+<h4 class="mb-3 font-serif"><i class="bi bi-clock-history me-2"></i>Job Status</h4>
 
 <div class="card" id="job-card">
   {% if job.running %}
   <!-- Active job -->
   <div class="card-header d-flex align-items-center gap-2">
-    <span class="spinner-border spinner-border-sm text-primary"></span>
+    <span class="spinner-border spinner-border-sm" style="color:var(--immi-accent);"></span>
     <span class="fw-semibold">{{ job.type | capitalize }} in Progress</span>
-    <span class="ms-auto badge bg-primary" id="elapsed-badge">Running...</span>
+    <span class="ms-auto badge" style="background:var(--immi-accent);color:#fff;" id="elapsed-badge">Running...</span>
   </div>
   <div class="card-body">
     <p class="text-muted small mb-2" id="progress-text">{{ job.progress }}</p>
@@ -22,10 +22,10 @@
     {% if job.total > 0 %}
     {% set pct = (job.completed / job.total * 100) | int %}
     <div class="d-flex align-items-center gap-2 mb-3">
-      <div class="progress flex-grow-1" style="height:20px;">
+      <div class="progress flex-grow-1" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="Job progress">
         <div class="progress-bar progress-bar-striped progress-bar-animated {% if pct > 80 %}bg-success{% endif %}"
-             id="progress-bar" role="progressbar"
-             style="width:{{ pct }}%">
+             id="progress-bar"
+             style="width:{{ pct }}%;height:20px;">
           {{ job.completed }} / {{ job.total }}
         </div>
       </div>
@@ -60,7 +60,7 @@
   {% elif job.type %}
   <!-- Completed job -->
   <div class="card-header d-flex align-items-center gap-2">
-    <i class="bi bi-check-circle-fill text-success"></i>
+    <i class="bi bi-check-circle-fill" style="color:var(--immi-success);"></i>
     <span class="fw-semibold">{{ job.type | capitalize }} Complete</span>
   </div>
   <div class="card-body">
@@ -100,8 +100,8 @@
   <!-- No job -->
   <div class="card-body">
     <div class="empty-state py-4">
-      <div class="empty-icon" style="font-size:2.5rem;"><i class="bi bi-clock-history"></i></div>
-      <h5>No Active Jobs</h5>
+      <div class="empty-icon" style="font-size:2.5rem;color:var(--immi-text-muted);"><i class="bi bi-clock-history"></i></div>
+      <h5 class="font-serif">No Active Jobs</h5>
       <p>Start a search or download to see progress here.</p>
       <div class="d-flex gap-2 justify-content-center mt-3">
         <a href="{{ url_for('search_page') }}" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Search Cases</a>
@@ -116,36 +116,43 @@
 {% block extra_js %}
 {% if job.running %}
 <script>
-var startTime = Date.now();
-function updateElapsed() {
-  var secs = Math.floor((Date.now() - startTime) / 1000);
-  var m = Math.floor(secs / 60), s = secs % 60;
-  document.getElementById('elapsed-badge').textContent = (m > 0 ? m + 'm ' : '') + s + 's elapsed';
-}
-setInterval(updateElapsed, 1000);
+(function() {
+  'use strict';
+  var startTime = Date.now();
+  function updateElapsed() {
+    var secs = Math.floor((Date.now() - startTime) / 1000);
+    var m = Math.floor(secs / 60), s = secs % 60;
+    var el = document.getElementById('elapsed-badge');
+    if (el) el.textContent = (m > 0 ? m + 'm ' : '') + s + 's elapsed';
+  }
+  setInterval(updateElapsed, 1000);
 
-function refreshStatus() {
-  fetch('{{ url_for("job_status_api") }}')
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      document.getElementById('progress-text').textContent = data.progress;
-      if (data.total > 0) {
-        var pct = Math.round(data.completed / data.total * 100);
-        var bar = document.getElementById('progress-bar');
-        bar.style.width = pct + '%';
-        bar.textContent = data.completed + ' / ' + data.total;
-        var pctEl = document.getElementById('progress-pct');
-        if (pctEl) pctEl.textContent = pct + '%';
-      }
-      if (!data.running) {
-        window.location.reload();
-      } else {
-        setTimeout(refreshStatus, 3000);
-      }
-    })
-    .catch(function() { setTimeout(refreshStatus, 5000); });
-}
-setTimeout(refreshStatus, 3000);
+  function refreshStatus() {
+    fetch('{{ url_for("job_status_api") }}')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var pt = document.getElementById('progress-text');
+        if (pt) pt.textContent = data.progress;
+        if (data.total > 0) {
+          var pct = Math.round(data.completed / data.total * 100);
+          var bar = document.getElementById('progress-bar');
+          if (bar) {
+            bar.style.width = pct + '%';
+            bar.textContent = data.completed + ' / ' + data.total;
+          }
+          var pctEl = document.getElementById('progress-pct');
+          if (pctEl) pctEl.textContent = pct + '%';
+        }
+        if (!data.running) {
+          window.location.reload();
+        } else {
+          setTimeout(refreshStatus, 3000);
+        }
+      })
+      .catch(function() { setTimeout(refreshStatus, 5000); });
+  }
+  setTimeout(refreshStatus, 3000);
+})();
 </script>
 {% endif %}
 {% endblock %}

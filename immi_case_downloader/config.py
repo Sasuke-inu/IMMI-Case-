@@ -16,7 +16,12 @@ AUSTLII_DATABASES = {
     "AATA": {
         "name": "Administrative Appeals Tribunal",
         "path": "/au/cases/cth/AATA/",
-        "description": "AAT migration & refugee review decisions",
+        "description": "AAT migration & refugee review decisions (ended Oct 2024)",
+    },
+    "ARTA": {
+        "name": "Administrative Review Tribunal",
+        "path": "/au/cases/cth/ARTA/",
+        "description": "ART migration & refugee review decisions (replaced AAT from Oct 2024)",
     },
     "FCA": {
         "name": "Federal Court of Australia",

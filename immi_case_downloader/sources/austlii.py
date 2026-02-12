@@ -372,7 +372,7 @@ class AustLIIScraper(BaseScraper):
         # Extract citation if not already set
         if not case.citation:
             citation_match = re.search(
-                r"\[\d{4}\]\s+(?:AATA|FCA|FCCA|HCA|FedCFamC2G|RRTA|MRTA)\s+\d+",
+                r"\[\d{4}\]\s+(?:AATA|ARTA|FCA|FCCA|HCA|FedCFamC2G|RRTA|MRTA)\s+\d+",
                 text,
             )
             if citation_match:

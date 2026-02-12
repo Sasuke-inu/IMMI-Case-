@@ -6,42 +6,92 @@
   <li class="breadcrumb-item"><a href="{{ url_for('case_detail', case_id=case.case_id) }}">{{ case.citation or case.case_id[:12] }}</a></li>
   <li class="breadcrumb-item active">Edit</li>
 </ol></nav>
-<h4 class="mb-3">Edit Case</h4>
-<form method="post">
+<h4 class="mb-3 font-serif"><i class="bi bi-pencil-square me-2"></i>Edit Case</h4>
+<form method="post" class="needs-validation" novalidate>
   <div class="row g-3">
     <div class="col-lg-8">
       <div class="card">
-        <div class="card-header">Case Metadata</div>
+        <div class="card-header"><i class="bi bi-file-earmark-text me-1"></i>Case Metadata</div>
         <div class="card-body">
           <div class="row g-3">
-            <div class="col-md-6"><label class="form-label small">Citation</label><input type="text" name="citation" class="form-control form-control-sm" value="{{ case.citation }}" placeholder="[2024] AATA 1234"></div>
-            <div class="col-12"><label class="form-label small">Title</label><input type="text" name="title" class="form-control form-control-sm" value="{{ case.title }}"></div>
-            <div class="col-md-5"><label class="form-label small">Court</label><input type="text" name="court" class="form-control form-control-sm" value="{{ case.court }}"></div>
-            <div class="col-md-3"><label class="form-label small">Court Code</label>
-              <select name="court_code" class="form-select form-select-sm"><option value="">--</option>{% for code in databases %}<option value="{{ code }}" {% if case.court_code == code %}selected{% endif %}>{{ code }}</option>{% endfor %}</select></div>
-            <div class="col-md-2"><label class="form-label small">Year</label><input type="number" name="year" class="form-control form-control-sm" value="{{ case.year }}" min="1900" max="2100"></div>
-            <div class="col-md-2"><label class="form-label small">Date</label><input type="text" name="date" class="form-control form-control-sm" value="{{ case.date }}" placeholder="15 Mar 2024"></div>
-            <div class="col-md-6"><label class="form-label small">Judge(s)</label><input type="text" name="judges" class="form-control form-control-sm" value="{{ case.judges }}"></div>
-            <div class="col-md-6"><label class="form-label small">Visa Type</label><input type="text" name="visa_type" class="form-control form-control-sm" value="{{ case.visa_type }}"></div>
-            <div class="col-12"><label class="form-label small">URL</label><input type="url" name="url" class="form-control form-control-sm" value="{{ case.url }}"></div>
-            <div class="col-12"><label class="form-label small">Catchwords</label><textarea name="catchwords" class="form-control form-control-sm" rows="2">{{ case.catchwords }}</textarea></div>
-            <div class="col-12"><label class="form-label small">Outcome</label><textarea name="outcome" class="form-control form-control-sm" rows="2">{{ case.outcome }}</textarea></div>
-            <div class="col-12"><label class="form-label small">Legislation</label><textarea name="legislation" class="form-control form-control-sm" rows="2">{{ case.legislation }}</textarea></div>
-            <div class="col-md-4"><label class="form-label small">Case Nature</label>
-              <select name="case_nature" class="form-select form-select-sm"><option value="">--</option>{% for n in ['Merits Review','Judicial Review','Appeal','Visa Cancellation','Visa Refusal','Detention Challenge','Deportation','Constitutional'] %}<option value="{{ n }}" {% if case.case_nature == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
-            <div class="col-md-8"><label class="form-label small">Legal Concepts <span class="text-muted">(semicolon separated)</span></label><textarea name="legal_concepts" class="form-control form-control-sm" rows="2" placeholder="Jurisdictional error; Procedural fairness; Unreasonableness">{{ case.legal_concepts }}</textarea></div>
+            <div class="col-md-6">
+              <label class="form-label small" for="edit_citation">Citation</label>
+              <input type="text" name="citation" id="edit_citation" class="form-control form-control-sm" value="{{ case.citation }}" placeholder="[2024] AATA 1234">
+            </div>
+            <div class="col-12">
+              <label class="form-label small" for="edit_title">Title</label>
+              <input type="text" name="title" id="edit_title" class="form-control form-control-sm" value="{{ case.title }}" required>
+              <div class="invalid-feedback">Title is required.</div>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small" for="edit_court">Court</label>
+              <input type="text" name="court" id="edit_court" class="form-control form-control-sm" value="{{ case.court }}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small" for="edit_court_code">Court Code</label>
+              <select name="court_code" id="edit_court_code" class="form-select form-select-sm">
+                <option value="">--</option>
+                {% for code in databases %}<option value="{{ code }}" {% if case.court_code == code %}selected{% endif %}>{{ code }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small" for="edit_year">Year</label>
+              <input type="number" name="year" id="edit_year" class="form-control form-control-sm" value="{{ case.year }}" min="1900" max="2100">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small" for="edit_date">Date</label>
+              <input type="text" name="date" id="edit_date" class="form-control form-control-sm" value="{{ case.date }}" placeholder="15 Mar 2024">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small" for="edit_judges">Judge(s)</label>
+              <input type="text" name="judges" id="edit_judges" class="form-control form-control-sm" value="{{ case.judges }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small" for="edit_visa_type">Visa Type</label>
+              <input type="text" name="visa_type" id="edit_visa_type" class="form-control form-control-sm" value="{{ case.visa_type }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label small" for="edit_url">URL</label>
+              <input type="url" name="url" id="edit_url" class="form-control form-control-sm" value="{{ case.url }}">
+              <div class="invalid-feedback">Please enter a valid URL.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label small" for="edit_catchwords">Catchwords</label>
+              <textarea name="catchwords" id="edit_catchwords" class="form-control form-control-sm" rows="2">{{ case.catchwords }}</textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label small" for="edit_outcome">Outcome</label>
+              <textarea name="outcome" id="edit_outcome" class="form-control form-control-sm" rows="2">{{ case.outcome }}</textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label small" for="edit_legislation">Legislation</label>
+              <textarea name="legislation" id="edit_legislation" class="form-control form-control-sm" rows="2">{{ case.legislation }}</textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small" for="edit_case_nature">Case Nature</label>
+              <select name="case_nature" id="edit_case_nature" class="form-select form-select-sm">
+                <option value="">--</option>
+                {% for n in ['Merits Review','Judicial Review','Appeal','Visa Cancellation','Visa Refusal','Detention Challenge','Deportation','Constitutional'] %}
+                <option value="{{ n }}" {% if case.case_nature == n %}selected{% endif %}>{{ n }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label small" for="edit_legal_concepts">Legal Concepts <span class="text-muted">(semicolon separated)</span></label>
+              <textarea name="legal_concepts" id="edit_legal_concepts" class="form-control form-control-sm" rows="2" placeholder="Jurisdictional error; Procedural fairness; Unreasonableness">{{ case.legal_concepts }}</textarea>
+            </div>
           </div>
         </div>
       </div>
     </div>
     <div class="col-lg-4">
       <div class="card mb-3">
-        <div class="card-header">Your Annotations</div>
+        <div class="card-header"><i class="bi bi-bookmark me-1"></i>Your Annotations</div>
         <div class="card-body">
-          <label class="form-label small">Tags <span class="text-muted">(comma separated)</span></label>
-          <input type="text" name="tags" class="form-control form-control-sm mb-3" value="{{ case.tags }}" placeholder="important, s501, appeal-won">
-          <label class="form-label small">Notes</label>
-          <textarea name="user_notes" class="form-control form-control-sm" rows="8" placeholder="Your analysis, observations...">{{ case.user_notes }}</textarea>
+          <label class="form-label small" for="edit_tags">Tags <span class="text-muted">(comma separated)</span></label>
+          <input type="text" name="tags" id="edit_tags" class="form-control form-control-sm mb-3" value="{{ case.tags }}" placeholder="important, s501, appeal-won">
+          <label class="form-label small" for="edit_notes">Notes</label>
+          <textarea name="user_notes" id="edit_notes" class="form-control form-control-sm" rows="8" placeholder="Your analysis, observations...">{{ case.user_notes }}</textarea>
         </div>
       </div>
       <div class="d-grid gap-2">
@@ -51,4 +101,22 @@
     </div>
   </div>
 </form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+  var form = document.querySelector('.needs-validation');
+  if (form) {
+    form.addEventListener('submit', function(event) {
+      if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      form.classList.add('was-validated');
+    });
+  }
+})();
+</script>
 {% endblock %}

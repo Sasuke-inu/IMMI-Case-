@@ -8,7 +8,7 @@
 </ol></nav>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h4 class="mb-0"><i class="bi bi-gear-wide-connected me-2"></i>Smart Pipeline</h4>
+    <h4 class="mb-0 font-serif"><i class="bi bi-gear-wide-connected me-2"></i>Smart Pipeline</h4>
     <small class="text-muted">Automated crawl &rarr; clean &rarr; download with auto-fallback</small>
   </div>
   {% if pipeline.running %}
@@ -23,7 +23,7 @@
     <!-- Presets -->
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-lightning-charge me-1 text-warning"></i>Quick Presets</span>
+        <span><i class="bi bi-lightning-charge me-1 text-accent"></i>Quick Presets</span>
       </div>
       <div class="card-body">
         <div class="row g-2">
@@ -56,7 +56,7 @@
               <input type="hidden" name="preset" value="download_only">
               <input type="hidden" name="download_enabled" value="on">
               <input type="hidden" name="download_batch_size" value="1000">
-              <button type="submit" class="btn btn-warning w-100 py-3">
+              <button type="submit" class="btn w-100 py-3" style="background:var(--immi-accent);color:#fff;border:none;">
                 <i class="bi bi-cloud-download d-block mb-1" style="font-size:1.5rem;"></i>
                 <strong>Download Only</strong>
                 <div class="small opacity-75">{{ "{:,}".format(without_text) }} texts pending</div>
@@ -73,17 +73,15 @@
       <div class="card-body">
         <form method="post" id="customPipelineForm">
           <input type="hidden" name="preset" value="custom">
-
-          <!-- Database selection -->
           <div class="mb-3">
             <label class="form-label small fw-semibold">Databases</label>
             <div class="row g-2">
               {% for code, info in databases.items() %}
               {% if code not in ('RRTA', 'MRTA') %}
               <div class="col-6 col-lg-4">
-                <label class="source-card d-flex align-items-center gap-2 w-100 {{ 'selected' if code in ('AATA', 'FCA', 'FedCFamC2G') }}" for="pl_db_{{ code }}">
+                <label class="source-card d-flex align-items-center gap-2 w-100 {{ 'selected' if code in ('AATA', 'ARTA', 'FCA', 'FedCFamC2G') }}" for="pl_db_{{ code }}">
                   <input type="checkbox" name="databases" value="{{ code }}" id="pl_db_{{ code }}"
-                    {{ 'checked' if code in ('AATA', 'FCA', 'FedCFamC2G') }}
+                    {{ 'checked' if code in ('AATA', 'ARTA', 'FCA', 'FedCFamC2G') }}
                     onchange="this.closest('.source-card').classList.toggle('selected', this.checked)">
                   <div>
                     <span class="badge badge-court badge-{{ code }}">{{ code }}</span>
@@ -98,24 +96,24 @@
 
           <div class="row g-2 mb-3">
             <div class="col-md-3">
-              <label class="form-label small">Start Year</label>
-              <input type="number" name="start_year" class="form-control form-control-sm" value="{{ end_year - 1 }}" min="2000" max="2030">
+              <label class="form-label small" for="pl_start_year">Start Year</label>
+              <input type="number" name="start_year" id="pl_start_year" class="form-control form-control-sm" value="{{ end_year - 1 }}" min="2000" max="2030">
             </div>
             <div class="col-md-3">
-              <label class="form-label small">End Year</label>
-              <input type="number" name="end_year" class="form-control form-control-sm" value="{{ end_year }}" min="2000" max="2030">
+              <label class="form-label small" for="pl_end_year">End Year</label>
+              <input type="number" name="end_year" id="pl_end_year" class="form-control form-control-sm" value="{{ end_year }}" min="2000" max="2030">
             </div>
             <div class="col-md-3">
-              <label class="form-label small">Request Delay</label>
-              <select name="delay" class="form-select form-select-sm">
+              <label class="form-label small" for="pl_delay">Request Delay</label>
+              <select name="delay" id="pl_delay" class="form-select form-select-sm">
                 <option value="0.3">0.3s (fast)</option>
                 <option value="0.5" selected>0.5s (balanced)</option>
                 <option value="1.0">1.0s (gentle)</option>
               </select>
             </div>
             <div class="col-md-3">
-              <label class="form-label small">Download Batch</label>
-              <select name="download_batch_size" class="form-select form-select-sm">
+              <label class="form-label small" for="pl_batch">Download Batch</label>
+              <select name="download_batch_size" id="pl_batch" class="form-select form-select-sm">
                 <option value="500">500</option>
                 <option value="1000" selected>1,000</option>
                 <option value="5000">5,000</option>
@@ -123,7 +121,6 @@
             </div>
           </div>
 
-          <!-- Toggles -->
           <div class="row g-2 mb-3">
             <div class="col-auto">
               <div class="form-check form-switch">
@@ -168,18 +165,18 @@
         </div>
         <div class="d-flex justify-content-between mb-2">
           <span class="small text-muted">With Full Text</span>
-          <span class="fw-semibold text-success">{{ "{:,}".format(total_cases - without_text) }}</span>
+          <span class="fw-semibold" style="color:var(--immi-success);">{{ "{:,}".format(total_cases - without_text) }}</span>
         </div>
         <div class="d-flex justify-content-between">
           <span class="small text-muted">Missing Full Text</span>
-          <span class="fw-semibold text-warning">{{ "{:,}".format(without_text) }}</span>
+          <span class="fw-semibold" style="color:var(--immi-warning);">{{ "{:,}".format(without_text) }}</span>
         </div>
       </div>
     </div>
 
-    <div class="card border-info">
+    <div class="card border-accent">
       <div class="card-body small">
-        <div class="fw-semibold mb-2"><i class="bi bi-diagram-3 me-1 text-info"></i>Pipeline Phases</div>
+        <div class="fw-semibold mb-2 font-serif"><i class="bi bi-diagram-3 me-1 text-accent"></i>Pipeline Phases</div>
         <ol class="mb-0 ps-3" style="font-size:.8rem;">
           <li class="mb-1"><strong>Crawl</strong> &mdash; Scrape AustLII with auto-fallback (direct &rarr; viewdb &rarr; keyword search)</li>
           <li class="mb-1"><strong>Clean</strong> &mdash; Fix year=0, deduplicate by URL, validate fields</li>
@@ -192,16 +189,22 @@
 
 {% else %}
 <!-- ═══════════ LIVE MONITOR SECTION ═══════════ -->
-<div id="monitor-section">
+<div id="monitor-section"
+     data-status-url="{{ url_for('pipeline_status_api') }}"
+     data-log-url="{{ url_for('pipeline_log_api') }}"
+     data-action-url="{{ url_for('pipeline_action_api') }}"
+     data-running="{{ 'true' if pipeline.running else 'false' }}"
+     data-log-count="{{ pipeline.log | length }}">
+
   <!-- Phase progress -->
   <div class="card mb-3">
     <div class="card-header d-flex align-items-center gap-2">
       {% if pipeline.running %}
-      <span class="spinner-border spinner-border-sm text-primary"></span>
+      <span class="spinner-border spinner-border-sm" style="color:var(--immi-accent);"></span>
       <span class="fw-semibold">Pipeline Running</span>
-      <span class="ms-auto badge bg-primary" id="elapsed-badge">Running...</span>
+      <span class="ms-auto badge" style="background:var(--immi-accent);color:#fff;" id="elapsed-badge">Running...</span>
       {% else %}
-      <i class="bi bi-check-circle-fill text-success"></i>
+      <i class="bi bi-check-circle-fill" style="color:var(--immi-success);"></i>
       <span class="fw-semibold">Pipeline Complete</span>
       {% endif %}
     </div>
@@ -209,21 +212,21 @@
       <!-- Phase indicators -->
       <div class="d-flex justify-content-center gap-4 mb-3">
         <div class="text-center" id="phase-crawl">
-          <div class="rounded-circle d-inline-flex align-items-center justify-content-center {% if 'crawl' in pipeline.phases_completed %}bg-success text-white{% elif pipeline.phase == 'crawl' %}bg-primary text-white{% else %}bg-light text-muted{% endif %}" style="width:48px;height:48px;font-size:1.2rem;">
+          <div class="phase-indicator {% if 'crawl' in pipeline.phases_completed %}completed{% elif pipeline.phase == 'crawl' %}active{% else %}pending{% endif %}">
             {% if 'crawl' in pipeline.phases_completed %}<i class="bi bi-check-lg"></i>{% elif pipeline.phase == 'crawl' %}<span class="spinner-border spinner-border-sm"></span>{% else %}<i class="bi bi-search"></i>{% endif %}
           </div>
           <div class="small mt-1 fw-semibold">Crawl</div>
         </div>
         <div class="d-flex align-items-center text-muted"><i class="bi bi-arrow-right"></i></div>
         <div class="text-center" id="phase-clean">
-          <div class="rounded-circle d-inline-flex align-items-center justify-content-center {% if 'clean' in pipeline.phases_completed %}bg-success text-white{% elif pipeline.phase == 'clean' %}bg-primary text-white{% else %}bg-light text-muted{% endif %}" style="width:48px;height:48px;font-size:1.2rem;">
+          <div class="phase-indicator {% if 'clean' in pipeline.phases_completed %}completed{% elif pipeline.phase == 'clean' %}active{% else %}pending{% endif %}">
             {% if 'clean' in pipeline.phases_completed %}<i class="bi bi-check-lg"></i>{% elif pipeline.phase == 'clean' %}<span class="spinner-border spinner-border-sm"></span>{% else %}<i class="bi bi-funnel"></i>{% endif %}
           </div>
           <div class="small mt-1 fw-semibold">Clean</div>
         </div>
         <div class="d-flex align-items-center text-muted"><i class="bi bi-arrow-right"></i></div>
         <div class="text-center" id="phase-download">
-          <div class="rounded-circle d-inline-flex align-items-center justify-content-center {% if 'download' in pipeline.phases_completed %}bg-success text-white{% elif pipeline.phase == 'download' %}bg-primary text-white{% else %}bg-light text-muted{% endif %}" style="width:48px;height:48px;font-size:1.2rem;">
+          <div class="phase-indicator {% if 'download' in pipeline.phases_completed %}completed{% elif pipeline.phase == 'download' %}active{% else %}pending{% endif %}">
             {% if 'download' in pipeline.phases_completed %}<i class="bi bi-check-lg"></i>{% elif pipeline.phase == 'download' %}<span class="spinner-border spinner-border-sm"></span>{% else %}<i class="bi bi-cloud-download"></i>{% endif %}
           </div>
           <div class="small mt-1 fw-semibold">Download</div>
@@ -232,9 +235,9 @@
 
       <!-- Progress bar -->
       <p class="text-muted small mb-2" id="progress-text">{{ pipeline.phase_progress }}</p>
-      <div class="progress mb-3" style="height:20px;">
+      <div class="progress mb-3" role="progressbar" style="height:20px;">
         <div class="progress-bar progress-bar-striped {% if pipeline.running %}progress-bar-animated{% endif %} {% if pipeline.overall_progress > 80 %}bg-success{% endif %}"
-             id="progress-bar" role="progressbar" style="width:{{ pipeline.overall_progress }}%">
+             id="progress-bar" style="width:{{ pipeline.overall_progress }}%; background-color:var(--immi-accent);">
           {{ pipeline.overall_progress }}%
         </div>
       </div>
@@ -250,27 +253,27 @@
       <!-- Stats cards -->
       <div class="row g-2 mb-3" id="stats-cards">
         <div class="col-6 col-md-3">
-          <div class="border rounded p-2 text-center">
+          <div class="border rounded p-2 text-center" style="border-color:var(--immi-border);">
             <div class="small text-muted">Found</div>
             <div class="fw-bold" id="stat-found">{{ pipeline.stats.crawl.total_found }}</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="border rounded p-2 text-center">
+          <div class="border rounded p-2 text-center" style="border-color:var(--immi-border);">
             <div class="small text-muted">New Added</div>
-            <div class="fw-bold text-success" id="stat-new">{{ pipeline.stats.crawl.new_added }}</div>
+            <div class="fw-bold" style="color:var(--immi-success);" id="stat-new">{{ pipeline.stats.crawl.new_added }}</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="border rounded p-2 text-center">
+          <div class="border rounded p-2 text-center" style="border-color:var(--immi-border);">
             <div class="small text-muted">Downloaded</div>
-            <div class="fw-bold text-primary" id="stat-downloaded">{{ pipeline.stats.download.downloaded }}</div>
+            <div class="fw-bold" style="color:var(--immi-info);" id="stat-downloaded">{{ pipeline.stats.download.downloaded }}</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="border rounded p-2 text-center">
+          <div class="border rounded p-2 text-center" style="border-color:var(--immi-border);">
             <div class="small text-muted">Errors</div>
-            <div class="fw-bold text-danger" id="stat-errors">{{ pipeline.errors | length }}</div>
+            <div class="fw-bold" style="color:var(--immi-danger);" id="stat-errors">{{ pipeline.errors | length }}</div>
           </div>
         </div>
       </div>
@@ -278,13 +281,12 @@
       <!-- Clean stats -->
       {% if 'clean' in pipeline.phases_completed %}
       <div class="row g-2 mb-3">
-        <div class="col-auto"><span class="badge bg-light text-dark"><i class="bi bi-calendar-check me-1"></i>Year fixed: {{ pipeline.stats.clean.year_fixed }}</span></div>
-        <div class="col-auto"><span class="badge bg-light text-dark"><i class="bi bi-layers me-1"></i>Dupes removed: {{ pipeline.stats.clean.dupes_removed }}</span></div>
-        <div class="col-auto"><span class="badge bg-light text-dark"><i class="bi bi-patch-check me-1"></i>Validated: {{ pipeline.stats.clean.validated }}</span></div>
+        <div class="col-auto"><span class="badge bg-accent-muted text-accent"><i class="bi bi-calendar-check me-1"></i>Year fixed: {{ pipeline.stats.clean.year_fixed }}</span></div>
+        <div class="col-auto"><span class="badge bg-accent-muted text-accent"><i class="bi bi-layers me-1"></i>Dupes removed: {{ pipeline.stats.clean.dupes_removed }}</span></div>
+        <div class="col-auto"><span class="badge bg-accent-muted text-accent"><i class="bi bi-patch-check me-1"></i>Validated: {{ pipeline.stats.clean.validated }}</span></div>
       </div>
       {% endif %}
 
-      <!-- Action buttons (when complete) -->
       {% if not pipeline.running %}
       <div class="d-flex gap-2 flex-wrap">
         <a href="{{ url_for('case_list') }}" class="btn btn-primary btn-sm"><i class="bi bi-folder2-open me-1"></i>View Cases</a>
@@ -302,8 +304,7 @@
       <i class="bi bi-chevron-down"></i>
     </div>
     <div class="collapse show" id="logPanel">
-      <!-- Filter tabs -->
-      <div class="card-body pb-0 pt-2">
+      <div class="card-body pb-0 pt-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div class="btn-group btn-group-sm" role="group" id="log-filters">
           <button type="button" class="btn btn-outline-secondary active" data-filter="">All</button>
           <button type="button" class="btn btn-outline-danger" data-filter="error">Errors</button>
@@ -311,17 +312,17 @@
           <button type="button" class="btn btn-outline-info" data-filter="strategy_switch">Strategy</button>
           <button type="button" class="btn btn-outline-success" data-filter="success">Success</button>
         </div>
-        <div class="float-end">
-          <button class="btn btn-sm btn-outline-secondary" onclick="toggleAutoScroll()" id="scroll-btn" title="Toggle auto-scroll">
+        <div class="d-flex gap-1">
+          <button class="btn btn-sm btn-outline-secondary" onclick="toggleAutoScroll()" id="scroll-btn" title="Toggle auto-scroll" aria-label="Toggle auto-scroll">
             <i class="bi bi-arrow-down-circle"></i>
           </button>
-          <button class="btn btn-sm btn-outline-secondary" onclick="exportLog()" title="Export log as JSON">
+          <button class="btn btn-sm btn-outline-secondary" onclick="exportLog()" title="Export log as JSON" aria-label="Export log">
             <i class="bi bi-download"></i>
           </button>
         </div>
       </div>
       <div class="card-body pt-2">
-        <div id="log-container" style="max-height:400px; overflow-y:auto; font-family:monospace; font-size:.75rem;">
+        <div id="log-container" style="max-height:400px; overflow-y:auto; font-family:var(--font-mono); font-size:.72rem;">
           {% for event in pipeline.log[-50:] %}
           <div class="log-entry d-flex gap-2 py-1 border-bottom" data-level="{{ event.level }}" data-category="{{ event.category }}">
             <span class="text-muted" style="min-width:70px;">{{ event.timestamp[-8:] }}</span>
@@ -340,220 +341,27 @@
       </div>
     </div>
   </div>
+
+  <!-- Stop Pipeline Modal -->
+  <div class="modal fade" id="stopPipelineModal" tabindex="-1" aria-label="Confirm stop">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title font-serif">Stop Pipeline</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body small">Stop the running pipeline? Progress will be saved.</div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-sm btn-danger" onclick="confirmStopPipeline()"><i class="bi bi-stop-circle me-1"></i>Stop</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endif %}
 {% endblock %}
 
 {% block extra_js %}
-<script>
-var pipelineRunning = {{ 'true' if pipeline.running else 'false' }};
-var autoScroll = true;
-var startTime = Date.now();
-var activeFilter = '';
-var lastLogCount = {{ pipeline.log | length }};
-
-// Phase icon mapping
-var PHASE_BG = {crawl: 'bg-primary', clean: 'bg-info', download: 'bg-warning text-dark', pipeline: 'bg-secondary'};
-var LEVEL_ICON = {error: 'bi-x-circle-fill text-danger', warn: 'bi-exclamation-triangle-fill text-warning', success: 'bi-check-circle-fill text-success', info: 'bi-info-circle text-muted', debug: 'bi-bug text-muted'};
-var STRATEGY_BG = {direct: 'badge bg-success', viewdb: 'badge bg-warning text-dark', keyword_search: 'badge bg-info'};
-var PHASE_ICONS = {crawl: 'bi-search', clean: 'bi-funnel', download: 'bi-cloud-download'};
-
-{% if pipeline.running %}
-// Elapsed timer
-function updateElapsed() {
-  var secs = Math.floor((Date.now() - startTime) / 1000);
-  var m = Math.floor(secs / 60), s = secs % 60;
-  var el = document.getElementById('elapsed-badge');
-  if (el) el.textContent = (m > 0 ? m + 'm ' : '') + s + 's elapsed';
-}
-setInterval(updateElapsed, 1000);
-
-// Poll for status updates
-function refreshPipeline() {
-  fetch('{{ url_for("pipeline_status_api") }}')
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      // Update progress text
-      var pt = document.getElementById('progress-text');
-      if (pt) pt.textContent = data.phase_progress;
-
-      // Update progress bar
-      var bar = document.getElementById('progress-bar');
-      if (bar) {
-        bar.style.width = data.overall_progress + '%';
-        bar.textContent = data.overall_progress + '%';
-        if (data.overall_progress > 80) bar.classList.add('bg-success');
-      }
-
-      // Update stat numbers
-      setText('stat-found', data.stats.crawl.total_found.toLocaleString());
-      setText('stat-new', data.stats.crawl.new_added.toLocaleString());
-      setText('stat-downloaded', data.stats.download.downloaded.toLocaleString());
-      setText('stat-errors', data.errors.length.toLocaleString());
-
-      // Update strategy badge
-      var sb = document.getElementById('strategy-badge');
-      if (sb && data.current_strategy) {
-        sb.textContent = data.current_strategy;
-        sb.className = STRATEGY_BG[data.current_strategy] || 'badge bg-secondary';
-      }
-
-      // Update phase indicators
-      updatePhaseIndicator('crawl', data);
-      updatePhaseIndicator('clean', data);
-      updatePhaseIndicator('download', data);
-
-      // Update log entries
-      if (data.log.length > lastLogCount) {
-        appendLogEntries(data.log.slice(lastLogCount));
-        lastLogCount = data.log.length;
-      }
-      setText('log-count', data.log.length.toString());
-
-      if (!data.running) {
-        window.location.reload();
-      } else {
-        setTimeout(refreshPipeline, 2000);
-      }
-    })
-    .catch(function() { setTimeout(refreshPipeline, 5000); });
-}
-setTimeout(refreshPipeline, 2000);
-{% endif %}
-
-function setText(id, text) {
-  var el = document.getElementById(id);
-  if (el) el.textContent = text;
-}
-
-function updatePhaseIndicator(phase, data) {
-  var el = document.getElementById('phase-' + phase);
-  if (!el) return;
-  var circle = el.querySelector('.rounded-circle');
-  if (!circle) return;
-
-  var completed = data.phases_completed.indexOf(phase) >= 0;
-  var active = data.phase === phase;
-
-  // Reset classes
-  circle.className = 'rounded-circle d-inline-flex align-items-center justify-content-center';
-  circle.style.cssText = 'width:48px;height:48px;font-size:1.2rem;';
-
-  // Clear children safely
-  while (circle.firstChild) circle.removeChild(circle.firstChild);
-
-  if (completed) {
-    circle.classList.add('bg-success', 'text-white');
-    var icon = document.createElement('i');
-    icon.className = 'bi bi-check-lg';
-    circle.appendChild(icon);
-  } else if (active) {
-    circle.classList.add('bg-primary', 'text-white');
-    var spinner = document.createElement('span');
-    spinner.className = 'spinner-border spinner-border-sm';
-    circle.appendChild(spinner);
-  } else {
-    circle.classList.add('bg-light', 'text-muted');
-    var icon = document.createElement('i');
-    icon.className = 'bi ' + (PHASE_ICONS[phase] || 'bi-circle');
-    circle.appendChild(icon);
-  }
-}
-
-function appendLogEntries(newEntries) {
-  var container = document.getElementById('log-container');
-  if (!container) return;
-
-  newEntries.forEach(function(event) {
-    var div = document.createElement('div');
-    div.className = 'log-entry d-flex gap-2 py-1 border-bottom';
-    div.dataset.level = event.level;
-    div.dataset.category = event.category;
-
-    // Timestamp
-    var ts = document.createElement('span');
-    ts.className = 'text-muted';
-    ts.style.minWidth = '70px';
-    ts.textContent = event.timestamp.slice(-8);
-    div.appendChild(ts);
-
-    // Phase badge
-    var badge = document.createElement('span');
-    badge.className = 'badge ' + (PHASE_BG[event.phase] || 'bg-secondary');
-    badge.style.minWidth = '55px';
-    badge.textContent = event.phase;
-    div.appendChild(badge);
-
-    // Level icon
-    var iconSpan = document.createElement('span');
-    var icon = document.createElement('i');
-    icon.className = 'bi ' + (LEVEL_ICON[event.level] || 'bi-info-circle text-muted');
-    iconSpan.appendChild(icon);
-    div.appendChild(iconSpan);
-
-    // Message
-    var msg = document.createElement('span');
-    msg.className = 'flex-grow-1';
-    msg.textContent = event.message;
-    div.appendChild(msg);
-
-    // Apply current filter
-    if (activeFilter) {
-      var show = activeFilter === event.level || activeFilter === event.category;
-      div.style.display = show ? '' : 'none';
-    }
-
-    container.appendChild(div);
-  });
-
-  if (autoScroll) {
-    container.scrollTop = container.scrollHeight;
-  }
-}
-
-// Log filter tabs
-document.querySelectorAll('#log-filters button').forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('#log-filters button').forEach(function(b) { b.classList.remove('active'); });
-    btn.classList.add('active');
-    activeFilter = btn.dataset.filter;
-
-    document.querySelectorAll('#log-container .log-entry').forEach(function(entry) {
-      if (!activeFilter) {
-        entry.style.display = '';
-      } else {
-        var match = entry.dataset.level === activeFilter || entry.dataset.category === activeFilter;
-        entry.style.display = match ? '' : 'none';
-      }
-    });
-  });
-});
-
-function toggleAutoScroll() {
-  autoScroll = !autoScroll;
-  var btn = document.getElementById('scroll-btn');
-  if (btn) btn.classList.toggle('btn-primary', autoScroll);
-}
-
-function exportLog() {
-  fetch('{{ url_for("pipeline_log_api") }}')
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'pipeline_log_' + new Date().toISOString().slice(0,10) + '.json';
-      a.click();
-    });
-}
-
-function stopPipeline() {
-  if (!confirm('Stop the running pipeline?')) return;
-  fetch('{{ url_for("pipeline_action_api") }}', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action: 'stop'})
-  }).then(function() { window.location.reload(); });
-}
-</script>
+<script src="{{ url_for('static', filename='pipeline-monitor.js') }}"></script>
 {% endblock %}

@@ -6,18 +6,21 @@ Includes a **web interface** for searching, browsing, editing, and exporting cas
 
 ## Data Sources
 
-| Source | Code | Description |
-|--------|------|-------------|
-| Administrative Appeals Tribunal | AATA | AAT migration & refugee review decisions |
-| Federal Court of Australia | FCA | Immigration judicial review |
-| Federal Circuit Court | FCCA | Immigration cases |
-| Federal Circuit and Family Court (Div 2) | FedCFamC2G | Immigration cases (post-restructure) |
-| High Court of Australia | HCA | Immigration appeals |
-| Refugee Review Tribunal | RRTA | Refugee decisions (pre-2015) |
-| Migration Review Tribunal | MRTA | Migration decisions (pre-2015) |
-| Federal Court Judgment Search | fedcourt | search2.fedcourt.gov.au |
+| Source | Code | Years | Description |
+|--------|------|-------|-------------|
+| Administrative Appeals Tribunal | AATA | 2000–2024 | AAT migration & refugee review decisions (ended Oct 2024) |
+| Administrative Review Tribunal | **ARTA** | 2024– | ART migration & refugee review decisions (replaced AAT) |
+| Federal Court of Australia | FCA | 2000– | Immigration judicial review |
+| Federal Circuit Court | FCCA | 2013–2021 | Immigration cases (replaced by FedCFamC2G) |
+| Federal Circuit and Family Court (Div 2) | FedCFamC2G | 2021– | Immigration cases (post-restructure) |
+| High Court of Australia | HCA | 2000– | Immigration appeals |
+| Refugee Review Tribunal | RRTA | –2015 | Refugee decisions (merged into AATA) |
+| Migration Review Tribunal | MRTA | –2015 | Migration decisions (merged into AATA) |
+| Federal Court Judgment Search | fedcourt | — | search2.fedcourt.gov.au |
 
 Cases are sourced from [AustLII](https://www.austlii.edu.au) (Australasian Legal Information Institute) and the Federal Court judgment search.
+
+> **Note**: The AAT was abolished in October 2024 and replaced by the Administrative Review Tribunal (ART). For cases from 2025 onwards, use the **ARTA** database code.
 
 ## Setup
 
@@ -112,7 +115,7 @@ There are **18 data fields** per case, populated in stages:
 | `citation` | Text | Legal citation | `[2024] AATA 1234` |
 | `title` | Text | Case title / parties | `Smith v Minister for Immigration` |
 | `court` | Text | Full court name | `Administrative Appeals Tribunal` |
-| `court_code` | Text | Court abbreviation | `AATA`, `FCA`, `FCCA`, `HCA` |
+| `court_code` | Text | Court abbreviation | `AATA`, `ARTA`, `FCA`, `FCCA`, `HCA` |
 | `year` | Integer | Decision year | `2024` |
 | `url` | URL | Link to source document | `https://austlii.edu.au/...` |
 | `source` | Text | Where found | `AustLII`, `Federal Court` |
@@ -156,9 +159,9 @@ from immi_case_downloader.storage import save_cases_csv, save_cases_json
 # Search AustLII
 scraper = AustLIIScraper(delay=1.0)
 cases = scraper.search_cases(
-    databases=["AATA", "FCA"],
+    databases=["AATA", "ARTA", "FCA"],
     start_year=2020,
-    end_year=2025,
+    end_year=2026,
 )
 
 # Save results
