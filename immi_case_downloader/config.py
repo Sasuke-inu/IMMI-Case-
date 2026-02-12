@@ -79,8 +79,8 @@ REQUEST_TIMEOUT = 30
 REQUEST_DELAY = 1.0  # seconds between requests (be respectful)
 MAX_RETRIES = 3
 USER_AGENT = (
-    "IMMI-Case-Downloader/1.0 (Legal Research; "
-    "https://github.com/Sasuke-inu/IMMI-Case-)"
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
 
 # Output settings
