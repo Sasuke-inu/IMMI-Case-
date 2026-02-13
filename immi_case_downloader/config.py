@@ -8,8 +8,24 @@ from datetime import datetime
 
 # Date range: last 10 years
 CURRENT_YEAR = datetime.now().year
-START_YEAR = int(os.environ.get("IMMI_START_YEAR", CURRENT_YEAR - 10))
-END_YEAR = int(os.environ.get("IMMI_END_YEAR", CURRENT_YEAR))
+
+
+def _safe_int(val, default: int) -> int:
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(val, default: float) -> float:
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return default
+
+
+START_YEAR = _safe_int(os.environ.get("IMMI_START_YEAR"), CURRENT_YEAR - 10)
+END_YEAR = _safe_int(os.environ.get("IMMI_END_YEAR"), CURRENT_YEAR)
 
 # AustLII base URLs
 AUSTLII_BASE = "https://www.austlii.edu.au"
@@ -79,9 +95,9 @@ IMMIGRATION_KEYWORDS = [
 ]
 
 # Request settings
-REQUEST_TIMEOUT = int(os.environ.get("IMMI_TIMEOUT", 30))
-REQUEST_DELAY = float(os.environ.get("IMMI_DELAY", 1.0))
-MAX_RETRIES = int(os.environ.get("IMMI_MAX_RETRIES", 3))
+REQUEST_TIMEOUT = _safe_int(os.environ.get("IMMI_TIMEOUT"), 30)
+REQUEST_DELAY = _safe_float(os.environ.get("IMMI_DELAY"), 1.0)
+MAX_RETRIES = _safe_int(os.environ.get("IMMI_MAX_RETRIES"), 3)
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"

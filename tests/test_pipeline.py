@@ -277,7 +277,8 @@ class TestPublicHelpers:
         status = get_pipeline_status()
         status["running"] = True
         # Original should not be affected
-        assert get_pipeline_status()["running"] is False or True  # just checking it's a copy
+        original = get_pipeline_status()
+        assert original["running"] != status["running"] or original is not status
 
     def test_request_pipeline_stop(self):
         """request_pipeline_stop sets the flag."""

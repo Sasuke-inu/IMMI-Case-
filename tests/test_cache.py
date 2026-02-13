@@ -1,7 +1,5 @@
 """Tests for TTL cache in storage.load_all_cases."""
 
-import time
-
 from immi_case_downloader.models import ImmigrationCase
 from immi_case_downloader.storage import (
     ensure_output_dirs,

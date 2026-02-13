@@ -60,6 +60,23 @@ class TestEnvVarOverrides:
             assert cfg.START_YEAR == 2015
             reload(cfg)
 
+    def test_invalid_env_values_use_defaults(self):
+        """Invalid env var values should fall back to defaults, not crash."""
+        with patch.dict(os.environ, {
+            "IMMI_TIMEOUT": "abc",
+            "IMMI_DELAY": "not_a_number",
+            "IMMI_MAX_RETRIES": "",
+            "IMMI_START_YEAR": "xyz",
+        }):
+            from importlib import reload
+            import immi_case_downloader.config as cfg
+            reload(cfg)
+            assert cfg.REQUEST_TIMEOUT == 30  # default
+            assert cfg.REQUEST_DELAY == 1.0  # default
+            assert cfg.MAX_RETRIES == 3  # default
+            assert isinstance(cfg.START_YEAR, int)  # fell back to default
+            reload(cfg)
+
 
 class TestConfigConstants:
     """Verify config constants are present and correct types."""

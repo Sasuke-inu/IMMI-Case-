@@ -50,6 +50,8 @@ python web.py --debug            # Debug mode
 | **Delete Case** | Remove cases from your collection |
 | **Search New** | Launch background searches across AustLII / Federal Court |
 | **Download Texts** | Batch download full case texts with progress tracking |
+| **Smart Pipeline** | 3-phase auto-fallback workflow: crawl → clean → download |
+| **Update DB** | Add new databases or update existing ones |
 | **Job Status** | Monitor running search/download jobs with live progress |
 | **Export** | Download all data as CSV or JSON |
 | **Data Dictionary** | Reference guide for all spreadsheet columns |
@@ -105,7 +107,7 @@ downloaded_cases/
 
 ## Spreadsheet Data Points (CSV/JSON columns)
 
-There are **18 data fields** per case, populated in stages:
+There are **20 data fields** per case, populated in stages:
 
 ### Stage 1: Search (auto-populated from listing pages)
 
@@ -132,6 +134,8 @@ There are **18 data fields** per case, populated in stages:
 | `legislation` | Text | Acts/sections cited | `Migration Act 1958 s 36` |
 | `text_snippet` | Text | Brief excerpt | (first ~300 chars) |
 | `full_text_path` | Path | Local .txt file path | `downloaded_cases/case_texts/...` |
+| `case_nature` | Text | Nature of the case (LLM-extracted) | `Refugee review`, `Visa cancellation` |
+| `legal_concepts` | Text | Key legal concepts (LLM-extracted) | `well-founded fear, complementary protection` |
 
 ### Stage 3: User annotations (editable via web interface)
 
@@ -149,6 +153,30 @@ The tool is designed to grow your collection over time:
 - **Add cases manually** via web interface (Add Case page)
 - **Tag and annotate** cases with your own notes and labels
 - **Export updated data** anytime as CSV or JSON
+
+## Smart Pipeline
+
+The Smart Pipeline provides a 3-phase automated workflow accessible from both the web UI and CLI:
+
+1. **Crawl** — Scrape case metadata from AustLII with auto-fallback strategies (year listing → viewdb → keyword search)
+2. **Clean** — Deduplicate, fill missing fields (year from citation, court codes), validate data
+3. **Download** — Bulk download full case texts with resumable progress
+
+```bash
+# Via web UI: navigate to Smart Pipeline page
+# Via CLI:
+python run.py search --databases AATA ARTA FCA --start-year 2020
+python download_fulltext.py
+```
+
+## LLM Field Extraction
+
+For enriching cases with `case_nature` and `legal_concepts` fields:
+
+```bash
+python extract_llm_fields.py    # Process cases in batches via Claude Sonnet
+python merge_llm_results.py     # Merge batch JSON results back into main CSV
+```
 
 ## Module Usage
 
@@ -172,9 +200,11 @@ save_cases_json(cases)
 text = scraper.download_case_detail(cases[0])
 ```
 
-## Rate Limiting
+## Rate Limiting & User-Agent
 
 Built-in rate limiting (default: 1 second between requests) to be respectful to source servers. Adjust with `--delay` (CLI) or in config.
+
+> **Note**: AustLII blocks requests with the default `python-requests` User-Agent (HTTP 410). The scraper uses a browser-like User-Agent string to avoid this.
 
 ## License
 
