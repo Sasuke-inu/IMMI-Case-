@@ -129,16 +129,14 @@ class TestSecretKey:
         """When SECRET_KEY env var is set, it should be used."""
         test_key = "test-secret-key-from-env-var-12345"
         with patch.dict(os.environ, {"SECRET_KEY": test_key}):
-            from importlib import reload
-            import immi_case_downloader.webapp as webapp_mod
-            reload(webapp_mod)
-            app = webapp_mod.create_app(str(populated_dir))
+            from immi_case_downloader.web import create_app
+            app = create_app(str(populated_dir))
             assert app.secret_key == test_key
 
     def test_secret_key_no_hardcoded_fallback(self):
-        """The string 'immi-case-dev-key' must NOT appear in webapp.py."""
-        import immi_case_downloader.webapp as webapp_mod
-        source_path = webapp_mod.__file__
+        """The string 'immi-case-dev-key' must NOT appear in web/__init__.py."""
+        import immi_case_downloader.web as web_mod
+        source_path = web_mod.__file__
         with open(source_path) as f:
             source = f.read()
         assert "immi-case-dev-key" not in source, (
@@ -150,10 +148,8 @@ class TestSecretKey:
         env = os.environ.copy()
         env.pop("SECRET_KEY", None)
         with patch.dict(os.environ, env, clear=True):
-            from importlib import reload
-            import immi_case_downloader.webapp as webapp_mod
-            reload(webapp_mod)
-            app = webapp_mod.create_app(str(populated_dir))
+            from immi_case_downloader.web import create_app
+            app = create_app(str(populated_dir))
             # Should not be the old hardcoded value
             assert app.secret_key != "immi-case-dev-key-change-in-prod"
             # Should be a non-empty string
@@ -196,19 +192,19 @@ class TestDefaultHost:
 import warnings
 import sys
 sys.argv = ['web.py', '--host', '0.0.0.0', '--debug', '--port', '0']
-# Patch app.run to not actually start the server
-import immi_case_downloader.webapp as w
-w.app.run = lambda **kw: None
-with warnings.catch_warnings(record=True) as caught:
-    warnings.simplefilter("always")
-    from web import main
-    main()
-    for w in caught:
-        if 'public' in str(w.message).lower() or '0.0.0.0' in str(w.message):
-            print('WARNING_FOUND')
-            break
-    else:
-        print('NO_WARNING')
+# Patch Flask.run to not actually start the server
+from unittest.mock import patch
+with patch("flask.Flask.run"):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        from web import main
+        main()
+        for w in caught:
+            if 'public' in str(w.message).lower() or '0.0.0.0' in str(w.message):
+                print('WARNING_FOUND')
+                break
+        else:
+            print('NO_WARNING')
 """],
             capture_output=True, text=True, timeout=10
         )

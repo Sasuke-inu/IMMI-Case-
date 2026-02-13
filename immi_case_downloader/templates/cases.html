@@ -125,7 +125,61 @@
 <div class="batch-bar d-none d-md-flex" id="batchBar">
   <span class="batch-count"><span id="batchCount">0</span> selected</span>
   <button class="btn btn-sm btn-outline-light" onclick="exportSelectedCSV()"><i class="bi bi-download me-1"></i>Export CSV</button>
+  <button class="btn btn-sm btn-outline-light" onclick="compareCases()" id="compareBtn"><i class="bi bi-layout-split me-1"></i>Compare</button>
+  <button class="btn btn-sm btn-outline-warning" onclick="showBatchTagModal()"><i class="bi bi-tag me-1"></i>Add Tag</button>
+  <button class="btn btn-sm btn-outline-danger" onclick="showBatchDeleteModal()"><i class="bi bi-trash me-1"></i>Delete</button>
   <button class="btn btn-sm btn-outline-light ms-auto" onclick="clearSelection()"><i class="bi bi-x-lg me-1"></i>Clear</button>
+</div>
+
+<!-- Batch Tag Modal -->
+<div class="modal fade" id="batchTagModal" tabindex="-1" aria-label="Add tag to selected cases">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title font-serif"><i class="bi bi-tag me-2"></i>Add Tag</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label small">Tag name</label>
+        <input type="text" id="batchTagInput" class="form-control form-control-sm" placeholder="e.g. review, important">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{{ url_for('case_batch') }}" id="batchTagForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="add_tag">
+          <input type="hidden" name="tag" id="batchTagValue">
+          <input type="hidden" name="ids" id="batchTagIds">
+          <button type="submit" class="btn btn-sm btn-primary" onclick="prepareBatchTag()"><i class="bi bi-check me-1"></i>Apply</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Batch Delete Modal -->
+<div class="modal fade delete-modal" id="batchDeleteModal" tabindex="-1" aria-label="Delete selected cases">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title font-serif"><i class="bi bi-exclamation-triangle me-2" style="color:var(--immi-danger);"></i>Batch Delete</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body small">
+        <p>Permanently delete <strong id="batchDeleteCount">0</strong> selected cases?</p>
+        <p class="text-muted mb-0">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{{ url_for('case_batch') }}" id="batchDeleteForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="ids" id="batchDeleteIds">
+          <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash me-1"></i>Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
 
 {% if total_pages > 1 %}
@@ -189,6 +243,41 @@ function exportSelectedCSV() {
   a.href = URL.createObjectURL(blob);
   a.download = 'selected_cases_' + ids.length + '.csv';
   a.click();
+}
+
+/* Compare selected cases */
+function compareCases() {
+  var ids = getSelectedIds();
+  if (ids.length < 2) { alert('Select at least 2 cases to compare.'); return; }
+  if (ids.length > 3) { alert('Select up to 3 cases to compare.'); return; }
+  window.location.href = '{{ url_for("case_compare") }}?ids=' + ids.join(',');
+}
+
+/* Batch tag */
+function showBatchTagModal() {
+  var ids = getSelectedIds();
+  if (!ids.length) return;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('batchTagModal')).show();
+}
+function prepareBatchTag() {
+  document.getElementById('batchTagValue').value = document.getElementById('batchTagInput').value.trim();
+  document.getElementById('batchTagIds').value = getSelectedIds().join(',');
+}
+
+/* Batch delete */
+function showBatchDeleteModal() {
+  var ids = getSelectedIds();
+  if (!ids.length) return;
+  document.getElementById('batchDeleteCount').textContent = ids.length;
+  document.getElementById('batchDeleteIds').value = ids.join(',');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('batchDeleteModal')).show();
+}
+
+/* Helper: get selected IDs */
+function getSelectedIds() {
+  var ids = [];
+  document.querySelectorAll('.case-check:checked').forEach(function(cb) { ids.push(cb.value); });
+  return ids;
 }
 
 /* j/k keyboard navigation */

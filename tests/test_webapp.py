@@ -54,13 +54,13 @@ class TestPageValidation:
 # ── W06: Single load (B2) ───────────────────────────────────────────────
 
 class TestSingleLoad:
-    def test_case_list_loads_data_once(self, app):
-        """W06: case_list only calls load_all_cases once, not twice."""
+    def test_case_list_uses_repo_filter(self, app):
+        """W06: case_list delegates filtering to repo.filter_cases (single call)."""
         with app.test_client() as c:
-            with patch("immi_case_downloader.webapp.load_all_cases", wraps=__import__("immi_case_downloader.storage", fromlist=["load_all_cases"]).load_all_cases) as mock_load:
+            with patch.object(app.config["REPO"], "filter_cases", wraps=app.config["REPO"].filter_cases) as mock_filter:
                 c.get("/cases")
-                assert mock_load.call_count == 1, (
-                    f"load_all_cases called {mock_load.call_count} times, expected 1"
+                assert mock_filter.call_count == 1, (
+                    f"repo.filter_cases called {mock_filter.call_count} times, expected 1"
                 )
 
 
