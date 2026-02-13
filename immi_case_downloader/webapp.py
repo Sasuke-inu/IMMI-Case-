@@ -63,7 +63,8 @@ app.secret_key = _secret
 csrf = CSRFProtect()
 csrf.init_app(app)
 
-# Global state for background search/download jobs
+# Global state for background search/download jobs (protected by _job_lock)
+_job_lock = threading.Lock()
 _job_status = {
     "running": False,
     "type": None,
@@ -75,13 +76,44 @@ _job_status = {
 }
 
 
+# ── Input validation helpers ─────────────────────────────────────────────
+
+
+def safe_int(value, default: int = 0, min_val: int | None = None, max_val: int | None = None) -> int:
+    """Safely convert value to int with bounds clamping."""
+    try:
+        result = int(value)
+    except (TypeError, ValueError):
+        result = default
+    if min_val is not None:
+        result = max(result, min_val)
+    if max_val is not None:
+        result = min(result, max_val)
+    return result
+
+
+def safe_float(value, default: float = 0.0, min_val: float | None = None, max_val: float | None = None) -> float:
+    """Safely convert value to float with bounds clamping."""
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        result = default
+    if min_val is not None:
+        result = max(result, min_val)
+    if max_val is not None:
+        result = min(result, max_val)
+    return result
+
+
 @app.context_processor
 def inject_globals():
     """Inject global template variables (job status, pipeline status)."""
     from .pipeline import get_pipeline_status
     ps = get_pipeline_status()
+    with _job_lock:
+        job_running = _job_status.get("running", False)
     return {
-        "job_running": _job_status.get("running", False),
+        "job_running": job_running,
         "pipeline_running": ps.get("running", False),
     }
 
@@ -226,7 +258,7 @@ def case_detail(case_id):
         flash("Case not found.", "error")
         return redirect(url_for("case_list"))
 
-    full_text = get_case_full_text(case)
+    full_text = get_case_full_text(case, base_dir=_get_output_dir())
     return render_template("case_detail.html", case=case, full_text=full_text)
 
 
@@ -290,14 +322,15 @@ def search_page():
     """Search for new immigration cases from online sources."""
     if request.method == "POST":
         # Start a background search job
-        if _job_status["running"]:
-            flash("A job is already running. Please wait.", "warning")
-            return redirect(url_for("job_status_page"))
+        with _job_lock:
+            if _job_status["running"]:
+                flash("A job is already running. Please wait.", "warning")
+                return redirect(url_for("job_status_page"))
 
         databases = request.form.getlist("databases") or ["AATA", "ARTA", "FCA"]
-        start_year = int(request.form.get("start_year", START_YEAR))
-        end_year = int(request.form.get("end_year", END_YEAR))
-        max_results = int(request.form.get("max_results", 500))
+        start_year = safe_int(request.form.get("start_year"), default=START_YEAR, min_val=2000, max_val=2030)
+        end_year = safe_int(request.form.get("end_year"), default=END_YEAR, min_val=2000, max_val=2030)
+        max_results = safe_int(request.form.get("max_results"), default=500, min_val=1, max_val=50000)
         search_fedcourt = "fedcourt" in request.form.getlist("sources")
 
         thread = threading.Thread(
@@ -325,12 +358,13 @@ def download_page():
     without_text = [c for c in cases if not c.full_text_path or not os.path.exists(c.full_text_path)]
 
     if request.method == "POST":
-        if _job_status["running"]:
-            flash("A job is already running. Please wait.", "warning")
-            return redirect(url_for("job_status_page"))
+        with _job_lock:
+            if _job_status["running"]:
+                flash("A job is already running. Please wait.", "warning")
+                return redirect(url_for("job_status_page"))
 
         court_filter = request.form.get("court", "")
-        limit = int(request.form.get("limit", 50))
+        limit = safe_int(request.form.get("limit"), default=50, min_val=1, max_val=10000)
 
         thread = threading.Thread(
             target=_run_download_job,
@@ -354,12 +388,16 @@ def download_page():
 
 @app.route("/job-status")
 def job_status_page():
-    return render_template("job_status.html", job=_job_status)
+    with _job_lock:
+        snapshot = dict(_job_status)
+    return render_template("job_status.html", job=snapshot)
 
 
 @app.route("/api/job-status")
 def job_status_api():
-    return jsonify(_job_status)
+    with _job_lock:
+        snapshot = dict(_job_status)
+    return jsonify(snapshot)
 
 
 # ── Export ────────────────────────────────────────────────────────────────
@@ -596,9 +634,10 @@ def update_db_page():
     }
 
     if request.method == "POST":
-        if _job_status["running"]:
-            flash("A job is already running. Please wait.", "warning")
-            return redirect(url_for("job_status_page"))
+        with _job_lock:
+            if _job_status["running"]:
+                flash("A job is already running. Please wait.", "warning")
+                return redirect(url_for("job_status_page"))
 
         action = request.form.get("action", "")
 
@@ -608,7 +647,7 @@ def update_db_page():
                 target=_run_update_job,
                 args=("quick",),
                 kwargs={
-                    "delay": float(request.form.get("delay", 0.5)),
+                    "delay": safe_float(request.form.get("delay"), default=0.5, min_val=0.3, max_val=5.0),
                     "output_dir": out,
                 },
                 daemon=True,
@@ -619,9 +658,9 @@ def update_db_page():
 
         elif action == "custom_crawl":
             databases = request.form.getlist("databases")
-            start_year = int(request.form.get("start_year", END_YEAR))
-            end_year = int(request.form.get("end_year", END_YEAR))
-            delay = float(request.form.get("delay", 0.5))
+            start_year = safe_int(request.form.get("start_year"), default=END_YEAR, min_val=2000, max_val=2030)
+            end_year = safe_int(request.form.get("end_year"), default=END_YEAR, min_val=2000, max_val=2030)
+            delay = safe_float(request.form.get("delay"), default=0.5, min_val=0.3, max_val=5.0)
 
             thread = threading.Thread(
                 target=_run_update_job,
@@ -644,8 +683,8 @@ def update_db_page():
 
         elif action == "bulk_download":
             court_filter = request.form.get("court", "")
-            limit = int(request.form.get("limit", 1000))
-            delay = float(request.form.get("delay", 0.5))
+            limit = safe_int(request.form.get("limit"), default=1000, min_val=1, max_val=50000)
+            delay = safe_float(request.form.get("delay"), default=0.5, min_val=0.3, max_val=5.0)
 
             thread = threading.Thread(
                 target=_run_bulk_download_job,
@@ -844,9 +883,10 @@ def pipeline_page():
         if ps["running"]:
             flash("Pipeline is already running.", "warning")
             return redirect(url_for("pipeline_page"))
-        if _job_status["running"]:
-            flash("Another job is running. Please wait.", "warning")
-            return redirect(url_for("pipeline_page"))
+        with _job_lock:
+            if _job_status["running"]:
+                flash("Another job is running. Please wait.", "warning")
+                return redirect(url_for("pipeline_page"))
 
         config = PipelineConfig.from_form(request.form)
         out = _get_output_dir()

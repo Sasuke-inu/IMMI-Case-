@@ -189,7 +189,7 @@ class TestGetCaseFullText:
     def test_reads_content(self, tmp_path, sample_case):
         ensure_output_dirs(str(tmp_path))
         save_case_text(sample_case, "Full text content", str(tmp_path))
-        result = get_case_full_text(sample_case)
+        result = get_case_full_text(sample_case, base_dir=str(tmp_path))
         assert result is not None
         assert "Full text content" in result
 

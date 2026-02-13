@@ -45,20 +45,23 @@ def ensure_output_dirs(base_dir: str = OUTPUT_DIR):
 
 
 def save_cases_csv(cases: list[ImmigrationCase], base_dir: str = OUTPUT_DIR):
-    """Save cases to a CSV file."""
+    """Save cases to a CSV file using atomic write (write-tmp-then-rename)."""
     filepath = os.path.join(base_dir, CASES_CSV)
+    tmp_path = filepath + ".tmp"
     rows = [case.to_dict() for case in cases]
 
     df = pd.DataFrame(rows, columns=CASE_FIELDS)
-    df.to_csv(filepath, index=False, encoding="utf-8-sig")
+    df.to_csv(tmp_path, index=False, encoding="utf-8-sig")
+    os.replace(tmp_path, filepath)
 
     logger.info(f"Saved {len(cases)} cases to {filepath}")
     return filepath
 
 
 def save_cases_json(cases: list[ImmigrationCase], base_dir: str = OUTPUT_DIR):
-    """Save cases to a JSON file."""
+    """Save cases to a JSON file using atomic write (write-tmp-then-rename)."""
     filepath = os.path.join(base_dir, CASES_JSON)
+    tmp_path = filepath + ".tmp"
     data = {
         "total_cases": len(cases),
         "courts": list({c.court for c in cases if c.court}),
@@ -69,8 +72,9 @@ def save_cases_json(cases: list[ImmigrationCase], base_dir: str = OUTPUT_DIR):
         "cases": [case.to_dict() for case in cases],
     }
 
-    with open(filepath, "w", encoding="utf-8") as f:
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+    os.replace(tmp_path, filepath)
 
     logger.info(f"Saved {len(cases)} cases to {filepath}")
     return filepath
@@ -188,13 +192,25 @@ def get_case_by_id(case_id: str, base_dir: str = OUTPUT_DIR) -> ImmigrationCase 
     return None
 
 
+# Fields that can be updated via the web interface.
+# Sensitive fields (case_id, full_text_path, source) are excluded to prevent mass assignment.
+ALLOWED_UPDATE_FIELDS = frozenset({
+    "citation", "title", "court", "court_code", "date", "year", "url",
+    "judges", "catchwords", "outcome", "visa_type", "legislation",
+    "text_snippet", "user_notes", "tags", "case_nature", "legal_concepts",
+})
+
+
 def update_case(case_id: str, updates: dict, base_dir: str = OUTPUT_DIR) -> bool:
-    """Update fields of an existing case and persist."""
+    """Update fields of an existing case and persist.
+
+    Only fields in ALLOWED_UPDATE_FIELDS can be modified (CWE-915 prevention).
+    """
     cases = load_all_cases(base_dir)
     for case in cases:
         if case.case_id == case_id:
             for key, value in updates.items():
-                if hasattr(case, key) and key != "case_id":
+                if key in ALLOWED_UPDATE_FIELDS and hasattr(case, key):
                     setattr(case, key, value)
             save_cases_csv(cases, base_dir)
             save_cases_json(cases, base_dir)
@@ -228,11 +244,25 @@ def add_case_manual(case_data: dict, base_dir: str = OUTPUT_DIR) -> ImmigrationC
     return case
 
 
-def get_case_full_text(case: ImmigrationCase) -> str | None:
-    """Read the full text file for a case."""
-    if not case.full_text_path or not os.path.exists(case.full_text_path):
+def get_case_full_text(case: ImmigrationCase, base_dir: str = OUTPUT_DIR) -> str | None:
+    """Read the full text file for a case.
+
+    Validates that the resolved path is within the output directory
+    to prevent path traversal attacks (CWE-22).
+    """
+    if not case.full_text_path:
         return None
-    with open(case.full_text_path, "r", encoding="utf-8") as f:
+
+    # Resolve to absolute path and validate it's within the output directory
+    resolved = os.path.realpath(case.full_text_path)
+    allowed_dir = os.path.realpath(base_dir)
+    if not resolved.startswith(allowed_dir + os.sep) and resolved != allowed_dir:
+        logger.warning("Path traversal attempt blocked: %s", case.full_text_path)
+        return None
+
+    if not os.path.exists(resolved):
+        return None
+    with open(resolved, "r", encoding="utf-8") as f:
         return f.read()
 
 
