@@ -29,6 +29,7 @@
         <div class="row g-2">
           <div class="col-md-4">
             <form method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="preset" value="quick">
               <input type="hidden" name="delay" value="0.5">
               <input type="hidden" name="download_enabled" value="on">
@@ -41,6 +42,7 @@
           </div>
           <div class="col-md-4">
             <form method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="preset" value="full">
               <input type="hidden" name="delay" value="1.0">
               <input type="hidden" name="download_enabled" value="on">
@@ -53,6 +55,7 @@
           </div>
           <div class="col-md-4">
             <form method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="preset" value="download_only">
               <input type="hidden" name="download_enabled" value="on">
               <input type="hidden" name="download_batch_size" value="1000">
@@ -72,6 +75,7 @@
       <div class="card-header"><i class="bi bi-sliders me-1"></i>Custom Pipeline</div>
       <div class="card-body">
         <form method="post" id="customPipelineForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="preset" value="custom">
           <div class="mb-3">
             <label class="form-label small fw-semibold">Databases</label>

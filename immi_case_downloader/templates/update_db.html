@@ -59,6 +59,7 @@
       <div class="card-body">
         <p class="small text-muted mb-3">Fetches the latest cases from all active databases (current year + previous year). Merges with existing data automatically.</p>
         <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="quick_update">
           <div class="row g-2 align-items-end">
             <div class="col-md-4">
@@ -83,6 +84,7 @@
       <div class="card-body">
         <p class="small text-muted mb-3">Choose specific databases and year ranges to crawl. Use this to fill gaps or do a full re-crawl.</p>
         <form method="post" id="customCrawlForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="custom_crawl">
           <div class="mb-3">
             <label class="form-label small fw-semibold">Databases</label>
@@ -143,6 +145,7 @@
       <div class="card-body">
         <p class="small text-muted mb-3">Download full judgment texts for cases that only have metadata. Extracts judges, outcome, visa type, and more.</p>
         <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="bulk_download">
           <div class="row g-2 align-items-end">
             <div class="col-md-3">

@@ -33,6 +33,13 @@ python -m immi_case_downloader search
 
 # Bulk download full text (resumable, saves every 200)
 python download_fulltext.py              # delay=0.5, ~2 cases/sec
+
+# LLM-based field extraction (case_nature, legal_concepts)
+python extract_llm_fields.py             # uses Claude Sonnet, batched
+python merge_llm_results.py              # merge batch results into CSV
+
+# Post-processing with regex + LLM
+python postprocess.py
 ```
 
 ## Architecture
@@ -41,18 +48,22 @@ python download_fulltext.py              # delay=0.5, ~2 cases/sec
 run.py              → CLI entry point → immi_case_downloader.cli.main()
 web.py              → Web entry point → immi_case_downloader.webapp.create_app()
 postprocess.py      → Post-download field extraction (regex + LLM sub-agents)
+download_fulltext.py→ Bulk full-text downloader (resumable, saves every 200)
+extract_llm_fields.py → LLM-based field extraction (case_nature, legal_concepts)
+merge_llm_results.py  → Merge LLM batch results back into main CSV
 
 immi_case_downloader/
   models.py         → ImmigrationCase dataclass (20 fields, SHA-256 ID generation)
   config.py         → Constants: AustLII URLs, court database definitions, keywords, rate limits
   storage.py        → CSV/JSON persistence (pandas), CRUD helpers for web UI
-  webapp.py         → Flask app with background threading for search/download jobs
+  webapp.py         → Flask app with background threading for search/download jobs (905 lines)
   cli.py            → argparse CLI with search/download/list-databases subcommands
+  pipeline.py       → SmartPipeline: 3-phase auto-fallback (crawl → clean → download)
   sources/
     base.py         → BaseScraper: requests.Session with retry, rate limiting
     austlii.py      → AustLIIScraper: browse year listings + keyword search fallback
     federal_court.py→ FederalCourtScraper: search2.fedcourt.gov.au with pagination
-  templates/        → 11 Jinja2 templates (base.html + pages)
+  templates/        → 13 Jinja2 templates (base + sidebar nav + pages)
   static/style.css  → Single CSS file
 ```
 
@@ -62,6 +73,7 @@ immi_case_downloader/
 - **Two-phase data collection**: Stage 1 (search) populates basic metadata from listing pages. Stage 2 (download) extracts detailed fields (judges, catchwords, outcome, visa type) from full case text via regex.
 - **Flat file storage**: All data persists in `downloaded_cases/immigration_cases.csv` and `.json`. No database. CRUD operations in `storage.py` reload/rewrite the entire CSV each time.
 - **Background jobs**: Web search/download runs in daemon threads with a global `_job_status` dict for progress tracking. Only one job at a time.
+- **Smart Pipeline**: `pipeline.py` provides a 3-phase workflow (crawl → clean → download) with auto-fallback strategies, structured logging (`PipelineLog`), and web UI integration via `pipeline.html`.
 - **Case identification**: `case_id` is first 12 chars of SHA-256 hash of citation/URL/title.
 
 ### Data Flow
@@ -95,10 +107,15 @@ immi_case_downloader/
 - **AATA vs ARTA** — AATA covers up to Oct 2024; ARTA covers Oct 2024 onwards. For 2025+ use ARTA
 - **Port 5000** — conflicts with macOS AirPlay; use `--port 8080`
 - **AustLII timeouts** — common during bulk scraping; retry logic in BaseScraper handles most
+- **AustLII 410 blocking** — AustLII rejects default `python-requests` User-Agent with HTTP 410; `BaseScraper` now uses a browser-like User-Agent string
+- **webapp.py size** — 905 lines; largest file in the project. Contains all Flask routes + background job management
 
 ## Important Notes
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
 - Rate limiting is enforced at the `BaseScraper` level; respect the default 1-second delay
 - Test suite: 71 tests in `tests/` (models, storage, cli, webapp) — run `python3 -m pytest`
-- The webapp uses a hardcoded `secret_key` in `webapp.py:46` — should be replaced via `SECRET_KEY` env var in production
+- The webapp uses `SECRET_KEY` env var for session security; falls back to random key with warning if unset
+- CSRF protection via flask-wtf: all POST forms require `csrf_token`; `/api/pipeline-action` is exempt
+- Security headers (CSP, X-Frame-Options, etc.) set via `@app.after_request`
+- Default host is `127.0.0.1` (localhost only); use `--host 0.0.0.0` to expose externally

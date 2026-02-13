@@ -7,6 +7,7 @@
 </ol></nav>
 <h4 class="mb-3 font-serif"><i class="bi bi-plus-circle me-2"></i>Add Case Manually</h4>
 <form method="post" class="needs-validation" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="row g-3">
     <div class="col-lg-8">
       <div class="card">

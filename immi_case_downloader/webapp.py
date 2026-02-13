@@ -4,8 +4,10 @@ import os
 import io
 import csv
 import json
+import secrets
 import threading
 import logging
+import warnings
 from datetime import datetime
 
 from flask import (
@@ -18,6 +20,7 @@ from flask import (
     send_file,
     jsonify,
 )
+from flask_wtf.csrf import CSRFProtect
 
 from .config import OUTPUT_DIR, AUSTLII_DATABASES, START_YEAR, END_YEAR, IMMIGRATION_KEYWORDS
 from .models import ImmigrationCase
@@ -43,7 +46,22 @@ app = Flask(
     template_folder=os.path.join(os.path.dirname(__file__), "templates"),
     static_folder=os.path.join(os.path.dirname(__file__), "static"),
 )
-app.secret_key = os.environ.get("SECRET_KEY", "immi-case-dev-key-change-in-prod")
+
+# Secret key: prefer env var, fall back to random per-process key with warning
+_secret = os.environ.get("SECRET_KEY")
+if not _secret:
+    warnings.warn(
+        "SECRET_KEY not set! Using random key (sessions won't persist across restarts).",
+        RuntimeWarning,
+        stacklevel=1,
+    )
+    _secret = secrets.token_hex(32)
+app.secret_key = _secret
+
+# CSRF protection — initialized at module level since app is a global singleton.
+# Proper factory pattern refactor is planned for Phase 3.
+csrf = CSRFProtect()
+csrf.init_app(app)
 
 # Global state for background search/download jobs
 _job_status = {
@@ -883,8 +901,9 @@ def pipeline_log_api():
 
 
 @app.route("/api/pipeline-action", methods=["POST"])
+@csrf.exempt
 def pipeline_action_api():
-    """Handle user actions: stop pipeline."""
+    """Handle user actions: stop pipeline. CSRF-exempt JSON API."""
     from .pipeline import request_pipeline_stop
 
     data = request.get_json(silent=True) or {}
@@ -895,6 +914,25 @@ def pipeline_action_api():
         return jsonify({"ok": True, "message": "Stop requested."})
 
     return jsonify({"ok": False, "message": f"Unknown action: {action}"}), 400
+
+
+# ── Security Headers ──────────────────────────────────────────────────────
+
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to every response."""
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+        "img-src 'self' data:; "
+        "connect-src 'self'"
+    )
+    return response
 
 
 # ── App factory ───────────────────────────────────────────────────────────
