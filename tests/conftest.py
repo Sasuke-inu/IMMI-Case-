@@ -1,9 +1,20 @@
 """Shared test fixtures for IMMI-Case tests."""
 
+import os
 import pytest
+import responses
 
 from immi_case_downloader.models import ImmigrationCase
 from immi_case_downloader.storage import save_cases_csv, save_cases_json, ensure_output_dirs
+
+
+FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
+
+
+def _load_fixture(name: str) -> str:
+    """Load an HTML fixture file."""
+    with open(os.path.join(FIXTURES_DIR, name), encoding="utf-8") as f:
+        return f.read()
 
 
 @pytest.fixture
@@ -88,3 +99,37 @@ def app(populated_dir):
 def client(app):
     """Flask test client."""
     return app.test_client()
+
+
+# ── Phase 2: HTML fixture loaders ─────────────────────────────────────────
+
+
+@pytest.fixture
+def austlii_year_html():
+    """AustLII year listing HTML fixture."""
+    return _load_fixture("austlii_year_listing.html")
+
+
+@pytest.fixture
+def austlii_case_html():
+    """AustLII case detail HTML fixture."""
+    return _load_fixture("austlii_case_detail.html")
+
+
+@pytest.fixture
+def austlii_search_html():
+    """AustLII search results HTML fixture."""
+    return _load_fixture("austlii_search_results.html")
+
+
+@pytest.fixture
+def fedcourt_search_html():
+    """Federal Court search results HTML fixture."""
+    return _load_fixture("fedcourt_search_results.html")
+
+
+@pytest.fixture
+def mock_responses():
+    """Activate the responses library for HTTP mocking."""
+    with responses.RequestsMock() as rsps:
+        yield rsps

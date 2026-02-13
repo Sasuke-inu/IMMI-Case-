@@ -4,6 +4,8 @@ import csv
 import json
 import os
 import logging
+import time
+import threading
 from pathlib import Path
 
 import pandas as pd
@@ -54,6 +56,7 @@ def save_cases_csv(cases: list[ImmigrationCase], base_dir: str = OUTPUT_DIR):
     df.to_csv(tmp_path, index=False, encoding="utf-8-sig")
     os.replace(tmp_path, filepath)
 
+    invalidate_cases_cache()
     logger.info(f"Saved {len(cases)} cases to {filepath}")
     return filepath
 
@@ -173,15 +176,48 @@ def generate_summary_report(cases: list[ImmigrationCase], base_dir: str = OUTPUT
 # CRUD helpers for the web interface
 # ---------------------------------------------------------------------------
 
+# ── Simple TTL cache for load_all_cases ─────────────────────────────────────
+
+_cases_cache: dict = {"cases": None, "base_dir": None, "ts": 0.0}
+_cases_cache_lock = threading.Lock()
+_CACHE_TTL = 5.0  # seconds
+
+
+def invalidate_cases_cache():
+    """Explicitly clear the cases cache (call after writes)."""
+    with _cases_cache_lock:
+        _cases_cache["cases"] = None
+        _cases_cache["ts"] = 0.0
+
+
 def load_all_cases(base_dir: str = OUTPUT_DIR) -> list[ImmigrationCase]:
-    """Load all cases from CSV as ImmigrationCase objects."""
+    """Load all cases from CSV as ImmigrationCase objects.
+
+    Results are cached for up to _CACHE_TTL seconds. The cache is also
+    automatically invalidated when save_cases_csv() is called.
+    """
+    now = time.monotonic()
+    with _cases_cache_lock:
+        if (
+            _cases_cache["cases"] is not None
+            and _cases_cache["base_dir"] == base_dir
+            and (now - _cases_cache["ts"]) < _CACHE_TTL
+        ):
+            return list(_cases_cache["cases"])  # return a copy
+
     records = load_cases_csv(base_dir)
     cases = []
     for r in records:
         case = ImmigrationCase.from_dict(r)
         case.ensure_id()
         cases.append(case)
-    return cases
+
+    with _cases_cache_lock:
+        _cases_cache["cases"] = cases
+        _cases_cache["base_dir"] = base_dir
+        _cases_cache["ts"] = now
+
+    return list(cases)  # return a copy
 
 
 def get_case_by_id(case_id: str, base_dir: str = OUTPUT_DIR) -> ImmigrationCase | None:

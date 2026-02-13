@@ -60,6 +60,12 @@ class TestCSRFProtection:
     ])
     def test_csrf_token_present_in_forms(self, csrf_client, path):
         """All POST form pages must include a csrf_token hidden field."""
+        # Reset pipeline status so /pipeline shows the config form (not the monitor)
+        from immi_case_downloader.pipeline import _pipeline_lock, _pipeline_status
+        with _pipeline_lock:
+            _pipeline_status["phases_completed"] = []
+            _pipeline_status["running"] = False
+
         resp = csrf_client.get(path)
         assert resp.status_code == 200
         html = resp.data.decode()

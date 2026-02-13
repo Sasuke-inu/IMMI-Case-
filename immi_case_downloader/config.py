@@ -1,11 +1,15 @@
-"""Configuration constants for immigration case downloading."""
+"""Configuration constants for immigration case downloading.
 
+All settings can be overridden via environment variables prefixed with IMMI_.
+"""
+
+import os
 from datetime import datetime
 
 # Date range: last 10 years
 CURRENT_YEAR = datetime.now().year
-START_YEAR = CURRENT_YEAR - 10
-END_YEAR = CURRENT_YEAR
+START_YEAR = int(os.environ.get("IMMI_START_YEAR", CURRENT_YEAR - 10))
+END_YEAR = int(os.environ.get("IMMI_END_YEAR", CURRENT_YEAR))
 
 # AustLII base URLs
 AUSTLII_BASE = "https://www.austlii.edu.au"
@@ -75,16 +79,16 @@ IMMIGRATION_KEYWORDS = [
 ]
 
 # Request settings
-REQUEST_TIMEOUT = 30
-REQUEST_DELAY = 1.0  # seconds between requests (be respectful)
-MAX_RETRIES = 3
+REQUEST_TIMEOUT = int(os.environ.get("IMMI_TIMEOUT", 30))
+REQUEST_DELAY = float(os.environ.get("IMMI_DELAY", 1.0))
+MAX_RETRIES = int(os.environ.get("IMMI_MAX_RETRIES", 3))
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
 
 # Output settings
-OUTPUT_DIR = "downloaded_cases"
+OUTPUT_DIR = os.environ.get("IMMI_OUTPUT_DIR", "downloaded_cases")
 CASES_CSV = "immigration_cases.csv"
 CASES_JSON = "immigration_cases.json"
 RAW_CASES_DIR = "raw_html"
