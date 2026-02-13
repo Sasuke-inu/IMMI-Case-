@@ -12,11 +12,14 @@ import secrets
 import warnings
 import logging
 
+from dotenv import load_dotenv
 from flask import Flask
 from flask_wtf.csrf import CSRFProtect
 
 from ..config import OUTPUT_DIR
 from ..storage import ensure_output_dirs
+
+load_dotenv()
 from .security import csrf, add_security_headers
 from .jobs import _job_lock, _job_status
 
@@ -28,7 +31,7 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
 
     Args:
         output_dir: Directory for case data files.
-        backend: Storage backend — "sqlite", "csv", or "auto" (sqlite if db exists).
+        backend: Storage backend — "sqlite", "csv", "supabase", or "auto".
     """
     pkg_dir = os.path.dirname(os.path.dirname(__file__))
     app = Flask(
@@ -60,7 +63,11 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
     if backend == "auto":
         backend = "sqlite" if os.path.exists(db_path) else "csv"
 
-    if backend == "sqlite":
+    if backend == "supabase":
+        from ..supabase_repository import SupabaseRepository
+        app.config["REPO"] = SupabaseRepository(output_dir=output_dir)
+        app.config["BACKEND"] = "supabase"
+    elif backend == "sqlite":
         from ..sqlite_repository import SqliteRepository
         app.config["REPO"] = SqliteRepository(db_path)
         app.config["BACKEND"] = "sqlite"

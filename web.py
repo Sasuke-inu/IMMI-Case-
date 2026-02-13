@@ -18,6 +18,11 @@ def main():
     parser.add_argument("--port", type=int, default=5000, help="Port (default: 5000)")
     parser.add_argument("--host", default="127.0.0.1", help="Host (default: 127.0.0.1)")
     parser.add_argument("--output", default="downloaded_cases", help="Data directory")
+    parser.add_argument(
+        "--backend", default="auto",
+        choices=["auto", "sqlite", "csv", "supabase"],
+        help="Storage backend (default: auto)",
+    )
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
 
@@ -30,7 +35,7 @@ def main():
             stacklevel=1,
         )
 
-    app = create_app(output_dir=args.output)
+    app = create_app(output_dir=args.output, backend=args.backend)
     print(f"Starting IMMI-Case web interface at http://{args.host}:{args.port}")
     print(f"Data directory: {args.output}")
     app.run(host=args.host, port=args.port, debug=args.debug)
