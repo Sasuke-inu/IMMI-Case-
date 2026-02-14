@@ -28,3 +28,24 @@ downloaded_cases/
 # OS
 .DS_Store
 Thumbs.db
+
+# Node
+node_modules/
+
+# Test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Tool configs (local)
+.claude.local.md
+.playwright-mcp/
+.serena/
+
+# Supabase CLI temp
+supabase/.temp/
+
+# Misc artifacts
+dashboard.png
+=1.0.0
+=2.0.0

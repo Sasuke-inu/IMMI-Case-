@@ -1,0 +1,84 @@
+@import url("https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap");
+@import "tailwindcss";
+@import "./tokens/tokens.css";
+
+/* ─── Tailwind v4 theme extensions via @theme ───────────────── */
+@theme {
+  --color-primary: var(--color-primary);
+  --color-primary-light: var(--color-primary-light);
+  --color-primary-lighter: var(--color-primary-lighter);
+  --color-accent: var(--color-accent);
+  --color-accent-light: var(--color-accent-light);
+  --color-accent-muted: var(--color-accent-muted);
+
+  --color-background: var(--color-background);
+  --color-card: var(--color-background-card);
+  --color-sidebar: var(--color-background-sidebar);
+  --color-surface: var(--color-background-surface);
+
+  --color-border: var(--color-border);
+  --color-border-light: var(--color-border-light);
+
+  --color-foreground: var(--color-text);
+  --color-secondary-text: var(--color-text-secondary);
+  --color-muted-text: var(--color-text-muted);
+
+  --color-success: var(--color-semantic-success);
+  --color-warning: var(--color-semantic-warning);
+  --color-danger: var(--color-semantic-danger);
+  --color-info: var(--color-semantic-info);
+
+  --color-court-aata: var(--color-court-AATA);
+  --color-court-arta: var(--color-court-ARTA);
+  --color-court-fca: var(--color-court-FCA);
+  --color-court-fcca: var(--color-court-FCCA);
+  --color-court-fedc: var(--color-court-FedCFamC2G);
+  --color-court-hca: var(--color-court-HCA);
+
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius-lg);
+  --radius-pill: var(--radius-pill);
+
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow);
+  --shadow-lg: var(--shadow-lg);
+}
+
+/* ─── Base styles ───────────────────────────────────────────── */
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background-color: var(--color-background);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-pill);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+}

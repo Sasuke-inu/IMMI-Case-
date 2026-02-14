@@ -102,4 +102,20 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
     pipeline_routes.init_routes(app)
     update_db.init_routes(app)
 
+    # Register JSON API blueprint for React SPA
+    from .routes.api import api_bp
+    app.register_blueprint(api_bp)
+
+    # SPA catch-all: serve React build for non-API, non-legacy routes
+    react_dir = os.path.join(pkg_dir, "static", "react")
+
+    @app.route("/app/", defaults={"path": ""})
+    @app.route("/app/<path:path>")
+    def serve_spa(path):
+        """Serve the React SPA from static/react/."""
+        from flask import send_from_directory
+        if path and os.path.exists(os.path.join(react_dir, path)):
+            return send_from_directory(react_dir, path)
+        return send_from_directory(react_dir, "index.html")
+
     return app
