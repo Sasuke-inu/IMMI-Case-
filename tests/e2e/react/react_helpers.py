@@ -1,0 +1,171 @@
+"""Reusable selectors, routes, and navigation utilities for React SPA E2E tests."""
+
+from playwright.sync_api import Page
+
+# ---------------------------------------------------------------------------
+# React SPA routes (relative to /app/ base)
+# ---------------------------------------------------------------------------
+
+REACT_BASE = "/app/"
+
+REACT_ROUTES = {
+    "dashboard": "/app/",
+    "cases": "/app/cases",
+    "case_add": "/app/cases/add",
+    "case_compare": "/app/cases/compare",
+    "search": "/app/search",
+    "download": "/app/download",
+    "update_db": "/app/update-db",
+    "jobs": "/app/jobs",
+    "pipeline": "/app/pipeline",
+    "data_dictionary": "/app/data-dictionary",
+    "design_tokens": "/app/design-tokens",
+}
+
+# Pages that are parametrised smoke targets (all should return 200 + render #root)
+SMOKE_PAGES = [
+    ("dashboard", "/app/"),
+    ("cases", "/app/cases"),
+    ("cases_add", "/app/cases/add"),
+    ("search", "/app/search"),
+    ("download", "/app/download"),
+    ("update_db", "/app/update-db"),
+    ("jobs", "/app/jobs"),
+    ("pipeline", "/app/pipeline"),
+    ("data_dictionary", "/app/data-dictionary"),
+    ("design_tokens", "/app/design-tokens"),
+]
+
+# API endpoints to smoke-test (GET only)
+API_ENDPOINTS = [
+    "/api/v1/csrf-token",
+    "/api/v1/stats",
+    "/api/v1/cases",
+    "/api/v1/filter-options",
+    "/api/v1/job-status",
+    "/api/v1/data-dictionary",
+]
+
+# ---------------------------------------------------------------------------
+# Sidebar navigation items (label → route)
+# ---------------------------------------------------------------------------
+
+SIDEBAR_NAV_ITEMS = [
+    ("Dashboard", "/app/"),
+    ("Cases", "/app/cases"),
+    ("Search", "/app/search"),
+    ("Download", "/app/download"),
+    ("Update DB", "/app/update-db"),
+    ("Pipeline", "/app/pipeline"),
+    ("Data Dictionary", "/app/data-dictionary"),
+    ("Design Tokens", "/app/design-tokens"),
+]
+
+# ---------------------------------------------------------------------------
+# Keyboard shortcut mappings
+# ---------------------------------------------------------------------------
+
+KEYBOARD_SHORTCUTS = {
+    "d": "/app/",
+    "c": "/app/cases",
+    "s": "/app/search",
+    "p": "/app/pipeline",
+}
+
+# ---------------------------------------------------------------------------
+# Helper functions
+# ---------------------------------------------------------------------------
+
+
+def react_navigate(page: Page, path: str, base_url: str = ""):
+    """Navigate to a React SPA route and wait for hydration."""
+    url = f"{base_url}{path}" if base_url else path
+    page.goto(url, wait_until="networkidle")
+    wait_for_react(page)
+
+
+def wait_for_react(page: Page, timeout: int = 15000):
+    """Wait for React to hydrate: #root must exist and contain rendered children."""
+    # Use state="attached" because an empty #root div has zero height (hidden to Playwright)
+    page.wait_for_selector("#root", state="attached", timeout=timeout)
+    # Wait until React has rendered at least one child inside #root
+    page.wait_for_function(
+        "document.querySelector('#root')?.children.length > 0",
+        timeout=timeout,
+    )
+
+
+def wait_for_loading_gone(page: Page, timeout: int = 10000):
+    """Wait for common loading indicators to disappear."""
+    # TanStack Query pages show 'Loading...' text initially
+    loading = page.locator("text=Loading")
+    try:
+        loading.first.wait_for(state="hidden", timeout=timeout)
+    except Exception:
+        pass  # If no loading text found, that's fine
+
+
+def get_js_errors(page: Page) -> list[str]:
+    """Return collected JS errors from the page."""
+    return getattr(page, "_js_errors", [])
+
+
+def assert_no_js_errors(page: Page):
+    """Assert no JS errors were captured on the page."""
+    errors = get_js_errors(page)
+    assert errors == [], f"JS errors detected: {errors}"
+
+
+def get_heading(page: Page, level: int = 1) -> str:
+    """Get the text of the first heading at the given level."""
+    heading = page.locator(f"h{level}").first
+    return heading.inner_text() if heading.is_visible() else ""
+
+
+def count_elements(page: Page, selector: str) -> int:
+    """Count elements matching a CSS selector."""
+    return page.locator(selector).count()
+
+
+def click_sidebar_link(page: Page, label: str):
+    """Click a navigation link in the desktop sidebar by its label."""
+    sidebar = page.locator("aside")
+    link = sidebar.get_by_text(label, exact=True)
+    link.click()
+    page.wait_for_load_state("networkidle")
+    wait_for_react(page)
+
+
+def click_mobile_menu(page: Page):
+    """Open the mobile hamburger menu."""
+    page.get_by_label("Toggle menu").click()
+    # Wait for the mobile drawer to appear
+    page.wait_for_selector(".fixed.inset-y-0", timeout=5000)
+
+
+def close_mobile_menu(page: Page):
+    """Close the mobile navigation drawer."""
+    page.get_by_label("Close menu").click()
+
+
+def get_toast_text(page: Page, timeout: int = 5000) -> str:
+    """Wait for a Sonner toast and return its text."""
+    toast = page.locator("[data-sonner-toast]").first
+    toast.wait_for(state="visible", timeout=timeout)
+    return toast.inner_text()
+
+
+def setup_dialog_handler(page: Page, accept: bool = True, prompt_text: str = ""):
+    """Register a dialog handler for confirm/prompt dialogs.
+
+    Must be called BEFORE the action that triggers the dialog.
+    """
+    def handler(dialog):
+        if dialog.type == "prompt" and prompt_text:
+            dialog.accept(prompt_text)
+        elif accept:
+            dialog.accept()
+        else:
+            dialog.dismiss()
+
+    page.on("dialog", handler)
