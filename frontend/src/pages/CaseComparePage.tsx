@@ -58,15 +58,18 @@ export function CaseComparePage() {
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
-        <table className="w-full text-sm">
+        <table className="min-w-max text-sm">
           <thead>
             <tr className="border-b border-border bg-surface">
-              <th className="p-3 text-left font-medium text-muted-text">Field</th>
+              <th className="sticky left-0 bg-surface p-3 text-left font-medium text-muted-text">Field</th>
               {cases.map((c) => (
-                <th key={c.case_id} className="p-3 text-left">
+                <th key={c.case_id} className="max-w-[220px] p-3 text-left">
                   <div className="flex items-center gap-2">
-                    <CourtBadge court={c.court_code} />
-                    <span className="line-clamp-1 font-medium text-foreground">
+                    <CourtBadge court={c.court_code} className="shrink-0" />
+                    <span
+                      className="line-clamp-1 font-medium text-foreground"
+                      title={c.citation || c.title}
+                    >
                       {c.citation || c.title}
                     </span>
                   </div>
@@ -77,15 +80,19 @@ export function CaseComparePage() {
           <tbody>
             {compareFields.map((field) => (
               <tr key={field} className="border-b border-border-light">
-                <td className="p-3 font-medium text-muted-text capitalize">
+                <td className="sticky left-0 bg-card p-3 font-medium text-muted-text capitalize whitespace-nowrap">
                   {field.replace(/_/g, " ")}
                 </td>
                 {cases.map((c) => (
-                  <td key={c.case_id} className="p-3 text-foreground">
+                  <td
+                    key={c.case_id}
+                    className="max-w-[250px] p-3 text-foreground"
+                    title={String(c[field] ?? "")}
+                  >
                     {field === "outcome" ? (
                       <OutcomeBadge outcome={c[field]} />
                     ) : (
-                      String(c[field] ?? "")
+                      <span className="line-clamp-3">{String(c[field] ?? "")}</span>
                     )}
                   </td>
                 ))}

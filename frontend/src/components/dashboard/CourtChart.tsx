@@ -1,4 +1,3 @@
-import type { PieLabelRenderProps } from "recharts"
 import {
   BarChart,
   Bar,
@@ -6,12 +5,28 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
 } from "recharts"
 import { courtColors } from "@/tokens/tokens"
+
+/** Map full court names to short codes for pie labels */
+const courtAbbr: Record<string, string> = {
+  "Administrative Appeals Tribunal": "AATA",
+  "Administrative Review Tribunal": "ARTA",
+  "Federal Court of Australia": "FCA",
+  "Federal Circuit Court of Australia": "FCCA",
+  "Federal Circuit and Family Court of Australia (Division 2)": "FedCFamC2G",
+  "Federal Circuit and Family Court (Div 2)": "FedCFamC2G",
+  "High Court of Australia": "HCA",
+}
+
+function abbreviate(name: string): string {
+  return courtAbbr[name] ?? (name.length > 12 ? name.slice(0, 10) + "…" : name)
+}
 
 interface CourtChartProps {
   data: Record<string, number>
@@ -24,19 +39,23 @@ export function CourtChart({ data, type = "bar" }: CourtChartProps) {
     .sort((a, b) => b.value - a.value)
 
   if (type === "pie") {
+    const total = chartData.reduce((sum, d) => sum + d.value, 0)
     return (
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={360}>
         <PieChart>
           <Pie
             data={chartData}
             dataKey="value"
             nameKey="name"
             cx="50%"
-            cy="50%"
-            outerRadius={100}
-            label={(props: PieLabelRenderProps) =>
-              `${props.name ?? ""} ${(((props.percent as number | undefined) ?? 0) * 100).toFixed(0)}%`
-            }
+            cy="45%"
+            outerRadius={90}
+            label={({ name, percent }) => {
+              const pct = ((percent ?? 0) * 100).toFixed(0)
+              return Number(pct) >= 3 ? `${abbreviate(name ?? "")} ${pct}%` : ""
+            }}
+            labelLine={false}
+            fontSize={12}
           >
             {chartData.map((entry) => (
               <Cell
@@ -45,7 +64,24 @@ export function CourtChart({ data, type = "bar" }: CourtChartProps) {
               />
             ))}
           </Pie>
-          <Tooltip />
+          <Tooltip
+            formatter={(value) => {
+              const num = Number(value ?? 0)
+              return [`${num.toLocaleString()} (${((num / total) * 100).toFixed(1)}%)`, "Cases"]
+            }}
+            contentStyle={{
+              backgroundColor: "var(--color-background-card)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius)",
+              fontSize: 13,
+            }}
+          />
+          <Legend
+            verticalAlign="bottom"
+            height={36}
+            formatter={(value: string) => abbreviate(value)}
+            wrapperStyle={{ fontSize: 11 }}
+          />
         </PieChart>
       </ResponsiveContainer>
     )

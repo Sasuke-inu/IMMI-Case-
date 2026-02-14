@@ -59,7 +59,7 @@ export function JobStatusPage() {
           <div className="mt-4">
             <div className="flex items-center justify-between text-sm text-muted-text">
               <span>
-                {status.progress} / {status.total}
+                {status.progress?.toLocaleString()} / {status.total?.toLocaleString()}
               </span>
               <span>{progress}%</span>
             </div>

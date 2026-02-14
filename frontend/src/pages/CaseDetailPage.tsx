@@ -11,6 +11,7 @@ import { useState } from "react"
 import { useCase, useRelatedCases, useDeleteCase } from "@/hooks/use-cases"
 import { CourtBadge } from "@/components/shared/CourtBadge"
 import { OutcomeBadge } from "@/components/shared/OutcomeBadge"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 export function CaseDetailPage() {
@@ -114,9 +115,16 @@ export function CaseDetailPage() {
         <h2 className="mb-4 font-heading text-lg font-semibold">Metadata</h2>
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {metaFields.map(({ label, value }) => (
-            <div key={label}>
+            <div key={label} className={label === "Outcome" ? "sm:col-span-2 lg:col-span-3" : ""}>
               <dt className="text-xs font-medium text-muted-text">{label}</dt>
-              <dd className="mt-0.5 text-sm text-foreground">{value}</dd>
+              <dd
+                className={cn(
+                  "mt-0.5 text-sm text-foreground",
+                  label === "Outcome" && "max-h-24 overflow-auto whitespace-pre-wrap break-words rounded bg-surface p-2 text-xs"
+                )}
+              >
+                {value}
+              </dd>
             </div>
           ))}
         </dl>

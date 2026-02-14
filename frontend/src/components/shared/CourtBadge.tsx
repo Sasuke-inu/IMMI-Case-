@@ -20,7 +20,7 @@ export function CourtBadge({ court, className }: CourtBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium text-white",
+        "inline-flex shrink-0 items-center whitespace-nowrap rounded-sm px-2 py-0.5 text-xs font-medium text-white",
         bg,
         className
       )}

@@ -61,7 +61,10 @@ export function DataDictionaryPage() {
                 </td>
                 <td className="p-3 text-muted-text">{f.type}</td>
                 <td className="p-3 text-foreground">{f.description}</td>
-                <td className="max-w-[200px] truncate p-3 text-xs text-muted-text">
+                <td
+                  className="max-w-[200px] truncate p-3 text-xs text-muted-text"
+                  title={f.example}
+                >
                   {f.example}
                 </td>
               </tr>

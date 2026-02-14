@@ -114,10 +114,13 @@ export function DashboardPage() {
                 className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-surface"
               >
                 <CourtBadge court={c.court_code} />
-                <span className="flex-1 truncate text-foreground">
+                <span
+                  className="flex-1 truncate text-foreground"
+                  title={c.title || c.citation}
+                >
                   {c.title || c.citation}
                 </span>
-                <span className="text-xs text-muted-text">{c.date}</span>
+                <span className="shrink-0 text-xs text-muted-text whitespace-nowrap">{c.date}</span>
               </button>
             ))}
           </div>

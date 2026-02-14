@@ -90,7 +90,7 @@ export function PipelinePage() {
             {logs.length === 0 ? (
               <p className="text-sm text-muted-text">No logs yet.</p>
             ) : (
-              <pre className="whitespace-pre-wrap font-mono text-xs text-foreground">
+              <pre className="whitespace-pre-wrap break-words font-mono text-xs text-foreground">
                 {logs.join("\n")}
               </pre>
             )}

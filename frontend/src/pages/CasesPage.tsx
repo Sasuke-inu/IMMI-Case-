@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, List, LayoutGrid, Trash2, Tag } from "lucide
 import { useCases, useFilterOptions, useBatchCases } from "@/hooks/use-cases"
 import { CourtBadge } from "@/components/shared/CourtBadge"
 import { OutcomeBadge } from "@/components/shared/OutcomeBadge"
+import { CaseCard } from "@/components/cases/CaseCard"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { CaseFilters } from "@/types/case"
@@ -220,8 +221,11 @@ export function CasesPage() {
                   />
                 </th>
                 <th className="p-3 text-left font-medium text-secondary-text">Title</th>
+                <th className="whitespace-nowrap p-3 text-left font-medium text-secondary-text">Citation</th>
                 <th className="p-3 text-left font-medium text-secondary-text">Court</th>
-                <th className="p-3 text-left font-medium text-secondary-text">Date</th>
+                <th className="whitespace-nowrap p-3 text-left font-medium text-secondary-text">Date</th>
+                <th className="p-3 text-left font-medium text-secondary-text">Judges</th>
+                <th className="whitespace-nowrap p-3 text-left font-medium text-secondary-text">Visa Type</th>
                 <th className="p-3 text-left font-medium text-secondary-text">Outcome</th>
                 <th className="p-3 text-left font-medium text-secondary-text">Nature</th>
               </tr>
@@ -241,22 +245,43 @@ export function CasesPage() {
                       className="rounded"
                     />
                   </td>
-                  <td className="max-w-md p-3">
-                    <span className="line-clamp-1 font-medium text-foreground">
+                  <td className="max-w-xs p-3">
+                    <span
+                      className="line-clamp-1 font-medium text-foreground"
+                      title={c.title || c.citation}
+                    >
                       {c.title || c.citation}
                     </span>
-                    {c.citation && c.title && (
-                      <span className="text-xs text-muted-text">{c.citation}</span>
-                    )}
+                  </td>
+                  <td
+                    className="max-w-[160px] truncate whitespace-nowrap p-3 text-xs text-muted-text"
+                    title={c.citation}
+                  >
+                    {c.citation}
                   </td>
                   <td className="p-3">
                     <CourtBadge court={c.court_code} />
                   </td>
-                  <td className="p-3 text-muted-text">{c.date}</td>
-                  <td className="p-3">
+                  <td className="whitespace-nowrap p-3 text-sm text-muted-text">{c.date}</td>
+                  <td
+                    className="max-w-[140px] truncate p-3 text-xs text-muted-text"
+                    title={c.judges}
+                  >
+                    {c.judges}
+                  </td>
+                  <td
+                    className="max-w-[130px] truncate whitespace-nowrap p-3 text-xs text-muted-text"
+                    title={c.visa_type}
+                  >
+                    {c.visa_type}
+                  </td>
+                  <td className="max-w-[130px] p-3">
                     <OutcomeBadge outcome={c.outcome} />
                   </td>
-                  <td className="max-w-[120px] p-3 text-xs text-muted-text truncate">
+                  <td
+                    className="max-w-[120px] truncate p-3 text-xs text-muted-text"
+                    title={c.case_nature}
+                  >
                     {c.case_nature}
                   </td>
                 </tr>
@@ -268,26 +293,13 @@ export function CasesPage() {
 
       {/* Cards view */}
       {!isLoading && viewMode === "cards" && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cases.map((c) => (
-            <button
+            <CaseCard
               key={c.case_id}
+              case_={c}
               onClick={() => navigate(`/cases/${c.case_id}`)}
-              className="rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
-            >
-              <div className="mb-2 flex items-center gap-2">
-                <CourtBadge court={c.court_code} />
-                <span className="text-xs text-muted-text">{c.date}</span>
-              </div>
-              <h3 className="line-clamp-2 text-sm font-medium text-foreground">
-                {c.title || c.citation}
-              </h3>
-              {c.outcome && (
-                <div className="mt-2">
-                  <OutcomeBadge outcome={c.outcome} />
-                </div>
-              )}
-            </button>
+            />
           ))}
         </div>
       )}

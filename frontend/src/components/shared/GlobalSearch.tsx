@@ -74,7 +74,10 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                       "hover:bg-surface"
                     )}
                   >
-                    <span className="font-medium text-foreground line-clamp-1">
+                    <span
+                      className="font-medium text-foreground line-clamp-1"
+                      title={c.title || c.citation}
+                    >
                       {c.title || c.citation}
                     </span>
                     <span className="text-xs text-muted-text">
@@ -87,9 +90,10 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
           )}
 
           {query.length > 0 && cases.length === 0 && (
-            <p className="p-4 text-center text-sm text-muted-text">
-              No results found
-            </p>
+            <div className="flex flex-col items-center gap-1 p-6 text-center">
+              <p className="text-sm font-medium text-foreground">No results found</p>
+              <p className="text-xs text-muted-text">Try different keywords or check spelling</p>
+            </div>
           )}
 
           {/* Shortcuts hint */}
