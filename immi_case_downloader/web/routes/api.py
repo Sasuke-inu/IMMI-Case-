@@ -425,7 +425,7 @@ def start_update_db():
         args=("custom",),
         kwargs={
             "databases": databases,
-            "start_year": END_YEAR,
+            "start_year": END_YEAR - 1,
             "end_year": END_YEAR,
             "delay": delay,
             "output_dir": get_output_dir(),

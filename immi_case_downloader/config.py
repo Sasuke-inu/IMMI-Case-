@@ -54,7 +54,7 @@ AUSTLII_DATABASES = {
         "description": "Federal Circuit Court immigration cases",
     },
     "FedCFamC2G": {
-        "name": "Federal Circuit and Family Court (Div 2)",
+        "name": "Federal Circuit and Family Court of Australia (Division 2)",
         "path": "/au/cases/cth/FedCFamC2G/",
         "description": "Federal Circuit and Family Court General Division immigration cases",
     },

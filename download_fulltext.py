@@ -37,15 +37,17 @@ def log(msg):
 def retry_recent_crawl(scraper, df_existing):
     """Retry crawling AATA 2025-2026 and ARTA 2024-2026."""
     log("=" * 60)
-    log("PHASE 0: Retry AATA 2025-2026 + ARTA 2024-2026 crawling")
+    log("PHASE 0: Retry ARTA + recent court year crawling")
     log("=" * 60)
 
     existing_urls = set(df_existing["url"].dropna().astype(str).tolist())
     new_cases = []
 
     targets = [
-        ("AATA", [2025, 2026]),
         ("ARTA", [2024, 2025, 2026]),
+        ("FCA", [2025, 2026]),
+        ("FedCFamC2G", [2025, 2026]),
+        ("HCA", [2025, 2026]),
     ]
 
     for db_code, years in targets:

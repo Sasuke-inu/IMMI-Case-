@@ -44,7 +44,7 @@ class PipelineConfig:
     """User-configurable pipeline settings."""
 
     # Crawl phase
-    databases: list = field(default_factory=lambda: ["AATA", "FCA", "FedCFamC2G"])
+    databases: list = field(default_factory=lambda: ["AATA", "ARTA", "FCA", "FedCFamC2G"])
     start_year: int = END_YEAR - 1
     end_year: int = END_YEAR
     delay: float = 0.5
@@ -97,7 +97,7 @@ class PipelineConfig:
         preset = form.get("preset", "")
         if preset == "quick":
             return cls(
-                databases=["AATA", "FCA", "FedCFamC2G", "HCA"],
+                databases=["AATA", "ARTA", "FCA", "FedCFamC2G", "HCA"],
                 start_year=END_YEAR - 1,
                 end_year=END_YEAR,
                 delay=safe_float(form.get("delay"), 0.5),
@@ -105,7 +105,7 @@ class PipelineConfig:
             )
         if preset == "full":
             return cls(
-                databases=["AATA", "FCA", "FCCA", "FedCFamC2G", "HCA"],
+                databases=["AATA", "ARTA", "FCA", "FCCA", "FedCFamC2G", "HCA"],
                 start_year=2010,
                 end_year=END_YEAR,
                 delay=safe_float(form.get("delay"), 1.0),

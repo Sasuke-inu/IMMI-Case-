@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test"
 
 export default defineConfig({
+  globalSetup: "./e2e/global-setup.ts",
+  globalTeardown: "./e2e/global-teardown.ts",
   testDir: "./e2e",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
@@ -29,7 +31,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "cd .. && python web.py --port 8080 --backend sqlite",
+    command: "cd .. && python web.py --port 8080 --backend sqlite --output /tmp/immi_e2e_test_data",
     url: "http://127.0.0.1:8080/app/",
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
