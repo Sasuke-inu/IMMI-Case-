@@ -14,6 +14,8 @@ const editableFields: Array<{ key: keyof ImmigrationCase; label: string; multili
   { key: "judges", label: "Judges" },
   { key: "outcome", label: "Outcome" },
   { key: "visa_type", label: "Visa Type" },
+  { key: "visa_subclass", label: "Visa Subclass" },
+  { key: "visa_class_code", label: "Visa Class Code" },
   { key: "case_nature", label: "Case Nature" },
   { key: "legislation", label: "Legislation" },
   { key: "legal_concepts", label: "Legal Concepts" },

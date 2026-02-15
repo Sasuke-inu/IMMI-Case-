@@ -51,6 +51,14 @@
               <label class="form-label small" for="edit_visa_type">Visa Type</label>
               <input type="text" name="visa_type" id="edit_visa_type" class="form-control form-control-sm" value="{{ case.visa_type }}">
             </div>
+            <div class="col-md-3">
+              <label class="form-label small" for="edit_visa_subclass">Visa Subclass</label>
+              <input type="text" name="visa_subclass" id="edit_visa_subclass" class="form-control form-control-sm" value="{{ case.visa_subclass }}" placeholder="866">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small" for="edit_visa_class_code">Class Code</label>
+              <input type="text" name="visa_class_code" id="edit_visa_class_code" class="form-control form-control-sm" value="{{ case.visa_class_code }}" placeholder="XA">
+            </div>
             <div class="col-12">
               <label class="form-label small" for="edit_url">URL</label>
               <input type="url" name="url" id="edit_url" class="form-control form-control-sm" value="{{ case.url }}">

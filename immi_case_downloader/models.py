@@ -29,6 +29,8 @@ class ImmigrationCase:
     tags: str = ""
     case_nature: str = ""
     legal_concepts: str = ""
+    visa_subclass: str = ""
+    visa_class_code: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)

@@ -19,6 +19,8 @@ export interface ImmigrationCase {
   tags: string
   case_nature: string
   legal_concepts: string
+  visa_subclass: string
+  visa_class_code: string
 }
 
 export interface CaseFilters {

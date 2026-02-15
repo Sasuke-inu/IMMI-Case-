@@ -44,22 +44,6 @@ export function CaseDetailPage() {
     }
   }
 
-  const metaFields = [
-    { label: "Citation", value: c.citation },
-    { label: "Court", value: c.court },
-    { label: "Court Code", value: c.court_code },
-    { label: "Date", value: c.date },
-    { label: "Year", value: c.year },
-    { label: "Judges", value: c.judges },
-    { label: "Outcome", value: c.outcome },
-    { label: "Visa Type", value: c.visa_type },
-    { label: "Case Nature", value: c.case_nature },
-    { label: "Legislation", value: c.legislation },
-    { label: "Legal Concepts", value: c.legal_concepts },
-    { label: "Source", value: c.source },
-    { label: "Tags", value: c.tags },
-  ].filter((f) => f.value)
-
   return (
     <div className="space-y-6">
       {/* Breadcrumb + actions */}
@@ -91,6 +75,11 @@ export function CaseDetailPage() {
         <div className="mb-3 flex items-center gap-2">
           <CourtBadge court={c.court_code} />
           <OutcomeBadge outcome={c.outcome} />
+          {c.case_nature && (
+            <span className="rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">
+              {c.case_nature}
+            </span>
+          )}
         </div>
         <h1 className="font-heading text-xl font-semibold text-foreground">
           {c.title || c.citation}
@@ -110,25 +99,95 @@ export function CaseDetailPage() {
         )}
       </div>
 
-      {/* Metadata grid */}
+      {/* Case Details */}
       <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="mb-4 font-heading text-lg font-semibold">Metadata</h2>
+        <h2 className="mb-4 font-heading text-lg font-semibold">Case Details</h2>
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {metaFields.map(({ label, value }) => (
-            <div key={label} className={label === "Outcome" ? "sm:col-span-2 lg:col-span-3" : ""}>
-              <dt className="text-xs font-medium text-muted-text">{label}</dt>
-              <dd
-                className={cn(
-                  "mt-0.5 text-sm text-foreground",
-                  label === "Outcome" && "max-h-24 overflow-auto whitespace-pre-wrap break-words rounded bg-surface p-2 text-xs"
-                )}
-              >
-                {value}
-              </dd>
-            </div>
-          ))}
+          <MetaField label="Case ID" value={c.case_id} mono />
+          <MetaField label="Citation" value={c.citation} />
+          <MetaField label="Court" value={c.court} />
+          <MetaField label="Court Code" value={c.court_code} />
+          <MetaField label="Date" value={c.date} />
+          <MetaField label="Year" value={String(c.year || "")} />
+          <MetaField label="Judges" value={c.judges} />
+          <MetaField label="Case Nature" value={c.case_nature} />
+          <MetaField label="Source" value={c.source} />
         </dl>
       </div>
+
+      {/* Outcome */}
+      {c.outcome && (
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h2 className="mb-2 font-heading text-lg font-semibold">Outcome</h2>
+          <div className="flex items-start gap-3">
+            <OutcomeBadge outcome={c.outcome} />
+            <p className="text-sm text-foreground">{c.outcome}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Visa Information */}
+      {(c.visa_type || c.visa_subclass || c.visa_class_code) && (
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h2 className="mb-4 font-heading text-lg font-semibold">Visa Information</h2>
+          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <MetaField label="Visa Type" value={c.visa_type} />
+            <MetaField label="Visa Subclass" value={c.visa_subclass} mono />
+            <MetaField label="Class Code" value={c.visa_class_code} mono />
+          </dl>
+        </div>
+      )}
+
+      {/* Legal */}
+      {(c.legislation || c.legal_concepts) && (
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h2 className="mb-4 font-heading text-lg font-semibold">Legal</h2>
+          {c.legislation && (
+            <div className="mb-3">
+              <dt className="text-xs font-medium text-muted-text">Legislation</dt>
+              <dd className="mt-0.5 text-sm text-foreground">{c.legislation}</dd>
+            </div>
+          )}
+          {c.legal_concepts && (
+            <div>
+              <dt className="text-xs font-medium text-muted-text">Legal Concepts</dt>
+              <dd className="mt-1 flex flex-wrap gap-1.5">
+                {c.legal_concepts.split(";").map((concept) => {
+                  const trimmed = concept.trim()
+                  return trimmed ? (
+                    <span
+                      key={trimmed}
+                      className="rounded-full bg-surface px-2.5 py-0.5 text-xs text-foreground"
+                    >
+                      {trimmed}
+                    </span>
+                  ) : null
+                })}
+              </dd>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tags */}
+      {c.tags && (
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h2 className="mb-2 font-heading text-lg font-semibold">Tags</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {c.tags.split(",").map((tag) => {
+              const trimmed = tag.trim()
+              return trimmed ? (
+                <span
+                  key={trimmed}
+                  className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent"
+                >
+                  {trimmed}
+                </span>
+              ) : null
+            })}
+          </div>
+        </div>
+      )}
 
       {/* User notes */}
       {c.user_notes && (
@@ -183,6 +242,16 @@ export function CaseDetailPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function MetaField({ label, value, mono }: { label: string; value?: string | number; mono?: boolean }) {
+  if (!value) return null
+  return (
+    <div>
+      <dt className="text-xs font-medium text-muted-text">{label}</dt>
+      <dd className={cn("mt-0.5 text-sm text-foreground", mono && "font-mono")}>{value}</dd>
     </div>
   )
 }

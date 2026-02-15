@@ -14,6 +14,7 @@ EDITABLE_FIELDS = [
     "citation", "title", "court", "court_code", "date", "year", "url",
     "judges", "catchwords", "outcome", "visa_type", "legislation",
     "user_notes", "tags", "case_nature", "legal_concepts",
+    "visa_subclass", "visa_class_code",
 ]
 
 

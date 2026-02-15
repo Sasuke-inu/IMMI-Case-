@@ -66,11 +66,13 @@
       <div class="card-header">Case Details</div>
       <div class="card-body">
         <div class="meta-grid">
+          <div class="meta-item"><div class="meta-label">Case ID</div><div class="meta-value"><code style="font-size:.8em;">{{ case.case_id }}</code></div></div>
+          <div class="meta-item"><div class="meta-label">Citation</div><div class="meta-value">{{ case.citation or '—' }}</div></div>
           <div class="meta-item"><div class="meta-label">Court / Tribunal</div><div class="meta-value"><span class="badge badge-court badge-{{ case.court_code }} me-1">{{ case.court_code }}</span>{{ case.court }}</div></div>
           <div class="meta-item"><div class="meta-label">Decision Date</div><div class="meta-value">{{ case.date or 'Unknown' }}</div></div>
           <div class="meta-item"><div class="meta-label">Year</div><div class="meta-value">{{ case.year or 'Unknown' }}</div></div>
           <div class="meta-item"><div class="meta-label">Judge(s) / Member(s)</div><div class="meta-value">{{ case.judges or 'Not extracted' }}</div></div>
-          <div class="meta-item"><div class="meta-label">Visa Type</div><div class="meta-value">{{ case.visa_type or 'Not detected' }}</div></div>
+          <div class="meta-item"><div class="meta-label">Case Nature</div><div class="meta-value">{% if case.case_nature %}<span class="badge badge-nature badge-nature-{{ case.case_nature | lower | replace(' ', '-') }}">{{ case.case_nature }}</span>{% else %}—{% endif %}</div></div>
           <div class="meta-item"><div class="meta-label">Source</div><div class="meta-value">{{ case.source }}</div></div>
         </div>
 
@@ -80,6 +82,15 @@
           <div class="small">{{ case.outcome }}</div>
         </div>
         {% endif %}
+
+        <div class="mt-2 p-2 rounded" style="background:var(--immi-surface);">
+          <div class="meta-label mb-1">Visa Information</div>
+          <div class="small d-flex flex-wrap gap-3">
+            <span><strong>Type:</strong> {{ case.visa_type or '—' }}</span>
+            {% if case.visa_subclass %}<span><strong>Subclass:</strong> {{ case.visa_subclass }}</span>{% endif %}
+            {% if case.visa_class_code %}<span><strong>Class Code:</strong> {{ case.visa_class_code }}</span>{% endif %}
+          </div>
+        </div>
 
         {% if case.legislation %}
         <div class="mt-2 p-2 rounded" style="background:var(--immi-surface);">
