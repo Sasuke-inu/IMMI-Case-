@@ -1,30 +1,52 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { ChevronLeft, ChevronRight, List, LayoutGrid, Trash2, Tag } from "lucide-react"
+import {
+  List,
+  LayoutGrid,
+  Trash2,
+  Tag,
+  Download,
+  GitCompare,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+} from "lucide-react"
 import { useCases, useFilterOptions, useBatchCases } from "@/hooks/use-cases"
 import { CourtBadge } from "@/components/shared/CourtBadge"
 import { OutcomeBadge } from "@/components/shared/OutcomeBadge"
+import { NatureBadge } from "@/components/shared/NatureBadge"
 import { CaseCard } from "@/components/cases/CaseCard"
+import { FilterPill } from "@/components/shared/FilterPill"
+import { Pagination } from "@/components/shared/Pagination"
+import { EmptyState } from "@/components/shared/EmptyState"
+import { ConfirmModal } from "@/components/shared/ConfirmModal"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import type { CaseFilters } from "@/types/case"
+import type { CaseFilters, ImmigrationCase } from "@/types/case"
 
 export function CasesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const [viewMode, setViewMode] = useState<"table" | "cards">("table")
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [focusedIdx, setFocusedIdx] = useState(-1)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const tableRef = useRef<HTMLTableSectionElement>(null)
 
   const filters: CaseFilters = {
     court: searchParams.get("court") ?? "",
     year: searchParams.get("year") ? Number(searchParams.get("year")) : undefined,
     visa_type: searchParams.get("visa_type") ?? "",
     nature: searchParams.get("nature") ?? "",
+    source: searchParams.get("source") ?? "",
+    tag: searchParams.get("tag") ?? "",
     keyword: searchParams.get("keyword") ?? "",
-    sort_by: searchParams.get("sort_by") ?? "year",
+    sort_by: searchParams.get("sort_by") ?? "date",
     sort_dir: (searchParams.get("sort_dir") as "asc" | "desc") ?? "desc",
     page: Number(searchParams.get("page") ?? 1),
-    page_size: 50,
+    page_size: 100,
   }
 
   const { data, isLoading } = useCases(filters)
@@ -44,6 +66,10 @@ export function CasesPage() {
     },
     [searchParams, setSearchParams]
   )
+
+  const clearAllFilters = useCallback(() => {
+    setSearchParams(new URLSearchParams())
+  }, [setSearchParams])
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -76,6 +102,7 @@ export function CasesPage() {
         })
         toast.success(`${result.affected} cases updated`)
         setSelected(new Set())
+        setDeleteConfirm(false)
       } catch (e) {
         toast.error((e as Error).message)
       }
@@ -83,10 +110,75 @@ export function CasesPage() {
     [selected, batchMutation]
   )
 
+  const exportCsv = useCallback(() => {
+    if (!data?.cases.length) return
+    const headers = ["citation", "title", "court_code", "date", "year", "judges", "outcome", "visa_type", "case_nature"]
+    const rows = data.cases.map((c) =>
+      headers.map((h) => {
+        const val = String(c[h as keyof ImmigrationCase] ?? "")
+        return val.includes(",") || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val
+      })
+    )
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `cases-export-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(`Exported ${data.cases.length} cases`)
+  }, [data])
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (viewMode !== "table") return
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA") return
+
+      const count = data?.cases.length ?? 0
+      if (count === 0) return
+
+      if (e.key === "j") {
+        e.preventDefault()
+        setFocusedIdx((prev) => Math.min(prev + 1, count - 1))
+      } else if (e.key === "k") {
+        e.preventDefault()
+        setFocusedIdx((prev) => Math.max(prev - 1, 0))
+      } else if (e.key === "Enter" && focusedIdx >= 0) {
+        e.preventDefault()
+        const c = data?.cases[focusedIdx]
+        if (c) navigate(`/cases/${c.case_id}`)
+      }
+    }
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [viewMode, data, focusedIdx, navigate])
+
+  // Scroll focused row into view
+  useEffect(() => {
+    if (focusedIdx < 0 || !tableRef.current) return
+    const row = tableRef.current.children[focusedIdx] as HTMLElement
+    row?.scrollIntoView({ block: "nearest" })
+  }, [focusedIdx])
+
   const cases = data?.cases ?? []
   const total = data?.total ?? 0
   const totalPages = data?.total_pages ?? 1
   const currentPage = filters.page ?? 1
+
+  // Active filter pills
+  const activeFilters: Array<{ key: string; label: string; value: string }> = []
+  if (filters.court) activeFilters.push({ key: "court", label: "Court", value: filters.court })
+  if (filters.year) activeFilters.push({ key: "year", label: "Year", value: String(filters.year) })
+  if (filters.nature) activeFilters.push({ key: "nature", label: "Nature", value: filters.nature })
+  if (filters.visa_type) activeFilters.push({ key: "visa_type", label: "Visa", value: filters.visa_type })
+  if (filters.source) activeFilters.push({ key: "source", label: "Source", value: filters.source })
+  if (filters.tag) activeFilters.push({ key: "tag", label: "Tag", value: filters.tag })
+  if (filters.keyword) activeFilters.push({ key: "keyword", label: "Keyword", value: filters.keyword })
+
+  const sortLabel = filters.sort_by === "date" ? "Date" : filters.sort_by === "year" ? "Year" : filters.sort_by === "title" ? "Title" : "Court"
 
   return (
     <div className="space-y-4">
@@ -101,9 +193,7 @@ export function CasesPage() {
             onClick={() => setViewMode("table")}
             className={cn(
               "rounded-md p-1.5",
-              viewMode === "table"
-                ? "bg-accent-muted text-accent"
-                : "text-muted-text hover:text-foreground"
+              viewMode === "table" ? "bg-accent-muted text-accent" : "text-muted-text hover:text-foreground"
             )}
           >
             <List className="h-4 w-4" />
@@ -112,9 +202,7 @@ export function CasesPage() {
             onClick={() => setViewMode("cards")}
             className={cn(
               "rounded-md p-1.5",
-              viewMode === "cards"
-                ? "bg-accent-muted text-accent"
-                : "text-muted-text hover:text-foreground"
+              viewMode === "cards" ? "bg-accent-muted text-accent" : "text-muted-text hover:text-foreground"
             )}
           >
             <LayoutGrid className="h-4 w-4" />
@@ -128,8 +216,8 @@ export function CasesPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
+      {/* Primary Filters */}
+      <div className="flex flex-wrap items-center gap-2">
         <select
           value={filters.court ?? ""}
           onChange={(e) => updateFilter("court", e.target.value)}
@@ -160,24 +248,110 @@ export function CasesPage() {
             <option key={n} value={n}>{n}</option>
           ))}
         </select>
-        <input
-          type="text"
-          placeholder="Keyword filter..."
-          defaultValue={filters.keyword}
-          onBlur={(e) => updateFilter("keyword", e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") updateFilter("keyword", e.currentTarget.value)
-          }}
-          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-text"
-        />
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-text" />
+          <input
+            type="text"
+            placeholder="Keyword..."
+            defaultValue={filters.keyword}
+            onBlur={(e) => updateFilter("keyword", e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") updateFilter("keyword", e.currentTarget.value)
+            }}
+            className="rounded-md border border-border bg-card py-1.5 pl-8 pr-3 text-sm text-foreground placeholder:text-muted-text"
+          />
+        </div>
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-muted-text hover:text-foreground"
+        >
+          More Filters
+          {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+
+        {/* Sort */}
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-xs text-muted-text">Sort:</span>
+          <select
+            value={filters.sort_by ?? "date"}
+            onChange={(e) => updateFilter("sort_by", e.target.value)}
+            className="rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground"
+          >
+            <option value="date">Date</option>
+            <option value="year">Year</option>
+            <option value="title">Title</option>
+            <option value="court">Court</option>
+          </select>
+          <button
+            onClick={() => updateFilter("sort_dir", filters.sort_dir === "asc" ? "desc" : "asc")}
+            className="rounded-md border border-border p-1.5 text-muted-text hover:text-foreground"
+            title={`Sorted ${sortLabel} ${filters.sort_dir === "asc" ? "ascending" : "descending"}`}
+          >
+            {filters.sort_dir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+        </div>
       </div>
+
+      {/* Advanced Filters */}
+      {showAdvanced && (
+        <div className="flex flex-wrap gap-2 rounded-md border border-border-light bg-surface p-3">
+          <select
+            value={filters.visa_type ?? ""}
+            onChange={(e) => updateFilter("visa_type", e.target.value)}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+          >
+            <option value="">All Visa Types</option>
+            {filterOpts?.visa_types.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+          <select
+            value={filters.source ?? ""}
+            onChange={(e) => updateFilter("source", e.target.value)}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+          >
+            <option value="">All Sources</option>
+            {filterOpts?.sources.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select
+            value={filters.tag ?? ""}
+            onChange={(e) => updateFilter("tag", e.target.value)}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+          >
+            <option value="">All Tags</option>
+            {filterOpts?.tags.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Filter Pills */}
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {activeFilters.map((f) => (
+            <FilterPill
+              key={f.key}
+              label={f.label}
+              value={f.value}
+              onRemove={() => updateFilter(f.key, "")}
+            />
+          ))}
+          <button
+            onClick={clearAllFilters}
+            className="ml-1 text-xs text-muted-text hover:text-foreground"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       {/* Batch bar */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 rounded-md bg-accent-muted px-4 py-2 text-sm">
-          <span className="font-medium text-accent">
-            {selected.size} selected
-          </span>
+          <span className="font-medium text-accent">{selected.size} selected</span>
           <button
             onClick={() => handleBatch("tag")}
             className="flex items-center gap-1 text-accent hover:text-accent-light"
@@ -185,7 +359,26 @@ export function CasesPage() {
             <Tag className="h-3.5 w-3.5" /> Tag
           </button>
           <button
-            onClick={() => handleBatch("delete")}
+            onClick={exportCsv}
+            className="flex items-center gap-1 text-accent hover:text-accent-light"
+          >
+            <Download className="h-3.5 w-3.5" /> Export CSV
+          </button>
+          {selected.size >= 2 && selected.size <= 5 && (
+            <button
+              onClick={() => {
+                const ids = Array.from(selected)
+                const params = new URLSearchParams()
+                ids.forEach((id) => params.append("ids", id))
+                navigate(`/cases/compare?${params}`)
+              }}
+              className="flex items-center gap-1 text-accent hover:text-accent-light"
+            >
+              <GitCompare className="h-3.5 w-3.5" /> Compare
+            </button>
+          )}
+          <button
+            onClick={() => setDeleteConfirm(true)}
             className="flex items-center gap-1 text-danger hover:text-danger/80"
           >
             <Trash2 className="h-3.5 w-3.5" /> Delete
@@ -201,13 +394,31 @@ export function CasesPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="flex h-32 items-center justify-center text-muted-text">
-          Loading cases...
-        </div>
+        <div className="flex h-32 items-center justify-center text-muted-text">Loading cases...</div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && cases.length === 0 && (
+        <EmptyState
+          icon={<FileText className="h-8 w-8" />}
+          title="No cases found"
+          description={activeFilters.length > 0 ? "Try adjusting your filters or clearing them." : "Get started by searching or downloading cases."}
+          action={
+            activeFilters.length > 0 ? (
+              <button onClick={clearAllFilters} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light">
+                Clear Filters
+              </button>
+            ) : (
+              <button onClick={() => navigate("/pipeline")} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light">
+                Run Pipeline
+              </button>
+            )
+          }
+        />
       )}
 
       {/* Table view */}
-      {!isLoading && viewMode === "table" && (
+      {!isLoading && cases.length > 0 && viewMode === "table" && (
         <div className="overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full text-sm">
             <thead>
@@ -224,17 +435,19 @@ export function CasesPage() {
                 <th className="whitespace-nowrap p-3 text-left font-medium text-secondary-text">Citation</th>
                 <th className="p-3 text-left font-medium text-secondary-text">Court</th>
                 <th className="whitespace-nowrap p-3 text-left font-medium text-secondary-text">Date</th>
-                <th className="p-3 text-left font-medium text-secondary-text">Judges</th>
-                <th className="whitespace-nowrap p-3 text-left font-medium text-secondary-text">Visa Type</th>
                 <th className="p-3 text-left font-medium text-secondary-text">Outcome</th>
                 <th className="p-3 text-left font-medium text-secondary-text">Nature</th>
               </tr>
             </thead>
-            <tbody>
-              {cases.map((c) => (
+            <tbody ref={tableRef}>
+              {cases.map((c, i) => (
                 <tr
                   key={c.case_id}
-                  className="border-b border-border-light transition-colors hover:bg-surface/50 cursor-pointer"
+                  className={cn(
+                    "border-b border-border-light transition-colors cursor-pointer",
+                    focusedIdx === i ? "bg-accent-muted" : "hover:bg-surface/50",
+                    selected.has(c.case_id) && "bg-accent-muted/50"
+                  )}
                   onClick={() => navigate(`/cases/${c.case_id}`)}
                 >
                   <td className="p-3" onClick={(e) => e.stopPropagation()}>
@@ -246,44 +459,20 @@ export function CasesPage() {
                     />
                   </td>
                   <td className="max-w-xs p-3">
-                    <span
-                      className="line-clamp-1 font-medium text-foreground"
-                      title={c.title || c.citation}
-                    >
+                    <span className="line-clamp-1 font-medium text-foreground" title={c.title || c.citation}>
                       {c.title || c.citation}
                     </span>
+                    {c.judges && (
+                      <span className="block truncate text-xs text-muted-text" title={c.judges}>{c.judges}</span>
+                    )}
                   </td>
-                  <td
-                    className="max-w-[160px] truncate whitespace-nowrap p-3 text-xs text-muted-text"
-                    title={c.citation}
-                  >
+                  <td className="max-w-[160px] truncate whitespace-nowrap p-3 text-xs text-muted-text" title={c.citation}>
                     {c.citation}
                   </td>
-                  <td className="p-3">
-                    <CourtBadge court={c.court_code} />
-                  </td>
+                  <td className="p-3"><CourtBadge court={c.court_code} /></td>
                   <td className="whitespace-nowrap p-3 text-sm text-muted-text">{c.date}</td>
-                  <td
-                    className="max-w-[140px] truncate p-3 text-xs text-muted-text"
-                    title={c.judges}
-                  >
-                    {c.judges}
-                  </td>
-                  <td
-                    className="max-w-[130px] truncate whitespace-nowrap p-3 text-xs text-muted-text"
-                    title={c.visa_type}
-                  >
-                    {c.visa_type}
-                  </td>
-                  <td className="max-w-[130px] p-3">
-                    <OutcomeBadge outcome={c.outcome} />
-                  </td>
-                  <td
-                    className="max-w-[120px] truncate p-3 text-xs text-muted-text"
-                    title={c.case_nature}
-                  >
-                    {c.case_nature}
-                  </td>
+                  <td className="max-w-[130px] p-3"><OutcomeBadge outcome={c.outcome} /></td>
+                  <td className="max-w-[130px] p-3"><NatureBadge nature={c.case_nature} /></td>
                 </tr>
               ))}
             </tbody>
@@ -292,42 +481,33 @@ export function CasesPage() {
       )}
 
       {/* Cards view */}
-      {!isLoading && viewMode === "cards" && (
+      {!isLoading && cases.length > 0 && viewMode === "cards" && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cases.map((c) => (
-            <CaseCard
-              key={c.case_id}
-              case_={c}
-              onClick={() => navigate(`/cases/${c.case_id}`)}
-            />
+            <CaseCard key={c.case_id} case_={c} onClick={() => navigate(`/cases/${c.case_id}`)} />
           ))}
         </div>
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-text">
-            Page {currentPage} of {totalPages}
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              disabled={currentPage <= 1}
-              onClick={() => updateFilter("page", String(currentPage - 1))}
-              className="rounded-md border border-border p-1.5 text-muted-text hover:bg-surface disabled:opacity-40"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              disabled={currentPage >= totalPages}
-              onClick={() => updateFilter("page", String(currentPage + 1))}
-              className="rounded-md border border-border p-1.5 text-muted-text hover:bg-surface disabled:opacity-40"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={total}
+        pageSize={filters.page_size ?? 100}
+        onPageChange={(p) => updateFilter("page", String(p))}
+      />
+
+      {/* Delete confirmation modal */}
+      <ConfirmModal
+        open={deleteConfirm}
+        title="Delete Cases"
+        message={`Are you sure you want to delete ${selected.size} selected case${selected.size > 1 ? "s" : ""}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => handleBatch("delete")}
+        onCancel={() => setDeleteConfirm(false)}
+      />
     </div>
   )
 }

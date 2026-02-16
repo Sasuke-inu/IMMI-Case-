@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useCallback, useSyncExternalStore } from "react"
 
 export type PresetName = "parchment" | "ocean" | "forest" | "slate" | "rose"
 
@@ -125,32 +125,57 @@ function applyPreset(name: PresetName) {
   const vars = PRESETS[name].vars
 
   for (const v of CSS_VARS) {
-    if (vars[v]) {
-      el.style.setProperty(v, vars[v])
+    const val = vars[v]
+    if (val) {
+      el.style.setProperty(v, val)
     } else {
       el.style.removeProperty(v)
     }
   }
 }
 
-export function useThemePreset() {
-  const [preset, setPresetState] = useState<PresetName>(() => {
-    if (typeof window === "undefined") return "parchment"
-    const stored = localStorage.getItem(STORAGE_KEY)
-    return stored && stored in PRESETS ? (stored as PresetName) : "parchment"
-  })
+function readStoredPreset(): PresetName {
+  if (typeof window === "undefined") return "parchment"
+  const stored = localStorage.getItem(STORAGE_KEY)
+  return stored && stored in PRESETS ? (stored as PresetName) : "parchment"
+}
 
-  useEffect(() => {
-    applyPreset(preset)
-    localStorage.setItem(STORAGE_KEY, preset)
-  }, [preset])
+// ── Eagerly apply on module load (before React mounts) ──────────
+// This ensures the theme is visible immediately, no flash of default.
+applyPreset(readStoredPreset())
+
+// ── External store for cross-component sync ─────────────────────
+// Multiple components can call useThemePreset() and stay in sync.
+type Listener = () => void
+let _current: PresetName = readStoredPreset()
+const _listeners = new Set<Listener>()
+
+function subscribe(listener: Listener): () => void {
+  _listeners.add(listener)
+  return () => _listeners.delete(listener)
+}
+
+function getSnapshot(): PresetName {
+  return _current
+}
+
+function setGlobalPreset(name: PresetName) {
+  if (_current === name) return
+  _current = name
+  applyPreset(name)
+  localStorage.setItem(STORAGE_KEY, name)
+  _listeners.forEach((fn) => fn())
+}
+
+export function useThemePreset() {
+  const preset = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
   const setPreset = useCallback((name: PresetName) => {
-    setPresetState(name)
+    setGlobalPreset(name)
   }, [])
 
   const resetPreset = useCallback(() => {
-    setPresetState("parchment")
+    setGlobalPreset("parchment")
   }, [])
 
   return { preset, setPreset, resetPreset, presets: PRESETS } as const

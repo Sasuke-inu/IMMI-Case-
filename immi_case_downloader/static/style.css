@@ -98,8 +98,11 @@
 }
 
 /* Dark theme overrides for Bootstrap components */
-[data-theme="dark"] .card { background: var(--immi-card-bg); border-color: var(--immi-border); }
+[data-theme="dark"] .card { background: var(--immi-card-bg); border-color: var(--immi-border); color: var(--immi-text); }
 [data-theme="dark"] .card-header { background: var(--immi-surface); border-color: var(--immi-border); color: var(--immi-text); }
+[data-theme="dark"] .card-body { color: var(--immi-text); }
+[data-theme="dark"] .card-body .small, [data-theme="dark"] .card-body small { color: var(--immi-text-secondary); }
+[data-theme="dark"] .card-body ol, [data-theme="dark"] .card-body ul { color: var(--immi-text-secondary); }
 [data-theme="dark"] .table { color: var(--immi-text); --bs-table-bg: transparent; --bs-table-hover-bg: rgba(255,255,255,0.03); }
 [data-theme="dark"] .table thead { --bs-table-bg: var(--immi-surface); }
 [data-theme="dark"] .form-control, [data-theme="dark"] .form-select {
@@ -605,7 +608,6 @@ h1, h2, h3, h4, h5, h6,
   background: var(--immi-card-bg);
 }
 .source-card:hover { border-color: var(--immi-accent); background: var(--immi-accent-muted); }
-.source-card.selected { border-color: var(--immi-accent); background: var(--immi-accent-muted); }
 .source-card input[type="checkbox"] { display: none; }
 .source-card .source-code { font-weight: 700; font-size: 0.9rem; color: var(--immi-text); }
 .source-card .source-name { font-size: 0.8rem; color: var(--immi-text-secondary); }
@@ -618,6 +620,61 @@ h1, h2, h3, h4, h5, h6,
 .source-card.selected .check-icon {
   background: var(--immi-accent); border-color: var(--immi-accent); color: #fff;
 }
+.source-card.selected {
+  border-color: var(--immi-accent);
+  background: var(--immi-accent-muted);
+  box-shadow: 0 0 0 1px var(--immi-accent), var(--shadow-xs);
+}
+
+/* Defunct / legacy source cards */
+.source-card-defunct {
+  opacity: 0.55;
+  border-style: dashed;
+}
+.source-card-defunct:hover { opacity: 0.75; }
+.source-card-unavailable { opacity: 0.45; }
+.source-card-unavailable .source-card { cursor: not-allowed; }
+
+/* Preset buttons */
+.btn-outline-accent {
+  color: var(--immi-accent);
+  border-color: var(--immi-accent);
+  background: transparent;
+  font-size: 0.72rem;
+}
+.btn-outline-accent:hover {
+  background: var(--immi-accent);
+  color: #fff;
+}
+
+/* Workflow steps in info box */
+.workflow-steps { display: flex; flex-direction: column; gap: 0.5rem; }
+.workflow-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--immi-text-secondary);
+  line-height: 1.4;
+}
+.workflow-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  background: var(--immi-accent-muted);
+  color: var(--immi-accent);
+  font-size: 0.65rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Legacy details/summary */
+details summary { user-select: none; }
+details summary::-webkit-details-marker { color: var(--immi-muted); }
+details[open] summary { margin-bottom: 0.25rem; }
 
 /* ── Completion Ring (Download) ──────────────────────────────────────── */
 .completion-ring { position: relative; width: 140px; height: 140px; }

@@ -67,9 +67,10 @@ export interface FilterOptions {
 export interface JobStatus {
   running: boolean
   type?: string
-  progress?: number
+  progress?: string
   total?: number
+  completed?: number
   message?: string
-  error?: string
-  completed?: boolean
+  errors?: string[]
+  results?: string[]
 }

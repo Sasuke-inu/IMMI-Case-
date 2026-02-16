@@ -8,9 +8,7 @@ import { CaseDetailPage } from "@/pages/CaseDetailPage"
 import { CaseEditPage } from "@/pages/CaseEditPage"
 import { CaseAddPage } from "@/pages/CaseAddPage"
 import { CaseComparePage } from "@/pages/CaseComparePage"
-import { SearchPage } from "@/pages/SearchPage"
 import { DownloadPage } from "@/pages/DownloadPage"
-import { UpdateDbPage } from "@/pages/UpdateDbPage"
 import { JobStatusPage } from "@/pages/JobStatusPage"
 import { PipelinePage } from "@/pages/PipelinePage"
 import { DataDictionaryPage } from "@/pages/DataDictionaryPage"
@@ -37,9 +35,7 @@ export default function App() {
             <Route path="cases/compare" element={<CaseComparePage />} />
             <Route path="cases/:id" element={<CaseDetailPage />} />
             <Route path="cases/:id/edit" element={<CaseEditPage />} />
-            <Route path="search" element={<SearchPage />} />
             <Route path="download" element={<DownloadPage />} />
-            <Route path="update-db" element={<UpdateDbPage />} />
             <Route path="jobs" element={<JobStatusPage />} />
             <Route path="pipeline" element={<PipelinePage />} />
             <Route path="data-dictionary" element={<DataDictionaryPage />} />

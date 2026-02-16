@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar"
 import { Topbar } from "./Topbar"
 import { MobileNav } from "./MobileNav"
 import { useKeyboard } from "@/hooks/use-keyboard"
+import "@/hooks/use-theme-preset" // eagerly apply stored theme preset on load
 
 export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)

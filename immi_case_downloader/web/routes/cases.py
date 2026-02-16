@@ -54,7 +54,7 @@ def init_routes(app):
         source = request.args.get("source", "")
         tag = request.args.get("tag", "")
         nature = request.args.get("nature", "")
-        sort_by = request.args.get("sort", "year")
+        sort_by = request.args.get("sort", "date")
         sort_dir = request.args.get("dir", "desc")
         page = safe_int(request.args.get("page"), default=1, min_val=1)
 

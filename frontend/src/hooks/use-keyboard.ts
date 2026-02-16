@@ -30,9 +30,6 @@ export function useKeyboard({ onSearch }: KeyboardShortcuts = {}) {
         case "c":
           navigate("/cases")
           break
-        case "s":
-          navigate("/search")
-          break
         case "p":
           navigate("/pipeline")
           break

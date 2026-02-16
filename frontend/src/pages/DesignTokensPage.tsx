@@ -116,26 +116,29 @@ function ThemePresetSwitcher() {
 
 function ColorSwatchCard({
   name,
-  value,
   cssVar,
 }: {
   name: string
-  value: string
   cssVar: string
 }) {
+  // Read live computed value so swatch updates when theme changes
+  const liveValue = getComputedStyle(document.documentElement)
+    .getPropertyValue(cssVar)
+    .trim()
+
   return (
     <button
-      onClick={() => copyToClipboard(value, name)}
+      onClick={() => copyToClipboard(liveValue || cssVar, name)}
       className="group flex items-center gap-3 rounded-lg border border-border bg-card p-3 text-left transition-all hover:shadow-sm"
     >
       <div
         className="h-12 w-12 shrink-0 rounded-md border border-black/10 shadow-xs"
-        style={{ backgroundColor: value }}
+        style={{ backgroundColor: `var(${cssVar})` }}
       />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">{name}</p>
         <p className="truncate font-mono text-[11px] text-muted-text">
-          {value}
+          {liveValue}
         </p>
         <p className="truncate font-mono text-[10px] text-muted-text/70">
           {cssVar}
@@ -147,63 +150,64 @@ function ColorSwatchCard({
 }
 
 function ColorPalette() {
+  // Subscribe to preset changes so the palette re-renders with live values
+  const { preset } = useThemePreset()
+
   const colorGroups: {
     title: string
-    swatches: { name: string; value: string; cssVar: string }[]
+    swatches: { name: string; cssVar: string }[]
   }[] = [
     {
       title: "Primary",
       swatches: [
-        { name: "primary", value: tokens.color.primary.DEFAULT, cssVar: "--color-primary" },
-        { name: "primary-light", value: tokens.color.primary.light, cssVar: "--color-primary-light" },
-        { name: "primary-lighter", value: tokens.color.primary.lighter, cssVar: "--color-primary-lighter" },
+        { name: "primary", cssVar: "--color-primary" },
+        { name: "primary-light", cssVar: "--color-primary-light" },
+        { name: "primary-lighter", cssVar: "--color-primary-lighter" },
       ],
     },
     {
       title: "Accent",
       swatches: [
-        { name: "accent", value: tokens.color.accent.DEFAULT, cssVar: "--color-accent" },
-        { name: "accent-light", value: tokens.color.accent.light, cssVar: "--color-accent-light" },
-        { name: "accent-muted", value: tokens.color.accent.muted, cssVar: "--color-accent-muted" },
+        { name: "accent", cssVar: "--color-accent" },
+        { name: "accent-light", cssVar: "--color-accent-light" },
+        { name: "accent-muted", cssVar: "--color-accent-muted" },
       ],
     },
     {
       title: "Background",
       swatches: [
-        { name: "background", value: tokens.color.background.DEFAULT, cssVar: "--color-background" },
-        { name: "card", value: tokens.color.background.card, cssVar: "--color-background-card" },
-        { name: "sidebar", value: tokens.color.background.sidebar, cssVar: "--color-background-sidebar" },
-        { name: "surface", value: tokens.color.background.surface, cssVar: "--color-background-surface" },
+        { name: "background", cssVar: "--color-background" },
+        { name: "card", cssVar: "--color-background-card" },
+        { name: "sidebar", cssVar: "--color-background-sidebar" },
+        { name: "surface", cssVar: "--color-background-surface" },
       ],
     },
     {
       title: "Border",
       swatches: [
-        { name: "border", value: tokens.color.border.DEFAULT, cssVar: "--color-border" },
-        { name: "border-light", value: tokens.color.border.light, cssVar: "--color-border-light" },
+        { name: "border", cssVar: "--color-border" },
+        { name: "border-light", cssVar: "--color-border-light" },
       ],
     },
     {
       title: "Text",
       swatches: [
-        { name: "text", value: tokens.color.text.DEFAULT, cssVar: "--color-text" },
-        { name: "text-secondary", value: tokens.color.text.secondary, cssVar: "--color-text-secondary" },
-        { name: "text-muted", value: tokens.color.text.muted, cssVar: "--color-text-muted" },
+        { name: "text", cssVar: "--color-text" },
+        { name: "text-secondary", cssVar: "--color-text-secondary" },
+        { name: "text-muted", cssVar: "--color-text-muted" },
       ],
     },
     {
       title: "Semantic",
-      swatches: Object.entries(semanticColors).map(([k, v]) => ({
+      swatches: Object.keys(semanticColors).map((k) => ({
         name: k,
-        value: v,
         cssVar: `--color-semantic-${k}`,
       })),
     },
     {
       title: "Court",
-      swatches: Object.entries(courtColors).map(([k, v]) => ({
+      swatches: Object.keys(courtColors).map((k) => ({
         name: k,
-        value: v,
         cssVar: `--color-court-${k}`,
       })),
     },
@@ -213,7 +217,8 @@ function ColorPalette() {
     <section>
       <SectionHeading id="colors">Color Palette</SectionHeading>
       <p className="mb-4 text-sm text-muted-text">
-        Click any swatch to copy its hex value.
+        Click any swatch to copy its hex value. Values update live with the
+        active theme preset ({preset}).
       </p>
       {colorGroups.map((group) => (
         <div key={group.title} className="mb-6">
@@ -875,16 +880,18 @@ const ALL_VARS: VarRow[] = [
 ]
 
 function CssVariableReference() {
+  const { preset } = useThemePreset()
   const [computedVals, setComputedVals] = useState<Record<string, string>>({})
 
   useEffect(() => {
+    // Re-read computed values whenever the preset changes
     const style = getComputedStyle(document.documentElement)
     const vals: Record<string, string> = {}
     for (const v of ALL_VARS) {
       vals[v.name] = style.getPropertyValue(v.name).trim()
     }
     setComputedVals(vals)
-  }, [])
+  }, [preset])
 
   function renderPreview(row: VarRow, value: string) {
     if (row.preview === "color") {

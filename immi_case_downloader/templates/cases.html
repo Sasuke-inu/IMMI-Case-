@@ -31,7 +31,7 @@
         <div class="col-lg-2 col-md-3 col-6"><label class="form-label">Nature</label><select name="nature" class="form-select form-select-sm"><option value="">All</option>{% for n in natures %}<option value="{{ n }}" {% if filters.nature == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
         <div class="col-lg-1 col-md-2 col-6"><label class="form-label">Year</label><select name="year" class="form-select form-select-sm"><option value="">All</option>{% for y in years %}<option value="{{ y }}" {% if filters.year == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
         <div class="col-lg-2 col-md-3 col-6"><label class="form-label">Visa Type</label><input type="text" name="visa_type" class="form-control form-control-sm" value="{{ filters.visa_type }}" placeholder="e.g. protection"></div>
-        <div class="col-lg-1 col-md-2 col-6"><label class="form-label">Sort</label><select name="sort" class="form-select form-select-sm"><option value="year" {% if filters.sort == 'year' %}selected{% endif %}>Year</option><option value="date" {% if filters.sort == 'date' %}selected{% endif %}>Date</option><option value="title" {% if filters.sort == 'title' %}selected{% endif %}>Title</option><option value="court" {% if filters.sort == 'court' %}selected{% endif %}>Court</option></select></div>
+        <div class="col-lg-1 col-md-2 col-6"><label class="form-label">Sort</label><select name="sort" class="form-select form-select-sm"><option value="date" {% if filters.sort == 'date' or not filters.sort %}selected{% endif %}>Date</option><option value="year" {% if filters.sort == 'year' %}selected{% endif %}>Year</option><option value="title" {% if filters.sort == 'title' %}selected{% endif %}>Title</option><option value="court" {% if filters.sort == 'court' %}selected{% endif %}>Court</option></select></div>
         <div class="col-lg-1 col-md-2 col-6"><label class="form-label">Order</label><select name="dir" class="form-select form-select-sm"><option value="desc" {% if filters.dir == 'desc' %}selected{% endif %}>Newest</option><option value="asc" {% if filters.dir == 'asc' %}selected{% endif %}>Oldest</option></select></div>
       </div>
     </div>
@@ -184,7 +184,7 @@
 
 {% if total_pages > 1 %}
 <div class="d-flex justify-content-between align-items-center mt-3">
-  <small class="text-muted">Showing {{ ((page-1)*50)+1 }}--{{ [page*50, total] | min }} of {{ "{:,}".format(total) }}</small>
+  <small class="text-muted">Showing {{ ((page-1)*100)+1 }}--{{ [page*100, total] | min }} of {{ "{:,}".format(total) }}</small>
   <nav aria-label="Pagination"><ul class="pagination pagination-sm mb-0">
     {% set fq = {'q': filters.q, 'court': filters.court, 'nature': filters.nature, 'year': filters.year, 'visa_type': filters.visa_type, 'source': filters.source, 'tag': filters.tag, 'sort': filters.sort, 'dir': filters.dir} %}
     <li class="page-item {% if page == 1 %}disabled{% endif %}"><a class="page-link" href="?page={{ page-1 }}&{{ fq|urlencode }}">&laquo;</a></li>

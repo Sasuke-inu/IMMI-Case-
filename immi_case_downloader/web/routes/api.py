@@ -46,6 +46,8 @@ DATA_DICTIONARY_FIELDS = [
     {"name": "source", "type": "string", "description": "Data source identifier", "example": "austlii"},
     {"name": "user_notes", "type": "string", "description": "User-added notes", "example": "Important precedent for..."},
     {"name": "tags", "type": "string", "description": "Comma-separated user tags", "example": "review, important"},
+    {"name": "visa_subclass", "type": "string", "description": "Visa subclass number", "example": "866"},
+    {"name": "visa_class_code", "type": "string", "description": "Visa class code letter", "example": "XA"},
     {"name": "case_nature", "type": "string", "description": "Nature/category of the case (LLM-extracted)", "example": "Protection visa refusal"},
     {"name": "legal_concepts", "type": "string", "description": "Key legal concepts (LLM-extracted)", "example": "well-founded fear, complementary protection"},
 ]
@@ -129,10 +131,10 @@ def list_cases():
     source = request.args.get("source", "")
     tag = request.args.get("tag", "")
     nature = request.args.get("nature", "")
-    sort_by = request.args.get("sort_by", "year")
+    sort_by = request.args.get("sort_by", "date")
     sort_dir = request.args.get("sort_dir", "desc")
     page = safe_int(request.args.get("page"), default=1, min_val=1)
-    page_size = safe_int(request.args.get("page_size"), default=50, min_val=1, max_val=200)
+    page_size = safe_int(request.args.get("page_size"), default=100, min_val=1, max_val=200)
 
     page_cases, total = repo.filter_cases(
         court=court, year=year, visa_type=visa_type,

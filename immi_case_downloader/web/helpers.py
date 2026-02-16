@@ -8,7 +8,7 @@ from ..repository import CaseRepository
 
 # ── Constants ────────────────────────────────────────────────────────────
 
-ITEMS_PER_PAGE = 50
+ITEMS_PER_PAGE = 100
 
 EDITABLE_FIELDS = [
     "citation", "title", "court", "court_code", "date", "year", "url",

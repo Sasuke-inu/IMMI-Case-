@@ -110,22 +110,8 @@ export function fetchJobStatus(): Promise<JobStatus> {
   return apiFetch("/api/v1/job-status")
 }
 
-export function startSearch(params: Record<string, unknown>): Promise<{ started: boolean }> {
-  return apiFetch("/api/v1/search/start", {
-    method: "POST",
-    body: JSON.stringify(params),
-  })
-}
-
 export function startDownload(params: Record<string, unknown>): Promise<{ started: boolean }> {
   return apiFetch("/api/v1/download/start", {
-    method: "POST",
-    body: JSON.stringify(params),
-  })
-}
-
-export function startUpdateDb(params: Record<string, unknown>): Promise<{ started: boolean }> {
-  return apiFetch("/api/v1/update-db/start", {
     method: "POST",
     body: JSON.stringify(params),
   })
