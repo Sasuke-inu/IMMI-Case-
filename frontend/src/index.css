@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@300;400;700&family=Source+Serif+4:wght@300;400;600;700&display=swap");
 @import "tailwindcss";
 @import "./tokens/tokens.css";
 
@@ -28,12 +28,12 @@
   --color-danger: var(--color-semantic-danger);
   --color-info: var(--color-semantic-info);
 
-  --color-court-aata: var(--color-court-AATA);
-  --color-court-arta: var(--color-court-ARTA);
-  --color-court-fca: var(--color-court-FCA);
-  --color-court-fcca: var(--color-court-FCCA);
+  --color-court-aata: var(--color-court-aata);
+  --color-court-arta: var(--color-court-arta);
+  --color-court-fca: var(--color-court-fca);
+  --color-court-fcca: var(--color-court-fcca);
   --color-court-fedc: var(--color-court-fedcfamc2g);
-  --color-court-hca: var(--color-court-HCA);
+  --color-court-hca: var(--color-court-hca);
 
   --font-heading: var(--font-heading);
   --font-body: var(--font-body);

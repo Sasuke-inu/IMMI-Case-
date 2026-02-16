@@ -267,6 +267,7 @@ class SupabaseRepository:
             "years": opts.get("years") or [],
             "sources": opts.get("sources") or [],
             "natures": opts.get("natures") or [],
+            "visa_types": opts.get("visa_types") or [],
             "tags": sorted(all_tags),
         }
 

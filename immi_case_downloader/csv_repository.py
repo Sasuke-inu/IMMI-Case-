@@ -179,6 +179,7 @@ class CsvRepository:
         years = sorted({c.year for c in cases if c.year}, reverse=True)
         sources = sorted({c.source for c in cases if c.source})
         natures = sorted({c.case_nature for c in cases if c.case_nature})
+        visa_types = sorted({c.visa_type for c in cases if c.visa_type})
         all_tags = set()
         for c in cases:
             if c.tags:
@@ -191,6 +192,7 @@ class CsvRepository:
             "years": years,
             "sources": sources,
             "natures": natures,
+            "visa_types": visa_types,
             "tags": sorted(all_tags),
         }
 

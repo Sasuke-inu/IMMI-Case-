@@ -398,11 +398,18 @@ class SqliteRepository:
                 if t:
                     all_tags.add(t)
 
+        visa_types = sorted(
+            r["visa_type"] for r in conn.execute(
+                "SELECT DISTINCT visa_type FROM cases WHERE visa_type != ''"
+            )
+        )
+
         return {
             "courts": courts,
             "years": years,
             "sources": sources,
             "natures": natures,
+            "visa_types": visa_types,
             "tags": sorted(all_tags),
         }
 

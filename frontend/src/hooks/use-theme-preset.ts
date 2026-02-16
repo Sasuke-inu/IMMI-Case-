@@ -4,49 +4,31 @@ export type PresetName = "parchment" | "ocean" | "forest" | "slate" | "rose"
 
 interface ThemePreset {
   readonly label: string
-  readonly colors: readonly [string, string, string, string] // preview dots (light)
-  readonly darkColors: readonly [string, string, string, string] // preview dots (dark)
+  readonly colors: readonly [string, string, string, string]
+  readonly darkColors: readonly [string, string, string, string]
   readonly vars: Readonly<Record<string, string>>
   readonly darkVars: Readonly<Record<string, string>>
 }
-
-const CSS_VARS = [
-  "--color-primary",
-  "--color-primary-light",
-  "--color-primary-lighter",
-  "--color-accent",
-  "--color-accent-light",
-  "--color-accent-muted",
-  "--color-background",
-  "--color-background-card",
-  "--color-background-sidebar",
-  "--color-background-surface",
-  "--color-border",
-  "--color-border-light",
-  "--color-text",
-  "--color-text-secondary",
-  "--color-text-muted",
-] as const
 
 export const PRESETS: Record<PresetName, ThemePreset> = {
   parchment: {
     label: "Parchment",
     colors: ["#1b2838", "#b8860b", "#f5f4f1", "#e0ded8"],
     darkColors: ["#141a22", "#d4a017", "#1b2332", "#2a3545"],
-    vars: {}, // empty = use tokens.css defaults
-    darkVars: {}, // empty = use tokens.css .dark defaults
+    vars: {},
+    darkVars: {},
   },
   ocean: {
     label: "Ocean",
-    colors: ["#0f2942", "#0077be", "#f0f6fa", "#cde0ed"],
-    darkColors: ["#0a1929", "#2a9fd6", "#0f2137", "#1a3450"],
+    colors: ["#0f2942", "#e67e22", "#f0f6fa", "#cde0ed"],
+    darkColors: ["#0a1929", "#f0923e", "#0f2137", "#1a3450"],
     vars: {
       "--color-primary": "#0f2942",
       "--color-primary-light": "#1a3d5c",
       "--color-primary-lighter": "#2a5a80",
-      "--color-accent": "#0077be",
-      "--color-accent-light": "#2a9fd6",
-      "--color-accent-muted": "rgba(0,119,190,0.12)",
+      "--color-accent": "#e67e22",
+      "--color-accent-light": "#f0923e",
+      "--color-accent-muted": "rgba(230,126,34,0.12)",
       "--color-background": "#f0f6fa",
       "--color-background-card": "#ffffff",
       "--color-background-sidebar": "#f5f9fc",
@@ -61,9 +43,9 @@ export const PRESETS: Record<PresetName, ThemePreset> = {
       "--color-primary": "#b0cfe0",
       "--color-primary-light": "#7aa8c4",
       "--color-primary-lighter": "#4d8ab0",
-      "--color-accent": "#2a9fd6",
-      "--color-accent-light": "#5bb8e0",
-      "--color-accent-muted": "rgba(42,159,214,0.15)",
+      "--color-accent": "#f0923e",
+      "--color-accent-light": "#f5ac6e",
+      "--color-accent-muted": "rgba(240,146,62,0.15)",
       "--color-background": "#0a1929",
       "--color-background-card": "#0f2137",
       "--color-background-sidebar": "#0c1c30",
@@ -77,15 +59,15 @@ export const PRESETS: Record<PresetName, ThemePreset> = {
   },
   forest: {
     label: "Forest",
-    colors: ["#1b3426", "#2d7d46", "#f2f5f3", "#cdddd3"],
-    darkColors: ["#0e1f16", "#3da55d", "#162419", "#1e3528"],
+    colors: ["#1b3426", "#b45309", "#f2f5f3", "#cdddd3"],
+    darkColors: ["#0e1f16", "#d97706", "#162419", "#1e3528"],
     vars: {
       "--color-primary": "#1b3426",
       "--color-primary-light": "#2a4d38",
       "--color-primary-lighter": "#3a6b4e",
-      "--color-accent": "#2d7d46",
-      "--color-accent-light": "#3da55d",
-      "--color-accent-muted": "rgba(45,125,70,0.12)",
+      "--color-accent": "#b45309",
+      "--color-accent-light": "#d97706",
+      "--color-accent-muted": "rgba(180,83,9,0.12)",
       "--color-background": "#f2f5f3",
       "--color-background-card": "#ffffff",
       "--color-background-sidebar": "#f6f9f7",
@@ -100,9 +82,9 @@ export const PRESETS: Record<PresetName, ThemePreset> = {
       "--color-primary": "#b0d4bc",
       "--color-primary-light": "#80b090",
       "--color-primary-lighter": "#5a9470",
-      "--color-accent": "#3da55d",
-      "--color-accent-light": "#5cc07a",
-      "--color-accent-muted": "rgba(61,165,93,0.15)",
+      "--color-accent": "#d97706",
+      "--color-accent-light": "#f59e0b",
+      "--color-accent-muted": "rgba(217,119,6,0.15)",
       "--color-background": "#0e1f16",
       "--color-background-card": "#162419",
       "--color-background-sidebar": "#111f15",
@@ -155,15 +137,15 @@ export const PRESETS: Record<PresetName, ThemePreset> = {
   },
   rose: {
     label: "Rose",
-    colors: ["#3d1f2e", "#d97292", "#fdf5f7", "#f0d4dc"],
-    darkColors: ["#1f0f17", "#e8a0b4", "#2a1520", "#3d2030"],
+    colors: ["#3d1f2e", "#0891b2", "#fdf5f7", "#f0d4dc"],
+    darkColors: ["#1f0f17", "#22d3ee", "#2a1520", "#3d2030"],
     vars: {
       "--color-primary": "#3d1f2e",
       "--color-primary-light": "#5c3347",
       "--color-primary-lighter": "#7a4a62",
-      "--color-accent": "#d97292",
-      "--color-accent-light": "#e8a0b4",
-      "--color-accent-muted": "rgba(217,114,146,0.12)",
+      "--color-accent": "#0891b2",
+      "--color-accent-light": "#06b6d4",
+      "--color-accent-muted": "rgba(8,145,178,0.12)",
       "--color-background": "#fdf5f7",
       "--color-background-card": "#ffffff",
       "--color-background-sidebar": "#fdf8f9",
@@ -178,9 +160,9 @@ export const PRESETS: Record<PresetName, ThemePreset> = {
       "--color-primary": "#e0c4cc",
       "--color-primary-light": "#c0909f",
       "--color-primary-lighter": "#a06878",
-      "--color-accent": "#e8a0b4",
-      "--color-accent-light": "#f0c0d0",
-      "--color-accent-muted": "rgba(232,160,180,0.15)",
+      "--color-accent": "#22d3ee",
+      "--color-accent-light": "#67e8f9",
+      "--color-accent-muted": "rgba(34,211,238,0.15)",
       "--color-background": "#1f0f17",
       "--color-background-card": "#2a1520",
       "--color-background-sidebar": "#24111b",
@@ -194,27 +176,45 @@ export const PRESETS: Record<PresetName, ThemePreset> = {
   },
 }
 
+/* ── Storage keys ─────────────────────────────────────────────── */
+
 const PRESET_KEY = "theme-preset"
 const DARK_KEY = "theme-dark"
+const CUSTOM_KEY = "theme-custom-vars"
 
-function applyPreset(name: PresetName, dark: boolean) {
+/* ── Theme application ────────────────────────────────────────── */
+
+function applyTheme(
+  name: PresetName,
+  dark: boolean,
+  custom: Record<string, string> = {},
+) {
   const el = document.documentElement
   const preset = PRESETS[name]
   const vars = dark ? preset.darkVars : preset.vars
 
-  // Toggle .dark class
   el.classList.toggle("dark", dark)
 
-  // Apply or clear each CSS var
-  for (const v of CSS_VARS) {
-    const val = vars[v]
-    if (val) {
-      el.style.setProperty(v, val)
-    } else {
-      el.style.removeProperty(v)
-    }
+  // Clear ALL inline CSS custom properties for a clean slate
+  const toRemove: string[] = []
+  for (let i = 0; i < el.style.length; i++) {
+    const prop = el.style[i]
+    if (prop.startsWith("--")) toRemove.push(prop)
+  }
+  toRemove.forEach((p) => el.style.removeProperty(p))
+
+  // Apply preset vars
+  for (const [k, v] of Object.entries(vars)) {
+    el.style.setProperty(k, v)
+  }
+
+  // Apply custom overrides on top (takes priority over preset)
+  for (const [k, v] of Object.entries(custom)) {
+    el.style.setProperty(k, v)
   }
 }
+
+/* ── Stored state readers ─────────────────────────────────────── */
 
 function readStoredPreset(): PresetName {
   if (typeof window === "undefined") return "parchment"
@@ -226,22 +226,41 @@ function readStoredDark(): boolean {
   if (typeof window === "undefined") return false
   const stored = localStorage.getItem(DARK_KEY)
   if (stored !== null) return stored === "true"
-  // Fall back to system preference
   return window.matchMedia("(prefers-color-scheme: dark)").matches
 }
 
-// ── Eagerly apply on module load (before React mounts) ──────────
+function readStoredCustom(): Record<string, string> {
+  if (typeof window === "undefined") return {}
+  try {
+    const stored = localStorage.getItem(CUSTOM_KEY)
+    return stored ? JSON.parse(stored) : {}
+  } catch {
+    return {}
+  }
+}
+
+/* ── Eagerly apply on module load (before React mounts) ──────── */
+
 const _initialPreset = readStoredPreset()
 const _initialDark = readStoredDark()
-applyPreset(_initialPreset, _initialDark)
+const _initialCustom = readStoredCustom()
+applyTheme(_initialPreset, _initialDark, _initialCustom)
 
-// ── External store for cross-component sync ─────────────────────
+/* ── External store for cross-component sync ─────────────────── */
+
 type Listener = () => void
+
 interface ThemeState {
   preset: PresetName
   isDark: boolean
+  customVars: Record<string, string>
 }
-let _state: ThemeState = { preset: _initialPreset, isDark: _initialDark }
+
+let _state: ThemeState = {
+  preset: _initialPreset,
+  isDark: _initialDark,
+  customVars: _initialCustom,
+}
 const _listeners = new Set<Listener>()
 
 function subscribe(listener: Listener): () => void {
@@ -254,19 +273,28 @@ function getSnapshot(): ThemeState {
 }
 
 function setState(next: ThemeState) {
-  if (_state.preset === next.preset && _state.isDark === next.isDark) return
+  if (
+    _state.preset === next.preset &&
+    _state.isDark === next.isDark &&
+    _state.customVars === next.customVars
+  )
+    return
   _state = next
-  applyPreset(next.preset, next.isDark)
+  applyTheme(next.preset, next.isDark, next.customVars)
   localStorage.setItem(PRESET_KEY, next.preset)
   localStorage.setItem(DARK_KEY, String(next.isDark))
+  localStorage.setItem(CUSTOM_KEY, JSON.stringify(next.customVars))
   _listeners.forEach((fn) => fn())
 }
+
+/* ── Hook ─────────────────────────────────────────────────────── */
 
 export function useThemePreset() {
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
   const setPreset = useCallback((name: PresetName) => {
-    setState({ ...getSnapshot(), preset: name })
+    // Changing preset clears custom overrides
+    setState({ preset: name, isDark: getSnapshot().isDark, customVars: {} })
   }, [])
 
   const setDark = useCallback((dark: boolean) => {
@@ -279,16 +307,29 @@ export function useThemePreset() {
   }, [])
 
   const resetPreset = useCallback(() => {
-    setState({ preset: "parchment", isDark: false })
+    setState({ preset: "parchment", isDark: false, customVars: {} })
+  }, [])
+
+  const setCustomVar = useCallback((name: string, value: string) => {
+    const cur = getSnapshot()
+    setState({ ...cur, customVars: { ...cur.customVars, [name]: value } })
+  }, [])
+
+  const clearCustomVars = useCallback(() => {
+    const cur = getSnapshot()
+    setState({ ...cur, customVars: {} })
   }, [])
 
   return {
     preset: state.preset,
     isDark: state.isDark,
+    customVars: state.customVars,
     setPreset,
     setDark,
     toggleDark,
     resetPreset,
+    setCustomVar,
+    clearCustomVars,
     presets: PRESETS,
   } as const
 }

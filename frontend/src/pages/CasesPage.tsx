@@ -231,7 +231,7 @@ export function CasesPage() {
           className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
         >
           <option value="">All Courts</option>
-          {filterOpts?.courts.map((c) => (
+          {filterOpts?.courts?.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
@@ -241,7 +241,7 @@ export function CasesPage() {
           className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
         >
           <option value="">All Years</option>
-          {filterOpts?.years.map((y) => (
+          {filterOpts?.years?.map((y) => (
             <option key={y} value={y}>{y}</option>
           ))}
         </select>
@@ -251,7 +251,7 @@ export function CasesPage() {
           className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
         >
           <option value="">All Natures</option>
-          {filterOpts?.natures.map((n) => (
+          {filterOpts?.natures?.map((n) => (
             <option key={n} value={n}>{n}</option>
           ))}
         </select>
@@ -308,7 +308,7 @@ export function CasesPage() {
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
           >
             <option value="">All Visa Types</option>
-            {filterOpts?.visa_types.map((v) => (
+            {filterOpts?.visa_types?.map((v) => (
               <option key={v} value={v}>{v}</option>
             ))}
           </select>
@@ -318,7 +318,7 @@ export function CasesPage() {
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
           >
             <option value="">All Sources</option>
-            {filterOpts?.sources.map((s) => (
+            {filterOpts?.sources?.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
@@ -328,7 +328,7 @@ export function CasesPage() {
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
           >
             <option value="">All Tags</option>
-            {filterOpts?.tags.map((t) => (
+            {filterOpts?.tags?.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
