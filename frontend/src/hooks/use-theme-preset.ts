@@ -13,8 +13,8 @@ interface ThemePreset {
 export const PRESETS: Record<PresetName, ThemePreset> = {
   parchment: {
     label: "Parchment",
-    colors: ["#1b2838", "#b8860b", "#f5f4f1", "#e0ded8"],
-    darkColors: ["#141a22", "#d4a017", "#1b2332", "#2a3545"],
+    colors: ["#1b2838", "#5c4306", "#f5f4f1", "#6e7177"],
+    darkColors: ["#111820", "#c9942e", "#192230", "#4a5060"],
     vars: {},
     darkVars: {},
   },

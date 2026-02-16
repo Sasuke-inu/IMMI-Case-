@@ -8,7 +8,7 @@ export const tokens = {
       "lighter": "#3a5572"
     },
     "accent": {
-      "DEFAULT": "#b8860b",
+      "DEFAULT": "#5c4306",
       "light": "#d4a017",
       "muted": "rgba(184,134,11,0.12)"
     },
@@ -19,7 +19,7 @@ export const tokens = {
       "surface": "#f0efec"
     },
     "border": {
-      "DEFAULT": "#e0ded8",
+      "DEFAULT": "#6e7177",
       "light": "#eae8e3"
     },
     "text": {
@@ -43,27 +43,27 @@ export const tokens = {
     },
     "dark": {
       "primary": {
-        "DEFAULT": "#c9cdd3",
-        "light": "#a0aab5"
+        "DEFAULT": "#d0d4da",
+        "light": "#a8b2be"
       },
       "accent": {
-        "DEFAULT": "#d4a017",
-        "light": "#e8b92e"
+        "DEFAULT": "#c9942e",
+        "light": "#e0b04a"
       },
       "background": {
-        "DEFAULT": "#141a22",
-        "card": "#1b2332",
-        "sidebar": "#161d28",
-        "surface": "#1e2737"
+        "DEFAULT": "#111820",
+        "card": "#192230",
+        "sidebar": "#141c28",
+        "surface": "#1c2535"
       },
       "border": {
-        "DEFAULT": "#2a3545",
-        "light": "#243040"
+        "DEFAULT": "#4a5060",
+        "light": "#2d3748"
       },
       "text": {
-        "DEFAULT": "#e0ddd8",
-        "secondary": "#a0a8b4",
-        "muted": "#6b7585"
+        "DEFAULT": "#e2dfda",
+        "secondary": "#a4acb8",
+        "muted": "#6d7788"
       },
       "semantic": {
         "success": "#3da55d",
@@ -82,12 +82,9 @@ export const tokens = {
         "serif"
       ],
       "body": [
-        "Inter",
-        "-apple-system",
-        "BlinkMacSystemFont",
-        "Segoe UI",
-        "Roboto",
-        "sans-serif"
+        "Merriweather",
+        "Georgia",
+        "serif"
       ],
       "mono": [
         "SF Mono",
@@ -107,9 +104,9 @@ export const tokens = {
     "8": "2rem"
   },
   "radius": {
-    "sm": "0.25rem",
-    "DEFAULT": "0.375rem",
-    "lg": "0.5rem",
+    "sm": "0.670rem",
+    "DEFAULT": "1rem",
+    "lg": "1.330rem",
     "pill": "2rem"
   },
   "shadow": {
