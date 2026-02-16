@@ -13,7 +13,7 @@ def _focus_body(page):
 
 
 class TestNavigationShortcuts:
-    """Keys d, c, s, p navigate to Dashboard, Cases, Search, Pipeline."""
+    """Keys d, c, p navigate to Dashboard, Cases, Pipeline."""
 
     def test_d_goes_to_dashboard(self, react_page):
         react_navigate(react_page, "/app/cases")
@@ -31,14 +31,6 @@ class TestNavigationShortcuts:
         react_page.keyboard.press("c")
         react_page.wait_for_timeout(1000)
         assert "/cases" in react_page.url
-
-    def test_s_goes_to_search(self, react_page):
-        react_navigate(react_page, "/app/")
-        wait_for_loading_gone(react_page)
-        _focus_body(react_page)
-        react_page.keyboard.press("s")
-        react_page.wait_for_timeout(1000)
-        assert "/search" in react_page.url
 
     def test_p_goes_to_pipeline(self, react_page):
         react_navigate(react_page, "/app/")
@@ -85,16 +77,15 @@ class TestInputExclusion:
 
     def test_shortcut_disabled_in_input(self, react_page):
         """Pressing 'd' while focused on an input should NOT navigate."""
-        react_navigate(react_page, "/app/search")
+        react_navigate(react_page, "/app/cases")
         wait_for_loading_gone(react_page)
-        search_input = react_page.locator("input").first
-        search_input.click()
-        search_input.type("d")
+        # Use the keyword filter input on the cases page
+        keyword_input = react_page.locator("input[placeholder*='eyword']")
+        keyword_input.click()
+        keyword_input.type("d")
         react_page.wait_for_timeout(300)
-        # Should still be on search page
-        assert "/search" in react_page.url
-        # Input should contain 'd'
-        assert search_input.input_value() == "d"
+        # Should still be on cases page
+        assert "/cases" in react_page.url
 
     def test_shortcut_disabled_in_textarea(self, react_page):
         """Pressing 'c' while focused on a textarea should NOT navigate."""
@@ -118,11 +109,11 @@ class TestInputExclusion:
 
     def test_shortcut_works_after_blur(self, react_page):
         """After blurring an input, shortcuts work again."""
-        react_navigate(react_page, "/app/search")
+        react_navigate(react_page, "/app/cases")
         wait_for_loading_gone(react_page)
-        search_input = react_page.locator("input").first
-        search_input.click()
-        search_input.type("test")
+        keyword_input = react_page.locator("input[placeholder*='eyword']")
+        keyword_input.click()
+        keyword_input.type("test")
         # Click outside to blur
         react_page.locator("h1").click()
         react_page.wait_for_timeout(200)

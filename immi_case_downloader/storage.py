@@ -34,6 +34,8 @@ CASE_FIELDS = [
     "source",
     "user_notes",
     "tags",
+    "visa_subclass",
+    "visa_class_code",
     "case_nature",
     "legal_concepts",
 ]

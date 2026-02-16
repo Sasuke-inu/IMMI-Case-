@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Australian immigration court/tribunal case downloader and manager. Scrapes case metadata and full text from AustLII and Federal Court, stores as CSV/JSON, and provides a Flask web interface for browsing, editing, and exporting.
+Australian immigration court/tribunal case downloader and manager. Scrapes case metadata and full text from AustLII, stores as CSV/JSON (or Supabase/SQLite), and provides both a **Flask API** and a **React SPA** for browsing, editing, and exporting.
 
 ## Commands
 
@@ -14,9 +14,10 @@ pip install -r requirements.txt
 
 # Run tests
 pip install -r requirements-test.txt
-python3 -m pytest                       # all tests with coverage
-python3 -m pytest tests/test_models.py  # models only
-python3 -m pytest -x                    # stop on first failure
+python3 -m pytest                           # all tests (296 unit + 181 E2E)
+python3 -m pytest tests/test_models.py      # models only
+python3 -m pytest tests/e2e/react/ -x       # React E2E only
+python3 -m pytest -x                        # stop on first failure
 
 # CLI - search for cases
 python run.py search
@@ -24,65 +25,88 @@ python run.py search --databases AATA FCA --start-year 2020 --end-year 2025
 python run.py download --courts FCA --limit 50
 python run.py list-databases
 
-# Web interface
-python web.py                    # http://localhost:5000
-python web.py --port 8080 --debug
+# Web interface (React SPA at /app/, Legacy Jinja2 at /)
+python web.py --port 8080                   # http://localhost:8080/app/
 
-# Run as module
-python -m immi_case_downloader search
+# React frontend development
+cd frontend && npm run dev                  # Vite dev server (HMR)
+cd frontend && npm run build                # Production build → static/react/
 
 # Bulk download full text (resumable, saves every 200)
-python download_fulltext.py              # delay=0.5, ~2 cases/sec
+python download_fulltext.py
 
 # LLM-based field extraction (case_nature, legal_concepts)
-python extract_llm_fields.py             # uses Claude Sonnet, batched
-python merge_llm_results.py              # merge batch results into CSV
-
-# Post-processing with regex + LLM
-python postprocess.py
+python extract_llm_fields.py               # uses Claude Sonnet, batched
+python merge_llm_results.py                 # merge batch results into CSV
 ```
 
 ## Architecture
 
 ```
-run.py              → CLI entry point → immi_case_downloader.cli.main()
-web.py              → Web entry point → immi_case_downloader.webapp.create_app()
-postprocess.py      → Post-download field extraction (regex + LLM sub-agents)
-download_fulltext.py→ Bulk full-text downloader (resumable, saves every 200)
-extract_llm_fields.py → LLM-based field extraction (case_nature, legal_concepts)
-merge_llm_results.py  → Merge LLM batch results back into main CSV
+run.py                → CLI entry point → immi_case_downloader.cli.main()
+web.py                → Web entry point → immi_case_downloader.webapp.create_app()
+postprocess.py        → Post-download field extraction (regex + LLM sub-agents)
+download_fulltext.py  → Bulk full-text downloader (resumable, saves every 200)
 
 immi_case_downloader/
-  models.py         → ImmigrationCase dataclass (20 fields, SHA-256 ID generation)
-  config.py         → Constants: AustLII URLs, court database definitions, keywords, rate limits
-  storage.py        → CSV/JSON persistence (pandas), CRUD helpers for web UI
-  webapp.py         → Flask app with background threading for search/download jobs (905 lines)
-  cli.py            → argparse CLI with search/download/list-databases subcommands
-  pipeline.py       → SmartPipeline: 3-phase auto-fallback (crawl → clean → download)
+  models.py           → ImmigrationCase dataclass (22 fields, SHA-256 ID generation)
+  config.py           → Constants: AustLII URLs, court database definitions, keywords
+  storage.py          → CSV/JSON persistence (pandas), CRUD helpers
+  repository.py       → CaseRepository Protocol (runtime_checkable)
+  csv_repository.py   → Wraps storage.py for backward compat
+  sqlite_repository.py→ SQLite+FTS5+WAL, thread-local connections
+  supabase_repository.py → Supabase (PostgreSQL) backend, 15 methods, native FTS
+  pipeline.py         → SmartPipeline: 3-phase auto-fallback (crawl → clean → download)
+  cli.py              → argparse CLI with search/download/list-databases subcommands
+  web/
+    __init__.py       → Flask factory with API blueprint + SPA catch-all at /app/
+    helpers.py        → get_repo(), safe_int(), safe_float(), EDITABLE_FIELDS
+    jobs.py           → 4 background job runners with repo param
+    security.py       → CSRF config
+    routes/
+      api.py          → /api/v1/* JSON endpoints (22 endpoints) for React SPA
+      dashboard.py    → Legacy Jinja2 dashboard
+      cases.py        → Legacy Jinja2 case CRUD
+      search.py       → Legacy Jinja2 search
+      export.py       → CSV/JSON export
+      pipeline_routes.py → Pipeline actions
+      update_db.py    → Legacy update DB
   sources/
-    base.py         → BaseScraper: requests.Session with retry, rate limiting
-    austlii.py      → AustLIIScraper: browse year listings + keyword search fallback
-    federal_court.py→ FederalCourtScraper: search2.fedcourt.gov.au with pagination
-  templates/        → 13 Jinja2 templates (base + sidebar nav + pages)
-  static/style.css  → Single CSS file
+    base.py           → BaseScraper: requests.Session with retry, rate limiting
+    austlii.py        → AustLIIScraper: browse year listings + keyword search fallback
+    federal_court.py  → FederalCourtScraper: search2.fedcourt.gov.au with pagination
+  templates/          → 14 Jinja2 templates (legacy, accessible at original routes)
+  static/
+    style.css         → Legacy CSS
+    react/            → Vite build output (served by Flask at /app/)
+
+frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v4)
+  src/
+    pages/            → 11 pages (Dashboard, Cases CRUD, Compare, Download, Pipeline, etc.)
+    components/       → Shared (Breadcrumb, CourtBadge, ConfirmModal, etc.) + layout
+    hooks/            → TanStack Query hooks (use-cases, use-stats, use-theme, use-keyboard)
+    lib/api.ts        → CSRF-aware fetch wrapper for all API calls
+    tokens/           → Design tokens JSON → CSS + TS build pipeline
+  scripts/build-tokens.ts → Token pipeline: JSON → CSS + TS
 ```
 
 ### Key Design Patterns
 
-- **Scraper hierarchy**: `BaseScraper` handles HTTP session, rate limiting (default 1s delay), and retry logic. `AustLIIScraper` and `FederalCourtScraper` inherit and implement `search_cases()` + `download_case_detail()`.
-- **Two-phase data collection**: Stage 1 (search) populates basic metadata from listing pages. Stage 2 (download) extracts detailed fields (judges, catchwords, outcome, visa type) from full case text via regex.
-- **Flat file storage**: All data persists in `downloaded_cases/immigration_cases.csv` and `.json`. No database. CRUD operations in `storage.py` reload/rewrite the entire CSV each time.
-- **Background jobs**: Web search/download runs in daemon threads with a global `_job_status` dict for progress tracking. Only one job at a time.
-- **Smart Pipeline**: `pipeline.py` provides a 3-phase workflow (crawl → clean → download) with auto-fallback strategies, structured logging (`PipelineLog`), and web UI integration via `pipeline.html`.
-- **Case identification**: `case_id` is first 12 chars of SHA-256 hash of citation/URL/title.
+- **Dual UI**: React SPA at `/app/` + legacy Jinja2 at `/`. API at `/api/v1/*`.
+- **CaseRepository Protocol**: Abstracts storage backend. CSV (default), SQLite (FTS5+WAL), Supabase (PostgreSQL).
+- **Scraper hierarchy**: `BaseScraper` handles HTTP session, rate limiting (1s delay), retry. `AustLIIScraper` and `FederalCourtScraper` inherit.
+- **Two-phase data collection**: Stage 1 (search) populates basic metadata. Stage 2 (download) extracts detailed fields via regex.
+- **Background jobs**: Daemon threads with `_job_status` dict for progress tracking. One job at a time.
+- **Smart Pipeline**: 3-phase workflow (crawl → clean → download) with auto-fallback strategies.
+- **Case identification**: `case_id` = first 12 chars of SHA-256 hash of citation/URL/title.
 
 ### Data Flow
 
 1. Scraper fetches listing pages → parses HTML with BeautifulSoup/lxml → creates `ImmigrationCase` objects
 2. Cases deduplicated by URL across sources
-3. `storage.save_cases_csv/json()` persists via pandas DataFrame
-4. Web UI reads from CSV via `load_all_cases()`, filters/sorts in memory
-5. Download phase fetches individual case pages → extracts metadata via regex → saves full text to `downloaded_cases/case_texts/`
+3. Repository persists via CSV, SQLite, or Supabase
+4. React SPA reads from `/api/v1/*` endpoints, filters/sorts on backend
+5. Download phase fetches individual case pages → extracts metadata via regex → saves full text
 
 ## Data Sources
 
@@ -91,31 +115,28 @@ immi_case_downloader/
 | AATA, ARTA, FCA, FCCA, FedCFamC2G, HCA, RRTA, MRTA | AustLII | `austlii.edu.au/au/cases/cth/{code}/{year}/` |
 | fedcourt | Federal Court | `search2.fedcourt.gov.au/s/search.html` |
 
-- **AustLII viewdb URL**: `austlii.edu.au/cgi-bin/viewdb/au/cases/cth/{DB}/` — reliable year index page
 - **AATA ended Oct 2024**: replaced by ART (Administrative Review Tribunal), database code ARTA
-- **ARTA**: ART decisions from Oct 2024 onwards; 3,656+ cases; same URL/title format as AATA
-- **AATA 2025-2026**: direct listing returns 500; only ~10 cases via viewdb fallback (use ARTA for 2025+)
+- **ARTA**: ART decisions from Oct 2024 onwards; same URL/title format as AATA
+- **AATA 2025-2026**: direct listing returns 500; use ARTA for 2025+
 - **FCCA ended 2021**: replaced by FedCFamC2G (Federal Circuit and Family Court restructure)
 
 ## Gotchas
 
-- **`cmd_search` merge logic** — now merges by URL dedup; `max_results` defaults to 500/db (use large value for full crawl)
+- **`cmd_search` merge logic** — merges by URL dedup; `max_results` defaults to 500/db
 - **`config.py START_YEAR`** — dynamic (`CURRENT_YEAR - 10`); use `--start-year` flag to override
 - **pandas NaN** — empty CSV fields become `float('nan')`; always use `ImmigrationCase.from_dict()`
 - **Federal Court DNS** — `search2.fedcourt.gov.au` doesn't resolve; all FCA data via AustLII
 - **RRTA/MRTA** — return 0 results (pre-2015 tribunals merged into AATA)
-- **AATA vs ARTA** — AATA covers up to Oct 2024; ARTA covers Oct 2024 onwards. For 2025+ use ARTA
 - **Port 5000** — conflicts with macOS AirPlay; use `--port 8080`
-- **AustLII timeouts** — common during bulk scraping; retry logic in BaseScraper handles most
-- **AustLII 410 blocking** — AustLII rejects default `python-requests` User-Agent with HTTP 410; `BaseScraper` now uses a browser-like User-Agent string
-- **webapp.py size** — 905 lines; largest file in the project. Contains all Flask routes + background job management
+- **AustLII 410 blocking** — rejects default `python-requests` User-Agent with HTTP 410; `BaseScraper` uses browser-like UA
+- **AustLII rate limiting** — bulk scraping triggers IP block; typically resolves in hours
 
 ## Important Notes
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
-- Rate limiting is enforced at the `BaseScraper` level; respect the default 1-second delay
-- Test suite: 71 tests in `tests/` (models, storage, cli, webapp) — run `python3 -m pytest`
-- The webapp uses `SECRET_KEY` env var for session security; falls back to random key with warning if unset
-- CSRF protection via flask-wtf: all POST forms require `csrf_token`; `/api/pipeline-action` is exempt
+- Rate limiting enforced at `BaseScraper` level; respect default 1-second delay
+- Test suite: 477 tests (296 unit + 181 Playwright E2E) — run `python3 -m pytest`
+- CSRF protection via flask-wtf; `/api/v1/csrf-token` endpoint for React SPA
 - Security headers (CSP, X-Frame-Options, etc.) set via `@app.after_request`
 - Default host is `127.0.0.1` (localhost only); use `--host 0.0.0.0` to expose externally
+- React SPA build: `cd frontend && npm run build` → outputs to `immi_case_downloader/static/react/`

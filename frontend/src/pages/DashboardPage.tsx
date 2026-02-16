@@ -14,7 +14,6 @@ import { useStats } from "@/hooks/use-stats"
 import { StatCard } from "@/components/dashboard/StatCard"
 import { CourtChart } from "@/components/dashboard/CourtChart"
 import { CourtBadge } from "@/components/shared/CourtBadge"
-import { ProgressRing } from "@/components/shared/ProgressRing"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { downloadExportFile } from "@/lib/api"
 
@@ -80,8 +79,8 @@ export function DashboardPage() {
         <p className="text-sm text-muted-text">Australian Immigration Case Database Overview</p>
       </div>
 
-      {/* Stat cards + Progress ring */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {/* Stat cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Cases" value={stats.total_cases} icon={<FileText className="h-5 w-5" />} />
         <StatCard
           title="With Full Text"
@@ -91,23 +90,6 @@ export function DashboardPage() {
         />
         <StatCard title="Courts" value={Object.keys(stats.courts).length} icon={<Database className="h-5 w-5" />} />
         <StatCard title="Sources" value={Object.keys(stats.sources).length} icon={<GitBranch className="h-5 w-5" />} />
-        <div className="relative flex items-center justify-center rounded-lg border border-border bg-card p-4">
-          <ProgressRing
-            value={stats.with_full_text}
-            max={stats.total_cases}
-            size={90}
-            strokeWidth={6}
-            label="downloaded"
-          />
-          {stats.with_full_text < stats.total_cases && (
-            <button
-              onClick={() => navigate("/download")}
-              className="absolute bottom-3 text-xs text-accent hover:underline"
-            >
-              Download More
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Charts with toggle */}

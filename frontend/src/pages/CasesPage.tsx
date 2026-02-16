@@ -25,6 +25,13 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { CaseFilters, ImmigrationCase } from "@/types/case"
 
+function formatDateCompact(date: string): string {
+  if (!date) return ""
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return date
+  return d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+}
+
 export function CasesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -420,10 +427,10 @@ export function CasesPage() {
       {/* Table view */}
       {!isLoading && cases.length > 0 && viewMode === "table" && (
         <div className="overflow-x-auto rounded-lg border border-border bg-card">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[1100px] text-sm">
             <thead>
               <tr className="border-b border-border bg-surface">
-                <th className="p-3 text-left">
+                <th className="w-10 px-2 py-2.5 text-left">
                   <input
                     type="checkbox"
                     checked={selected.size === cases.length && cases.length > 0}
@@ -431,12 +438,12 @@ export function CasesPage() {
                     className="rounded"
                   />
                 </th>
-                <th className="p-3 text-left font-medium text-secondary-text">Title</th>
-                <th className="whitespace-nowrap p-3 text-left font-medium text-secondary-text">Citation</th>
-                <th className="p-3 text-left font-medium text-secondary-text">Court</th>
-                <th className="whitespace-nowrap p-3 text-left font-medium text-secondary-text">Date</th>
-                <th className="p-3 text-left font-medium text-secondary-text">Outcome</th>
-                <th className="p-3 text-left font-medium text-secondary-text">Nature</th>
+                <th className="px-2 py-2.5 text-left font-medium text-secondary-text">Title</th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Citation</th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Court</th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Date</th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Outcome</th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Nature</th>
               </tr>
             </thead>
             <tbody ref={tableRef}>
@@ -450,7 +457,7 @@ export function CasesPage() {
                   )}
                   onClick={() => navigate(`/cases/${c.case_id}`)}
                 >
-                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                  <td className="w-10 px-2 py-2" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selected.has(c.case_id)}
@@ -458,21 +465,21 @@ export function CasesPage() {
                       className="rounded"
                     />
                   </td>
-                  <td className="max-w-xs p-3">
-                    <span className="line-clamp-1 font-medium text-foreground" title={c.title || c.citation}>
+                  <td className="max-w-xs px-2 py-2">
+                    <span className="block truncate font-medium text-foreground" title={c.title || c.citation}>
                       {c.title || c.citation}
                     </span>
                     {c.judges && (
                       <span className="block truncate text-xs text-muted-text" title={c.judges}>{c.judges}</span>
                     )}
                   </td>
-                  <td className="max-w-[160px] truncate whitespace-nowrap p-3 text-xs text-muted-text" title={c.citation}>
+                  <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text" title={c.citation}>
                     {c.citation}
                   </td>
-                  <td className="p-3"><CourtBadge court={c.court_code} /></td>
-                  <td className="whitespace-nowrap p-3 text-sm text-muted-text">{c.date}</td>
-                  <td className="max-w-[130px] p-3"><OutcomeBadge outcome={c.outcome} /></td>
-                  <td className="max-w-[130px] p-3"><NatureBadge nature={c.case_nature} /></td>
+                  <td className="whitespace-nowrap px-2 py-2"><CourtBadge court={c.court_code} /></td>
+                  <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text" title={c.date}>{formatDateCompact(c.date)}</td>
+                  <td className="whitespace-nowrap px-2 py-2"><OutcomeBadge outcome={c.outcome} /></td>
+                  <td className="whitespace-nowrap px-2 py-2"><NatureBadge nature={c.case_nature} /></td>
                 </tr>
               ))}
             </tbody>

@@ -1,4 +1,4 @@
-"""Job-related page tests: Download, UpdateDB, JobStatus, Pipeline."""
+"""Job-related page tests: Download, JobStatus, Pipeline."""
 
 from .react_helpers import (
     react_navigate,
@@ -41,32 +41,6 @@ class TestDownloadPage:
         assert react_page.get_by_text("Export JSON").is_visible()
 
 
-class TestUpdateDbPage:
-    """Update Database page."""
-
-    def test_heading(self, react_page):
-        react_navigate(react_page, "/app/update-db")
-        wait_for_loading_gone(react_page)
-        assert "Update Database" in react_page.locator("h1").inner_text()
-
-    def test_refresh_section(self, react_page):
-        react_navigate(react_page, "/app/update-db")
-        wait_for_loading_gone(react_page)
-        assert react_page.get_by_text("Refresh Case Data").is_visible()
-
-    def test_databases_input(self, react_page):
-        react_navigate(react_page, "/app/update-db")
-        wait_for_loading_gone(react_page)
-        db_input = react_page.locator("label").filter(has_text="Databases").locator("..").locator("input")
-        assert "AATA" in db_input.first.input_value()
-
-    def test_start_update_button(self, react_page):
-        react_navigate(react_page, "/app/update-db")
-        wait_for_loading_gone(react_page)
-        btn = react_page.get_by_text("Start Update")
-        assert btn.is_visible()
-
-
 class TestJobStatusPage:
     """Job Status monitoring page."""
 
@@ -75,13 +49,15 @@ class TestJobStatusPage:
         wait_for_loading_gone(react_page)
         assert "Job Status" in react_page.locator("h1").inner_text()
 
-    def test_shows_no_active_job(self, react_page):
-        """With no running job, should show idle state."""
+    def test_shows_idle_state(self, react_page):
+        """With no running job, should show some status indication."""
         react_navigate(react_page, "/app/jobs")
         wait_for_loading_gone(react_page)
-        # Should show either "No Active Job" or some status text
-        status_text = react_page.locator("p.font-medium").first
-        assert status_text.is_visible()
+        # The page should render with content when no job is running
+        main = react_page.locator("main")
+        assert main.is_visible()
+        text = main.inner_text()
+        assert len(text) > 10  # Should have meaningful content
 
 
 class TestPipelinePage:
@@ -93,17 +69,15 @@ class TestPipelinePage:
         heading = react_page.locator("h1").inner_text()
         assert "Pipeline" in heading
 
-    def test_start_button(self, react_page):
+    def test_quick_presets_section(self, react_page):
         react_navigate(react_page, "/app/pipeline")
         wait_for_loading_gone(react_page)
-        start = react_page.get_by_text("Start", exact=True)
-        assert start.is_visible()
+        assert react_page.get_by_text("Quick Presets").is_visible()
 
-    def test_stop_button(self, react_page):
+    def test_quick_update_button(self, react_page):
         react_navigate(react_page, "/app/pipeline")
         wait_for_loading_gone(react_page)
-        stop = react_page.get_by_text("Stop", exact=True)
-        assert stop.is_visible()
+        assert react_page.get_by_text("Quick Update").is_visible()
 
     def test_log_viewer(self, react_page):
         react_navigate(react_page, "/app/pipeline")

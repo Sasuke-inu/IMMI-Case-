@@ -13,9 +13,7 @@ REACT_ROUTES = {
     "cases": "/app/cases",
     "case_add": "/app/cases/add",
     "case_compare": "/app/cases/compare",
-    "search": "/app/search",
     "download": "/app/download",
-    "update_db": "/app/update-db",
     "jobs": "/app/jobs",
     "pipeline": "/app/pipeline",
     "data_dictionary": "/app/data-dictionary",
@@ -27,9 +25,7 @@ SMOKE_PAGES = [
     ("dashboard", "/app/"),
     ("cases", "/app/cases"),
     ("cases_add", "/app/cases/add"),
-    ("search", "/app/search"),
     ("download", "/app/download"),
-    ("update_db", "/app/update-db"),
     ("jobs", "/app/jobs"),
     ("pipeline", "/app/pipeline"),
     ("data_dictionary", "/app/data-dictionary"),
@@ -53,10 +49,8 @@ API_ENDPOINTS = [
 SIDEBAR_NAV_ITEMS = [
     ("Dashboard", "/app/"),
     ("Cases", "/app/cases"),
-    ("Search", "/app/search"),
-    ("Download", "/app/download"),
-    ("Update DB", "/app/update-db"),
-    ("Pipeline", "/app/pipeline"),
+    ("Scrape AustLII", "/app/download"),
+    ("Smart Pipeline", "/app/pipeline"),
     ("Data Dictionary", "/app/data-dictionary"),
     ("Design Tokens", "/app/design-tokens"),
 ]
@@ -68,7 +62,6 @@ SIDEBAR_NAV_ITEMS = [
 KEYBOARD_SHORTCUTS = {
     "d": "/app/",
     "c": "/app/cases",
-    "s": "/app/search",
     "p": "/app/pipeline",
 }
 

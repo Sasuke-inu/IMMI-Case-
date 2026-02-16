@@ -21,9 +21,10 @@ export function ProgressRing({
   const radius = (size - strokeWidth) / 2
   const circumference = radius * 2 * Math.PI
   const offset = circumference - (percentage / 100) * circumference
+  const isCompact = size < 100
 
   return (
-    <div className={cn("flex flex-col items-center gap-2", className)}>
+    <div className={cn("relative inline-flex items-center justify-center", className)} style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
         <circle
           cx={size / 2}
@@ -46,9 +47,9 @@ export function ProgressRing({
           className="transition-all duration-500"
         />
       </svg>
-      <div className="absolute flex flex-col items-center" style={{ marginTop: size * 0.3 }}>
-        <span className="text-2xl font-bold text-foreground">{percentage}%</span>
-        {label && <span className="text-xs text-muted-text">{label}</span>}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={cn("font-bold text-foreground", isCompact ? "text-lg" : "text-2xl")}>{percentage}%</span>
+        {label && <span className={cn("text-muted-text", isCompact ? "text-[10px] leading-tight" : "text-xs")}>{label}</span>}
       </div>
     </div>
   )

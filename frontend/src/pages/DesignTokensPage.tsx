@@ -61,19 +61,44 @@ function SubHeading({ children }: { children: React.ReactNode }) {
    ═══════════════════════════════════════════════════════════════ */
 
 function ThemePresetSwitcher() {
-  const { preset, setPreset } = useThemePreset()
+  const { preset, isDark, setPreset, toggleDark } = useThemePreset()
 
   return (
     <section>
       <SectionHeading id="theme">Theme Presets</SectionHeading>
       <p className="mb-4 text-sm text-muted-text">
-        Click a preset to change the site-wide colour theme. Persists across
-        page refreshes.
+        Click a preset to change the site-wide colour theme. Toggle dark mode
+        with the switch. Persists across page refreshes.
       </p>
+
+      {/* Dark mode toggle */}
+      <div className="mb-4 flex items-center gap-3">
+        <button
+          onClick={toggleDark}
+          className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+            isDark ? "bg-accent" : "bg-border"
+          }`}
+          role="switch"
+          aria-checked={isDark}
+          aria-label="Toggle dark mode"
+        >
+          <span
+            className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+              isDark ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+        <span className="text-sm font-medium text-foreground">
+          {isDark ? "Dark Mode" : "Light Mode"}
+        </span>
+      </div>
+
+      {/* Preset cards */}
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {(Object.entries(PRESETS) as [PresetName, (typeof PRESETS)[PresetName]][]).map(
           ([name, p]) => {
             const active = preset === name
+            const dots = isDark ? p.darkColors : p.colors
             return (
               <button
                 key={name}
@@ -90,7 +115,7 @@ function ThemePresetSwitcher() {
                   </div>
                 )}
                 <div className="flex gap-1">
-                  {p.colors.map((c, i) => (
+                  {dots.map((c, i) => (
                     <div
                       key={i}
                       className="h-6 w-6 rounded-full border border-black/10"

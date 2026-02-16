@@ -105,12 +105,14 @@ class TestMobileDrawer:
 
 
 class TestBackNavigation:
-    """Back button navigation in detail/edit pages."""
+    """Breadcrumb navigation in detail/add/edit pages (no Back button)."""
 
-    def test_back_button_from_add(self, react_page):
-        react_navigate(react_page, "/app/cases")
-        wait_for_loading_gone(react_page)
+    def test_breadcrumb_from_add(self, react_page):
+        """CaseAddPage shows a Breadcrumb with a 'Cases' link to go back."""
         react_navigate(react_page, "/app/cases/add")
         wait_for_loading_gone(react_page)
-        back_btn = react_page.locator("main").get_by_text("Back")
-        assert back_btn.is_visible()
+        breadcrumb = react_page.locator("main nav").filter(has_text="Cases")
+        assert breadcrumb.is_visible()
+        # "Cases" in the breadcrumb should be a link
+        cases_link = breadcrumb.get_by_text("Cases")
+        assert cases_link.is_visible()

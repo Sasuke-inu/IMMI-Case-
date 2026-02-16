@@ -2,7 +2,7 @@
 
 A Python tool to download, extract, browse, and manage Australian immigration, home affairs, and refugee-related court and tribunal appeal cases from the last 10 years.
 
-Includes a **web interface** for searching, browsing, editing, and exporting cases.
+Includes a **React SPA** (with Vite + TypeScript + Tailwind) and a **Flask API** for searching, browsing, editing, and exporting cases.
 
 ## Data Sources
 
@@ -16,9 +16,8 @@ Includes a **web interface** for searching, browsing, editing, and exporting cas
 | High Court of Australia | HCA | 2000– | Immigration appeals |
 | Refugee Review Tribunal | RRTA | –2015 | Refugee decisions (merged into AATA) |
 | Migration Review Tribunal | MRTA | –2015 | Migration decisions (merged into AATA) |
-| Federal Court Judgment Search | fedcourt | — | search2.fedcourt.gov.au |
 
-Cases are sourced from [AustLII](https://www.austlii.edu.au) (Australasian Legal Information Institute) and the Federal Court judgment search.
+Cases are sourced from [AustLII](https://www.austlii.edu.au) (Australasian Legal Information Institute).
 
 > **Note**: The AAT was abolished in October 2024 and replaced by the Administrative Review Tribunal (ART). For cases from 2025 onwards, use the **ARTA** database code.
 
@@ -26,6 +25,9 @@ Cases are sourced from [AustLII](https://www.austlii.edu.au) (Australasian Legal
 
 ```bash
 pip install -r requirements.txt
+
+# For React frontend development
+cd frontend && npm install
 ```
 
 ## Web Interface
@@ -33,28 +35,33 @@ pip install -r requirements.txt
 Start the web interface:
 
 ```bash
-python web.py                    # http://localhost:5000
-python web.py --port 8080        # Custom port
-python web.py --debug            # Debug mode
+python web.py --port 8080        # http://localhost:8080/app/
+python web.py --debug             # Debug mode
+```
+
+The React SPA is served at `/app/` and the API at `/api/v1/*`. Legacy Jinja2 templates remain accessible at the original routes (`/`, `/cases`, etc.).
+
+### React Frontend Development
+
+```bash
+cd frontend
+npm run dev                       # Vite dev server with HMR
+npm run build                     # Production build → static/react/
+npm run tokens                    # Rebuild design tokens (CSS + TS)
 ```
 
 ### Web Interface Features
 
 | Page | What you can do |
 |------|-----------------|
-| **Dashboard** | View stats: total cases, cases by court/year, visa types, quick actions |
-| **Browse Cases** | Filter by court, year, visa type, source, keyword, tags. Sort and paginate |
-| **Case Detail** | View all metadata, full case text, notes, tags. Link to source |
-| **Edit Case** | Update any field: metadata, notes, tags, corrections |
-| **Add Case** | Manually enter a case not found in online sources |
-| **Delete Case** | Remove cases from your collection |
-| **Search New** | Launch background searches across AustLII / Federal Court |
-| **Download Texts** | Batch download full case texts with progress tracking |
-| **Smart Pipeline** | 3-phase auto-fallback workflow: crawl → clean → download |
-| **Update DB** | Add new databases or update existing ones |
-| **Job Status** | Monitor running search/download jobs with live progress |
-| **Export** | Download all data as CSV or JSON |
-| **Data Dictionary** | Reference guide for all spreadsheet columns |
+| **Dashboard** | View stats: total cases, cases by court/year, top outcomes, quick actions |
+| **Cases** | Filter by court, year, visa type, nature, keyword, tags. Table & card views. Batch operations |
+| **Case Detail** | View metadata, catchwords, full text, related cases. Edit/delete actions |
+| **Case Compare** | Side-by-side comparison of 2–5 selected cases |
+| **Scrape AustLII** | Batch download full case texts with progress tracking |
+| **Smart Pipeline** | 3-phase automated workflow: crawl → clean → download |
+| **Data Dictionary** | Reference guide for all 22 data fields |
+| **Design Tokens** | Live design token reference with theme presets |
 
 ## CLI Usage
 
@@ -107,7 +114,7 @@ downloaded_cases/
 
 ## Spreadsheet Data Points (CSV/JSON columns)
 
-There are **20 data fields** per case, populated in stages:
+There are **22 data fields** per case, populated in stages:
 
 ### Stage 1: Search (auto-populated from listing pages)
 
@@ -131,6 +138,8 @@ There are **20 data fields** per case, populated in stages:
 | `catchwords` | Text | Legal topics/keywords | `MIGRATION - Protection visa...` |
 | `outcome` | Text | Decision result | `Tribunal affirms the decision` |
 | `visa_type` | Text | Visa type involved | `protection visa`, `Subclass 500` |
+| `visa_subclass` | Text | Visa subclass number | `500`, `801`, `189` |
+| `visa_class_code` | Text | Visa class code | `XB`, `BW`, `VC` |
 | `legislation` | Text | Acts/sections cited | `Migration Act 1958 s 36` |
 | `text_snippet` | Text | Brief excerpt | (first ~300 chars) |
 | `full_text_path` | Path | Local .txt file path | `downloaded_cases/case_texts/...` |
@@ -144,19 +153,9 @@ There are **20 data fields** per case, populated in stages:
 | `user_notes` | Text | Your personal notes/analysis | `Key case for s501 character test` |
 | `tags` | Text | Comma-separated labels | `important, character-test, s501` |
 
-## Expanding & Updating Records
-
-The tool is designed to grow your collection over time:
-
-- **Run search again** to find newly published cases (deduplicates automatically)
-- **Edit any field** via the web interface (Browse > click case > Edit)
-- **Add cases manually** via web interface (Add Case page)
-- **Tag and annotate** cases with your own notes and labels
-- **Export updated data** anytime as CSV or JSON
-
 ## Smart Pipeline
 
-The Smart Pipeline provides a 3-phase automated workflow accessible from both the web UI and CLI:
+The Smart Pipeline provides a 3-phase automated workflow accessible from the web UI:
 
 1. **Crawl** — Scrape case metadata from AustLII with auto-fallback strategies (year listing → viewdb → keyword search)
 2. **Clean** — Deduplicate, fill missing fields (year from citation, court codes), validate data
@@ -178,27 +177,15 @@ python extract_llm_fields.py    # Process cases in batches via Claude Sonnet
 python merge_llm_results.py     # Merge batch JSON results back into main CSV
 ```
 
-## Module Usage
+## Tech Stack
 
-```python
-from immi_case_downloader.sources import AustLIIScraper, FederalCourtScraper
-from immi_case_downloader.storage import save_cases_csv, save_cases_json
-
-# Search AustLII
-scraper = AustLIIScraper(delay=1.0)
-cases = scraper.search_cases(
-    databases=["AATA", "ARTA", "FCA"],
-    start_year=2020,
-    end_year=2026,
-)
-
-# Save results
-save_cases_csv(cases)
-save_cases_json(cases)
-
-# Download full text of a specific case
-text = scraper.download_case_detail(cases[0])
-```
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Python 3, Flask, pandas, BeautifulSoup/lxml |
+| **Frontend** | React 18, TypeScript, Vite 6, Tailwind CSS v4, TanStack Query, Recharts, Sonner |
+| **Storage** | CSV/JSON (default), SQLite (FTS5+WAL), Supabase (PostgreSQL) |
+| **Testing** | pytest (296 unit tests), Playwright (181 E2E tests) |
+| **LLM** | Claude Sonnet (field extraction), 10 parallel sub-agents |
 
 ## Rate Limiting & User-Agent
 

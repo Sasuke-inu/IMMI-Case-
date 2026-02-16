@@ -39,4 +39,4 @@ class TestExportJSON:
         # API returns {exported_at, total_cases, cases: [...]}
         assert isinstance(data, dict)
         assert "cases" in data
-        assert len(data["cases"]) == 10  # seed data
+        assert len(data["cases"]) >= 10  # seed data (may grow from CRUD tests)
