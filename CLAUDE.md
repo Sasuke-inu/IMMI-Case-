@@ -110,15 +110,25 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 
 ## Data Sources
 
-| Code | Source | URL Pattern |
-|------|--------|-------------|
-| AATA, ARTA, FCA, FCCA, FedCFamC2G, HCA, RRTA, MRTA | AustLII | `austlii.edu.au/au/cases/cth/{code}/{year}/` |
-| fedcourt | Federal Court | `search2.fedcourt.gov.au/s/search.html` |
+| Code | Source | URL Pattern | Years |
+|------|--------|-------------|-------|
+| AATA | AustLII | `austlii.edu.au/au/cases/cth/AATA/{year}/` | 2000-2024 |
+| ARTA | AustLII | `austlii.edu.au/au/cases/cth/ARTA/{year}/` | 2024+ |
+| FCA | AustLII | `austlii.edu.au/au/cases/cth/FCA/{year}/` | 2000+ |
+| FMCA | AustLII | `austlii.edu.au/au/cases/cth/FMCA/{year}/` | 2000-2013 |
+| FCCA | AustLII | `austlii.edu.au/au/cases/cth/FCCA/{year}/` | 2013-2021 |
+| FedCFamC2G | AustLII | `austlii.edu.au/au/cases/cth/FedCFamC2G/{year}/` | 2021+ |
+| HCA | AustLII | `austlii.edu.au/au/cases/cth/HCA/{year}/` | 2000+ |
+| RRTA | AustLII | `austlii.edu.au/au/cases/cth/RRTA/{year}/` | 2000-2015 |
+| MRTA | AustLII | `austlii.edu.au/au/cases/cth/MRTA/{year}/` | 2000-2015 |
+| fedcourt | Federal Court | `search2.fedcourt.gov.au/s/search.html` | (DNS broken) |
 
-- **AATA ended Oct 2024**: replaced by ART (Administrative Review Tribunal), database code ARTA
-- **ARTA**: ART decisions from Oct 2024 onwards; same URL/title format as AATA
+### Court Lineage
+
+- **Lower court**: FMCA (2000-2013) → FCCA (2013-2021) → FedCFamC2G (2021+)
+- **Tribunal**: RRTA + MRTA (pre-2015) → AATA (2015-2024) → ARTA (2024+)
 - **AATA 2025-2026**: direct listing returns 500; use ARTA for 2025+
-- **FCCA ended 2021**: replaced by FedCFamC2G (Federal Circuit and Family Court restructure)
+- **RRTA/MRTA/ARTA**: `IMMIGRATION_ONLY_DBS` — all cases are immigration-related, keyword filter skipped
 
 ## Gotchas
 
@@ -126,7 +136,7 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 - **`config.py START_YEAR`** — dynamic (`CURRENT_YEAR - 10`); use `--start-year` flag to override
 - **pandas NaN** — empty CSV fields become `float('nan')`; always use `ImmigrationCase.from_dict()`
 - **Federal Court DNS** — `search2.fedcourt.gov.au` doesn't resolve; all FCA data via AustLII
-- **RRTA/MRTA** — return 0 results (pre-2015 tribunals merged into AATA)
+- **RRTA/MRTA** — case titles use anonymized IDs (e.g. `N00/12345`), not keywords; `IMMIGRATION_ONLY_DBS` skips filter
 - **Port 5000** — conflicts with macOS AirPlay; use `--port 8080`
 - **AustLII 410 blocking** — rejects default `python-requests` User-Agent with HTTP 410; `BaseScraper` uses browser-like UA
 - **AustLII rate limiting** — bulk scraping triggers IP block; typically resolves in hours
@@ -134,6 +144,8 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 ## Important Notes
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
+- **149,023 case records** (2000-2026): ~62,500 with full text, ~86,500 metadata only (full text pending)
+- 9 courts/tribunals: MRTA 52,970 | AATA 39,203 | FCA 14,987 | RRTA 13,765 | FCCA 11,157 | FMCA 10,395 | FedCFamC2G 4,109 | ARTA 2,260 | HCA 176
 - Rate limiting enforced at `BaseScraper` level; respect default 1-second delay
 - Test suite: 477 tests (296 unit + 181 Playwright E2E) — run `python3 -m pytest`
 - CSRF protection via flask-wtf; `/api/v1/csrf-token` endpoint for React SPA
