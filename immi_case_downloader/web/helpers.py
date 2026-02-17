@@ -15,6 +15,8 @@ EDITABLE_FIELDS = [
     "judges", "catchwords", "outcome", "visa_type", "legislation",
     "user_notes", "tags", "case_nature", "legal_concepts",
     "visa_subclass", "visa_class_code",
+    "applicant_name", "respondent", "country_of_origin",
+    "visa_subclass_number", "hearing_date", "is_represented", "representative",
 ]
 
 

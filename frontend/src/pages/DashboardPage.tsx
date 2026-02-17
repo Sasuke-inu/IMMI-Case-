@@ -93,11 +93,11 @@ export function DashboardPage() {
       </div>
 
       {/* Charts with toggle */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Court distribution */}
         <div className="rounded-lg border border-border bg-card p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-heading text-lg font-semibold">Cases by Court</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-heading text-base font-semibold">Cases by Court</h2>
             <div className="flex gap-1">
               <button
                 onClick={() => setCourtView("chart")}
@@ -133,8 +133,8 @@ export function DashboardPage() {
 
         {/* Year distribution */}
         <div className="rounded-lg border border-border bg-card p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-heading text-lg font-semibold">Cases by Year</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-heading text-base font-semibold">Cases by Year</h2>
             <div className="flex gap-1">
               <button
                 onClick={() => setYearView("chart")}
@@ -172,7 +172,7 @@ export function DashboardPage() {
       {/* Outcomes summary */}
       {topOutcomes.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-3 font-heading text-lg font-semibold">Top Outcomes</h2>
+          <h2 className="mb-2 font-heading text-base font-semibold">Top Outcomes</h2>
           <div className="flex flex-wrap gap-2">
             {topOutcomes.map(([outcome, count]) => (
               <Link
@@ -226,7 +226,7 @@ export function DashboardPage() {
       {/* Recent cases */}
       {stats.recent_cases && stats.recent_cases.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-4 font-heading text-lg font-semibold">Recent Cases</h2>
+          <h2 className="mb-3 font-heading text-base font-semibold">Recent Cases</h2>
           <div className="space-y-1">
             {stats.recent_cases.slice(0, 5).map((c) => (
               <button

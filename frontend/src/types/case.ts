@@ -21,6 +21,13 @@ export interface ImmigrationCase {
   legal_concepts: string
   visa_subclass: string
   visa_class_code: string
+  applicant_name: string
+  respondent: string
+  country_of_origin: string
+  visa_subclass_number: string
+  hearing_date: string
+  is_represented: string
+  representative: string
 }
 
 export interface CaseFilters {

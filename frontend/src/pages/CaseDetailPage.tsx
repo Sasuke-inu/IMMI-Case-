@@ -68,7 +68,7 @@ export function CaseDetailPage() {
   const fullText = data.full_text
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Breadcrumb + actions */}
       <div className="flex items-center justify-between">
         <Breadcrumb
@@ -104,8 +104,8 @@ export function CaseDetailPage() {
       </div>
 
       {/* Hero */}
-      <div className="rounded-lg border border-border bg-card p-6">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
           <CourtBadge court={c.court_code} />
           <OutcomeBadge outcome={c.outcome} />
           <NatureBadge nature={c.case_nature} />
@@ -127,68 +127,46 @@ export function CaseDetailPage() {
         )}
       </div>
 
-      {/* Metadata grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left: Case Details (2 cols) */}
-        <div className="rounded-lg border border-border bg-card p-6 lg:col-span-2">
-          <h2 className="mb-4 font-heading text-lg font-semibold">Case Details</h2>
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <MetaField label="Case ID" value={c.case_id} mono />
-            <MetaField label="Citation" value={c.citation} />
-            <MetaField label="Court" value={c.court} />
-            <MetaField label="Court Code" value={c.court_code} />
-            <MetaField label="Date" value={c.date} />
-            <MetaField label="Year" value={c.year ? String(c.year) : ""} />
-            <MetaField label="Judges" value={c.judges} />
-            <MetaField label="Source" value={c.source} />
-          </dl>
-        </div>
-
-        {/* Right column */}
-        <div className="space-y-6">
-          {/* Outcome box */}
-          {c.outcome && (
-            <div className="rounded-lg border border-border bg-card p-6">
-              <h2 className="mb-2 font-heading text-base font-semibold">Outcome</h2>
-              <OutcomeBadge outcome={c.outcome} />
-              <p className="mt-2 text-sm text-foreground">{c.outcome}</p>
-            </div>
-          )}
-
-          {/* Visa Info */}
-          {(c.visa_type || c.visa_subclass || c.visa_class_code) && (
-            <div className="rounded-lg border border-border bg-card p-6">
-              <h2 className="mb-3 font-heading text-base font-semibold">Visa Information</h2>
-              <dl className="space-y-2">
-                <MetaField label="Visa Type" value={c.visa_type} />
-                <MetaField label="Visa Subclass" value={c.visa_subclass} mono />
-                <MetaField label="Class Code" value={c.visa_class_code} mono />
-              </dl>
-            </div>
-          )}
-
-          {/* Legislation */}
-          {c.legislation && (
-            <div className="rounded-lg border border-border bg-card p-6">
-              <h2 className="mb-2 font-heading text-base font-semibold">Legislation</h2>
-              <p className="text-sm text-foreground">{c.legislation}</p>
-            </div>
-          )}
-        </div>
+      {/* Case Information — consolidated single card */}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h2 className="mb-3 font-heading text-base font-semibold text-foreground">Case Information</h2>
+        <dl className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <MetaField label="Case ID" value={c.case_id} mono />
+          <MetaField label="Citation" value={c.citation} />
+          <MetaField label="Date" value={c.date} />
+          <MetaField label="Court" value={c.court} />
+          <MetaField label="Court Code" value={c.court_code} />
+          <MetaField label="Year" value={c.year ? String(c.year) : ""} />
+          <MetaField label="Judges" value={c.judges} />
+          <MetaField label="Source" value={c.source} />
+          <MetaField label="Outcome" value={c.outcome} />
+          <MetaField label="Case Nature" value={c.case_nature} />
+          <MetaField label="Applicant" value={c.applicant_name} />
+          <MetaField label="Respondent" value={c.respondent} />
+          <MetaField label="Country of Origin" value={c.country_of_origin} />
+          <MetaField label="Visa Type" value={c.visa_type} />
+          <MetaField label="Visa Subclass" value={c.visa_subclass} mono />
+          <MetaField label="Subclass No." value={c.visa_subclass_number} mono />
+          <MetaField label="Class Code" value={c.visa_class_code} mono />
+          <MetaField label="Hearing Date" value={c.hearing_date} />
+          <MetaField label="Represented" value={c.is_represented} />
+          <MetaField label="Representative" value={c.representative} />
+          <MetaField label="Legislation" value={c.legislation} />
+        </dl>
       </div>
 
       {/* Catchwords */}
       {c.catchwords && (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-2 font-heading text-lg font-semibold">Catchwords</h2>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-2 font-heading text-base font-semibold">Catchwords</h2>
           <p className="text-sm leading-relaxed text-secondary-text">{c.catchwords}</p>
         </div>
       )}
 
       {/* Legal Concepts */}
       {c.legal_concepts && (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-3 font-heading text-lg font-semibold">Legal Concepts</h2>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-2 font-heading text-base font-semibold">Legal Concepts</h2>
           <div className="flex flex-wrap gap-1.5">
             {c.legal_concepts.split(";").map((concept) => {
               const trimmed = concept.trim()
@@ -209,11 +187,11 @@ export function CaseDetailPage() {
 
       {/* Notes & Tags */}
       {(c.tags || c.user_notes) && (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-3 font-heading text-lg font-semibold">Notes & Tags</h2>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-2 font-heading text-base font-semibold">Notes & Tags</h2>
           {c.tags && (
             <div className="mb-3">
-              <dt className="mb-1 text-xs font-medium text-muted-text">Tags</dt>
+              <dt className="mb-1 text-xs font-medium text-secondary-text">Tags</dt>
               <div className="flex flex-wrap gap-1.5">
                 {c.tags.split(",").map((tag) => {
                   const trimmed = tag.trim()
@@ -233,7 +211,7 @@ export function CaseDetailPage() {
           )}
           {c.user_notes && (
             <div>
-              <dt className="mb-1 text-xs font-medium text-muted-text">Notes</dt>
+              <dt className="mb-1 text-xs font-medium text-secondary-text">Notes</dt>
               <p className="whitespace-pre-wrap text-sm text-foreground">{c.user_notes}</p>
             </div>
           )}
@@ -242,14 +220,14 @@ export function CaseDetailPage() {
 
       {/* Related cases */}
       {related && related.cases.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 font-heading text-lg font-semibold">Related Cases</h2>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-3 font-heading text-base font-semibold">Related Cases</h2>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {related.cases.map((r) => (
               <Link
                 key={r.case_id}
                 to={`/cases/${r.case_id}`}
-                className="flex items-center gap-3 rounded-md border border-border-light px-3 py-2.5 text-sm transition-colors hover:border-accent hover:bg-surface"
+                className="flex items-center gap-3 rounded-md border border-border-light px-3 py-2 text-sm transition-colors hover:border-accent hover:bg-surface"
               >
                 <CourtBadge court={r.court_code} />
                 <div className="min-w-0 flex-1">
@@ -286,9 +264,9 @@ export function CaseDetailPage() {
 function MetaField({ label, value, mono }: { label: string; value?: string | number; mono?: boolean }) {
   if (!value) return null
   return (
-    <div>
-      <dt className="text-xs font-medium text-muted-text">{label}</dt>
-      <dd className={cn("mt-0.5 text-sm text-foreground", mono && "font-mono")}>{value}</dd>
+    <div className="min-w-0">
+      <dt className="text-xs font-medium text-secondary-text">{label}</dt>
+      <dd className={cn("mt-0.5 break-words text-sm text-foreground", mono && "font-mono text-xs")}>{value}</dd>
     </div>
   )
 }

@@ -801,6 +801,13 @@ const MOCK_CASE: ImmigrationCase = {
   legal_concepts: "Character test, visa cancellation",
   visa_subclass: "500",
   visa_class_code: "TU",
+  applicant_name: "Singh",
+  respondent: "Minister for Immigration",
+  country_of_origin: "India",
+  visa_subclass_number: "500",
+  hearing_date: "12 March 2025",
+  is_represented: "Yes",
+  representative: "Smith & Associates",
 }
 
 function ButtonGallery() {

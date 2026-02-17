@@ -45,6 +45,9 @@ htmlcov/
 # Supabase CLI temp
 supabase/.temp/
 
+# Scripts secrets
+scripts/.env
+
 # Misc artifacts
 dashboard.png
 =1.0.0

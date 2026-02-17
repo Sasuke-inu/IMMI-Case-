@@ -67,7 +67,7 @@ export function CaseComparePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Breadcrumb
         items={[
           { label: "Cases", href: "/cases" },
@@ -79,7 +79,7 @@ export function CaseComparePage() {
         <table className="min-w-max text-sm">
           <thead>
             <tr className="border-b border-border bg-surface">
-              <th className="sticky left-0 z-10 bg-surface p-3 text-left font-medium text-muted-text">Field</th>
+              <th className="sticky left-0 z-10 bg-surface p-3 text-left font-medium text-secondary-text">Field</th>
               {cases.map((c) => (
                 <th key={c.case_id} className="min-w-[200px] max-w-[250px] p-3 text-left">
                   <div className="flex items-center gap-2">
@@ -109,7 +109,7 @@ export function CaseComparePage() {
                     isDiffering && "bg-warning/5"
                   )}
                 >
-                  <td className="sticky left-0 z-10 bg-card p-3 font-medium text-muted-text whitespace-nowrap">
+                  <td className="sticky left-0 z-10 bg-card p-3 font-medium text-secondary-text whitespace-nowrap">
                     {label}
                     {isDiffering && <span className="ml-1 text-[10px] text-warning">differs</span>}
                   </td>

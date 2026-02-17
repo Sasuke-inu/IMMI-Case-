@@ -54,8 +54,8 @@ export function CaseAddPage() {
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left: Main fields */}
-          <div className="rounded-lg border border-border bg-card p-6 lg:col-span-2">
-            <h2 className="mb-4 font-heading text-lg font-semibold">New Case</h2>
+          <div className="rounded-lg border border-border bg-card p-5 lg:col-span-2">
+            <h2 className="mb-3 font-heading text-base font-semibold">New Case</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Title *" value={form.title} onChange={(v) => updateField("title", v)} />
               <Field label="Citation" value={form.citation} onChange={(v) => updateField("citation", v)} placeholder="[2024] FCA 123" />
@@ -76,16 +76,16 @@ export function CaseAddPage() {
 
           {/* Right: Annotations */}
           <div className="space-y-6">
-            <div className="rounded-lg border border-border bg-card p-6">
-              <h2 className="mb-4 font-heading text-lg font-semibold">Annotations</h2>
+            <div className="rounded-lg border border-border bg-card p-5">
+              <h2 className="mb-3 font-heading text-base font-semibold">Annotations</h2>
               <Field label="Tags" value={form.tags} onChange={(v) => updateField("tags", v)} placeholder="Comma-separated" />
               <div className="mt-4">
-                <label className="mb-1 block text-xs font-medium text-muted-text">Notes</label>
+                <label className="mb-1 block text-xs font-medium text-secondary-text">Notes</label>
                 <textarea
                   value={form.user_notes ?? ""}
                   onChange={(e) => updateField("user_notes", e.target.value)}
                   rows={6}
-                  className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
             </div>
@@ -120,7 +120,7 @@ function Field({
 }) {
   return (
     <div className={span2 ? "sm:col-span-2" : ""}>
-      <label className="mb-1 block text-xs font-medium text-muted-text">
+      <label className="mb-1 block text-xs font-medium text-secondary-text">
         {label}
       </label>
       <input
@@ -128,7 +128,7 @@ function Field({
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
       />
     </div>
   )
@@ -141,11 +141,11 @@ function SelectField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-muted-text">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-secondary-text">{label}</label>
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
       >
         {options.map((o) => (
           <option key={o} value={o}>{o || `Select ${label}...`}</option>

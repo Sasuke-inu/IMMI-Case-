@@ -30,6 +30,8 @@ export function CaseEditPage() {
         "outcome", "visa_type", "visa_subclass", "visa_class_code",
         "case_nature", "legislation", "legal_concepts", "catchwords",
         "url", "source", "tags", "user_notes",
+        "applicant_name", "respondent", "country_of_origin",
+        "visa_subclass_number", "hearing_date", "is_represented", "representative",
       ] as const
       const initial: Record<string, string> = {}
       for (const f of fields) {
@@ -94,8 +96,8 @@ export function CaseEditPage() {
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left: Main fields (2 cols) */}
-          <div className="rounded-lg border border-border bg-card p-6 lg:col-span-2">
-            <h2 className="mb-4 font-heading text-lg font-semibold">Case Metadata</h2>
+          <div className="rounded-lg border border-border bg-card p-5 lg:col-span-2">
+            <h2 className="mb-3 font-heading text-base font-semibold">Case Metadata</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Title *" value={form.title} onChange={(v) => updateField("title", v)} />
               <Field label="Citation" value={form.citation} onChange={(v) => updateField("citation", v)} />
@@ -115,12 +117,22 @@ export function CaseEditPage() {
               <Field label="Source" value={form.source} onChange={(v) => updateField("source", v)} />
               <TextareaField label="Catchwords" value={form.catchwords} onChange={(v) => updateField("catchwords", v)} rows={3} />
             </div>
+            <h2 className="mb-3 mt-5 font-heading text-base font-semibold">Parties & Representation</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Applicant Name" value={form.applicant_name} onChange={(v) => updateField("applicant_name", v)} />
+              <Field label="Respondent" value={form.respondent} onChange={(v) => updateField("respondent", v)} />
+              <Field label="Country of Origin" value={form.country_of_origin} onChange={(v) => updateField("country_of_origin", v)} />
+              <Field label="Visa Subclass Number" value={form.visa_subclass_number} onChange={(v) => updateField("visa_subclass_number", v)} />
+              <Field label="Hearing Date" value={form.hearing_date} onChange={(v) => updateField("hearing_date", v)} placeholder="DD Month YYYY" />
+              <SelectField label="Represented" value={form.is_represented} options={["", "Yes", "No", "Self-represented"]} onChange={(v) => updateField("is_represented", v)} />
+              <Field label="Representative" value={form.representative} onChange={(v) => updateField("representative", v)} span2 />
+            </div>
           </div>
 
           {/* Right: Annotations */}
           <div className="space-y-6">
-            <div className="rounded-lg border border-border bg-card p-6">
-              <h2 className="mb-4 font-heading text-lg font-semibold">Annotations</h2>
+            <div className="rounded-lg border border-border bg-card p-5">
+              <h2 className="mb-3 font-heading text-base font-semibold">Annotations</h2>
               <Field label="Tags" value={form.tags} onChange={(v) => updateField("tags", v)} placeholder="Comma-separated" />
               <div className="mt-4">
                 <TextareaField label="Notes" value={form.user_notes} onChange={(v) => updateField("user_notes", v)} rows={8} />
@@ -158,13 +170,13 @@ function Field({
 }) {
   return (
     <div className={span2 ? "sm:col-span-2" : ""}>
-      <label className="mb-1 block text-xs font-medium text-muted-text">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-secondary-text">{label}</label>
       <input
         type={type}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
       />
     </div>
   )
@@ -177,11 +189,11 @@ function SelectField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-muted-text">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-secondary-text">{label}</label>
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
       >
         {options.map((o) => (
           <option key={o} value={o}>{o || `Select ${label}...`}</option>
@@ -198,12 +210,12 @@ function TextareaField({
 }) {
   return (
     <div className="sm:col-span-2">
-      <label className="mb-1 block text-xs font-medium text-muted-text">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-secondary-text">{label}</label>
       <textarea
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
-        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
       />
     </div>
   )

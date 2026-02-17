@@ -56,7 +56,7 @@ export function DownloadPage() {
 
       {/* Progress ring + form */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="flex items-center justify-center rounded-lg border border-border bg-card p-8">
+        <div className="flex items-center justify-center rounded-lg border border-border bg-card p-6">
           <div className="relative">
             <ProgressRing
               value={downloaded}
@@ -68,7 +68,7 @@ export function DownloadPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-6">
+        <div className="rounded-lg border border-border bg-card p-5">
           {isComplete ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <CheckCircle className="mb-4 h-12 w-12 text-success" />
@@ -93,10 +93,10 @@ export function DownloadPage() {
             </div>
           ) : (
             <>
-              <h2 className="mb-4 font-heading text-lg font-semibold">Download Settings</h2>
+              <h2 className="mb-3 font-heading text-base font-semibold">Download Settings</h2>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-text">Court Filter</label>
+                  <label className="mb-1 block text-xs font-medium text-secondary-text">Court Filter</label>
                   <select
                     value={courtFilter}
                     onChange={(e) => setCourtFilter(e.target.value)}
@@ -111,7 +111,7 @@ export function DownloadPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-text">Batch Size</label>
+                  <label className="mb-1 block text-xs font-medium text-secondary-text">Batch Size</label>
                   <select
                     value={batchSize}
                     onChange={(e) => setBatchSize(e.target.value)}
@@ -155,8 +155,8 @@ export function DownloadPage() {
       </div>
 
       {/* Export data */}
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="mb-3 font-heading text-lg font-semibold">Export Data</h2>
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h2 className="mb-2 font-heading text-base font-semibold">Export Data</h2>
         <p className="mb-4 text-sm text-muted-text">Download all case data as CSV or JSON.</p>
         <div className="flex gap-3">
           <button

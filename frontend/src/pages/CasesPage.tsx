@@ -35,7 +35,10 @@ function formatDateCompact(date: string): string {
 export function CasesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [viewMode, setViewMode] = useState<"table" | "cards">("table")
+  const [viewMode, setViewMode] = useState<"table" | "cards">(() => {
+    const stored = localStorage.getItem("cases-view-mode")
+    return stored === "cards" ? "cards" : "table"
+  })
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [focusedIdx, setFocusedIdx] = useState(-1)
@@ -197,7 +200,7 @@ export function CasesPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setViewMode("table")}
+            onClick={() => { setViewMode("table"); localStorage.setItem("cases-view-mode", "table") }}
             className={cn(
               "rounded-md p-1.5",
               viewMode === "table" ? "bg-accent-muted text-accent" : "text-muted-text hover:text-foreground"
@@ -206,7 +209,7 @@ export function CasesPage() {
             <List className="h-4 w-4" />
           </button>
           <button
-            onClick={() => setViewMode("cards")}
+            onClick={() => { setViewMode("cards"); localStorage.setItem("cases-view-mode", "cards") }}
             className={cn(
               "rounded-md p-1.5",
               viewMode === "cards" ? "bg-accent-muted text-accent" : "text-muted-text hover:text-foreground"
@@ -442,6 +445,7 @@ export function CasesPage() {
                 <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Citation</th>
                 <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Court</th>
                 <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Date</th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Country</th>
                 <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Outcome</th>
                 <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Nature</th>
               </tr>
@@ -469,8 +473,10 @@ export function CasesPage() {
                     <span className="block truncate font-medium text-foreground" title={c.title || c.citation}>
                       {c.title || c.citation}
                     </span>
-                    {c.judges && (
-                      <span className="block truncate text-xs text-muted-text" title={c.judges}>{c.judges}</span>
+                    {(c.applicant_name || c.judges) && (
+                      <span className="block truncate text-xs text-muted-text" title={c.applicant_name || c.judges}>
+                        {c.applicant_name ? `Applicant: ${c.applicant_name}` : c.judges}
+                      </span>
                     )}
                   </td>
                   <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text" title={c.citation}>
@@ -478,6 +484,7 @@ export function CasesPage() {
                   </td>
                   <td className="whitespace-nowrap px-2 py-2"><CourtBadge court={c.court_code} /></td>
                   <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text" title={c.date}>{formatDateCompact(c.date)}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text">{c.country_of_origin || ""}</td>
                   <td className="whitespace-nowrap px-2 py-2"><OutcomeBadge outcome={c.outcome} /></td>
                   <td className="whitespace-nowrap px-2 py-2"><NatureBadge nature={c.case_nature} /></td>
                 </tr>

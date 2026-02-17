@@ -145,8 +145,8 @@ export function PipelinePage() {
       </div>
 
       {/* Quick Presets */}
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="mb-4 font-heading text-lg font-semibold">Quick Presets</h2>
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h2 className="mb-3 font-heading text-base font-semibold">Quick Presets</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           <button
             onClick={() => startPreset("quick")}
@@ -194,9 +194,9 @@ export function PipelinePage() {
       <div className="rounded-lg border border-border bg-card">
         <button
           onClick={() => setShowCustom(!showCustom)}
-          className="flex w-full items-center justify-between p-6"
+          className="flex w-full items-center justify-between p-5"
         >
-          <h2 className="font-heading text-lg font-semibold">Custom Pipeline</h2>
+          <h2 className="font-heading text-base font-semibold">Custom Pipeline</h2>
           {showCustom ? (
             <ChevronUp className="h-5 w-5 text-muted-text" />
           ) : (
@@ -204,11 +204,11 @@ export function PipelinePage() {
           )}
         </button>
         {showCustom && (
-          <div className="border-t border-border p-6 pt-4">
+          <div className="border-t border-border p-5 pt-4">
             {/* Database selection */}
             <div className="mb-4">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-text">
+                <span className="text-xs font-medium text-secondary-text">
                   Databases ({selectedDbs.size} selected)
                 </span>
                 <div className="flex gap-2">
@@ -244,7 +244,7 @@ export function PipelinePage() {
             {/* Parameters */}
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-muted-text">Start Year</label>
+                <label className="mb-1 block text-xs font-medium text-secondary-text">Start Year</label>
                 <input
                   type="number"
                   min={2000}
@@ -255,7 +255,7 @@ export function PipelinePage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-muted-text">End Year</label>
+                <label className="mb-1 block text-xs font-medium text-secondary-text">End Year</label>
                 <input
                   type="number"
                   min={2000}
@@ -266,7 +266,7 @@ export function PipelinePage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-muted-text">Request Delay (s)</label>
+                <label className="mb-1 block text-xs font-medium text-secondary-text">Request Delay (s)</label>
                 <select
                   value={delay}
                   onChange={(e) => setDelay(e.target.value)}
@@ -305,11 +305,11 @@ export function PipelinePage() {
 
       {/* Live Monitor */}
       {running && (
-        <div className="rounded-lg border border-accent/30 bg-card p-6">
-          <div className="mb-4 flex items-center justify-between">
+        <div className="rounded-lg border border-accent/30 bg-card p-5">
+          <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin text-accent" />
-              <h2 className="font-heading text-lg font-semibold">Live Monitor</h2>
+              <h2 className="font-heading text-base font-semibold">Live Monitor</h2>
             </div>
             <span className="rounded-full bg-accent-muted px-3 py-0.5 text-xs font-medium text-accent">
               {phase ?? "Initializing"}
@@ -446,8 +446,8 @@ export function PipelinePage() {
 
       {/* Pipeline Phases Info */}
       {!running && (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 font-heading text-lg font-semibold">How the Pipeline Works</h2>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-3 font-heading text-base font-semibold">How the Pipeline Works</h2>
           <div className="grid gap-3 sm:grid-cols-3">
             {PHASES.map((p, i) => {
               const Icon = p.icon

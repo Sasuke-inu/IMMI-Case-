@@ -31,6 +31,13 @@ class ImmigrationCase:
     legal_concepts: str = ""
     visa_subclass: str = ""
     visa_class_code: str = ""
+    applicant_name: str = ""
+    respondent: str = ""
+    country_of_origin: str = ""
+    visa_subclass_number: str = ""
+    hearing_date: str = ""
+    is_represented: str = ""
+    representative: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)

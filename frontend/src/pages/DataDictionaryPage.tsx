@@ -65,7 +65,7 @@ export function DataDictionaryPage() {
   const fieldMap = new Map(fields.map((f) => [f.name, f]))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center gap-3">
         <BookOpen className="h-6 w-6 text-accent" />
         <div>
@@ -107,7 +107,7 @@ export function DataDictionaryPage() {
           <div key={group.label} className="rounded-lg border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border p-4">
               <Icon className="h-5 w-5 text-accent" />
-              <h2 className="font-heading text-lg font-semibold">{group.label}</h2>
+              <h2 className="font-heading text-base font-semibold">{group.label}</h2>
               <span className="ml-auto rounded-full bg-surface px-2 py-0.5 text-xs text-muted-text">
                 {groupFields.length} fields
               </span>
@@ -116,10 +116,10 @@ export function DataDictionaryPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-surface">
-                    <th className="p-3 text-left font-medium text-muted-text">Field</th>
-                    <th className="p-3 text-left font-medium text-muted-text">Type</th>
-                    <th className="p-3 text-left font-medium text-muted-text">Description</th>
-                    <th className="p-3 text-left font-medium text-muted-text">Example</th>
+                    <th className="p-3 text-left font-medium text-secondary-text">Field</th>
+                    <th className="p-3 text-left font-medium text-secondary-text">Type</th>
+                    <th className="p-3 text-left font-medium text-secondary-text">Description</th>
+                    <th className="p-3 text-left font-medium text-secondary-text">Example</th>
                   </tr>
                 </thead>
                 <tbody>
