@@ -63,6 +63,11 @@ AUSTLII_DATABASES = {
         "path": "/au/cases/cth/HCA/",
         "description": "High Court immigration appeals",
     },
+    "FMCA": {
+        "name": "Federal Magistrates Court of Australia",
+        "path": "/au/cases/cth/FMCA/",
+        "description": "Federal Magistrates Court immigration cases (2000-2013, predecessor to FCCA)",
+    },
     "RRTA": {
         "name": "Refugee Review Tribunal",
         "path": "/au/cases/cth/RRTA/",

@@ -109,6 +109,9 @@ class AustLIIScraper(BaseScraper):
 
         return cases[:max_results]
 
+    # Databases where ALL cases are immigration-related (no keyword filter needed)
+    IMMIGRATION_ONLY_DBS = {"RRTA", "MRTA", "ARTA"}
+
     def _browse_year(
         self,
         db_code: str,
@@ -121,6 +124,7 @@ class AustLIIScraper(BaseScraper):
         AustLII year listings are at /au/cases/cth/{DB}/{year}/ and case links
         use /cgi-bin/viewdoc/au/cases/cth/{DB}/{year}/{num}.html format.
         AATA cases conveniently include '(Migration)' or '(Refugee)' in titles.
+        RRTA/MRTA/ARTA are dedicated immigration tribunals — all cases included.
         """
         # Try the year listing page directly
         url = f"{AUSTLII_BASE}/au/cases/cth/{db_code}/{year}/"
@@ -134,6 +138,7 @@ class AustLIIScraper(BaseScraper):
 
         soup = BeautifulSoup(response.text, "lxml")
         cases = []
+        skip_filter = db_code in self.IMMIGRATION_ONLY_DBS
 
         # Find case links in the listing page
         # AustLII uses /cgi-bin/viewdoc/au/cases/cth/{DB}/{year}/{num}.html
@@ -147,31 +152,32 @@ class AustLIIScraper(BaseScraper):
             if not re.search(r"/\d+\.html", href):
                 continue
 
-            # Check if the title/text suggests an immigration case
-            full_text = text.lower()
-            # Check surrounding context too
-            parent = link.parent
-            if parent:
-                full_text += " " + parent.get_text(strip=True).lower()
+            # For dedicated immigration tribunals, skip keyword filtering
+            if not skip_filter:
+                full_text = text.lower()
+                parent = link.parent
+                if parent:
+                    full_text += " " + parent.get_text(strip=True).lower()
+                if not self._is_immigration_case(full_text, keywords):
+                    continue
 
-            if self._is_immigration_case(full_text, keywords):
-                case_url = urljoin(AUSTLII_BASE, href)
-                case = ImmigrationCase(
-                    title=text,
-                    court=db_info["name"],
-                    court_code=db_code,
-                    year=year,
-                    url=case_url,
-                    source="AustLII",
-                )
-                # Try to extract citation from text
-                citation_match = re.search(
-                    rf"\[{year}\]\s+{db_code}\s+\d+", text
-                )
-                if citation_match:
-                    case.citation = citation_match.group(0)
+            case_url = urljoin(AUSTLII_BASE, href)
+            case = ImmigrationCase(
+                title=text,
+                court=db_info["name"],
+                court_code=db_code,
+                year=year,
+                url=case_url,
+                source="AustLII",
+            )
+            # Try to extract citation from text
+            citation_match = re.search(
+                rf"\[{year}\]\s+{db_code}\s+\d+", text
+            )
+            if citation_match:
+                case.citation = citation_match.group(0)
 
-                cases.append(case)
+            cases.append(case)
 
         return cases
 
@@ -372,7 +378,7 @@ class AustLIIScraper(BaseScraper):
         # Extract citation if not already set
         if not case.citation:
             citation_match = re.search(
-                r"\[\d{4}\]\s+(?:AATA|ARTA|FCA|FCCA|HCA|FedCFamC2G|RRTA|MRTA)\s+\d+",
+                r"\[\d{4}\]\s+(?:AATA|ARTA|FCA|FCCA|FMCA|HCA|FedCFamC2G|RRTA|MRTA)\s+\d+",
                 text,
             )
             if citation_match:
