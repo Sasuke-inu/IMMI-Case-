@@ -82,7 +82,7 @@ immi_case_downloader/
 
 frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v4)
   src/
-    pages/            → 11 pages (Dashboard, Cases CRUD, Compare, Download, Pipeline, etc.)
+    pages/            → 12 pages (Dashboard, Analytics, Cases CRUD, Compare, Download, Pipeline, etc.)
     components/       → Shared (Breadcrumb, CourtBadge, ConfirmModal, etc.) + layout
     hooks/            → TanStack Query hooks (use-cases, use-stats, use-theme, use-keyboard)
     lib/api.ts        → CSRF-aware fetch wrapper for all API calls
@@ -141,13 +141,22 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 - **AustLII 410 blocking** — rejects default `python-requests` User-Agent with HTTP 410; `BaseScraper` uses browser-like UA
 - **AustLII rate limiting** — bulk scraping triggers IP block; typically resolves in hours
 
+## React Frontend Gotchas
+
+- **Recharts dark mode tooltips** — ALL Tooltip `contentStyle` must include `color: "var(--color-text)"` or text is invisible on dark backgrounds
+- **TanStack Query navigation flash** — use `keepPreviousData` in all filter-dependent hooks to prevent empty state flash during rapid page switching
+- **Theme system** — `use-theme-preset.ts` (current), NOT `use-theme.ts` (legacy). localStorage keys: `theme-preset`, `theme-dark`, `theme-custom-vars`
+- **Dashboard empty state** — shows "Welcome to IMMI-Case" when `stats.total_cases === 0 && !isFetching`; guard with `isFetching` to avoid false empty state
+- **E2E tests must match UI** — after renaming Dashboard sections, update test assertions in `tests/e2e/react/test_react_dashboard.py`
+- **Analytics page** — at `/analytics` route, uses 4 API endpoints: `/api/v1/analytics/{outcomes,judges,legal-concepts,nature-outcome}`
+
 ## Important Notes
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
 - **149,023 case records** (2000-2026): ~62,500 with full text, ~86,500 metadata only (full text pending)
 - 9 courts/tribunals: MRTA 52,970 | AATA 39,203 | FCA 14,987 | RRTA 13,765 | FCCA 11,157 | FMCA 10,395 | FedCFamC2G 4,109 | ARTA 2,260 | HCA 176
 - Rate limiting enforced at `BaseScraper` level; respect default 1-second delay
-- Test suite: 477 tests (296 unit + 181 Playwright E2E) — run `python3 -m pytest`
+- Test suite: 527 tests (296 unit + 231 Playwright E2E) — run `python3 -m pytest`
 - CSRF protection via flask-wtf; `/api/v1/csrf-token` endpoint for React SPA
 - Security headers (CSP, X-Frame-Options, etc.) set via `@app.after_request`
 - Default host is `127.0.0.1` (localhost only); use `--host 0.0.0.0` to expose externally
