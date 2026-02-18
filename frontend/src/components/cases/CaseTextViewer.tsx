@@ -9,21 +9,80 @@ import {
   Maximize2,
   Minimize2,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface CaseTextViewerProps {
   text: string
   citation?: string
 }
 
+interface TocSection {
+  id: string
+  title: string
+}
+
 const SECTION_HEADINGS = /^(CATCHWORDS|DECISION|REASONS FOR DECISION|ORDER|ORDERS|THE DECISION|LEGISLATION|REASONS|BACKGROUND|FINDINGS AND REASONS|CONSIDERATION|CONCLUSION|APPEARANCES|REPRESENTATION|THE FACTS|ISSUES|SUBMISSIONS|ANALYSIS|EVIDENCE)/m
+
+// Parse sections from full text
+function parseSections(text: string): TocSection[] {
+  const lines = text.split("\n")
+  const sections: TocSection[] = []
+  const usedIds = new Set<string>()
+  lines.forEach((line) => {
+    const trimmed = line.trim()
+    if (SECTION_HEADINGS.test(trimmed)) {
+      const baseId = `toc-${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50)}`
+      let id = baseId
+      let counter = 1
+      while (usedIds.has(id)) id = `${baseId}-${++counter}`
+      usedIds.add(id)
+      sections.push({ id, title: trimmed })
+    }
+  })
+  return sections
+}
+
+// Format sections with ID attributes for TOC navigation
+function formatSectionsWithIds(text: string): React.ReactNode {
+  const lines = text.split("\n")
+  const usedIds = new Set<string>()
+  return lines.map((line, i) => {
+    const trimmed = line.trim()
+    if (SECTION_HEADINGS.test(trimmed)) {
+      const baseId = `toc-${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50)}`
+      let id = baseId
+      let counter = 1
+      while (usedIds.has(id)) id = `${baseId}-${++counter}`
+      usedIds.add(id)
+      return (
+        <span key={i}>
+          {i > 0 && "\n"}
+          <strong id={id} className="text-sm text-accent">
+            {line}
+          </strong>
+        </span>
+      )
+    }
+    return (
+      <span key={i}>
+        {i > 0 ? "\n" : ""}
+        {line}
+      </span>
+    )
+  })
+}
 
 export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [activeMatchIdx, setActiveMatchIdx] = useState(0)
   const [expanded, setExpanded] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [activeId, setActiveId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Parse sections for TOC
+  const sections = useMemo(() => parseSections(text), [text])
 
   // Find all matches
   const matches = useMemo(() => {
@@ -51,6 +110,25 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
     el?.scrollIntoView({ block: "center", behavior: "smooth" })
   }, [activeMatchIdx, matches.length])
 
+  // Track active section via IntersectionObserver
+  useEffect(() => {
+    if (sections.length === 0) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting)
+        if (visible.length > 0) {
+          setActiveId(visible[0].target.id)
+        }
+      },
+      { root: containerRef.current, rootMargin: "0px 0px -75% 0px", threshold: 0 }
+    )
+    sections.forEach((s) => {
+      const el = document.getElementById(s.id)
+      if (el) observer.observe(el)
+    })
+    return () => observer.disconnect()
+  }, [sections, expanded])
+
   // Ctrl+F intercept
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -75,6 +153,11 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
     },
     [matches.length]
   )
+
+  const scrollToSection = useCallback((id: string) => {
+    const el = document.getElementById(id)
+    el?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }, [])
 
   const handleDownload = useCallback(() => {
     const blob = new Blob([text], { type: "text/plain" })
@@ -127,12 +210,12 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
             {part.text}
           </mark>
         ) : (
-          <span key={i}>{formatSections(part.text)}</span>
+          <span key={i}>{formatSectionsWithIds(part.text)}</span>
         )
       )
     }
 
-    return formatSections(text)
+    return formatSectionsWithIds(text)
   }, [text, searchTerm, matches, activeMatchIdx])
 
   return (
@@ -206,31 +289,48 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
         </div>
       </div>
 
-      {/* Text content */}
-      <div
-        ref={containerRef}
-        className={`overflow-auto whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed text-foreground ${
-          expanded ? "max-h-none" : "max-h-[600px]"
-        }`}
-      >
-        {rendered}
+      {/* Body — TOC + Text side by side */}
+      <div className="flex">
+        {/* TOC Sidebar */}
+        {sections.length > 0 && (
+          <div
+            className={`w-44 flex-shrink-0 border-r border-border overflow-y-auto ${
+              expanded ? "max-h-none" : "max-h-[600px]"
+            }`}
+          >
+            <p className="sticky top-0 bg-card px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-text">
+              Contents
+            </p>
+            <nav className="pb-3">
+              {sections.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => scrollToSection(s.id)}
+                  className={cn(
+                    "w-full border-l-2 px-3 py-1 text-left text-[11px] leading-snug transition-colors",
+                    activeId === s.id
+                      ? "border-accent bg-accent/5 font-medium text-accent"
+                      : "border-transparent text-secondary-text hover:bg-surface hover:text-foreground"
+                  )}
+                >
+                  {s.title}
+                </button>
+              ))}
+            </nav>
+          </div>
+        )}
+
+        {/* Text Content */}
+        <div
+          ref={containerRef}
+          className={`flex-1 overflow-auto whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed text-foreground ${
+            expanded ? "max-h-none" : "max-h-[600px]"
+          }`}
+        >
+          {rendered}
+        </div>
       </div>
     </div>
   )
 }
 
-function formatSections(text: string): React.ReactNode {
-  const lines = text.split("\n")
-  return lines.map((line, i) => {
-    const isHeading = SECTION_HEADINGS.test(line.trim())
-    if (isHeading) {
-      return (
-        <span key={i}>
-          {i > 0 && "\n"}
-          <strong className="text-sm text-accent">{line}</strong>
-        </span>
-      )
-    }
-    return <span key={i}>{i > 0 ? "\n" : ""}{line}</span>
-  })
-}
