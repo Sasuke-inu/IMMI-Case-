@@ -649,16 +649,27 @@ def analytics_judges():
     judge_counter: Counter = Counter()
     judge_courts: dict[str, set[str]] = defaultdict(set)
 
+    # Common false positives from regex-extracted judges field
+    _judge_blocklist = frozenset({
+        "date", "the", "and", "court", "tribunal", "member", "judge",
+        "justice", "honour", "federal", "migration", "review",
+        "applicant", "respondent", "minister", "decision",
+    })
+
     for c in cases:
         if not c.judges:
             continue
         # Split multi-judge entries (separated by ; or ,)
         for judge in re.split(r"[;,]", c.judges):
             name = judge.strip()
-            if name and len(name) > 2:
-                judge_counter[name] += 1
-                if c.court_code:
-                    judge_courts[name].add(c.court_code)
+            if not name or len(name) < 3:
+                continue
+            # Skip common false positives and numeric-only strings
+            if name.lower() in _judge_blocklist or name.isdigit():
+                continue
+            judge_counter[name] += 1
+            if c.court_code:
+                judge_courts[name].add(c.court_code)
 
     judges = [
         {"name": name, "count": count, "courts": sorted(judge_courts.get(name, set()))}
