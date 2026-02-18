@@ -298,9 +298,20 @@ def get_case_full_text(case: ImmigrationCase, base_dir: str = OUTPUT_DIR) -> str
     if not case.full_text_path:
         return None
 
-    # Resolve to absolute path and validate it's within the output directory
-    resolved = os.path.realpath(case.full_text_path)
-    allowed_dir = os.path.realpath(base_dir)
+    # Anchor relative paths to the project root (not CWD) so the function
+    # works regardless of where the server process was started from.
+    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    path = case.full_text_path
+    if not os.path.isabs(path):
+        path = os.path.join(_project_root, path)
+
+    abs_base = base_dir
+    if not os.path.isabs(abs_base):
+        abs_base = os.path.join(_project_root, abs_base)
+
+    resolved = os.path.realpath(path)
+    allowed_dir = os.path.realpath(abs_base)
     if not resolved.startswith(allowed_dir + os.sep) and resolved != allowed_dir:
         logger.warning("Path traversal attempt blocked: %s", case.full_text_path)
         return None
