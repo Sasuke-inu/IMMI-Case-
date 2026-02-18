@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 export type PresetName =
+  | "claude"
   | "parchment"
   | "ocean"
   | "forest"
@@ -21,6 +22,49 @@ interface ThemePreset {
 }
 
 export const PRESETS: Record<PresetName, ThemePreset> = {
+  claude: {
+    label: "Claude",
+    colors: ["#3d3929", "#da7756", "#eeece2", "#b0aea5"],
+    darkColors: ["#141413", "#e08a6d", "#1e1e1c", "#3a3a35"],
+    vars: {
+      "--color-primary": "#3d3929",
+      "--color-primary-light": "#564f3a",
+      "--color-primary-lighter": "#6b6651",
+      "--color-accent": "#da7756",
+      "--color-accent-light": "#e08a6d",
+      "--color-accent-muted": "rgba(218,119,86,0.12)",
+      "--color-background": "#eeece2",
+      "--color-background-card": "#faf9f5",
+      "--color-background-sidebar": "#f4f3ee",
+      "--color-background-surface": "#e8e6dc",
+      "--color-border": "#d5d3c8",
+      "--color-border-light": "#e0ded5",
+      "--color-text": "#3d3929",
+      "--color-text-secondary": "#6b6651",
+      "--color-text-muted": "#9c9784",
+      "--font-body":
+        "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
+    },
+    darkVars: {
+      "--color-primary": "#e8e4d8",
+      "--color-primary-light": "#c4c0b0",
+      "--color-primary-lighter": "#9c9784",
+      "--color-accent": "#e08a6d",
+      "--color-accent-light": "#eba28a",
+      "--color-accent-muted": "rgba(224,138,109,0.15)",
+      "--color-background": "#141413",
+      "--color-background-card": "#1e1e1c",
+      "--color-background-sidebar": "#191918",
+      "--color-background-surface": "#2a2a27",
+      "--color-border": "#3a3a35",
+      "--color-border-light": "#45453f",
+      "--color-text": "#e8e5da",
+      "--color-text-secondary": "#a09d90",
+      "--color-text-muted": "#706d62",
+      "--font-body":
+        "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
+    },
+  },
   parchment: {
     label: "Parchment",
     colors: ["#1b2838", "#5c4306", "#f5f4f1", "#6e7177"],
@@ -422,7 +466,7 @@ function applyTheme(
 /* ── Stored state readers ─────────────────────────────────────── */
 
 function readStoredPreset(): PresetName {
-  if (typeof window === "undefined") return "parchment";
+  if (typeof window === "undefined") return "claude";
   const stored = localStorage.getItem(PRESET_KEY);
   return stored && stored in PRESETS ? (stored as PresetName) : "parchment";
 }
@@ -512,7 +556,7 @@ export function useThemePreset() {
   }, []);
 
   const resetPreset = useCallback(() => {
-    setState({ preset: "parchment", isDark: false, customVars: {} });
+    setState({ preset: "claude", isDark: false, customVars: {} });
   }, []);
 
   const setCustomVar = useCallback((name: string, value: string) => {
