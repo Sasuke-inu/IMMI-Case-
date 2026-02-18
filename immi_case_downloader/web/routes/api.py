@@ -305,6 +305,7 @@ def _judge_profile_payload(
 
 _all_cases_cache: list[ImmigrationCase] = []
 _all_cases_ts: float = 0.0
+_all_cases_lock = threading.Lock()
 _CACHE_TTL = 60.0
 
 
@@ -314,10 +315,14 @@ def _get_all_cases() -> list[ImmigrationCase]:
     now = time.time()
     if _all_cases_cache and (now - _all_cases_ts) < _CACHE_TTL:
         return _all_cases_cache
-    repo = get_repo()
-    _all_cases_cache = repo.load_all()
-    _all_cases_ts = now
-    return _all_cases_cache
+    with _all_cases_lock:
+        # Double-check after acquiring lock (another thread may have refreshed)
+        if _all_cases_cache and (time.time() - _all_cases_ts) < _CACHE_TTL:
+            return _all_cases_cache
+        repo = get_repo()
+        _all_cases_cache = repo.load_all()
+        _all_cases_ts = time.time()
+        return _all_cases_cache
 
 
 def _apply_filters(cases: list[ImmigrationCase]) -> list[ImmigrationCase]:
@@ -896,24 +901,8 @@ def analytics_judges():
     judge_counter: Counter = Counter()
     judge_courts: dict[str, set[str]] = defaultdict(set)
 
-    # Common false positives from regex-extracted judges field
-    _judge_blocklist = frozenset({
-        "date", "the", "and", "court", "tribunal", "member", "judge",
-        "justice", "honour", "federal", "migration", "review",
-        "applicant", "respondent", "minister", "decision",
-    })
-
     for c in cases:
-        if not c.judges:
-            continue
-        # Split multi-judge entries (separated by ; or ,)
-        for judge in re.split(r"[;,]", c.judges):
-            name = judge.strip()
-            if not name or len(name) < 3:
-                continue
-            # Skip common false positives and numeric-only strings
-            if name.lower() in _judge_blocklist or name.isdigit():
-                continue
+        for name in _split_judges(c.judges):
             judge_counter[name] += 1
             if c.court_code:
                 judge_courts[name].add(c.court_code)
@@ -1130,26 +1119,31 @@ def analytics_judge_leaderboard():
 
     judge_cases: dict[str, list[ImmigrationCase]] = defaultdict(list)
     judge_court_counts: dict[str, Counter] = defaultdict(Counter)
+    judge_display_name: dict[str, str] = {}  # lowered → first-seen original name
     for case in cases:
         for name in _split_judges(case.judges):
-            judge_cases[name].append(case)
+            key = name.lower()
+            if key not in judge_display_name:
+                judge_display_name[key] = name
+            judge_cases[key].append(case)
             if case.court_code:
-                judge_court_counts[name][case.court_code] += 1
+                judge_court_counts[key][case.court_code] += 1
 
     rows = []
-    for name, jc in judge_cases.items():
-        profile = _judge_profile_payload(name, jc, include_recent_cases=False)
+    for key, jc in judge_cases.items():
+        display_name = judge_display_name[key]
+        profile = _judge_profile_payload(display_name, jc, include_recent_cases=False)
         top_visa_subclasses = [
             {"subclass": item["subclass"], "count": item["total"]}
             for item in profile["visa_breakdown"][:3]
         ]
         primary_court = None
-        if judge_court_counts[name]:
-            primary_court = judge_court_counts[name].most_common(1)[0][0]
+        if judge_court_counts[key]:
+            primary_court = judge_court_counts[key].most_common(1)[0][0]
 
         rows.append(
             {
-                "name": name,
+                "name": display_name,
                 "total_cases": profile["judge"]["total_cases"],
                 "approval_rate": profile["approval_rate"],
                 "courts": profile["judge"]["courts"],
@@ -1340,13 +1334,25 @@ def analytics_concept_trends():
     limit = safe_int(request.args.get("limit"), default=10, min_val=1, max_val=30)
     cases = _apply_filters(_get_all_cases())
 
+    # Single-pass: collect frequency + per-concept year totals/wins
     concept_frequency: Counter = Counter()
+    concept_year_totals: dict[str, Counter] = defaultdict(Counter)
+    concept_year_wins: dict[str, Counter] = defaultdict(Counter)
+    all_years_set: set[int] = set()
+
     for case in cases:
-        for concept in set(_split_concepts(case.legal_concepts)):
+        concepts = set(_split_concepts(case.legal_concepts))
+        won = _is_win(_normalise_outcome(case.outcome), case.court_code) if concepts else False
+        for concept in concepts:
             concept_frequency[concept] += 1
+            if case.year:
+                all_years_set.add(case.year)
+                concept_year_totals[concept][case.year] += 1
+                if won:
+                    concept_year_wins[concept][case.year] += 1
 
     tracked = [name for name, _ in concept_frequency.most_common(limit)]
-    all_years = sorted({c.year for c in cases if c.year})
+    all_years = sorted(all_years_set)
 
     series = {}
     emerging = []
@@ -1356,18 +1362,8 @@ def analytics_concept_trends():
     previous_years = {latest_year - 2, latest_year - 3}
 
     for concept in tracked:
-        year_totals: Counter = Counter()
-        year_wins: Counter = Counter()
-
-        for case in cases:
-            if not case.year:
-                continue
-            case_concepts = set(_split_concepts(case.legal_concepts))
-            if concept not in case_concepts:
-                continue
-            year_totals[case.year] += 1
-            if _is_win(_normalise_outcome(case.outcome), case.court_code):
-                year_wins[case.year] += 1
+        year_totals = concept_year_totals[concept]
+        year_wins = concept_year_wins[concept]
 
         concept_points = [
             {
