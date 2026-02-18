@@ -1,10 +1,19 @@
 import { useQuery } from "@tanstack/react-query"
-import { fetchStats } from "@/lib/api"
+import { fetchStats, fetchTrends } from "@/lib/api"
+import type { AnalyticsFilterParams } from "@/types/case"
 
-export function useStats() {
+export function useStats(filters?: AnalyticsFilterParams) {
   return useQuery({
-    queryKey: ["stats"],
-    queryFn: fetchStats,
+    queryKey: ["stats", filters?.court, filters?.yearFrom, filters?.yearTo],
+    queryFn: () => fetchStats(filters),
     staleTime: 30_000,
+  })
+}
+
+export function useTrends(filters?: AnalyticsFilterParams) {
+  return useQuery({
+    queryKey: ["trends", filters?.court, filters?.yearFrom, filters?.yearTo],
+    queryFn: () => fetchTrends(filters),
+    staleTime: 60_000,
   })
 }

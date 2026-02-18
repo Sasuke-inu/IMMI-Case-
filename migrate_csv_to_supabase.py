@@ -46,9 +46,23 @@ def main():
         supa_mod.BATCH_SIZE = args.batch_size
 
     t0 = time.time()
-    count = repo.save_many(cases)
+    total = len(cases)
+    batch_sz = args.batch_size
+
+    # Upsert with progress reporting
+    count = 0
+    for i in range(0, total, batch_sz):
+        chunk = cases[i:i + batch_sz]
+        repo.save_many(chunk)
+        count += len(chunk)
+        elapsed = time.time() - t0
+        rate = count / elapsed if elapsed > 0 else 0
+        eta = (total - count) / rate if rate > 0 else 0
+        print(f"  {count:,}/{total:,} ({count * 100 // total}%) "
+              f"| {rate:.0f}/s | ETA: {eta:.0f}s", flush=True)
+
     elapsed = time.time() - t0
-    print(f"  Upserted {count} cases in {elapsed:.1f}s.")
+    print(f"  Upserted {count:,} cases in {elapsed:.1f}s.")
 
     # Restore batch size
     supa_mod.BATCH_SIZE = original_batch

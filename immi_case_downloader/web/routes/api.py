@@ -8,7 +8,9 @@ import io
 import csv
 import re
 import json
+import time
 import threading
+from collections import Counter, defaultdict
 from datetime import datetime
 
 from flask import Blueprint, request, jsonify, send_file
@@ -26,6 +28,64 @@ api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 _HEX_ID = re.compile(r"^[0-9a-f]{12}$")
 MAX_BATCH_SIZE = 200
 MAX_TAG_LENGTH = 50
+
+# ── Outcome normalisation ──────────────────────────────────────────────
+
+_OUTCOME_MAP = {
+    "affirm": "Affirmed",
+    "dismiss": "Dismissed",
+    "remit": "Remitted",
+    "set aside": "Set Aside",
+    "allow": "Allowed",
+    "refus": "Refused",
+    "withdrawn": "Withdrawn",
+    "discontinu": "Withdrawn",
+}
+
+
+def _normalise_outcome(raw: str) -> str:
+    """Map raw outcome text to one of 8 standard categories."""
+    if not raw:
+        return "Other"
+    low = raw.lower().strip()
+    for keyword, label in _OUTCOME_MAP.items():
+        if keyword in low:
+            return label
+    return "Other"
+
+
+# ── Cached load_all with year/court filtering ──────────────────────────
+
+_all_cases_cache: list[ImmigrationCase] = []
+_all_cases_ts: float = 0.0
+_CACHE_TTL = 60.0
+
+
+def _get_all_cases() -> list[ImmigrationCase]:
+    """Return repo.load_all() with 60-second in-memory cache."""
+    global _all_cases_cache, _all_cases_ts
+    now = time.time()
+    if _all_cases_cache and (now - _all_cases_ts) < _CACHE_TTL:
+        return _all_cases_cache
+    repo = get_repo()
+    _all_cases_cache = repo.load_all()
+    _all_cases_ts = now
+    return _all_cases_cache
+
+
+def _apply_filters(cases: list[ImmigrationCase]) -> list[ImmigrationCase]:
+    """Apply ?court=&year_from=&year_to= query params to a case list."""
+    court = request.args.get("court", "").strip()
+    year_from = safe_int(request.args.get("year_from"), default=0, min_val=0, max_val=2100)
+    year_to = safe_int(request.args.get("year_to"), default=0, min_val=0, max_val=2100)
+
+    if court:
+        cases = [c for c in cases if c.court_code == court]
+    if year_from:
+        cases = [c for c in cases if c.year and c.year >= year_from]
+    if year_to:
+        cases = [c for c in cases if c.year and c.year <= year_to]
+    return cases
 
 DATA_DICTIONARY_FIELDS = [
     {"name": "case_id", "type": "string", "description": "SHA-256 hash (first 12 chars) of citation/URL/title", "example": "a1b2c3d4e5f6"},
@@ -72,23 +132,57 @@ def get_csrf_token():
 
 @api_bp.route("/stats")
 def stats():
+    court = request.args.get("court", "").strip()
+    year_from = safe_int(request.args.get("year_from"), default=0, min_val=0, max_val=2100)
+    year_to = safe_int(request.args.get("year_to"), default=0, min_val=0, max_val=2100)
+
+    # Treat full 2000–current_year range as "no filter" to use optimised path
+    is_full_range = (not court
+                     and (not year_from or year_from <= 2000)
+                     and (not year_to or year_to >= END_YEAR))
+
+    # If filters are active, compute stats from filtered load_all
+    if not is_full_range:
+        cases = _apply_filters(_get_all_cases())
+        by_court: dict[str, int] = Counter(c.court_code for c in cases if c.court_code)
+        by_year: dict[int, int] = Counter(c.year for c in cases if c.year)
+        by_nature: dict[str, int] = Counter(c.case_nature for c in cases if c.case_nature)
+        by_visa: dict[str, int] = Counter(c.visa_subclass for c in cases if c.visa_subclass)
+        with_text = sum(1 for c in cases if c.full_text_path)
+        sources: dict[str, int] = Counter(c.source for c in cases if c.source)
+
+        recent_sorted = sorted(
+            [c for c in cases if c.date],
+            key=lambda c: c.date,
+            reverse=True,
+        )[:5]
+        recent = [
+            {
+                "case_id": c.case_id, "title": c.title, "citation": c.citation,
+                "court_code": c.court_code, "date": c.date, "outcome": c.outcome,
+            }
+            for c in recent_sorted
+        ]
+
+        return jsonify({
+            "total_cases": len(cases),
+            "with_full_text": with_text,
+            "courts": dict(by_court),
+            "years": {str(k): v for k, v in sorted(by_year.items())},
+            "natures": dict(by_nature),
+            "visa_subclasses": dict(by_visa),
+            "sources": dict(sources),
+            "recent_cases": recent,
+        })
+
+    # Unfiltered: use repository's optimised get_statistics
     repo = get_repo()
     s = repo.get_statistics()
 
-    # Transform to DashboardStats shape expected by React frontend
-    courts = s.get("by_court", {})
-    sources_list = s.get("sources", [])
-    sources_dict = {src: 0 for src in sources_list}
-    # Count cases per source if available
-    try:
-        all_cases = repo.filter_cases(page=1, page_size=99999)
-        for c in all_cases[0]:
-            if c.source and c.source in sources_dict:
-                sources_dict[c.source] += 1
-    except Exception:
-        sources_dict = {src: 1 for src in sources_list}
+    sources_dict = s.get("by_source", {})
+    if not sources_dict:
+        sources_dict = {src: 0 for src in s.get("sources", [])}
 
-    # Get recent cases (latest 5 by date)
     recent = []
     try:
         recent_cases, _ = repo.filter_cases(sort_by="date", sort_dir="desc", page=1, page_size=5)
@@ -105,12 +199,50 @@ def stats():
     return jsonify({
         "total_cases": s.get("total", 0),
         "with_full_text": s.get("with_full_text", 0),
-        "courts": courts,
+        "courts": s.get("by_court", {}),
         "years": s.get("by_year", {}),
-        "outcomes": s.get("by_nature", {}),
+        "natures": s.get("by_nature", {}),
+        "visa_subclasses": s.get("by_visa_subclass", {}),
         "sources": sources_dict,
         "recent_cases": recent,
     })
+
+
+@api_bp.route("/stats/trends")
+def stats_trends():
+    """Court x year cross-tabulation for trend chart."""
+    court = request.args.get("court", "").strip()
+    year_from = safe_int(request.args.get("year_from"), default=0, min_val=0, max_val=2100)
+    year_to = safe_int(request.args.get("year_to"), default=0, min_val=0, max_val=2100)
+
+    # Treat full 2000–current_year range as "no filter"
+    is_full_range = (not court
+                     and (not year_from or year_from <= 2000)
+                     and (not year_to or year_to >= END_YEAR))
+
+    # Supabase RPC for unfiltered requests
+    if is_full_range:
+        repo = get_repo()
+        if hasattr(repo, "_client"):
+            try:
+                resp = repo._client.rpc("get_court_year_trends").execute()
+                return jsonify({"trends": resp.data or []})
+            except Exception:
+                pass
+
+    all_cases = _apply_filters(_get_all_cases())
+
+    year_court_counts: dict[int, dict[str, int]] = {}
+    for c in all_cases:
+        if c.year and c.court_code:
+            if c.year not in year_court_counts:
+                year_court_counts[c.year] = {}
+            ycc = year_court_counts[c.year]
+            ycc[c.court_code] = ycc.get(c.court_code, 0) + 1
+
+    trends = [{"year": year, **year_court_counts[year]} for year in sorted(year_court_counts.keys())]
+
+    return jsonify({"trends": trends})
 
 
 # ── Cases CRUD ──────────────────────────────────────────────────────────
@@ -479,6 +611,117 @@ def pipeline_action():
         return _error("Failed to start pipeline", 500)
 
     return _error(f"Unknown action: {action}")
+
+
+# ── Analytics ──────────────────────────────────────────────────────────
+
+@api_bp.route("/analytics/outcomes")
+def analytics_outcomes():
+    """Outcome rates by court, year, and visa subclass."""
+    cases = _apply_filters(_get_all_cases())
+
+    by_court: dict[str, dict[str, int]] = defaultdict(Counter)
+    by_year: dict[int, dict[str, int]] = defaultdict(Counter)
+    by_subclass: dict[str, dict[str, int]] = defaultdict(Counter)
+
+    for c in cases:
+        norm = _normalise_outcome(c.outcome)
+        if c.court_code:
+            by_court[c.court_code][norm] += 1
+        if c.year:
+            by_year[c.year][norm] += 1
+        if c.visa_subclass:
+            by_subclass[c.visa_subclass][norm] += 1
+
+    return jsonify({
+        "by_court": {k: dict(v) for k, v in sorted(by_court.items())},
+        "by_year": {str(k): dict(v) for k, v in sorted(by_year.items())},
+        "by_subclass": {k: dict(v) for k, v in sorted(by_subclass.items(), key=lambda x: sum(x[1].values()), reverse=True)},
+    })
+
+
+@api_bp.route("/analytics/judges")
+def analytics_judges():
+    """Top judges/members by case count."""
+    limit = safe_int(request.args.get("limit"), default=20, min_val=1, max_val=100)
+    cases = _apply_filters(_get_all_cases())
+
+    judge_counter: Counter = Counter()
+    judge_courts: dict[str, set[str]] = defaultdict(set)
+
+    for c in cases:
+        if not c.judges:
+            continue
+        # Split multi-judge entries (separated by ; or ,)
+        for judge in re.split(r"[;,]", c.judges):
+            name = judge.strip()
+            if name and len(name) > 2:
+                judge_counter[name] += 1
+                if c.court_code:
+                    judge_courts[name].add(c.court_code)
+
+    judges = [
+        {"name": name, "count": count, "courts": sorted(judge_courts.get(name, set()))}
+        for name, count in judge_counter.most_common(limit)
+    ]
+
+    return jsonify({"judges": judges})
+
+
+@api_bp.route("/analytics/legal-concepts")
+def analytics_legal_concepts():
+    """Top legal concepts by frequency."""
+    limit = safe_int(request.args.get("limit"), default=20, min_val=1, max_val=100)
+    cases = _apply_filters(_get_all_cases())
+
+    concept_counter: Counter = Counter()
+    for c in cases:
+        if not c.legal_concepts:
+            continue
+        for concept in re.split(r"[;,]", c.legal_concepts):
+            term = concept.strip().lower()
+            if term and len(term) > 2:
+                concept_counter[term] += 1
+
+    concepts = [
+        {"name": name, "count": count}
+        for name, count in concept_counter.most_common(limit)
+    ]
+
+    return jsonify({"concepts": concepts})
+
+
+@api_bp.route("/analytics/nature-outcome")
+def analytics_nature_outcome():
+    """Nature x Outcome cross-tabulation matrix."""
+    cases = _apply_filters(_get_all_cases())
+
+    nature_outcome: dict[str, dict[str, int]] = defaultdict(Counter)
+    for c in cases:
+        if not c.case_nature:
+            continue
+        norm = _normalise_outcome(c.outcome)
+        nature_outcome[c.case_nature][norm] += 1
+
+    # Get top natures by total count
+    nature_totals = {n: sum(outcomes.values()) for n, outcomes in nature_outcome.items()}
+    top_natures = sorted(nature_totals, key=nature_totals.get, reverse=True)[:20]
+
+    # Collect all outcome labels
+    all_outcomes = set()
+    for outcomes in nature_outcome.values():
+        all_outcomes.update(outcomes.keys())
+    outcome_labels = sorted(all_outcomes)
+
+    matrix: dict[str, dict[str, int]] = {}
+    for nature in top_natures:
+        matrix[nature] = {o: nature_outcome[nature].get(o, 0) for o in outcome_labels}
+
+    return jsonify({
+        "natures": top_natures,
+        "outcomes": outcome_labels,
+        "matrix": matrix,
+    })
 
 
 # ── Data Dictionary ─────────────────────────────────────────────────────

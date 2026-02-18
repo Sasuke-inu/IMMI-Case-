@@ -13,6 +13,7 @@ import { JobStatusPage } from "@/pages/JobStatusPage"
 import { PipelinePage } from "@/pages/PipelinePage"
 import { DataDictionaryPage } from "@/pages/DataDictionaryPage"
 import { DesignTokensPage } from "@/pages/DesignTokensPage"
+import { AnalyticsPage } from "@/pages/AnalyticsPage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="download" element={<DownloadPage />} />
             <Route path="jobs" element={<JobStatusPage />} />
             <Route path="pipeline" element={<PipelinePage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="data-dictionary" element={<DataDictionaryPage />} />
             <Route path="design-tokens" element={<DesignTokensPage />} />
           </Route>

@@ -70,7 +70,7 @@ class TestMetadataGrid:
 
     def test_metadata_heading(self, react_page):
         _navigate_to_seed_case(react_page)
-        assert react_page.locator("h2").get_by_text("Case Details").is_visible()
+        assert react_page.locator("h2").get_by_text("Case Information").is_visible()
 
     def test_metadata_has_citation(self, react_page):
         _navigate_to_seed_case(react_page)

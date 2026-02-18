@@ -52,12 +52,13 @@ class SupabaseRepository:
 
     def load_all(self) -> list[ImmigrationCase]:
         """Load all cases via paginated requests (PAGE_MAX per call)."""
+        cols = ",".join(self._get_table_columns())
         cases: list[ImmigrationCase] = []
         offset = 0
         while True:
             resp = (
                 self._client.table(TABLE)
-                .select(",".join(CASE_FIELDS))
+                .select(cols)
                 .range(offset, offset + PAGE_MAX - 1)
                 .execute()
             )
@@ -70,9 +71,10 @@ class SupabaseRepository:
         return cases
 
     def get_by_id(self, case_id: str) -> ImmigrationCase | None:
+        cols = ",".join(self._get_table_columns())
         resp = (
             self._client.table(TABLE)
-            .select(",".join(CASE_FIELDS))
+            .select(cols)
             .eq("case_id", case_id)
             .maybe_single()
             .execute()
@@ -80,13 +82,19 @@ class SupabaseRepository:
         return self._row_to_case(resp.data) if resp.data else None
 
     def save_many(self, cases: list[ImmigrationCase]) -> int:
-        """Upsert cases in batches. Returns count of rows processed."""
+        """Upsert cases in batches. Returns count of rows processed.
+
+        Automatically detects which CASE_FIELDS columns exist in the
+        remote table and only sends those, avoiding PGRST204 errors
+        when the schema is missing newly-added columns.
+        """
+        cols = self._get_table_columns()
         count = 0
         batch: list[dict] = []
         for case in cases:
             case.ensure_id()
             d = case.to_dict()
-            row = {col: d.get(col, "") for col in CASE_FIELDS}
+            row = {col: d.get(col, "") for col in cols}
             batch.append(row)
             if len(batch) >= BATCH_SIZE:
                 self._upsert_batch(batch)
@@ -96,6 +104,42 @@ class SupabaseRepository:
             self._upsert_batch(batch)
             count += len(batch)
         return count
+
+    def _get_table_columns(self) -> list[str]:
+        """Return the subset of CASE_FIELDS that exist in the remote table.
+
+        Probes the table with a LIMIT 0 select to discover the schema,
+        then caches the result for the lifetime of this instance.
+        """
+        if hasattr(self, "_cached_columns"):
+            return self._cached_columns
+
+        resp = (
+            self._client.table(TABLE)
+            .select("*")
+            .limit(1)
+            .execute()
+        )
+        if resp.data:
+            remote_cols = set(resp.data[0].keys())
+        else:
+            # Empty table — assume all CASE_FIELDS are present
+            remote_cols = set(CASE_FIELDS)
+
+        cols = [c for c in CASE_FIELDS if c in remote_cols]
+        missing = set(CASE_FIELDS) - remote_cols
+        if missing:
+            logger.warning(
+                "Supabase table missing columns (skipped): %s. "
+                "Add them via Dashboard SQL Editor: %s",
+                missing,
+                "; ".join(
+                    f"ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS {c} TEXT"
+                    for c in sorted(missing)
+                ),
+            )
+        self._cached_columns = cols
+        return cols
 
     def _upsert_batch(self, batch: list[dict]) -> None:
         """Upsert a single batch to Supabase."""
@@ -172,9 +216,8 @@ class SupabaseRepository:
         .text_search() which only has .execute(), so .order()/.range()
         must precede .text_search() in the chain.
         """
-        query = self._client.table(TABLE).select(
-            ",".join(CASE_FIELDS), count="exact"
-        )
+        cols = ",".join(self._get_table_columns())
+        query = self._client.table(TABLE).select(cols, count="exact")
         # Apply non-text filters first (eq, ilike stay on SyncSelectRequestBuilder)
         query = self._apply_filters(
             query, court, year, visa_type, source, tag, nature
@@ -208,9 +251,10 @@ class SupabaseRepository:
             return []
         # .limit() must come BEFORE .text_search() — postgrest-py v2.x
         # returns SyncQueryRequestBuilder from .text_search() which only has .execute().
+        cols = ",".join(self._get_table_columns())
         resp = (
             self._client.table(TABLE)
-            .select(",".join(CASE_FIELDS))
+            .select(cols)
             .limit(limit)
             .text_search("fts", query, options={"type": "plain", "config": "english"})
             .execute()

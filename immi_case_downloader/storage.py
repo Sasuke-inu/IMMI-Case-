@@ -38,6 +38,13 @@ CASE_FIELDS = [
     "visa_class_code",
     "case_nature",
     "legal_concepts",
+    "applicant_name",
+    "respondent",
+    "country_of_origin",
+    "visa_subclass_number",
+    "hearing_date",
+    "is_represented",
+    "representative",
 ]
 
 
@@ -182,7 +189,7 @@ def generate_summary_report(cases: list[ImmigrationCase], base_dir: str = OUTPUT
 
 _cases_cache: dict = {"cases": None, "base_dir": None, "ts": 0.0}
 _cases_cache_lock = threading.Lock()
-_CACHE_TTL = 5.0  # seconds
+_CACHE_TTL = 60.0  # seconds — matched to API-level cache
 
 
 def invalidate_cases_cache():
@@ -310,25 +317,36 @@ def get_statistics(base_dir: str = OUTPUT_DIR) -> dict:
     by_court: dict[str, int] = {}
     by_year: dict[int, int] = {}
     by_nature: dict[str, int] = {}
+    by_visa_subclass: dict[str, int] = {}
+    by_source: dict[str, int] = {}
     visa_types: set[str] = set()
     with_text = 0
 
     for c in cases:
-        by_court[c.court or "Unknown"] = by_court.get(c.court or "Unknown", 0) + 1
+        by_court[c.court_code or "Unknown"] = by_court.get(c.court_code or "Unknown", 0) + 1
         if c.year:
             by_year[c.year] = by_year.get(c.year, 0) + 1
         if c.visa_type:
             visa_types.add(c.visa_type)
         if c.case_nature:
             by_nature[c.case_nature] = by_nature.get(c.case_nature, 0) + 1
-        if c.full_text_path and os.path.exists(c.full_text_path):
+        if c.visa_subclass:
+            by_visa_subclass[c.visa_subclass] = by_visa_subclass.get(c.visa_subclass, 0) + 1
+        src = c.source or "Unknown"
+        by_source[src] = by_source.get(src, 0) + 1
+        if c.full_text_path:
             with_text += 1
+
+    # Sort visa subclasses by count descending, top 20
+    sorted_subclasses = dict(sorted(by_visa_subclass.items(), key=lambda x: x[1], reverse=True)[:20])
 
     return {
         "total": len(cases),
         "by_court": dict(sorted(by_court.items())),
         "by_year": dict(sorted(by_year.items())),
         "by_nature": dict(sorted(by_nature.items(), key=lambda x: x[1], reverse=True)),
+        "by_visa_subclass": sorted_subclasses,
+        "by_source": dict(sorted(by_source.items(), key=lambda x: x[1], reverse=True)),
         "visa_types": sorted(visa_types),
         "with_full_text": with_text,
         "sources": sorted({c.source for c in cases if c.source}),

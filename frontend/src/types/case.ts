@@ -58,8 +58,14 @@ export interface DashboardStats {
   years: Record<string, number>
   with_full_text: number
   sources: Record<string, number>
-  outcomes: Record<string, number>
+  natures: Record<string, number>
+  visa_subclasses: Record<string, number>
   recent_cases: ImmigrationCase[]
+}
+
+export interface TrendEntry {
+  year: number
+  [courtCode: string]: number
 }
 
 export interface FilterOptions {
@@ -80,4 +86,35 @@ export interface JobStatus {
   message?: string
   errors?: string[]
   results?: string[]
+}
+
+// ─── Analytics ──────────────────────────────────────────────────
+
+export interface AnalyticsFilterParams {
+  court?: string
+  yearFrom?: number
+  yearTo?: number
+}
+
+export interface OutcomeData {
+  by_court: Record<string, Record<string, number>>
+  by_year: Record<string, Record<string, number>>
+  by_subclass: Record<string, Record<string, number>>
+}
+
+export interface JudgeEntry {
+  name: string
+  count: number
+  courts: string[]
+}
+
+export interface ConceptEntry {
+  name: string
+  count: number
+}
+
+export interface NatureOutcomeData {
+  natures: string[]
+  outcomes: string[]
+  matrix: Record<string, Record<string, number>>
 }

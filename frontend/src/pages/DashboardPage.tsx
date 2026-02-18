@@ -1,33 +1,48 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import {
   FileText,
   BookOpen,
-  Download,
-  GitBranch,
   Database,
+  Layers,
   BarChart3,
   Table,
-  Briefcase,
+  Download,
+  GitBranch,
 } from "lucide-react"
-import { useStats } from "@/hooks/use-stats"
+import { useStats, useTrends } from "@/hooks/use-stats"
 import { StatCard } from "@/components/dashboard/StatCard"
 import { CourtChart } from "@/components/dashboard/CourtChart"
+import { NatureChart } from "@/components/dashboard/NatureChart"
+import { TrendChart } from "@/components/dashboard/TrendChart"
+import { SubclassChart } from "@/components/dashboard/SubclassChart"
 import { CourtBadge } from "@/components/shared/CourtBadge"
 import { EmptyState } from "@/components/shared/EmptyState"
+import { AnalyticsFilters } from "@/components/shared/AnalyticsFilters"
 import { downloadExportFile } from "@/lib/api"
+import type { AnalyticsFilterParams } from "@/types/case"
+
+const CURRENT_YEAR = new Date().getFullYear()
 
 export function DashboardPage() {
-  const { data: stats, isLoading } = useStats()
+  const [court, setCourt] = useState("")
+  const [yearFrom, setYearFrom] = useState(2000)
+  const [yearTo, setYearTo] = useState(CURRENT_YEAR)
+
+  const filters: AnalyticsFilterParams = useMemo(
+    () => ({ court: court || undefined, yearFrom, yearTo }),
+    [court, yearFrom, yearTo]
+  )
+
+  const { data: stats, isLoading } = useStats(filters)
+  const { data: trendsData } = useTrends(filters)
   const navigate = useNavigate()
   const [courtView, setCourtView] = useState<"chart" | "table">("chart")
-  const [yearView, setYearView] = useState<"chart" | "table">("chart")
 
   if (isLoading || !stats) {
     return <div className="flex h-64 items-center justify-center text-muted-text">Loading dashboard...</div>
   }
 
-  // Empty state
   if (stats.total_cases === 0) {
     return (
       <div className="space-y-6">
@@ -58,41 +73,54 @@ export function DashboardPage() {
     )
   }
 
-  const quickActions = [
-    { label: "Download", icon: Download, to: "/download" },
-    { label: "Pipeline", icon: GitBranch, to: "/pipeline" },
-  ]
-
-  const sortedYears = Object.entries(stats.years).sort(([a], [b]) => Number(b) - Number(a))
   const sortedCourts = Object.entries(stats.courts).sort(([, a], [, b]) => b - a)
-
-  // Top visa types from outcomes
-  const topOutcomes = Object.entries(stats.outcomes)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 8)
+  const natureCount = Object.keys(stats.natures || {}).length
+  const trends = trendsData?.trends ?? []
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-text">Australian Immigration Case Database Overview</p>
+      {/* Header + Filters */}
+      <div className="space-y-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-text">Australian Immigration Case Database Overview</p>
+        </div>
+        <AnalyticsFilters
+          court={court}
+          yearFrom={yearFrom}
+          yearTo={yearTo}
+          onCourtChange={setCourt}
+          onYearRangeChange={(from, to) => { setYearFrom(from); setYearTo(to) }}
+        />
       </div>
 
-      {/* Stat cards */}
+      {/* Row 1: 4 Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Cases" value={stats.total_cases} icon={<FileText className="h-5 w-5" />} />
+        <StatCard
+          title="Total Cases"
+          value={stats.total_cases}
+          icon={<FileText className="h-5 w-5" />}
+        />
         <StatCard
           title="With Full Text"
           value={stats.with_full_text}
           icon={<BookOpen className="h-5 w-5" />}
           description={`${((stats.with_full_text / stats.total_cases) * 100).toFixed(1)}% coverage`}
         />
-        <StatCard title="Courts" value={Object.keys(stats.courts).length} icon={<Database className="h-5 w-5" />} />
-        <StatCard title="Sources" value={Object.keys(stats.sources).length} icon={<GitBranch className="h-5 w-5" />} />
+        <StatCard
+          title="Courts / Tribunals"
+          value={Object.keys(stats.courts).length}
+          icon={<Database className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Case Categories"
+          value={natureCount}
+          icon={<Layers className="h-5 w-5" />}
+          description={natureCount > 0 ? `${Object.values(stats.natures).reduce((a, b) => a + b, 0).toLocaleString()} classified` : undefined}
+        />
       </div>
 
-      {/* Charts with toggle */}
+      {/* Row 2: Court Bar Chart + Year Trend Area Chart */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Court distribution */}
         <div className="rounded-lg border border-border bg-card p-4">
@@ -131,78 +159,56 @@ export function DashboardPage() {
           )}
         </div>
 
-        {/* Year distribution */}
+        {/* Year trend area chart */}
         <div className="rounded-lg border border-border bg-card p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-heading text-base font-semibold">Cases by Year</h2>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setYearView("chart")}
-                className={yearView === "chart" ? "rounded p-1 bg-accent-muted text-accent" : "rounded p-1 text-muted-text hover:text-foreground"}
-              >
-                <BarChart3 className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setYearView("table")}
-                className={yearView === "table" ? "rounded p-1 bg-accent-muted text-accent" : "rounded p-1 text-muted-text hover:text-foreground"}
-              >
-                <Table className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-          {yearView === "chart" ? (
-            <CourtChart data={stats.years} type="bar" />
+          <h2 className="mb-3 font-heading text-base font-semibold">Year Trend (2000-2026)</h2>
+          {trends.length > 0 ? (
+            <TrendChart data={trends} />
           ) : (
-            <div className="max-h-64 space-y-1 overflow-auto">
-              {sortedYears.map(([year, count]) => (
-                <Link
-                  key={year}
-                  to={`/cases?year=${year}`}
-                  className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-surface"
-                >
-                  <span className="font-mono text-foreground">{year}</span>
-                  <span className="text-muted-text">{count.toLocaleString()}</span>
-                </Link>
-              ))}
-            </div>
+            <CourtChart data={stats.years} type="bar" />
           )}
         </div>
       </div>
 
-      {/* Outcomes summary */}
-      {topOutcomes.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-2 font-heading text-base font-semibold">Top Outcomes</h2>
-          <div className="flex flex-wrap gap-2">
-            {topOutcomes.map(([outcome, count]) => (
-              <Link
-                key={outcome}
-                to={`/cases?keyword=${encodeURIComponent(outcome)}`}
-                className="flex items-center gap-2 rounded-md border border-border-light px-3 py-1.5 text-sm hover:bg-surface"
-              >
-                <Briefcase className="h-3.5 w-3.5 text-muted-text" />
-                <span className="text-foreground">{outcome}</span>
-                <span className="font-mono text-xs text-muted-text">{count.toLocaleString()}</span>
-              </Link>
-            ))}
+      {/* Row 3: Nature Chart + Visa Subclass Chart */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Case nature distribution */}
+        {Object.keys(stats.natures || {}).length > 0 && (
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h2 className="mb-3 font-heading text-base font-semibold">Case Categories</h2>
+            <NatureChart data={stats.natures} />
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Visa subclass distribution */}
+        {Object.keys(stats.visa_subclasses || {}).length > 0 && (
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h2 className="mb-3 font-heading text-base font-semibold">Top Visa Subclasses</h2>
+            <SubclassChart data={stats.visa_subclasses} />
+          </div>
+        )}
+      </div>
 
       {/* Quick actions + Export */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        {quickActions.map(({ label, icon: Icon, to }) => (
-          <button
-            key={to}
-            onClick={() => navigate(to)}
-            className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
-          >
-            <div className="rounded-md bg-accent-muted p-2 text-accent">
-              <Icon className="h-4 w-4" />
-            </div>
-            <span className="text-sm font-medium text-foreground">{label}</span>
-          </button>
-        ))}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <button
+          onClick={() => navigate("/download")}
+          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
+        >
+          <div className="rounded-md bg-accent-muted p-2 text-accent">
+            <Download className="h-4 w-4" />
+          </div>
+          <span className="text-sm font-medium text-foreground">Download</span>
+        </button>
+        <button
+          onClick={() => navigate("/pipeline")}
+          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
+        >
+          <div className="rounded-md bg-accent-muted p-2 text-accent">
+            <GitBranch className="h-4 w-4" />
+          </div>
+          <span className="text-sm font-medium text-foreground">Pipeline</span>
+        </button>
         <button
           onClick={() => downloadExportFile("csv")}
           className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"

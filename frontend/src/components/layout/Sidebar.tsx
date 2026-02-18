@@ -7,6 +7,7 @@ import {
   Workflow,
   BookOpen,
   Palette,
+  TrendingUp,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -27,6 +28,7 @@ const navGroups: readonly NavGroup[] = [
     title: "Browse",
     items: [
       { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+      { to: "/analytics", icon: TrendingUp, label: "Analytics" },
       { to: "/cases", icon: FileText, label: "Cases" },
     ],
   },
