@@ -8,6 +8,8 @@ import {
   Workflow,
   BookOpen,
   Palette,
+  TrendingUp,
+  Users,
 } from "lucide-react"
 
 interface NavItem {
@@ -27,6 +29,8 @@ const navGroups: readonly NavGroup[] = [
     title: "Browse",
     items: [
       { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+      { to: "/analytics", icon: TrendingUp, label: "Analytics" },
+      { to: "/judge-profiles", icon: Users, label: "Judge Profiles" },
       { to: "/cases", icon: FileText, label: "Cases" },
     ],
   },

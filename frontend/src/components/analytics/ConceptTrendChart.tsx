@@ -1,0 +1,72 @@
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from "recharts";
+import type { ConceptTrendData } from "@/types/case";
+
+interface ConceptTrendChartProps {
+  data: ConceptTrendData;
+}
+
+const COLORS = ["#1a5276", "#2d7d46", "#6c3483", "#b9770e", "#a83232", "#117864"];
+
+export function ConceptTrendChart({ data }: ConceptTrendChartProps) {
+  const concepts = Object.keys(data.series).slice(0, 6);
+  const years = new Set<number>();
+  concepts.forEach((concept) => {
+    data.series[concept].forEach((point) => years.add(point.year));
+  });
+
+  const rows = Array.from(years)
+    .sort((a, b) => a - b)
+    .map((year) => {
+      const row: Record<string, number> = { year };
+      concepts.forEach((concept) => {
+        const point = data.series[concept].find((entry) => entry.year === year);
+        row[concept] = point?.win_rate ?? 0;
+      });
+      return row;
+    });
+
+  if (!rows.length) {
+    return <p className="text-sm text-muted-text">No trend data available.</p>;
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={rows} margin={{ top: 5, right: 10, left: -20, bottom: 10 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.35} />
+        <XAxis dataKey="year" tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+        <Tooltip
+          formatter={(value: number | string | undefined) => [
+            `${Number(value ?? 0).toFixed(1)}%`,
+            "Win Rate",
+          ]}
+          contentStyle={{
+            backgroundColor: "var(--color-background-card)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius)",
+          }}
+        />
+        <Legend wrapperStyle={{ fontSize: 11 }} />
+        {concepts.map((concept, idx) => (
+          <Line
+            key={concept}
+            type="monotone"
+            dataKey={concept}
+            stroke={COLORS[idx % COLORS.length]}
+            dot={{ r: 2 }}
+            strokeWidth={2}
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}

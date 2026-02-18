@@ -59,6 +59,19 @@ class TestCharts:
         svgs = react_page.locator("svg.recharts-surface")
         assert svgs.count() >= 1
 
+    def test_dashboard_error_state_on_stats_failure(self, react_page):
+        react_page.route(
+            "**/api/v1/stats",
+            lambda route: route.fulfill(
+                status=500,
+                content_type="application/json",
+                body='{"error":"forced test failure"}',
+            ),
+        )
+        react_navigate(react_page, "/app/")
+        wait_for_loading_gone(react_page)
+        assert react_page.get_by_text("Dashboard failed to load").is_visible()
+
 
 class TestQuickActions:
     """Quick action buttons that navigate to other pages."""

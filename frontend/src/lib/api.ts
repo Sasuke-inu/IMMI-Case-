@@ -11,9 +11,16 @@ import type {
   JudgeEntry,
   ConceptEntry,
   NatureOutcomeData,
+  SuccessRateData,
+  JudgeLeaderboardEntry,
+  JudgeProfile,
+  ConceptEffectivenessData,
+  ConceptCooccurrenceData,
+  ConceptTrendData,
 } from "@/types/case";
 
 let csrfToken: string | null = null;
+const API_TIMEOUT_MS = 20_000;
 
 async function fetchCsrfToken(): Promise<string> {
   if (csrfToken) return csrfToken;
@@ -33,7 +40,26 @@ async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
     headers["X-CSRFToken"] = await fetchCsrfToken();
   }
 
-  const res = await fetch(url, { ...options, headers });
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  let signal = options.signal;
+
+  if (!signal) {
+    const controller = new AbortController();
+    signal = controller.signal;
+    timeoutHandle = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers, signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`Request timeout after ${API_TIMEOUT_MS / 1000} seconds`);
+    }
+    throw error;
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: res.statusText }));
@@ -57,6 +83,20 @@ function buildFilterParams(filters?: AnalyticsFilterParams): string {
     params.set("year_to", String(filters.yearTo));
   const qs = params.toString();
   return qs ? `?${qs}` : "";
+}
+
+function appendAnalyticsFilters(
+  params: URLSearchParams,
+  filters?: AnalyticsFilterParams,
+): void {
+  if (!filters) return;
+  if (filters.court) params.set("court", filters.court);
+  if (filters.yearFrom && filters.yearFrom > 2000) {
+    params.set("year_from", String(filters.yearFrom));
+  }
+  if (filters.yearTo && filters.yearTo < CURRENT_YEAR) {
+    params.set("year_to", String(filters.yearTo));
+  }
 }
 
 // ─── Dashboard ─────────────────────────────────────────────────
@@ -103,6 +143,101 @@ export function fetchNatureOutcome(
   return apiFetch(
     `/api/v1/analytics/nature-outcome${buildFilterParams(filters)}`,
   );
+}
+
+export function fetchSuccessRate(
+  params: AnalyticsFilterParams & {
+    visa_subclass?: string;
+    case_nature?: string;
+    legal_concepts?: string[];
+  } = {},
+): Promise<SuccessRateData> {
+  const qs = new URLSearchParams();
+  appendAnalyticsFilters(qs, params);
+  if (params.visa_subclass) qs.set("visa_subclass", params.visa_subclass);
+  if (params.case_nature) qs.set("case_nature", params.case_nature);
+  if (params.legal_concepts && params.legal_concepts.length > 0) {
+    qs.set("legal_concepts", params.legal_concepts.join(","));
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch(`/api/v1/analytics/success-rate${suffix}`);
+}
+
+export function fetchJudgeLeaderboard(
+  params: AnalyticsFilterParams & {
+    sort_by?: "cases" | "approval_rate" | "name";
+    limit?: number;
+  } = {},
+): Promise<{ judges: JudgeLeaderboardEntry[]; total_judges: number }> {
+  const qs = new URLSearchParams();
+  appendAnalyticsFilters(qs, params);
+  if (params.sort_by) qs.set("sort_by", params.sort_by);
+  if (typeof params.limit === "number") qs.set("limit", String(params.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch(`/api/v1/analytics/judge-leaderboard${suffix}`);
+}
+
+export function fetchJudgeProfile(
+  name: string,
+  params: { yearFrom?: number; yearTo?: number } = {},
+): Promise<JudgeProfile> {
+  const qs = new URLSearchParams();
+  qs.set("name", name);
+  if (params.yearFrom && params.yearFrom > 2000) {
+    qs.set("year_from", String(params.yearFrom));
+  }
+  if (params.yearTo && params.yearTo < CURRENT_YEAR) {
+    qs.set("year_to", String(params.yearTo));
+  }
+  return apiFetch(`/api/v1/analytics/judge-profile?${qs.toString()}`);
+}
+
+export function fetchJudgeCompare(
+  names: string[],
+  params: { yearFrom?: number; yearTo?: number } = {},
+): Promise<{ judges: JudgeProfile[] }> {
+  const qs = new URLSearchParams();
+  qs.set("names", names.join(","));
+  if (params.yearFrom && params.yearFrom > 2000) {
+    qs.set("year_from", String(params.yearFrom));
+  }
+  if (params.yearTo && params.yearTo < CURRENT_YEAR) {
+    qs.set("year_to", String(params.yearTo));
+  }
+  return apiFetch(`/api/v1/analytics/judge-compare?${qs.toString()}`);
+}
+
+export function fetchConceptEffectiveness(
+  params: AnalyticsFilterParams & { limit?: number } = {},
+): Promise<ConceptEffectivenessData> {
+  const qs = new URLSearchParams();
+  appendAnalyticsFilters(qs, params);
+  if (typeof params.limit === "number") qs.set("limit", String(params.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch(`/api/v1/analytics/concept-effectiveness${suffix}`);
+}
+
+export function fetchConceptCooccurrence(
+  params: AnalyticsFilterParams & { limit?: number; min_count?: number } = {},
+): Promise<ConceptCooccurrenceData> {
+  const qs = new URLSearchParams();
+  appendAnalyticsFilters(qs, params);
+  if (typeof params.limit === "number") qs.set("limit", String(params.limit));
+  if (typeof params.min_count === "number") {
+    qs.set("min_count", String(params.min_count));
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch(`/api/v1/analytics/concept-cooccurrence${suffix}`);
+}
+
+export function fetchConceptTrends(
+  params: AnalyticsFilterParams & { limit?: number } = {},
+): Promise<ConceptTrendData> {
+  const qs = new URLSearchParams();
+  appendAnalyticsFilters(qs, params);
+  if (typeof params.limit === "number") qs.set("limit", String(params.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch(`/api/v1/analytics/concept-trends${suffix}`);
 }
 
 // ─── Cases ─────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import {
   BookOpen,
   Palette,
   TrendingUp,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -29,6 +30,7 @@ const navGroups: readonly NavGroup[] = [
     items: [
       { to: "/", icon: LayoutDashboard, label: "Dashboard" },
       { to: "/analytics", icon: TrendingUp, label: "Analytics" },
+      { to: "/judge-profiles", icon: Users, label: "Judge Profiles" },
       { to: "/cases", icon: FileText, label: "Cases" },
     ],
   },

@@ -10,6 +10,8 @@ import pytest
 from immi_case_downloader.models import ImmigrationCase
 from immi_case_downloader.storage import save_cases_csv, save_cases_json, ensure_output_dirs
 
+_fixture_state = {"output_dir": None}
+
 
 # ---------------------------------------------------------------------------
 # Seed data — 10 cases across 5 courts with deterministic, queryable values
@@ -236,6 +238,7 @@ def _fixture_server(tmp_path_factory, is_live_mode):
 
     # Create temp dir with seed data
     tmp_dir = str(tmp_path_factory.mktemp("e2e_data"))
+    _fixture_state["output_dir"] = tmp_dir
     ensure_output_dirs(tmp_dir)
     cases = _prepare_seed_cases()
     save_cases_csv(cases, tmp_dir)
@@ -323,3 +326,29 @@ def skip_if_live(is_live_mode):
     """Skip destructive tests when running against live server."""
     if is_live_mode:
         pytest.skip("Skipped in live mode — destructive test")
+
+
+@pytest.fixture(autouse=True)
+def reset_fixture_dataset(is_live_mode, _fixture_server):
+    """Reset fixture data before each E2E test to prevent cross-test pollution."""
+    if is_live_mode:
+        yield
+        return
+
+    output_dir = _fixture_state.get("output_dir")
+    if output_dir:
+        ensure_output_dirs(output_dir)
+        cases = _prepare_seed_cases()
+        save_cases_csv(cases, output_dir)
+        save_cases_json(cases, output_dir)
+
+        # Analytics API keeps a short in-memory cache; clear it per test.
+        try:
+            from immi_case_downloader.web.routes import api as api_routes
+
+            api_routes._all_cases_cache = []
+            api_routes._all_cases_ts = 0.0
+        except Exception:
+            pass
+
+    yield

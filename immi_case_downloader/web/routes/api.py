@@ -10,6 +10,7 @@ import re
 import json
 import time
 import threading
+from itertools import combinations
 from collections import Counter, defaultdict
 from datetime import datetime
 
@@ -42,6 +43,32 @@ _OUTCOME_MAP = {
     "discontinu": "Withdrawn",
 }
 
+TRIBUNAL_CODES = {"AATA", "ARTA", "MRTA", "RRTA"}
+COURT_CODES = {"FCA", "FCCA", "FMCA", "FedCFamC2G", "HCA"}
+_TRIBUNAL_WIN_OUTCOMES = ("Remitted", "Set Aside")
+_COURT_WIN_OUTCOMES = ("Allowed", "Set Aside")
+_MIXED_WIN_OUTCOMES = ("Allowed", "Remitted", "Set Aside")
+_JUDGE_BLOCKLIST = frozenset(
+    {
+        "date",
+        "the",
+        "and",
+        "court",
+        "tribunal",
+        "member",
+        "judge",
+        "justice",
+        "honour",
+        "federal",
+        "migration",
+        "review",
+        "applicant",
+        "respondent",
+        "minister",
+        "decision",
+    }
+)
+
 
 def _normalise_outcome(raw: str) -> str:
     """Map raw outcome text to one of 8 standard categories."""
@@ -52,6 +79,226 @@ def _normalise_outcome(raw: str) -> str:
         if keyword in low:
             return label
     return "Other"
+
+
+def _split_concepts(raw: str) -> list[str]:
+    if not raw:
+        return []
+    parts = re.split(r"[;,]", raw)
+    out: list[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        concept = part.strip().lower()
+        if not concept or len(concept) < 2 or concept in seen:
+            continue
+        seen.add(concept)
+        out.append(concept)
+    return out
+
+
+def _split_judges(raw: str) -> list[str]:
+    if not raw:
+        return []
+    names: list[str] = []
+    seen: set[str] = set()
+    for piece in re.split(r"[;,]", raw):
+        name = piece.strip()
+        lowered = name.lower()
+        if (
+            not name
+            or len(name) < 3
+            or lowered in _JUDGE_BLOCKLIST
+            or name.isdigit()
+            or lowered in seen
+        ):
+            continue
+        seen.add(lowered)
+        names.append(name)
+    return names
+
+
+def _determine_court_type(court_codes: set[str]) -> str:
+    if not court_codes:
+        return "unknown"
+    has_tribunal = any(code in TRIBUNAL_CODES for code in court_codes)
+    has_court = any(code in COURT_CODES for code in court_codes)
+    if has_tribunal and not has_court:
+        return "tribunal"
+    if has_court and not has_tribunal:
+        return "court"
+    return "mixed"
+
+
+def _win_outcomes_for_court_type(court_type: str) -> list[str]:
+    if court_type == "tribunal":
+        return list(_TRIBUNAL_WIN_OUTCOMES)
+    if court_type == "court":
+        return list(_COURT_WIN_OUTCOMES)
+    return list(_MIXED_WIN_OUTCOMES)
+
+
+def _is_win(normalised_outcome: str, court_code: str) -> bool:
+    if court_code in TRIBUNAL_CODES:
+        return normalised_outcome in _TRIBUNAL_WIN_OUTCOMES
+    if court_code in COURT_CODES:
+        return normalised_outcome in _COURT_WIN_OUTCOMES
+    return normalised_outcome in _MIXED_WIN_OUTCOMES
+
+
+def _round_rate(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    return round((numerator / denominator) * 100.0, 1)
+
+
+def _judge_profile_payload(
+    name: str, judge_cases: list[ImmigrationCase], include_recent_cases: bool = True
+) -> dict:
+    total = len(judge_cases)
+    if total == 0:
+        payload = {
+            "judge": {
+                "name": name,
+                "total_cases": 0,
+                "courts": [],
+                "active_years": {"first": None, "last": None},
+            },
+            "approval_rate": 0.0,
+            "court_type": "unknown",
+            "outcome_distribution": {},
+            "visa_breakdown": [],
+            "concept_effectiveness": [],
+            "yearly_trend": [],
+            "nature_breakdown": [],
+        }
+        if include_recent_cases:
+            payload["recent_cases"] = []
+        return payload
+
+    wins = 0
+    outcome_distribution: Counter = Counter()
+    court_counter: Counter = Counter()
+    year_totals: Counter = Counter()
+    year_wins: Counter = Counter()
+    visa_totals: Counter = Counter()
+    visa_wins: Counter = Counter()
+    nature_totals: Counter = Counter()
+    nature_wins: Counter = Counter()
+    concept_totals: Counter = Counter()
+    concept_wins: Counter = Counter()
+
+    years = [c.year for c in judge_cases if c.year]
+
+    for case in judge_cases:
+        if case.court_code:
+            court_counter[case.court_code] += 1
+        norm = _normalise_outcome(case.outcome)
+        outcome_distribution[norm] += 1
+        won = _is_win(norm, case.court_code)
+        if won:
+            wins += 1
+        if case.year:
+            year_totals[case.year] += 1
+            if won:
+                year_wins[case.year] += 1
+        if case.visa_subclass:
+            visa_totals[case.visa_subclass] += 1
+            if won:
+                visa_wins[case.visa_subclass] += 1
+        if case.case_nature:
+            nature_totals[case.case_nature] += 1
+            if won:
+                nature_wins[case.case_nature] += 1
+        for concept in _split_concepts(case.legal_concepts):
+            concept_totals[concept] += 1
+            if won:
+                concept_wins[concept] += 1
+
+    approval_rate = _round_rate(wins, total)
+    courts = sorted(court_counter.keys())
+    court_type = _determine_court_type(set(courts))
+
+    visa_breakdown = [
+        {
+            "subclass": subclass,
+            "total": count,
+            "win_rate": _round_rate(visa_wins[subclass], count),
+        }
+        for subclass, count in sorted(
+            visa_totals.items(), key=lambda item: item[1], reverse=True
+        )
+    ]
+
+    nature_breakdown = [
+        {
+            "nature": nature,
+            "total": count,
+            "win_rate": _round_rate(nature_wins[nature], count),
+        }
+        for nature, count in sorted(
+            nature_totals.items(), key=lambda item: item[1], reverse=True
+        )
+    ]
+
+    concept_effectiveness = []
+    for concept, count in concept_totals.most_common(30):
+        win_rate = _round_rate(concept_wins[concept], count)
+        concept_effectiveness.append(
+            {
+                "concept": concept,
+                "total": count,
+                "win_rate": win_rate,
+                "baseline_rate": approval_rate,
+                "lift": round((win_rate / approval_rate), 2) if approval_rate > 0 else 0.0,
+            }
+        )
+
+    yearly_trend = [
+        {
+            "year": year,
+            "total": year_totals[year],
+            "approval_rate": _round_rate(year_wins[year], year_totals[year]),
+        }
+        for year in sorted(year_totals.keys())
+    ]
+
+    payload = {
+        "judge": {
+            "name": name,
+            "total_cases": total,
+            "courts": courts,
+            "active_years": {
+                "first": min(years) if years else None,
+                "last": max(years) if years else None,
+            },
+        },
+        "approval_rate": approval_rate,
+        "court_type": court_type,
+        "outcome_distribution": dict(outcome_distribution),
+        "visa_breakdown": visa_breakdown,
+        "concept_effectiveness": concept_effectiveness,
+        "yearly_trend": yearly_trend,
+        "nature_breakdown": nature_breakdown,
+    }
+
+    if include_recent_cases:
+        recent_sorted = sorted(
+            judge_cases,
+            key=lambda c: (c.year or 0, c.date or ""),
+            reverse=True,
+        )[:10]
+        payload["recent_cases"] = [
+            {
+                "case_id": c.case_id,
+                "citation": c.citation,
+                "date": c.date,
+                "outcome": c.outcome,
+                "visa_subclass": c.visa_subclass,
+            }
+            for c in recent_sorted
+        ]
+
+    return payload
 
 
 # ── Cached load_all with year/court filtering ──────────────────────────
@@ -733,6 +980,445 @@ def analytics_nature_outcome():
         "outcomes": outcome_labels,
         "matrix": matrix,
     })
+
+
+@api_bp.route("/analytics/success-rate")
+def analytics_success_rate():
+    """Multi-factor success-rate analytics."""
+    cases = _apply_filters(_get_all_cases())
+
+    visa_subclass = request.args.get("visa_subclass", "").strip()
+    case_nature = request.args.get("case_nature", "").strip()
+    legal_concepts_param = request.args.get("legal_concepts", "").strip()
+    requested_concepts = _split_concepts(legal_concepts_param)
+
+    if visa_subclass:
+        cases = [c for c in cases if (c.visa_subclass or "").strip() == visa_subclass]
+    if case_nature:
+        target_nature = case_nature.lower()
+        cases = [c for c in cases if (c.case_nature or "").strip().lower() == target_nature]
+    if requested_concepts:
+        required = set(requested_concepts)
+        cases = [
+            c
+            for c in cases
+            if required.issubset(set(_split_concepts(c.legal_concepts)))
+        ]
+
+    total = len(cases)
+    wins = 0
+    year_totals: Counter = Counter()
+    year_wins: Counter = Counter()
+    concept_totals: Counter = Counter()
+    concept_wins: Counter = Counter()
+
+    for case in cases:
+        norm = _normalise_outcome(case.outcome)
+        won = _is_win(norm, case.court_code)
+        if won:
+            wins += 1
+
+        if case.year:
+            year_totals[case.year] += 1
+            if won:
+                year_wins[case.year] += 1
+
+        for concept in _split_concepts(case.legal_concepts):
+            concept_totals[concept] += 1
+            if won:
+                concept_wins[concept] += 1
+
+    losses = max(0, total - wins)
+    overall_rate = _round_rate(wins, total)
+    confidence = "low"
+    if total > 100:
+        confidence = "high"
+    elif total >= 20:
+        confidence = "medium"
+
+    court_type = _determine_court_type({c.court_code for c in cases if c.court_code})
+    win_outcomes = _win_outcomes_for_court_type(court_type)
+
+    by_concept = []
+    for concept, count in concept_totals.most_common(30):
+        win_rate = _round_rate(concept_wins[concept], count)
+        by_concept.append(
+            {
+                "concept": concept,
+                "total": count,
+                "win_rate": win_rate,
+                "lift": round((win_rate / overall_rate), 2) if overall_rate > 0 else 0.0,
+            }
+        )
+
+    top_combo_candidates = set(name for name, _ in concept_totals.most_common(15))
+    combo_totals: Counter = Counter()
+    combo_wins: Counter = Counter()
+    for case in cases:
+        case_concepts = sorted(
+            set(_split_concepts(case.legal_concepts)).intersection(top_combo_candidates)
+        )
+        if len(case_concepts) < 2:
+            continue
+        won = _is_win(_normalise_outcome(case.outcome), case.court_code)
+        for size in (2, 3):
+            if len(case_concepts) < size:
+                continue
+            for combo in combinations(case_concepts, size):
+                combo_totals[combo] += 1
+                if won:
+                    combo_wins[combo] += 1
+
+    top_combos = []
+    for combo, count in combo_totals.items():
+        if count < 2:
+            continue
+        win_rate = _round_rate(combo_wins[combo], count)
+        top_combos.append(
+            {
+                "concepts": list(combo),
+                "win_rate": win_rate,
+                "count": count,
+                "lift": round((win_rate / overall_rate), 2) if overall_rate > 0 else 0.0,
+            }
+        )
+
+    top_combos.sort(key=lambda item: (item["lift"], item["count"]), reverse=True)
+    top_combos = top_combos[:20]
+
+    trend = [
+        {
+            "year": year,
+            "rate": _round_rate(year_wins[year], year_totals[year]),
+            "count": year_totals[year],
+        }
+        for year in sorted(year_totals.keys())
+    ]
+
+    return jsonify(
+        {
+            "query": {
+                "court": request.args.get("court", "").strip() or None,
+                "year_from": safe_int(request.args.get("year_from"), default=0, min_val=0, max_val=2100) or None,
+                "year_to": safe_int(request.args.get("year_to"), default=0, min_val=0, max_val=2100) or None,
+                "visa_subclass": visa_subclass or None,
+                "case_nature": case_nature or None,
+                "legal_concepts": requested_concepts,
+                "total_matching": total,
+            },
+            "success_rate": {
+                "overall": overall_rate,
+                "court_type": court_type,
+                "win_outcomes": win_outcomes,
+                "win_count": wins,
+                "loss_count": losses,
+                "confidence": confidence,
+            },
+            "by_concept": by_concept,
+            "top_combos": top_combos,
+            "trend": trend,
+        }
+    )
+
+
+@api_bp.route("/analytics/judge-leaderboard")
+def analytics_judge_leaderboard():
+    """Judge/member leaderboard with approval rates and metadata."""
+    sort_by = request.args.get("sort_by", "cases").strip().lower() or "cases"
+    limit = safe_int(request.args.get("limit"), default=50, min_val=1, max_val=200)
+    cases = _apply_filters(_get_all_cases())
+
+    judge_cases: dict[str, list[ImmigrationCase]] = defaultdict(list)
+    judge_court_counts: dict[str, Counter] = defaultdict(Counter)
+    for case in cases:
+        for name in _split_judges(case.judges):
+            judge_cases[name].append(case)
+            if case.court_code:
+                judge_court_counts[name][case.court_code] += 1
+
+    rows = []
+    for name, jc in judge_cases.items():
+        profile = _judge_profile_payload(name, jc, include_recent_cases=False)
+        top_visa_subclasses = [
+            {"subclass": item["subclass"], "count": item["total"]}
+            for item in profile["visa_breakdown"][:3]
+        ]
+        primary_court = None
+        if judge_court_counts[name]:
+            primary_court = judge_court_counts[name].most_common(1)[0][0]
+
+        rows.append(
+            {
+                "name": name,
+                "total_cases": profile["judge"]["total_cases"],
+                "approval_rate": profile["approval_rate"],
+                "courts": profile["judge"]["courts"],
+                "primary_court": primary_court,
+                "top_visa_subclasses": top_visa_subclasses,
+                "active_years": profile["judge"]["active_years"],
+                "outcome_summary": profile["outcome_distribution"],
+            }
+        )
+
+    if sort_by == "approval_rate":
+        rows.sort(key=lambda row: (row["approval_rate"], row["total_cases"]), reverse=True)
+    elif sort_by == "name":
+        rows.sort(key=lambda row: row["name"].lower())
+    else:
+        rows.sort(key=lambda row: (row["total_cases"], row["approval_rate"]), reverse=True)
+
+    total_judges = len(rows)
+    return jsonify({"judges": rows[:limit], "total_judges": total_judges})
+
+
+@api_bp.route("/analytics/judge-profile")
+def analytics_judge_profile():
+    """Deep profile for a single judge/member."""
+    name = request.args.get("name", "").strip()
+    if not name:
+        return _error("name query parameter is required")
+
+    cases = _apply_filters(_get_all_cases())
+    lowered_name = name.lower()
+    judge_cases = [
+        c
+        for c in cases
+        if lowered_name in {j.lower() for j in _split_judges(c.judges)}
+    ]
+
+    payload = _judge_profile_payload(name, judge_cases, include_recent_cases=True)
+    return jsonify(payload)
+
+
+@api_bp.route("/analytics/judge-compare")
+def analytics_judge_compare():
+    """Compare 2-4 judges side-by-side."""
+    raw_names = request.args.get("names", "")
+    names = []
+    for part in raw_names.split(","):
+        name = part.strip()
+        if name and name not in names:
+            names.append(name)
+
+    if len(names) < 2:
+        return _error("At least two judge names are required")
+
+    names = names[:4]
+    cases = _apply_filters(_get_all_cases())
+
+    profiles = []
+    for name in names:
+        lowered_name = name.lower()
+        judge_cases = [
+            c
+            for c in cases
+            if lowered_name in {j.lower() for j in _split_judges(c.judges)}
+        ]
+        profiles.append(
+            _judge_profile_payload(name, judge_cases, include_recent_cases=False)
+        )
+
+    return jsonify({"judges": profiles})
+
+
+@api_bp.route("/analytics/concept-effectiveness")
+def analytics_concept_effectiveness():
+    """Per-concept win-rate and lift vs baseline."""
+    limit = safe_int(request.args.get("limit"), default=30, min_val=1, max_val=100)
+    cases = _apply_filters(_get_all_cases())
+
+    baseline_wins = 0
+    concept_totals: Counter = Counter()
+    concept_wins: Counter = Counter()
+    by_court_totals: dict[str, Counter] = defaultdict(Counter)
+    by_court_wins: dict[str, Counter] = defaultdict(Counter)
+
+    for case in cases:
+        norm = _normalise_outcome(case.outcome)
+        won = _is_win(norm, case.court_code)
+        if won:
+            baseline_wins += 1
+        concepts = set(_split_concepts(case.legal_concepts))
+        for concept in concepts:
+            concept_totals[concept] += 1
+            if won:
+                concept_wins[concept] += 1
+            if case.court_code:
+                by_court_totals[concept][case.court_code] += 1
+                if won:
+                    by_court_wins[concept][case.court_code] += 1
+
+    baseline_rate = _round_rate(baseline_wins, len(cases))
+    concepts = []
+    for concept, total in concept_totals.most_common(limit):
+        win_rate = _round_rate(concept_wins[concept], total)
+        court_breakdown = {}
+        for court_code, court_total in by_court_totals[concept].items():
+            court_breakdown[court_code] = {
+                "total": court_total,
+                "win_rate": _round_rate(by_court_wins[concept][court_code], court_total),
+            }
+        concepts.append(
+            {
+                "name": concept,
+                "total": total,
+                "win_rate": win_rate,
+                "lift": round((win_rate / baseline_rate), 2) if baseline_rate > 0 else 0.0,
+                "by_court": court_breakdown,
+            }
+        )
+
+    return jsonify({"baseline_rate": baseline_rate, "concepts": concepts})
+
+
+@api_bp.route("/analytics/concept-cooccurrence")
+def analytics_concept_cooccurrence():
+    """Concept co-occurrence matrix and top pairs."""
+    limit = safe_int(request.args.get("limit"), default=15, min_val=2, max_val=30)
+    min_count = safe_int(request.args.get("min_count"), default=50, min_val=1, max_val=1000000)
+    cases = _apply_filters(_get_all_cases())
+
+    concept_frequency: Counter = Counter()
+    baseline_wins = 0
+    for case in cases:
+        concepts = set(_split_concepts(case.legal_concepts))
+        for concept in concepts:
+            concept_frequency[concept] += 1
+        if _is_win(_normalise_outcome(case.outcome), case.court_code):
+            baseline_wins += 1
+
+    top_concepts = [name for name, _ in concept_frequency.most_common(limit)]
+    top_set = set(top_concepts)
+
+    pair_totals: Counter = Counter()
+    pair_wins: Counter = Counter()
+    for case in cases:
+        concepts = sorted(set(_split_concepts(case.legal_concepts)).intersection(top_set))
+        if len(concepts) < 2:
+            continue
+        won = _is_win(_normalise_outcome(case.outcome), case.court_code)
+        for a, b in combinations(concepts, 2):
+            pair = (a, b)
+            pair_totals[pair] += 1
+            if won:
+                pair_wins[pair] += 1
+
+    baseline_rate = _round_rate(baseline_wins, len(cases))
+    matrix: dict[str, dict[str, dict[str, float | int]]] = defaultdict(dict)
+    top_pairs = []
+    for pair, count in pair_totals.items():
+        if count < min_count:
+            continue
+        a, b = pair
+        win_rate = _round_rate(pair_wins[pair], count)
+        cell = {"count": count, "win_rate": win_rate}
+        matrix[a][b] = cell
+        matrix[b][a] = cell
+        top_pairs.append(
+            {
+                "a": a,
+                "b": b,
+                "count": count,
+                "win_rate": win_rate,
+                "lift": round((win_rate / baseline_rate), 2) if baseline_rate > 0 else 0.0,
+            }
+        )
+
+    top_pairs.sort(key=lambda item: item["count"], reverse=True)
+    return jsonify(
+        {
+            "concepts": top_concepts,
+            "matrix": dict(matrix),
+            "top_pairs": top_pairs,
+        }
+    )
+
+
+@api_bp.route("/analytics/concept-trends")
+def analytics_concept_trends():
+    """Time-series concept usage + emerging/declining concepts."""
+    limit = safe_int(request.args.get("limit"), default=10, min_val=1, max_val=30)
+    cases = _apply_filters(_get_all_cases())
+
+    concept_frequency: Counter = Counter()
+    for case in cases:
+        for concept in set(_split_concepts(case.legal_concepts)):
+            concept_frequency[concept] += 1
+
+    tracked = [name for name, _ in concept_frequency.most_common(limit)]
+    all_years = sorted({c.year for c in cases if c.year})
+
+    series = {}
+    emerging = []
+    declining = []
+    latest_year = max(all_years) if all_years else 0
+    recent_years = {latest_year, latest_year - 1}
+    previous_years = {latest_year - 2, latest_year - 3}
+
+    for concept in tracked:
+        year_totals: Counter = Counter()
+        year_wins: Counter = Counter()
+
+        for case in cases:
+            if not case.year:
+                continue
+            case_concepts = set(_split_concepts(case.legal_concepts))
+            if concept not in case_concepts:
+                continue
+            year_totals[case.year] += 1
+            if _is_win(_normalise_outcome(case.outcome), case.court_code):
+                year_wins[case.year] += 1
+
+        concept_points = [
+            {
+                "year": year,
+                "count": year_totals[year],
+                "win_rate": _round_rate(year_wins[year], year_totals[year]),
+            }
+            for year in sorted(year_totals.keys())
+        ]
+        if concept_points:
+            series[concept] = concept_points
+
+        recent_count = sum(year_totals[y] for y in recent_years)
+        previous_count = sum(year_totals[y] for y in previous_years)
+        if recent_count == 0 and previous_count == 0:
+            continue
+
+        if previous_count == 0 and recent_count > 0:
+            growth_pct = 100.0
+        elif previous_count == 0:
+            growth_pct = 0.0
+        else:
+            growth_pct = round(((recent_count - previous_count) / previous_count) * 100.0, 1)
+
+        if growth_pct > 25:
+            emerging.append(
+                {
+                    "name": concept,
+                    "growth_pct": growth_pct,
+                    "recent_count": recent_count,
+                }
+            )
+        elif growth_pct < -25:
+            declining.append(
+                {
+                    "name": concept,
+                    "decline_pct": growth_pct,
+                    "recent_count": recent_count,
+                }
+            )
+
+    emerging.sort(key=lambda item: item["growth_pct"], reverse=True)
+    declining.sort(key=lambda item: item["decline_pct"])
+
+    return jsonify(
+        {
+            "series": series,
+            "emerging": emerging,
+            "declining": declining,
+        }
+    )
 
 
 # ── Data Dictionary ─────────────────────────────────────────────────────

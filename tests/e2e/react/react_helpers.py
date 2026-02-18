@@ -11,6 +11,9 @@ REACT_BASE = "/app/"
 REACT_ROUTES = {
     "dashboard": "/app/",
     "analytics": "/app/analytics",
+    "judge_profiles": "/app/judge-profiles",
+    "judge_detail": "/app/judge-profiles/Senior%20Member%20Jones",
+    "judge_compare": "/app/judge-profiles/compare?names=Senior%20Member%20Jones,Deputy%20President%20Smith",
     "cases": "/app/cases",
     "case_add": "/app/cases/add",
     "case_compare": "/app/cases/compare",
@@ -25,6 +28,7 @@ REACT_ROUTES = {
 SMOKE_PAGES = [
     ("dashboard", "/app/"),
     ("analytics", "/app/analytics"),
+    ("judge_profiles", "/app/judge-profiles"),
     ("cases", "/app/cases"),
     ("cases_add", "/app/cases/add"),
     ("download", "/app/download"),
@@ -47,6 +51,13 @@ API_ENDPOINTS = [
     "/api/v1/analytics/judges",
     "/api/v1/analytics/legal-concepts",
     "/api/v1/analytics/nature-outcome",
+    "/api/v1/analytics/success-rate",
+    "/api/v1/analytics/judge-leaderboard",
+    "/api/v1/analytics/judge-profile?name=Senior%20Member%20Jones",
+    "/api/v1/analytics/judge-compare?names=Senior%20Member%20Jones,Deputy%20President%20Smith",
+    "/api/v1/analytics/concept-effectiveness",
+    "/api/v1/analytics/concept-cooccurrence?min_count=1",
+    "/api/v1/analytics/concept-trends",
 ]
 
 # ---------------------------------------------------------------------------
@@ -56,6 +67,7 @@ API_ENDPOINTS = [
 SIDEBAR_NAV_ITEMS = [
     ("Dashboard", "/app/"),
     ("Analytics", "/app/analytics"),
+    ("Judge Profiles", "/app/judge-profiles"),
     ("Cases", "/app/cases"),
     ("Scrape AustLII", "/app/download"),
     ("Smart Pipeline", "/app/pipeline"),

@@ -19,6 +19,7 @@ import { SubclassChart } from "@/components/dashboard/SubclassChart";
 import { CourtBadge } from "@/components/shared/CourtBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { AnalyticsFilters } from "@/components/shared/AnalyticsFilters";
+import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { downloadExportFile } from "@/lib/api";
 import type { AnalyticsFilterParams } from "@/types/case";
 
@@ -34,16 +35,44 @@ export function DashboardPage() {
     [court, yearFrom, yearTo],
   );
 
-  const { data: stats, isLoading, isFetching } = useStats(filters);
+  const { data: stats, isLoading, isFetching, isError, error, refetch } = useStats(filters);
   const { data: trendsData } = useTrends(filters);
   const navigate = useNavigate();
   const [courtView, setCourtView] = useState<"chart" | "table">("chart");
 
-  if (isLoading || !stats) {
+  if (isLoading && !stats) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-text">
         Loading dashboard...
       </div>
+    );
+  }
+
+  if (isError && !stats) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Dashboard API request failed.";
+    return (
+      <ApiErrorState
+        title="Dashboard failed to load"
+        message={message}
+        onRetry={() => {
+          void refetch();
+        }}
+      />
+    );
+  }
+
+  if (!stats) {
+    return (
+      <ApiErrorState
+        title="Dashboard data unavailable"
+        message="No dashboard payload was returned."
+        onRetry={() => {
+          void refetch();
+        }}
+      />
     );
   }
 

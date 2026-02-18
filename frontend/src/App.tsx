@@ -14,6 +14,9 @@ import { PipelinePage } from "@/pages/PipelinePage"
 import { DataDictionaryPage } from "@/pages/DataDictionaryPage"
 import { DesignTokensPage } from "@/pages/DesignTokensPage"
 import { AnalyticsPage } from "@/pages/AnalyticsPage"
+import { JudgeProfilesPage } from "@/pages/JudgeProfilesPage"
+import { JudgeDetailPage } from "@/pages/JudgeDetailPage"
+import { JudgeComparePage } from "@/pages/JudgeComparePage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +43,9 @@ export default function App() {
             <Route path="jobs" element={<JobStatusPage />} />
             <Route path="pipeline" element={<PipelinePage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
+            <Route path="judge-profiles" element={<JudgeProfilesPage />} />
+            <Route path="judge-profiles/compare" element={<JudgeComparePage />} />
+            <Route path="judge-profiles/:name" element={<JudgeDetailPage />} />
             <Route path="data-dictionary" element={<DataDictionaryPage />} />
             <Route path="design-tokens" element={<DesignTokensPage />} />
           </Route>

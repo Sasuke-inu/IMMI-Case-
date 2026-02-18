@@ -118,3 +118,121 @@ export interface NatureOutcomeData {
   outcomes: string[]
   matrix: Record<string, Record<string, number>>
 }
+
+export interface SuccessRateQuery {
+  court?: string | null
+  year_from?: number | null
+  year_to?: number | null
+  visa_subclass?: string | null
+  case_nature?: string | null
+  legal_concepts: string[]
+  total_matching: number
+}
+
+export interface SuccessRateConcept {
+  concept: string
+  total: number
+  win_rate: number
+  lift: number
+}
+
+export interface SuccessRateCombo {
+  concepts: string[]
+  win_rate: number
+  count: number
+  lift: number
+}
+
+export interface SuccessRateTrendPoint {
+  year: number
+  rate: number
+  count: number
+}
+
+export interface SuccessRateData {
+  query: SuccessRateQuery
+  success_rate: {
+    overall: number
+    court_type: "tribunal" | "court" | "mixed" | "unknown"
+    win_outcomes: string[]
+    win_count: number
+    loss_count: number
+    confidence: "high" | "medium" | "low"
+  }
+  by_concept: SuccessRateConcept[]
+  top_combos: SuccessRateCombo[]
+  trend: SuccessRateTrendPoint[]
+}
+
+export interface JudgeLeaderboardEntry {
+  name: string
+  total_cases: number
+  approval_rate: number
+  courts: string[]
+  primary_court: string | null
+  top_visa_subclasses: Array<{ subclass: string; count: number }>
+  active_years: { first: number | null; last: number | null }
+  outcome_summary: Record<string, number>
+}
+
+export interface JudgeProfile {
+  judge: {
+    name: string
+    total_cases: number
+    courts: string[]
+    active_years: { first: number | null; last: number | null }
+  }
+  approval_rate: number
+  court_type: "tribunal" | "court" | "mixed" | "unknown"
+  outcome_distribution: Record<string, number>
+  visa_breakdown: Array<{ subclass: string; total: number; win_rate: number }>
+  concept_effectiveness: Array<{
+    concept: string
+    total: number
+    win_rate: number
+    baseline_rate: number
+    lift: number
+  }>
+  yearly_trend: Array<{ year: number; total: number; approval_rate: number }>
+  nature_breakdown: Array<{ nature: string; total: number; win_rate: number }>
+  recent_cases?: Array<{
+    case_id: string
+    citation: string
+    date: string
+    outcome: string
+    visa_subclass: string
+  }>
+}
+
+export interface ConceptEffectivenessEntry {
+  name: string
+  total: number
+  win_rate: number
+  lift: number
+  by_court: Record<string, { total: number; win_rate: number }>
+}
+
+export interface ConceptEffectivenessData {
+  baseline_rate: number
+  concepts: ConceptEffectivenessEntry[]
+}
+
+export interface ConceptCooccurrencePair {
+  a: string
+  b: string
+  count: number
+  win_rate: number
+  lift: number
+}
+
+export interface ConceptCooccurrenceData {
+  concepts: string[]
+  matrix: Record<string, Record<string, { count: number; win_rate: number }>>
+  top_pairs: ConceptCooccurrencePair[]
+}
+
+export interface ConceptTrendData {
+  series: Record<string, Array<{ year: number; count: number; win_rate: number }>>
+  emerging: Array<{ name: string; growth_pct: number; recent_count: number }>
+  declining: Array<{ name: string; decline_pct: number; recent_count: number }>
+}
