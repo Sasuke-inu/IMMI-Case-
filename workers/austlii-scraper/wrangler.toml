@@ -1,0 +1,30 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "austlii-scraper"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Workers Paid plan recommended for 30s CPU time (free plan = 10ms)
+
+# ─── R2 Bucket ────────────────────────────────────────────────────────────────
+[[r2_buckets]]
+binding = "CASE_RESULTS"
+bucket_name = "austlii-case-results"
+
+# ─── Queue Producer ───────────────────────────────────────────────────────────
+[[queues.producers]]
+binding = "SCRAPE_QUEUE"
+queue = "austlii-scrape-queue"
+
+# ─── Queue Consumer ───────────────────────────────────────────────────────────
+[[queues.consumers]]
+queue = "austlii-scrape-queue"
+max_batch_size = 5
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "austlii-scrape-dlq"
+max_concurrency = 20
+
+# ─── Environment Variables ────────────────────────────────────────────────────
+# Set AUTH_TOKEN via: wrangler secret put AUTH_TOKEN
+# [vars]
+# AUTH_TOKEN is stored as a secret, not in plaintext

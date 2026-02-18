@@ -7,6 +7,9 @@ const courtColorMap: Record<string, string> = {
   FCCA: "bg-court-fcca",
   FedCFamC2G: "bg-court-fedc",
   HCA: "bg-court-hca",
+  RRTA: "bg-court-rrta",
+  MRTA: "bg-court-mrta",
+  FMCA: "bg-court-fmca",
 }
 
 interface CourtBadgeProps {

@@ -118,6 +118,7 @@ const DEFAULT_LIGHT: Record<string, string> = {
   "--color-background-surface": tokens.color.background.surface,
   "--color-border": tokens.color.border.DEFAULT,
   "--color-text": tokens.color.text.DEFAULT,
+  "--color-text-secondary": tokens.color.text.secondary,
   "--color-text-muted": tokens.color.text.muted,
 }
 const DEFAULT_DARK: Record<string, string> = {
@@ -128,6 +129,7 @@ const DEFAULT_DARK: Record<string, string> = {
   "--color-background-surface": tokens.color.dark.background.surface,
   "--color-border": tokens.color.dark.border.DEFAULT,
   "--color-text": tokens.color.dark.text.DEFAULT,
+  "--color-text-secondary": tokens.color.dark.text.secondary,
   "--color-text-muted": tokens.color.dark.text.muted,
 }
 
@@ -161,16 +163,20 @@ const COURT_GROUPS = Object.entries(courtColors).map(([name, hex]) => ({
   hex,
 }))
 
-// Semantic + surprise creative colors (8 total)
+// Semantic colors — these have matching CSS vars consumed by the UI
 const SEMANTIC_GROUPS: { title: string; hex: string; cssVar: string }[] = [
   { title: "Success", hex: semanticColors.success, cssVar: "--color-semantic-success" },
   { title: "Warning", hex: semanticColors.warning, cssVar: "--color-semantic-warning" },
   { title: "Danger", hex: semanticColors.danger, cssVar: "--color-semantic-danger" },
   { title: "Info", hex: semanticColors.info, cssVar: "--color-semantic-info" },
-  { title: "Coral", hex: "#e76f51", cssVar: "--color-semantic-coral" },
-  { title: "Teal", hex: "#2a9d8f", cssVar: "--color-semantic-teal" },
-  { title: "Indigo", hex: "#5c6bc0", cssVar: "--color-semantic-indigo" },
-  { title: "Gold", hex: "#c9942e", cssVar: "--color-semantic-gold" },
+]
+
+// Creative palette — for charts and illustrations (copy-only, no live override)
+const CREATIVE_COLORS: { title: string; hex: string }[] = [
+  { title: "Coral", hex: "#e76f51" },
+  { title: "Teal", hex: "#2a9d8f" },
+  { title: "Indigo", hex: "#5c6bc0" },
+  { title: "Gold", hex: "#c9942e" },
 ]
 
 const FONT_OPTIONS = [
@@ -189,19 +195,16 @@ const SPACING_SCALE = [
   { key: "5", value: "1.25rem", px: "20px" },
   { key: "6", value: "1.5rem", px: "24px" },
   { key: "8", value: "2rem", px: "32px" },
-  { key: "10", value: "2.5rem", px: "40px" },
-  { key: "12", value: "3rem", px: "48px" },
-  { key: "16", value: "4rem", px: "64px" },
 ]
 
 const RADIUS_SCALE = [
   { key: "none", value: "0", label: "None" },
-  { key: "xs", value: "0.125rem", label: "XS" },
-  { key: "sm", value: "0.25rem", label: "SM" },
-  { key: "md", value: "0.375rem", label: "Default" },
-  { key: "lg", value: "0.5rem", label: "LG" },
-  { key: "xl", value: "0.75rem", label: "XL" },
-  { key: "2xl", value: "1rem", label: "2XL" },
+  { key: "xs", value: "0.25rem", label: "XS" },
+  { key: "sm", value: "0.5rem", label: "SM" },
+  { key: "token-sm", value: tokens.radius.sm, label: "Token SM" },
+  { key: "default", value: tokens.radius.DEFAULT, label: "Default" },
+  { key: "token-lg", value: tokens.radius.lg, label: "Token LG" },
+  { key: "pill", value: tokens.radius.pill, label: "Pill" },
   { key: "full", value: "9999px", label: "Full" },
 ]
 
@@ -441,14 +444,13 @@ function ColorPalette() {
         })}
       </div>
 
-      {/* Semantic + Surprise Colors */}
+      {/* Semantic Colors (functional — these override live UI) */}
       <div className="mt-8 mb-5">
         <h3 className="mb-3 text-base font-semibold text-foreground">
-          Semantic &amp; Creative Colors
+          Semantic Colors
         </h3>
         <p className="mb-4 text-sm text-muted-text">
-          Core UI semantics plus 4 surprise colours that complement the theme.
-          Click any tone to apply it as a custom override.
+          Core UI status colours. Click any tone to apply it live across the UI.
         </p>
         {SEMANTIC_GROUPS.map((sg) => {
           const tones = generateTones(sg.hex)
@@ -463,6 +465,41 @@ function ColorPalette() {
               activeHex={activeHex}
               onSelect={handleSelect}
             />
+          )
+        })}
+      </div>
+
+      {/* Creative Colors (reference only — click to copy hex) */}
+      <div className="mt-8 mb-5">
+        <h3 className="mb-3 text-base font-semibold text-foreground">
+          Creative Colors
+        </h3>
+        <p className="mb-4 text-sm text-muted-text">
+          Complementary palette for charts and illustrations.
+          Click any tone to copy its hex value.
+        </p>
+        {CREATIVE_COLORS.map((cc) => {
+          const tones = generateTones(cc.hex)
+          return (
+            <div key={cc.title} className="mb-5">
+              <SubHeading>{cc.title}</SubHeading>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                {tones.map((tone) => (
+                  <button
+                    key={tone.label}
+                    onClick={() => copyToClipboard(tone.hex, `${cc.title} ${tone.label}`)}
+                    className="group rounded-lg border border-border p-2 text-left transition-all hover:border-accent/40 hover:shadow-sm"
+                  >
+                    <div
+                      className="mb-1.5 h-10 w-full rounded-md border border-black/10"
+                      style={{ backgroundColor: tone.hex }}
+                    />
+                    <p className="text-[10px] font-medium text-foreground">{tone.label}</p>
+                    <p className="font-mono text-[9px] text-muted-text">{tone.hex}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
           )
         })}
       </div>
@@ -508,7 +545,7 @@ function TypographySection() {
         {FONT_OPTIONS.map((f) => {
           const isActive =
             activeFont === f.value ||
-            (!activeFont && f.label === "Inter")
+            (!activeFont && f.label === "Merriweather")
           return (
             <button
               key={f.label}
@@ -583,7 +620,7 @@ function SpacingSection() {
       <p className="mb-4 text-sm text-muted-text">
         Click a spacing value to preview it in the live layout below.
       </p>
-      <div className="mb-4 grid grid-cols-5 gap-2 sm:grid-cols-10">
+      <div className="mb-4 grid grid-cols-4 gap-2 sm:grid-cols-7">
         {SPACING_SCALE.map((s) => {
           const active = selectedSpacing === s.value
           return (
@@ -664,7 +701,9 @@ function RadiusSection() {
       </p>
       <div className="mb-4 grid grid-cols-4 gap-3 sm:grid-cols-8">
         {RADIUS_SCALE.map((r) => {
-          const active = activeRadius === r.value
+          const active = activeRadius
+            ? activeRadius === r.value
+            : r.value === tokens.radius.DEFAULT
           return (
             <button
               key={r.key}
@@ -983,24 +1022,22 @@ function ComponentGallery() {
    ═══════════════════════════════════════════════════════════════ */
 
 function DarkModeComparison() {
-  const lightVars: Record<string, string> = {
-    bg: tokens.color.background.DEFAULT,
-    card: tokens.color.background.card,
-    text: tokens.color.text.DEFAULT,
-    secondary: tokens.color.text.secondary,
-    muted: tokens.color.text.muted,
-    border: tokens.color.border.DEFAULT,
-    accent: tokens.color.accent.DEFAULT,
+  const { preset } = useThemePreset()
+
+  function buildVars(dark: boolean) {
+    return {
+      bg: getBaseColor(preset, dark, "--color-background"),
+      card: getBaseColor(preset, dark, "--color-background-card"),
+      text: getBaseColor(preset, dark, "--color-text"),
+      secondary: getBaseColor(preset, dark, "--color-text-secondary"),
+      muted: getBaseColor(preset, dark, "--color-text-muted"),
+      border: getBaseColor(preset, dark, "--color-border"),
+      accent: getBaseColor(preset, dark, "--color-accent"),
+    }
   }
-  const darkVars: Record<string, string> = {
-    bg: tokens.color.dark.background.DEFAULT,
-    card: tokens.color.dark.background.card,
-    text: tokens.color.dark.text.DEFAULT,
-    secondary: tokens.color.dark.text.secondary,
-    muted: tokens.color.dark.text.muted,
-    border: tokens.color.dark.border.DEFAULT,
-    accent: tokens.color.dark.accent.DEFAULT,
-  }
+
+  const lightVars = buildVars(false)
+  const darkVars = buildVars(true)
 
   function MiniCard({ vars, label }: { vars: Record<string, string>; label: string }) {
     return (
@@ -1070,6 +1107,9 @@ const ALL_VARS: VarRow[] = [
   { name: "--color-court-fcca", category: "Court", preview: "color" },
   { name: "--color-court-fedcfamc2g", category: "Court", preview: "color" },
   { name: "--color-court-hca", category: "Court", preview: "color" },
+  { name: "--color-court-rrta", category: "Court", preview: "color" },
+  { name: "--color-court-mrta", category: "Court", preview: "color" },
+  { name: "--color-court-fmca", category: "Court", preview: "color" },
   { name: "--font-heading", category: "Font", preview: "font" },
   { name: "--font-body", category: "Font", preview: "font" },
   { name: "--font-mono", category: "Font", preview: "font" },

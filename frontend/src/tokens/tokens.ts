@@ -39,7 +39,10 @@ export const tokens = {
       "FCA": "#117864",
       "FCCA": "#b9770e",
       "FedCFamC2G": "#a93226",
-      "HCA": "#1b2631"
+      "HCA": "#1b2631",
+      "RRTA": "#1e8449",
+      "MRTA": "#922b5f",
+      "FMCA": "#b84c00"
     },
     "dark": {
       "primary": {
@@ -124,6 +127,9 @@ export const courtColors: Record<string, string> = {
   FCCA: "#b9770e",
   FedCFamC2G: "#a93226",
   HCA: "#1b2631",
+  RRTA: "#1e8449",
+  MRTA: "#922b5f",
+  FMCA: "#b84c00",
 } as const
 
 export const semanticColors = {
