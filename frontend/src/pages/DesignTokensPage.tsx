@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react"
-import { toast } from "sonner"
+import { useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import {
   Check,
   Copy,
@@ -12,30 +12,31 @@ import {
   RotateCcw,
   Save,
   Type,
-} from "lucide-react"
-import { tokens, courtColors, semanticColors } from "@/tokens/tokens"
-import { CourtBadge } from "@/components/shared/CourtBadge"
-import { OutcomeBadge } from "@/components/shared/OutcomeBadge"
-import { StatCard } from "@/components/dashboard/StatCard"
-import { CaseCard } from "@/components/cases/CaseCard"
+} from "lucide-react";
+import { tokens, courtColors, semanticColors } from "@/tokens/tokens";
+import { CourtBadge } from "@/components/shared/CourtBadge";
+import { OutcomeBadge } from "@/components/shared/OutcomeBadge";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { CaseCard } from "@/components/cases/CaseCard";
 import {
   useThemePreset,
   PRESETS,
   type PresetName,
-} from "@/hooks/use-theme-preset"
-import { cn } from "@/lib/utils"
-import type { ImmigrationCase } from "@/types/case"
+} from "@/hooks/use-theme-preset";
+import { cn } from "@/lib/utils";
+import type { ImmigrationCase } from "@/types/case";
 
 /* ═══════════════════════════════════════════════════════════════
    Color Utilities
    ═══════════════════════════════════════════════════════════════ */
 
 function parseColor(color: string): [number, number, number] | null {
-  const hex = color.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i)
-  if (hex) return [parseInt(hex[1], 16), parseInt(hex[2], 16), parseInt(hex[3], 16)]
-  const rgb = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
-  if (rgb) return [parseInt(rgb[1]), parseInt(rgb[2]), parseInt(rgb[3])]
-  return null
+  const hex = color.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (hex)
+    return [parseInt(hex[1], 16), parseInt(hex[2], 16), parseInt(hex[3], 16)];
+  const rgb = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rgb) return [parseInt(rgb[1]), parseInt(rgb[2]), parseInt(rgb[3])];
+  return null;
 }
 
 function rgbToHex(r: number, g: number, b: number): string {
@@ -48,24 +49,24 @@ function rgbToHex(r: number, g: number, b: number): string {
           .padStart(2, "0"),
       )
       .join("")
-  )
+  );
 }
 
 function mixHex(c1: string, c2: string, w: number): string {
-  const a = parseColor(c1)
-  const b = parseColor(c2)
-  if (!a || !b) return c1
+  const a = parseColor(c1);
+  const b = parseColor(c2);
+  if (!a || !b) return c1;
   return rgbToHex(
     a[0] * (1 - w) + b[0] * w,
     a[1] * (1 - w) + b[1] * w,
     a[2] * (1 - w) + b[2] * w,
-  )
+  );
 }
 
 function generateTones(base: string): { label: string; hex: string }[] {
-  const rgb = parseColor(base)
-  if (!rgb) return [{ label: "500", hex: base }]
-  const brightness = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000
+  const rgb = parseColor(base);
+  if (!rgb) return [{ label: "500", hex: base }];
+  const brightness = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000;
 
   if (brightness > 200) {
     // Very light (e.g. #ffffff, #f5f4f1) → tones go progressively darker
@@ -78,7 +79,7 @@ function generateTones(base: string): { label: string; hex: string }[] {
       { label: "500", hex: mixHex(base, "#1f2937", 0.42) },
       { label: "600", hex: mixHex(base, "#111827", 0.55) },
       { label: "700", hex: mixHex(base, "#030712", 0.7) },
-    ]
+    ];
   }
   if (brightness < 60) {
     // Very dark (e.g. #1b2838) → tones go progressively lighter
@@ -91,7 +92,7 @@ function generateTones(base: string): { label: string; hex: string }[] {
       { label: "600", hex: mixHex(base, "#ffffff", 0.12) },
       { label: "700", hex: base },
       { label: "800", hex: mixHex(base, "#000000", 0.3) },
-    ]
+    ];
   }
   // Mid-range → spread both directions from base
   return [
@@ -103,7 +104,7 @@ function generateTones(base: string): { label: string; hex: string }[] {
     { label: "600", hex: mixHex(base, "#000000", 0.15) },
     { label: "700", hex: mixHex(base, "#000000", 0.3) },
     { label: "900", hex: mixHex(base, "#000000", 0.5) },
-  ]
+  ];
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -120,7 +121,7 @@ const DEFAULT_LIGHT: Record<string, string> = {
   "--color-text": tokens.color.text.DEFAULT,
   "--color-text-secondary": tokens.color.text.secondary,
   "--color-text-muted": tokens.color.text.muted,
-}
+};
 const DEFAULT_DARK: Record<string, string> = {
   "--color-primary": tokens.color.dark.primary.DEFAULT,
   "--color-accent": tokens.color.dark.accent.DEFAULT,
@@ -131,14 +132,18 @@ const DEFAULT_DARK: Record<string, string> = {
   "--color-text": tokens.color.dark.text.DEFAULT,
   "--color-text-secondary": tokens.color.dark.text.secondary,
   "--color-text-muted": tokens.color.dark.text.muted,
-}
+};
 
-function getBaseColor(preset: PresetName, isDark: boolean, cssVar: string): string {
-  const p = PRESETS[preset]
-  const presetVars = isDark ? p.darkVars : p.vars
-  if (presetVars[cssVar]) return presetVars[cssVar]
-  const defaults = isDark ? DEFAULT_DARK : DEFAULT_LIGHT
-  return defaults[cssVar] || ""
+function getBaseColor(
+  preset: PresetName,
+  isDark: boolean,
+  cssVar: string,
+): string {
+  const p = PRESETS[preset];
+  const presetVars = isDark ? p.darkVars : p.vars;
+  if (presetVars[cssVar]) return presetVars[cssVar];
+  const defaults = isDark ? DEFAULT_DARK : DEFAULT_LIGHT;
+  return defaults[cssVar] || "";
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -154,22 +159,34 @@ const COLOR_GROUPS = [
   { title: "Border", cssVar: "--color-border" },
   { title: "Text", cssVar: "--color-text" },
   { title: "Muted Text", cssVar: "--color-text-muted" },
-]
+];
 
 // Court colors — use hex values directly (CSS vars are lowercase)
 const COURT_GROUPS = Object.entries(courtColors).map(([name, hex]) => ({
   title: name,
   cssVar: `--color-court-${name.toLowerCase()}`,
   hex,
-}))
+}));
 
 // Semantic colors — these have matching CSS vars consumed by the UI
 const SEMANTIC_GROUPS: { title: string; hex: string; cssVar: string }[] = [
-  { title: "Success", hex: semanticColors.success, cssVar: "--color-semantic-success" },
-  { title: "Warning", hex: semanticColors.warning, cssVar: "--color-semantic-warning" },
-  { title: "Danger", hex: semanticColors.danger, cssVar: "--color-semantic-danger" },
+  {
+    title: "Success",
+    hex: semanticColors.success,
+    cssVar: "--color-semantic-success",
+  },
+  {
+    title: "Warning",
+    hex: semanticColors.warning,
+    cssVar: "--color-semantic-warning",
+  },
+  {
+    title: "Danger",
+    hex: semanticColors.danger,
+    cssVar: "--color-semantic-danger",
+  },
   { title: "Info", hex: semanticColors.info, cssVar: "--color-semantic-info" },
-]
+];
 
 // Creative palette — for charts and illustrations (copy-only, no live override)
 const CREATIVE_COLORS: { title: string; hex: string }[] = [
@@ -177,15 +194,35 @@ const CREATIVE_COLORS: { title: string; hex: string }[] = [
   { title: "Teal", hex: "#2a9d8f" },
   { title: "Indigo", hex: "#5c6bc0" },
   { title: "Gold", hex: "#c9942e" },
-]
+];
 
 const FONT_OPTIONS = [
-  { label: "Inter", value: "Inter, -apple-system, BlinkMacSystemFont, sans-serif", style: "Modern sans-serif" },
-  { label: "DM Sans", value: "'DM Sans', sans-serif", style: "Geometric, friendly" },
-  { label: "IBM Plex Sans", value: "'IBM Plex Sans', sans-serif", style: "Professional, neutral" },
-  { label: "Source Serif 4", value: "'Source Serif 4', Georgia, serif", style: "Elegant serif" },
-  { label: "Merriweather", value: "Merriweather, Georgia, serif", style: "Robust, readable" },
-]
+  {
+    label: "Inter",
+    value: "Inter, -apple-system, BlinkMacSystemFont, sans-serif",
+    style: "Modern sans-serif",
+  },
+  {
+    label: "DM Sans",
+    value: "'DM Sans', sans-serif",
+    style: "Geometric, friendly",
+  },
+  {
+    label: "IBM Plex Sans",
+    value: "'IBM Plex Sans', sans-serif",
+    style: "Professional, neutral",
+  },
+  {
+    label: "Source Serif 4",
+    value: "'Source Serif 4', Georgia, serif",
+    style: "Elegant serif",
+  },
+  {
+    label: "Merriweather",
+    value: "Merriweather, Georgia, serif",
+    style: "Robust, readable",
+  },
+];
 
 const SPACING_SCALE = [
   { key: "1", value: "0.25rem", px: "4px" },
@@ -195,7 +232,7 @@ const SPACING_SCALE = [
   { key: "5", value: "1.25rem", px: "20px" },
   { key: "6", value: "1.5rem", px: "24px" },
   { key: "8", value: "2rem", px: "32px" },
-]
+];
 
 const RADIUS_SCALE = [
   { key: "none", value: "0", label: "None" },
@@ -206,34 +243,45 @@ const RADIUS_SCALE = [
   { key: "token-lg", value: tokens.radius.lg, label: "Token LG" },
   { key: "pill", value: tokens.radius.pill, label: "Pill" },
   { key: "full", value: "9999px", label: "Full" },
-]
+];
 
 const SHADOW_DEMOS = [
   { key: "xs", label: "Extra Small", value: tokens.shadow.xs },
   { key: "sm", label: "Small", value: tokens.shadow.sm },
   { key: "md", label: "Medium", value: tokens.shadow.DEFAULT },
   { key: "lg", label: "Large", value: tokens.shadow.lg },
-]
+];
 
 /* ═══════════════════════════════════════════════════════════════
    Generic Helpers
    ═══════════════════════════════════════════════════════════════ */
 
 function copyToClipboard(text: string, label?: string) {
-  navigator.clipboard.writeText(text)
-  toast.success(`Copied ${label ?? text}`)
+  navigator.clipboard.writeText(text);
+  toast.success(`Copied ${label ?? text}`);
 }
 
-function SectionHeading({ id, children }: { id: string; children: React.ReactNode }) {
+function SectionHeading({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
   return (
-    <h2 id={id} className="mb-4 scroll-mt-20 font-heading text-xl font-semibold">
+    <h2
+      id={id}
+      className="mb-4 scroll-mt-20 font-heading text-xl font-semibold"
+    >
       {children}
     </h2>
-  )
+  );
 }
 
 function SubHeading({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-sm font-medium text-secondary-text">{children}</h3>
+  return (
+    <h3 className="mb-2 text-sm font-medium text-secondary-text">{children}</h3>
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -241,7 +289,7 @@ function SubHeading({ children }: { children: React.ReactNode }) {
    ═══════════════════════════════════════════════════════════════ */
 
 function ThemePresetSwitcher() {
-  const { preset, isDark, setPreset, toggleDark } = useThemePreset()
+  const { preset, isDark, setPreset, toggleDark } = useThemePreset();
 
   return (
     <section>
@@ -274,44 +322,49 @@ function ThemePresetSwitcher() {
         </span>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {(Object.entries(PRESETS) as [PresetName, (typeof PRESETS)[PresetName]][]).map(
-          ([name, p]) => {
-            const active = preset === name
-            const dots = isDark ? p.darkColors : p.colors
-            return (
-              <button
-                key={name}
-                onClick={() => setPreset(name)}
-                className={cn(
-                  "relative flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all",
-                  active
-                    ? "border-accent bg-card shadow-md"
-                    : "border-border bg-card hover:border-accent/40 hover:shadow-sm",
-                )}
-              >
-                {active && (
-                  <div className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-white">
-                    <Check className="h-3 w-3" />
-                  </div>
-                )}
-                <div className="flex gap-1">
-                  {dots.map((c, i) => (
-                    <div
-                      key={i}
-                      className="h-6 w-6 rounded-full border border-black/10"
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
+      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        {(
+          Object.entries(PRESETS) as [
+            PresetName,
+            (typeof PRESETS)[PresetName],
+          ][]
+        ).map(([name, p]) => {
+          const active = preset === name;
+          const dots = isDark ? p.darkColors : p.colors;
+          return (
+            <button
+              key={name}
+              onClick={() => setPreset(name)}
+              className={cn(
+                "relative flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all",
+                active
+                  ? "border-accent bg-card shadow-md"
+                  : "border-border bg-card hover:border-accent/40 hover:shadow-sm",
+              )}
+            >
+              {active && (
+                <div className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-white">
+                  <Check className="h-3 w-3" />
                 </div>
-                <span className="text-sm font-medium text-foreground">{p.label}</span>
-              </button>
-            )
-          },
-        )}
+              )}
+              <div className="flex gap-1">
+                {dots.map((c, i) => (
+                  <div
+                    key={i}
+                    className="h-6 w-6 rounded-full border border-black/10"
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+              <span className="text-sm font-medium text-foreground">
+                {p.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </section>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -325,18 +378,18 @@ function ToneGrid({
   activeHex,
   onSelect,
 }: {
-  title: string
-  tones: { label: string; hex: string }[]
-  cssVar: string
-  activeHex: string | undefined
-  onSelect: (cssVar: string, hex: string, title: string) => void
+  title: string;
+  tones: { label: string; hex: string }[];
+  cssVar: string;
+  activeHex: string | undefined;
+  onSelect: (cssVar: string, hex: string, title: string) => void;
 }) {
   return (
     <div className="mb-5">
       <SubHeading>{title}</SubHeading>
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
         {tones.map((tone) => {
-          const isActive = activeHex?.toLowerCase() === tone.hex.toLowerCase()
+          const isActive = activeHex?.toLowerCase() === tone.hex.toLowerCase();
           return (
             <button
               key={tone.label}
@@ -357,30 +410,32 @@ function ToneGrid({
                 className="mb-1.5 h-10 w-full rounded-md border border-black/10"
                 style={{ backgroundColor: tone.hex }}
               />
-              <p className="text-[10px] font-medium text-foreground">{tone.label}</p>
+              <p className="text-[10px] font-medium text-foreground">
+                {tone.label}
+              </p>
               <p className="font-mono text-[9px] text-muted-text">{tone.hex}</p>
             </button>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }
 
 function ColorPalette() {
-  const { preset, isDark, customVars, setCustomVar } = useThemePreset()
+  const { preset, isDark, customVars, setCustomVar } = useThemePreset();
 
   const baseColors = useMemo(() => {
-    const result: Record<string, string> = {}
+    const result: Record<string, string> = {};
     for (const g of COLOR_GROUPS) {
-      result[g.cssVar] = getBaseColor(preset, isDark, g.cssVar)
+      result[g.cssVar] = getBaseColor(preset, isDark, g.cssVar);
     }
-    return result
-  }, [preset, isDark])
+    return result;
+  }, [preset, isDark]);
 
   function handleSelect(cssVar: string, hex: string, title: string) {
-    setCustomVar(cssVar, hex)
-    toast.success(`${title} set to ${hex}`)
+    setCustomVar(cssVar, hex);
+    toast.success(`${title} set to ${hex}`);
   }
 
   return (
@@ -392,10 +447,10 @@ function ColorPalette() {
       </p>
 
       {COLOR_GROUPS.map((group) => {
-        const base = baseColors[group.cssVar]
-        if (!base || base.startsWith("rgba")) return null
-        const tones = generateTones(base)
-        const activeHex = customVars[group.cssVar]
+        const base = baseColors[group.cssVar];
+        if (!base || base.startsWith("rgba")) return null;
+        const tones = generateTones(base);
+        const activeHex = customVars[group.cssVar];
 
         return (
           <ToneGrid
@@ -406,41 +461,52 @@ function ColorPalette() {
             activeHex={activeHex}
             onSelect={handleSelect}
           />
-        )
+        );
       })}
 
       {/* Court Colors */}
       <div className="mt-8 mb-5">
-        <h3 className="mb-3 text-base font-semibold text-foreground">Court Colors</h3>
+        <h3 className="mb-3 text-base font-semibold text-foreground">
+          Court Colors
+        </h3>
         <p className="mb-4 text-sm text-muted-text">
-          Each court has a distinct colour. Click any tone to copy its hex value.
+          Each court has a distinct colour. Click any tone to copy its hex
+          value.
         </p>
         {COURT_GROUPS.map((court) => {
-          const tones = generateTones(court.hex)
+          const tones = generateTones(court.hex);
           return (
             <div key={court.title} className="mb-5">
               <div className="mb-2 flex items-center gap-2">
                 <CourtBadge court={court.title} />
-                <span className="font-mono text-xs text-muted-text">{court.hex}</span>
+                <span className="font-mono text-xs text-muted-text">
+                  {court.hex}
+                </span>
               </div>
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                 {tones.map((tone) => (
                   <button
                     key={tone.label}
-                    onClick={() => copyToClipboard(tone.hex, `${court.title} ${tone.label}`)}
+                    onClick={() =>
+                      copyToClipboard(tone.hex, `${court.title} ${tone.label}`)
+                    }
                     className="group rounded-lg border border-border p-2 text-left transition-all hover:border-accent/40 hover:shadow-sm"
                   >
                     <div
                       className="mb-1.5 h-10 w-full rounded-md border border-black/10"
                       style={{ backgroundColor: tone.hex }}
                     />
-                    <p className="text-[10px] font-medium text-foreground">{tone.label}</p>
-                    <p className="font-mono text-[9px] text-muted-text">{tone.hex}</p>
+                    <p className="text-[10px] font-medium text-foreground">
+                      {tone.label}
+                    </p>
+                    <p className="font-mono text-[9px] text-muted-text">
+                      {tone.hex}
+                    </p>
                   </button>
                 ))}
               </div>
             </div>
-          )
+          );
         })}
       </div>
 
@@ -453,8 +519,8 @@ function ColorPalette() {
           Core UI status colours. Click any tone to apply it live across the UI.
         </p>
         {SEMANTIC_GROUPS.map((sg) => {
-          const tones = generateTones(sg.hex)
-          const activeHex = customVars[sg.cssVar]
+          const tones = generateTones(sg.hex);
+          const activeHex = customVars[sg.cssVar];
 
           return (
             <ToneGrid
@@ -465,7 +531,7 @@ function ColorPalette() {
               activeHex={activeHex}
               onSelect={handleSelect}
             />
-          )
+          );
         })}
       </div>
 
@@ -475,11 +541,11 @@ function ColorPalette() {
           Creative Colors
         </h3>
         <p className="mb-4 text-sm text-muted-text">
-          Complementary palette for charts and illustrations.
-          Click any tone to copy its hex value.
+          Complementary palette for charts and illustrations. Click any tone to
+          copy its hex value.
         </p>
         {CREATIVE_COLORS.map((cc) => {
-          const tones = generateTones(cc.hex)
+          const tones = generateTones(cc.hex);
           return (
             <div key={cc.title} className="mb-5">
               <SubHeading>{cc.title}</SubHeading>
@@ -487,24 +553,30 @@ function ColorPalette() {
                 {tones.map((tone) => (
                   <button
                     key={tone.label}
-                    onClick={() => copyToClipboard(tone.hex, `${cc.title} ${tone.label}`)}
+                    onClick={() =>
+                      copyToClipboard(tone.hex, `${cc.title} ${tone.label}`)
+                    }
                     className="group rounded-lg border border-border p-2 text-left transition-all hover:border-accent/40 hover:shadow-sm"
                   >
                     <div
                       className="mb-1.5 h-10 w-full rounded-md border border-black/10"
                       style={{ backgroundColor: tone.hex }}
                     />
-                    <p className="text-[10px] font-medium text-foreground">{tone.label}</p>
-                    <p className="font-mono text-[9px] text-muted-text">{tone.hex}</p>
+                    <p className="text-[10px] font-medium text-foreground">
+                      {tone.label}
+                    </p>
+                    <p className="font-mono text-[9px] text-muted-text">
+                      {tone.hex}
+                    </p>
                   </button>
                 ))}
               </div>
             </div>
-          )
+          );
         })}
       </div>
     </section>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -512,8 +584,8 @@ function ColorPalette() {
    ═══════════════════════════════════════════════════════════════ */
 
 function TypographySection() {
-  const { customVars, setCustomVar } = useThemePreset()
-  const activeFont = customVars["--font-body"] || ""
+  const { customVars, setCustomVar } = useThemePreset();
+  const activeFont = customVars["--font-body"] || "";
 
   const fontSizes = [
     { label: "xs", cls: "text-xs", px: "12px" },
@@ -523,14 +595,14 @@ function TypographySection() {
     { label: "xl", cls: "text-xl", px: "20px" },
     { label: "2xl", cls: "text-2xl", px: "24px" },
     { label: "3xl", cls: "text-3xl", px: "30px" },
-  ]
+  ];
   const fontWeights = [
     { label: "Light", weight: 300, cls: "font-light" },
     { label: "Regular", weight: 400, cls: "font-normal" },
     { label: "Medium", weight: 500, cls: "font-medium" },
     { label: "Semibold", weight: 600, cls: "font-semibold" },
     { label: "Bold", weight: 700, cls: "font-bold" },
-  ]
+  ];
 
   return (
     <section>
@@ -539,19 +611,20 @@ function TypographySection() {
       {/* Font Picker */}
       <SubHeading>Body Font</SubHeading>
       <p className="mb-3 text-sm text-muted-text">
-        Click a font to apply it across the entire UI. Your choice is auto-saved.
+        Click a font to apply it across the entire UI. Your choice is
+        auto-saved.
       </p>
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {FONT_OPTIONS.map((f) => {
           const isActive =
             activeFont === f.value ||
-            (!activeFont && f.label === "Merriweather")
+            (!activeFont && f.label === "Merriweather");
           return (
             <button
               key={f.label}
               onClick={() => {
-                setCustomVar("--font-body", f.value)
-                toast.success(`Font changed to ${f.label}`)
+                setCustomVar("--font-body", f.value);
+                toast.success(`Font changed to ${f.label}`);
               }}
               className={cn(
                 "relative rounded-lg border-2 p-4 text-left transition-all",
@@ -567,7 +640,9 @@ function TypographySection() {
               )}
               <div className="mb-1 flex items-center gap-2">
                 <Type className="h-4 w-4 text-accent" />
-                <span className="text-sm font-semibold text-foreground">{f.label}</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {f.label}
+                </span>
               </div>
               <p
                 className="mb-1 text-lg leading-snug text-foreground"
@@ -577,7 +652,7 @@ function TypographySection() {
               </p>
               <p className="text-[10px] text-muted-text">{f.style}</p>
             </button>
-          )
+          );
         })}
       </div>
 
@@ -586,8 +661,12 @@ function TypographySection() {
       <div className="mb-6 space-y-2">
         {fontSizes.map((s) => (
           <div key={s.label} className="flex items-baseline gap-4">
-            <span className="w-12 shrink-0 text-right font-mono text-xs text-muted-text">{s.label}</span>
-            <span className="w-10 shrink-0 font-mono text-[10px] text-muted-text/70">{s.px}</span>
+            <span className="w-12 shrink-0 text-right font-mono text-xs text-muted-text">
+              {s.label}
+            </span>
+            <span className="w-10 shrink-0 font-mono text-[10px] text-muted-text/70">
+              {s.px}
+            </span>
             <span className={s.cls}>Immigration Law Concepts</span>
           </div>
         ))}
@@ -598,13 +677,17 @@ function TypographySection() {
       <div className="space-y-2">
         {fontWeights.map((w) => (
           <div key={w.label} className="flex items-baseline gap-4">
-            <span className="w-20 shrink-0 text-right font-mono text-xs text-muted-text">{w.weight}</span>
-            <span className={`text-base ${w.cls}`}>{w.label} — Review of Migration Decision</span>
+            <span className="w-20 shrink-0 text-right font-mono text-xs text-muted-text">
+              {w.weight}
+            </span>
+            <span className={`text-base ${w.cls}`}>
+              {w.label} — Review of Migration Decision
+            </span>
           </div>
         ))}
       </div>
     </section>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -612,7 +695,7 @@ function TypographySection() {
    ═══════════════════════════════════════════════════════════════ */
 
 function SpacingSection() {
-  const [selectedSpacing, setSelectedSpacing] = useState("1rem")
+  const [selectedSpacing, setSelectedSpacing] = useState("1rem");
 
   return (
     <section>
@@ -622,7 +705,7 @@ function SpacingSection() {
       </p>
       <div className="mb-4 grid grid-cols-4 gap-2 sm:grid-cols-7">
         {SPACING_SCALE.map((s) => {
-          const active = selectedSpacing === s.value
+          const active = selectedSpacing === s.value;
           return (
             <button
               key={s.key}
@@ -636,12 +719,21 @@ function SpacingSection() {
             >
               <div
                 className="mb-1 rounded border border-accent/40 bg-accent/20"
-                style={{ width: s.value, height: s.value, maxWidth: "2.5rem", maxHeight: "2.5rem" }}
+                style={{
+                  width: s.value,
+                  height: s.value,
+                  maxWidth: "2.5rem",
+                  maxHeight: "2.5rem",
+                }}
               />
-              <span className="text-[10px] font-medium text-foreground">{s.key}</span>
-              <span className="font-mono text-[9px] text-muted-text">{s.px}</span>
+              <span className="text-[10px] font-medium text-foreground">
+                {s.key}
+              </span>
+              <span className="font-mono text-[9px] text-muted-text">
+                {s.px}
+              </span>
             </button>
-          )
+          );
         })}
       </div>
 
@@ -650,20 +742,25 @@ function SpacingSection() {
         className="rounded-lg border border-border bg-card transition-all"
         style={{ padding: selectedSpacing }}
       >
-        <div className="flex flex-wrap transition-all" style={{ gap: selectedSpacing }}>
+        <div
+          className="flex flex-wrap transition-all"
+          style={{ gap: selectedSpacing }}
+        >
           {["Card A", "Card B", "Card C"].map((label) => (
             <div
               key={label}
               className="rounded-md border border-accent/30 bg-accent-muted transition-all"
               style={{ padding: selectedSpacing }}
             >
-              <span className="text-xs font-medium text-foreground">{label}</span>
+              <span className="text-xs font-medium text-foreground">
+                {label}
+              </span>
             </div>
           ))}
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -671,25 +768,28 @@ function SpacingSection() {
    ═══════════════════════════════════════════════════════════════ */
 
 function RadiusSection() {
-  const { setCustomVar, customVars } = useThemePreset()
-  const activeRadius = customVars["--radius"] || ""
+  const { setCustomVar, customVars } = useThemePreset();
+  const activeRadius = customVars["--radius"] || "";
 
   function handleRadiusSelect(value: string) {
-    const rem = parseFloat(value) || 0
+    const rem = parseFloat(value) || 0;
     if (value === "9999px") {
-      setCustomVar("--radius-sm", "9999px")
-      setCustomVar("--radius", "9999px")
-      setCustomVar("--radius-lg", "9999px")
+      setCustomVar("--radius-sm", "9999px");
+      setCustomVar("--radius", "9999px");
+      setCustomVar("--radius-lg", "9999px");
     } else if (rem === 0) {
-      setCustomVar("--radius-sm", "0")
-      setCustomVar("--radius", "0")
-      setCustomVar("--radius-lg", "0")
+      setCustomVar("--radius-sm", "0");
+      setCustomVar("--radius", "0");
+      setCustomVar("--radius-lg", "0");
     } else {
-      setCustomVar("--radius-sm", `${Math.max(0.0625, rem * 0.67).toFixed(3)}rem`)
-      setCustomVar("--radius", value)
-      setCustomVar("--radius-lg", `${(rem * 1.33).toFixed(3)}rem`)
+      setCustomVar(
+        "--radius-sm",
+        `${Math.max(0.0625, rem * 0.67).toFixed(3)}rem`,
+      );
+      setCustomVar("--radius", value);
+      setCustomVar("--radius-lg", `${(rem * 1.33).toFixed(3)}rem`);
     }
-    toast.success(`Border radius set to ${value}`)
+    toast.success(`Border radius set to ${value}`);
   }
 
   return (
@@ -703,7 +803,7 @@ function RadiusSection() {
         {RADIUS_SCALE.map((r) => {
           const active = activeRadius
             ? activeRadius === r.value
-            : r.value === tokens.radius.DEFAULT
+            : r.value === tokens.radius.DEFAULT;
           return (
             <button
               key={r.key}
@@ -719,10 +819,14 @@ function RadiusSection() {
                 className="mb-2 h-12 w-12 border-2 border-accent bg-accent-muted"
                 style={{ borderRadius: r.value }}
               />
-              <span className="text-[10px] font-bold text-foreground">{r.label}</span>
-              <span className="font-mono text-[9px] text-muted-text">{r.value}</span>
+              <span className="text-[10px] font-bold text-foreground">
+                {r.label}
+              </span>
+              <span className="font-mono text-[9px] text-muted-text">
+                {r.value}
+              </span>
             </button>
-          )
+          );
         })}
       </div>
 
@@ -748,7 +852,7 @@ function RadiusSection() {
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -756,21 +860,18 @@ function RadiusSection() {
    ═══════════════════════════════════════════════════════════════ */
 
 function ShadowSection() {
-  const { isDark } = useThemePreset()
+  const { isDark } = useThemePreset();
   // Use a contrasting bg so shadows are clearly visible
-  const stageBg = isDark ? "#0d1117" : "#e8e6e1"
+  const stageBg = isDark ? "#0d1117" : "#e8e6e1";
 
   return (
     <section>
       <SectionHeading id="shadows">Shadows</SectionHeading>
       <p className="mb-4 text-sm text-muted-text">
-        Shadow scale from subtle to prominent. Hover each card to see the
-        shadow animate. Cards sit on a contrasting stage to maximize visibility.
+        Shadow scale from subtle to prominent. Hover each card to see the shadow
+        animate. Cards sit on a contrasting stage to maximize visibility.
       </p>
-      <div
-        className="rounded-xl p-6"
-        style={{ backgroundColor: stageBg }}
-      >
+      <div className="rounded-xl p-6" style={{ backgroundColor: stageBg }}>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {SHADOW_DEMOS.map((s) => (
             <button
@@ -796,7 +897,10 @@ function ShadowSection() {
       {/* Interactive shadow comparison */}
       <div className="mt-4 flex flex-wrap items-end gap-4">
         {SHADOW_DEMOS.map((s) => (
-          <div key={`bar-${s.key}`} className="flex flex-col items-center gap-1">
+          <div
+            key={`bar-${s.key}`}
+            className="flex flex-col items-center gap-1"
+          >
             <div
               className="rounded bg-white transition-shadow dark:bg-[#1b2332]"
               style={{
@@ -805,12 +909,14 @@ function ShadowSection() {
                 height: `${(["xs", "sm", "md", "lg"].indexOf(s.key) + 1) * 1.5}rem`,
               }}
             />
-            <span className="font-mono text-[9px] text-muted-text">{s.key}</span>
+            <span className="font-mono text-[9px] text-muted-text">
+              {s.key}
+            </span>
           </div>
         ))}
       </div>
     </section>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -847,29 +953,45 @@ const MOCK_CASE: ImmigrationCase = {
   hearing_date: "12 March 2025",
   is_represented: "Yes",
   representative: "Smith & Associates",
-}
+};
 
 function ButtonGallery() {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
   return (
     <div>
       <SubHeading>Buttons</SubHeading>
       <div className="flex flex-wrap items-center gap-3">
-        <button className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-light">Primary</button>
-        <button className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface">Secondary</button>
-        <button className="rounded-md bg-danger px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90">Danger</button>
-        <button className="rounded-md bg-accent/50 px-4 py-2 text-sm font-medium text-white cursor-not-allowed" disabled>Disabled</button>
-        <button className="rounded-md border border-border bg-card p-2 text-foreground transition-colors hover:bg-surface"><Search className="h-4 w-4" /></button>
+        <button className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-light">
+          Primary
+        </button>
+        <button className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface">
+          Secondary
+        </button>
+        <button className="rounded-md bg-danger px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90">
+          Danger
+        </button>
+        <button
+          className="rounded-md bg-accent/50 px-4 py-2 text-sm font-medium text-white cursor-not-allowed"
+          disabled
+        >
+          Disabled
+        </button>
+        <button className="rounded-md border border-border bg-card p-2 text-foreground transition-colors hover:bg-surface">
+          <Search className="h-4 w-4" />
+        </button>
         <button
           className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
-          onClick={() => { setLoading(true); setTimeout(() => setLoading(false), 1500) }}
+          onClick={() => {
+            setLoading(true);
+            setTimeout(() => setLoading(false), 1500);
+          }}
         >
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           {loading ? "Loading..." : "Click to Load"}
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 function FormControlGallery() {
@@ -878,8 +1000,14 @@ function FormControlGallery() {
       <SubHeading>Form Controls</SubHeading>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
-          <span className="text-sm font-medium text-foreground">Text Input</span>
-          <input type="text" placeholder="Search cases..." className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+          <span className="text-sm font-medium text-foreground">
+            Text Input
+          </span>
+          <input
+            type="text"
+            placeholder="Search cases..."
+            className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          />
         </label>
         <label className="block">
           <span className="text-sm font-medium text-foreground">Select</span>
@@ -892,15 +1020,25 @@ function FormControlGallery() {
         </label>
         <label className="block sm:col-span-2">
           <span className="text-sm font-medium text-foreground">Textarea</span>
-          <textarea rows={2} placeholder="Add case notes..." className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+          <textarea
+            rows={2}
+            placeholder="Add case notes..."
+            className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          />
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-border accent-accent" />
-          <span className="text-sm text-foreground">Include full text in export</span>
+          <input
+            type="checkbox"
+            defaultChecked
+            className="h-4 w-4 rounded border-border accent-accent"
+          />
+          <span className="text-sm text-foreground">
+            Include full text in export
+          </span>
         </label>
       </div>
     </div>
-  )
+  );
 }
 
 function BadgeGallery() {
@@ -908,16 +1046,26 @@ function BadgeGallery() {
     <div>
       <SubHeading>Court Badges</SubHeading>
       <div className="mb-4 flex flex-wrap gap-2">
-        {Object.keys(courtColors).map((court) => (<CourtBadge key={court} court={court} />))}
+        {Object.keys(courtColors).map((court) => (
+          <CourtBadge key={court} court={court} />
+        ))}
       </div>
       <SubHeading>Outcome Badges</SubHeading>
       <div className="flex flex-wrap gap-2">
-        {["Allowed", "Dismissed", "Remitted", "Affirmed", "Granted", "Refused", "Withdrawn"].map((o) => (
+        {[
+          "Allowed",
+          "Dismissed",
+          "Remitted",
+          "Affirmed",
+          "Granted",
+          "Refused",
+          "Withdrawn",
+        ].map((o) => (
           <OutcomeBadge key={o} outcome={o} />
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 function CardGallery() {
@@ -925,20 +1073,48 @@ function CardGallery() {
     <div>
       <SubHeading>Cards</SubHeading>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard title="Total Cases" value={62539} icon={<Scale className="h-5 w-5" />} description="All databases combined" />
-        <StatCard title="With Full Text" value={62517} icon={<FileText className="h-5 w-5" />} description="99.96% coverage" />
-        <CaseCard case_={MOCK_CASE} onClick={() => toast.info("Case card clicked")} />
+        <StatCard
+          title="Total Cases"
+          value={62539}
+          icon={<Scale className="h-5 w-5" />}
+          description="All databases combined"
+        />
+        <StatCard
+          title="With Full Text"
+          value={62517}
+          icon={<FileText className="h-5 w-5" />}
+          description="99.96% coverage"
+        />
+        <CaseCard
+          case_={MOCK_CASE}
+          onClick={() => toast.info("Case card clicked")}
+        />
       </div>
     </div>
-  )
+  );
 }
 
 function TableGallery() {
   const rows = [
-    { citation: "[2025] ARTA 1234", court: "ARTA", date: "2025-03-15", outcome: "Remitted" },
-    { citation: "[2024] FCA 567", court: "FCA", date: "2024-11-02", outcome: "Dismissed" },
-    { citation: "[2024] AATA 890", court: "AATA", date: "2024-09-18", outcome: "Affirmed" },
-  ]
+    {
+      citation: "[2025] ARTA 1234",
+      court: "ARTA",
+      date: "2025-03-15",
+      outcome: "Remitted",
+    },
+    {
+      citation: "[2024] FCA 567",
+      court: "FCA",
+      date: "2024-11-02",
+      outcome: "Dismissed",
+    },
+    {
+      citation: "[2024] AATA 890",
+      court: "AATA",
+      date: "2024-09-18",
+      outcome: "Affirmed",
+    },
+  ];
   return (
     <div>
       <SubHeading>Table</SubHeading>
@@ -946,26 +1122,39 @@ function TableGallery() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-surface">
-              <th className="px-4 py-2.5 font-medium text-foreground">Citation</th>
+              <th className="px-4 py-2.5 font-medium text-foreground">
+                Citation
+              </th>
               <th className="px-4 py-2.5 font-medium text-foreground">Court</th>
               <th className="px-4 py-2.5 font-medium text-foreground">Date</th>
-              <th className="px-4 py-2.5 font-medium text-foreground">Outcome</th>
+              <th className="px-4 py-2.5 font-medium text-foreground">
+                Outcome
+              </th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.citation} className="border-b border-border-light bg-card transition-colors hover:bg-surface">
-                <td className="px-4 py-2.5 font-medium text-accent">{r.citation}</td>
-                <td className="px-4 py-2.5"><CourtBadge court={r.court} /></td>
+              <tr
+                key={r.citation}
+                className="border-b border-border-light bg-card transition-colors hover:bg-surface"
+              >
+                <td className="px-4 py-2.5 font-medium text-accent">
+                  {r.citation}
+                </td>
+                <td className="px-4 py-2.5">
+                  <CourtBadge court={r.court} />
+                </td>
                 <td className="px-4 py-2.5 text-muted-text">{r.date}</td>
-                <td className="px-4 py-2.5"><OutcomeBadge outcome={r.outcome} /></td>
+                <td className="px-4 py-2.5">
+                  <OutcomeBadge outcome={r.outcome} />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
     </div>
-  )
+  );
 }
 
 function MiscGallery() {
@@ -978,27 +1167,61 @@ function MiscGallery() {
           <span className="text-sm text-muted-text">Loading...</span>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => toast.success("Operation completed")} className="rounded border border-success/30 bg-success/10 px-3 py-1 text-xs font-medium text-success">Success</button>
-          <button onClick={() => toast.error("Something went wrong")} className="rounded border border-danger/30 bg-danger/10 px-3 py-1 text-xs font-medium text-danger">Error</button>
-          <button onClick={() => toast.warning("Check your input")} className="rounded border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-medium text-warning">Warning</button>
-          <button onClick={() => toast.info("Tip: keyboard shortcuts")} className="rounded border border-info/30 bg-info/10 px-3 py-1 text-xs font-medium text-info">Info</button>
+          <button
+            onClick={() => toast.success("Operation completed")}
+            className="rounded border border-success/30 bg-success/10 px-3 py-1 text-xs font-medium text-success"
+          >
+            Success
+          </button>
+          <button
+            onClick={() => toast.error("Something went wrong")}
+            className="rounded border border-danger/30 bg-danger/10 px-3 py-1 text-xs font-medium text-danger"
+          >
+            Error
+          </button>
+          <button
+            onClick={() => toast.warning("Check your input")}
+            className="rounded border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-medium text-warning"
+          >
+            Warning
+          </button>
+          <button
+            onClick={() => toast.info("Tip: keyboard shortcuts")}
+            className="rounded border border-info/30 bg-info/10 px-3 py-1 text-xs font-medium text-info"
+          >
+            Info
+          </button>
         </div>
         <div className="flex items-center gap-1 text-sm text-muted-text">
-          <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-xs shadow-xs">/</kbd>
+          <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-xs shadow-xs">
+            /
+          </kbd>
           <span>Search</span>
-          <kbd className="ml-2 rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-xs shadow-xs">?</kbd>
+          <kbd className="ml-2 rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-xs shadow-xs">
+            ?
+          </kbd>
           <span>Help</span>
         </div>
         <div className="flex items-center gap-1">
-          <button className="rounded border border-border bg-card p-1.5 text-muted-text hover:bg-surface"><ChevronLeft className="h-4 w-4" /></button>
-          <button className="rounded border border-accent bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">1</button>
-          <button className="rounded border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:bg-surface">2</button>
-          <button className="rounded border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:bg-surface">3</button>
-          <button className="rounded border border-border bg-card p-1.5 text-muted-text hover:bg-surface"><ChevronRight className="h-4 w-4" /></button>
+          <button className="rounded border border-border bg-card p-1.5 text-muted-text hover:bg-surface">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button className="rounded border border-accent bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
+            1
+          </button>
+          <button className="rounded border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:bg-surface">
+            2
+          </button>
+          <button className="rounded border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:bg-surface">
+            3
+          </button>
+          <button className="rounded border border-border bg-card p-1.5 text-muted-text hover:bg-surface">
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function ComponentGallery() {
@@ -1014,7 +1237,7 @@ function ComponentGallery() {
         <MiscGallery />
       </div>
     </section>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1022,7 +1245,7 @@ function ComponentGallery() {
    ═══════════════════════════════════════════════════════════════ */
 
 function DarkModeComparison() {
-  const { preset } = useThemePreset()
+  const { preset } = useThemePreset();
 
   function buildVars(dark: boolean) {
     return {
@@ -1033,31 +1256,71 @@ function DarkModeComparison() {
       muted: getBaseColor(preset, dark, "--color-text-muted"),
       border: getBaseColor(preset, dark, "--color-border"),
       accent: getBaseColor(preset, dark, "--color-accent"),
-    }
+    };
   }
 
-  const lightVars = buildVars(false)
-  const darkVars = buildVars(true)
+  const lightVars = buildVars(false);
+  const darkVars = buildVars(true);
 
-  function MiniCard({ vars, label }: { vars: Record<string, string>; label: string }) {
+  function MiniCard({
+    vars,
+    label,
+  }: {
+    vars: Record<string, string>;
+    label: string;
+  }) {
     return (
-      <div className="flex-1 overflow-hidden rounded-lg border" style={{ backgroundColor: vars.bg, borderColor: vars.border }}>
-        <div className="border-b px-4 py-2" style={{ backgroundColor: vars.card, borderColor: vars.border }}>
-          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: vars.muted }}>{label}</span>
+      <div
+        className="flex-1 overflow-hidden rounded-lg border"
+        style={{ backgroundColor: vars.bg, borderColor: vars.border }}
+      >
+        <div
+          className="border-b px-4 py-2"
+          style={{ backgroundColor: vars.card, borderColor: vars.border }}
+        >
+          <span
+            className="text-xs font-semibold uppercase tracking-wider"
+            style={{ color: vars.muted }}
+          >
+            {label}
+          </span>
         </div>
         <div className="space-y-3 p-4" style={{ backgroundColor: vars.card }}>
           <div>
-            <p className="text-sm font-semibold" style={{ color: vars.text }}>Case Title Example</p>
-            <p className="text-xs" style={{ color: vars.secondary }}>[2025] ARTA 1234</p>
+            <p className="text-sm font-semibold" style={{ color: vars.text }}>
+              Case Title Example
+            </p>
+            <p className="text-xs" style={{ color: vars.secondary }}>
+              [2025] ARTA 1234
+            </p>
           </div>
           <div className="flex gap-2">
-            <span className="rounded-sm px-2 py-0.5 text-xs font-medium text-white" style={{ backgroundColor: courtColors.ARTA }}>ARTA</span>
-            <span className="rounded-sm border px-2 py-0.5 text-xs font-medium" style={{ color: semanticColors.success, borderColor: `${semanticColors.success}33`, backgroundColor: `${semanticColors.success}1a` }}>Allowed</span>
+            <span
+              className="rounded-sm px-2 py-0.5 text-xs font-medium text-white"
+              style={{ backgroundColor: courtColors.ARTA }}
+            >
+              ARTA
+            </span>
+            <span
+              className="rounded-sm border px-2 py-0.5 text-xs font-medium"
+              style={{
+                color: semanticColors.success,
+                borderColor: `${semanticColors.success}33`,
+                backgroundColor: `${semanticColors.success}1a`,
+              }}
+            >
+              Allowed
+            </span>
           </div>
-          <button className="rounded px-3 py-1.5 text-xs font-medium text-white" style={{ backgroundColor: vars.accent }}>Action Button</button>
+          <button
+            className="rounded px-3 py-1.5 text-xs font-medium text-white"
+            style={{ backgroundColor: vars.accent }}
+          >
+            Action Button
+          </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -1068,7 +1331,7 @@ function DarkModeComparison() {
         <MiniCard vars={darkVars} label="Dark" />
       </div>
     </section>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1076,9 +1339,9 @@ function DarkModeComparison() {
    ═══════════════════════════════════════════════════════════════ */
 
 interface VarRow {
-  name: string
-  category: string
-  preview: "color" | "font" | "spacing" | "radius" | "shadow"
+  name: string;
+  category: string;
+  preview: "color" | "font" | "spacing" | "radius" | "shadow";
 }
 
 const ALL_VARS: VarRow[] = [
@@ -1128,28 +1391,57 @@ const ALL_VARS: VarRow[] = [
   { name: "--shadow-sm", category: "Shadow", preview: "shadow" },
   { name: "--shadow", category: "Shadow", preview: "shadow" },
   { name: "--shadow-lg", category: "Shadow", preview: "shadow" },
-]
+];
 
 function CssVariableReference() {
-  const { preset, isDark, customVars } = useThemePreset()
-  const [computedVals, setComputedVals] = useState<Record<string, string>>({})
+  const { preset, isDark, customVars } = useThemePreset();
+  const [computedVals, setComputedVals] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const style = getComputedStyle(document.documentElement)
-    const vals: Record<string, string> = {}
+    const style = getComputedStyle(document.documentElement);
+    const vals: Record<string, string> = {};
     for (const v of ALL_VARS) {
-      vals[v.name] = style.getPropertyValue(v.name).trim()
+      vals[v.name] = style.getPropertyValue(v.name).trim();
     }
-    setComputedVals(vals)
-  }, [preset, isDark, customVars])
+    setComputedVals(vals);
+  }, [preset, isDark, customVars]);
 
   function renderPreview(row: VarRow, value: string) {
-    if (row.preview === "color") return <div className="h-5 w-8 rounded border border-black/10" style={{ backgroundColor: value }} />
-    if (row.preview === "font") return <span className="text-xs" style={{ fontFamily: value }}>Abc</span>
-    if (row.preview === "spacing") return <div className="rounded bg-accent/20" style={{ width: value, height: "12px" }} />
-    if (row.preview === "radius") return <div className="h-5 w-5 border-2 border-accent bg-accent-muted" style={{ borderRadius: value }} />
-    if (row.preview === "shadow") return <div className="h-5 w-8 rounded bg-white dark:bg-gray-700" style={{ boxShadow: value }} />
-    return null
+    if (row.preview === "color")
+      return (
+        <div
+          className="h-5 w-8 rounded border border-black/10"
+          style={{ backgroundColor: value }}
+        />
+      );
+    if (row.preview === "font")
+      return (
+        <span className="text-xs" style={{ fontFamily: value }}>
+          Abc
+        </span>
+      );
+    if (row.preview === "spacing")
+      return (
+        <div
+          className="rounded bg-accent/20"
+          style={{ width: value, height: "12px" }}
+        />
+      );
+    if (row.preview === "radius")
+      return (
+        <div
+          className="h-5 w-5 border-2 border-accent bg-accent-muted"
+          style={{ borderRadius: value }}
+        />
+      );
+    if (row.preview === "shadow")
+      return (
+        <div
+          className="h-5 w-8 rounded bg-white dark:bg-gray-700"
+          style={{ boxShadow: value }}
+        />
+      );
+    return null;
   }
 
   const categoryColors: Record<string, string> = {
@@ -1160,7 +1452,7 @@ function CssVariableReference() {
     Spacing: "bg-danger/10 text-danger",
     Radius: "bg-muted-text/10 text-muted-text",
     Shadow: "bg-primary/10 text-primary",
-  }
+  };
 
   return (
     <section>
@@ -1170,34 +1462,56 @@ function CssVariableReference() {
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 z-10 bg-surface">
               <tr className="border-b border-border">
-                <th className="px-3 py-2 font-medium text-foreground">Variable</th>
-                <th className="px-3 py-2 font-medium text-foreground">Category</th>
+                <th className="px-3 py-2 font-medium text-foreground">
+                  Variable
+                </th>
+                <th className="px-3 py-2 font-medium text-foreground">
+                  Category
+                </th>
                 <th className="px-3 py-2 font-medium text-foreground">Value</th>
-                <th className="px-3 py-2 font-medium text-foreground">Preview</th>
+                <th className="px-3 py-2 font-medium text-foreground">
+                  Preview
+                </th>
               </tr>
             </thead>
             <tbody>
               {ALL_VARS.map((row) => {
-                const value = computedVals[row.name] ?? ""
+                const value = computedVals[row.name] ?? "";
                 return (
-                  <tr key={row.name} className="border-b border-border-light bg-card transition-colors hover:bg-surface">
+                  <tr
+                    key={row.name}
+                    className="border-b border-border-light bg-card transition-colors hover:bg-surface"
+                  >
                     <td className="px-3 py-1.5">
-                      <button onClick={() => copyToClipboard(`var(${row.name})`, row.name)} className="font-mono text-xs text-accent hover:underline">{row.name}</button>
+                      <button
+                        onClick={() =>
+                          copyToClipboard(`var(${row.name})`, row.name)
+                        }
+                        className="font-mono text-xs text-accent hover:underline"
+                      >
+                        {row.name}
+                      </button>
                     </td>
                     <td className="px-3 py-1.5">
-                      <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryColors[row.category] ?? ""}`}>{row.category}</span>
+                      <span
+                        className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryColors[row.category] ?? ""}`}
+                      >
+                        {row.category}
+                      </span>
                     </td>
-                    <td className="px-3 py-1.5 font-mono text-[11px] text-muted-text">{value.length > 40 ? `${value.slice(0, 40)}...` : value}</td>
+                    <td className="px-3 py-1.5 font-mono text-[11px] text-muted-text">
+                      {value.length > 40 ? `${value.slice(0, 40)}...` : value}
+                    </td>
                     <td className="px-3 py-1.5">{renderPreview(row, value)}</td>
                   </tr>
-                )
+                );
               })}
             </tbody>
           </table>
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1210,18 +1524,22 @@ function UsageGuide() {
       <SectionHeading id="usage">Usage Guide</SectionHeading>
       <div className="space-y-4">
         <div className="rounded-lg border border-border bg-card p-5">
-          <h3 className="mb-2 text-sm font-semibold text-foreground">Tailwind Classes (via @theme)</h3>
+          <h3 className="mb-2 text-sm font-semibold text-foreground">
+            Tailwind Classes (via @theme)
+          </h3>
           <pre className="overflow-auto rounded bg-surface p-3 font-mono text-xs text-foreground">
-{`<div className="bg-background text-foreground border-border" />
+            {`<div className="bg-background text-foreground border-border" />
 <span className="text-accent font-heading" />
 <div className="shadow-sm rounded-lg" />
 <button className="bg-court-arta text-white rounded-sm" />`}
           </pre>
         </div>
         <div className="rounded-lg border border-border bg-card p-5">
-          <h3 className="mb-2 text-sm font-semibold text-foreground">TypeScript Token Imports</h3>
+          <h3 className="mb-2 text-sm font-semibold text-foreground">
+            TypeScript Token Imports
+          </h3>
           <pre className="overflow-auto rounded bg-surface p-3 font-mono text-xs text-foreground">
-{`import { tokens, courtColors, semanticColors } from "@/tokens/tokens"
+            {`import { tokens, courtColors, semanticColors } from "@/tokens/tokens"
 
 <Bar fill={courtColors.AATA} />
 <Area stroke={semanticColors.success} />
@@ -1229,9 +1547,11 @@ function UsageGuide() {
           </pre>
         </div>
         <div className="rounded-lg border border-border bg-card p-5">
-          <h3 className="mb-2 text-sm font-semibold text-foreground">Theme Customisation Hook</h3>
+          <h3 className="mb-2 text-sm font-semibold text-foreground">
+            Theme Customisation Hook
+          </h3>
           <pre className="overflow-auto rounded bg-surface p-3 font-mono text-xs text-foreground">
-{`import { useThemePreset } from "@/hooks/use-theme-preset"
+            {`import { useThemePreset } from "@/hooks/use-theme-preset"
 
 const { preset, setPreset, setCustomVar, clearCustomVars } = useThemePreset()
 // setPreset("ocean")          -> switch theme (clears custom overrides)
@@ -1243,7 +1563,7 @@ const { preset, setPreset, setCustomVar, clearCustomVars } = useThemePreset()
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1251,10 +1571,10 @@ const { preset, setPreset, setCustomVar, clearCustomVars } = useThemePreset()
    ═══════════════════════════════════════════════════════════════ */
 
 function PreferencesBar() {
-  const { customVars, clearCustomVars } = useThemePreset()
-  const count = Object.keys(customVars).length
+  const { customVars, clearCustomVars } = useThemePreset();
+  const count = Object.keys(customVars).length;
 
-  if (count === 0) return null
+  if (count === 0) return null;
 
   return (
     <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
@@ -1268,8 +1588,8 @@ function PreferencesBar() {
         </span>
         <button
           onClick={() => {
-            clearCustomVars()
-            toast.success("Custom overrides cleared")
+            clearCustomVars();
+            toast.success("Custom overrides cleared");
           }}
           className="flex items-center gap-1 whitespace-nowrap rounded-md bg-danger/10 px-3 py-1 text-xs font-medium text-danger transition-colors hover:bg-danger/20"
         >
@@ -1277,7 +1597,7 @@ function PreferencesBar() {
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1295,7 +1615,7 @@ const NAV_ITEMS = [
   { id: "dark-mode", label: "Dark Mode" },
   { id: "css-vars", label: "CSS Vars" },
   { id: "usage", label: "Usage" },
-]
+];
 
 function SectionNav() {
   return (
@@ -1310,7 +1630,7 @@ function SectionNav() {
         </a>
       ))}
     </nav>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1321,11 +1641,13 @@ export function DesignTokensPage() {
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Design Tokens</h1>
+        <h1 className="text-2xl font-semibold text-foreground">
+          Design Tokens
+        </h1>
         <p className="text-sm text-muted-text">
-          Live reference for all design tokens. Click colours, fonts, spacing, or
-          radius to customise the UI in real time. All preferences auto-save to
-          your browser.
+          Live reference for all design tokens. Click colours, fonts, spacing,
+          or radius to customise the UI in real time. All preferences auto-save
+          to your browser.
         </p>
       </div>
 
@@ -1342,5 +1664,5 @@ export function DesignTokensPage() {
       <UsageGuide />
       <PreferencesBar />
     </div>
-  )
+  );
 }

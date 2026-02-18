@@ -1,14 +1,14 @@
-import { Moon, Sun, Menu, Search } from "lucide-react"
-import { useTheme } from "@/hooks/use-theme"
-import { cn } from "@/lib/utils"
+import { Moon, Sun, Menu, Search } from "lucide-react";
+import { useThemePreset } from "@/hooks/use-theme-preset";
+import { cn } from "@/lib/utils";
 
 interface TopbarProps {
-  onMenuClick: () => void
-  onSearchClick?: () => void
+  onMenuClick: () => void;
+  onSearchClick?: () => void;
 }
 
 export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
-  const { theme, toggleTheme } = useTheme()
+  const { isDark, toggleDark } = useThemePreset();
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-card/80 px-4 backdrop-blur-sm">
@@ -27,7 +27,7 @@ export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
         <button
           onClick={onSearchClick}
           className={cn(
-            "hidden items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-muted-text transition-colors hover:border-accent sm:flex"
+            "hidden items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-muted-text transition-colors hover:border-accent sm:flex",
           )}
         >
           <Search className="h-3.5 w-3.5" />
@@ -39,17 +39,13 @@ export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
 
         {/* Theme toggle */}
         <button
-          onClick={toggleTheme}
+          onClick={toggleDark}
           className="rounded-md p-1.5 text-secondary-text hover:bg-surface hover:text-foreground"
           aria-label="Toggle theme"
         >
-          {theme === "dark" ? (
-            <Sun className="h-5 w-5" />
-          ) : (
-            <Moon className="h-5 w-5" />
-          )}
+          {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </button>
       </div>
     </header>
-  )
+  );
 }
