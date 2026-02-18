@@ -69,6 +69,7 @@ export function TopJudgesChart({ data }: TopJudgesChartProps) {
             backgroundColor: "var(--color-background-card)",
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius)",
+            color: "var(--color-text)",
             fontSize: 12,
             padding: "8px 12px",
           }}

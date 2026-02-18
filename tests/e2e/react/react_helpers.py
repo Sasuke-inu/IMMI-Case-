@@ -10,6 +10,7 @@ REACT_BASE = "/app/"
 
 REACT_ROUTES = {
     "dashboard": "/app/",
+    "analytics": "/app/analytics",
     "cases": "/app/cases",
     "case_add": "/app/cases/add",
     "case_compare": "/app/cases/compare",
@@ -23,6 +24,7 @@ REACT_ROUTES = {
 # Pages that are parametrised smoke targets (all should return 200 + render #root)
 SMOKE_PAGES = [
     ("dashboard", "/app/"),
+    ("analytics", "/app/analytics"),
     ("cases", "/app/cases"),
     ("cases_add", "/app/cases/add"),
     ("download", "/app/download"),
@@ -36,10 +38,15 @@ SMOKE_PAGES = [
 API_ENDPOINTS = [
     "/api/v1/csrf-token",
     "/api/v1/stats",
+    "/api/v1/stats/trends",
     "/api/v1/cases",
     "/api/v1/filter-options",
     "/api/v1/job-status",
     "/api/v1/data-dictionary",
+    "/api/v1/analytics/outcomes",
+    "/api/v1/analytics/judges",
+    "/api/v1/analytics/legal-concepts",
+    "/api/v1/analytics/nature-outcome",
 ]
 
 # ---------------------------------------------------------------------------
@@ -48,6 +55,7 @@ API_ENDPOINTS = [
 
 SIDEBAR_NAV_ITEMS = [
     ("Dashboard", "/app/"),
+    ("Analytics", "/app/analytics"),
     ("Cases", "/app/cases"),
     ("Scrape AustLII", "/app/download"),
     ("Smart Pipeline", "/app/pipeline"),

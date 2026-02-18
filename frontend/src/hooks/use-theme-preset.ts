@@ -56,11 +56,11 @@ export const PRESETS: Record<PresetName, ThemePreset> = {
       "--color-background-card": "#1e1e1c",
       "--color-background-sidebar": "#191918",
       "--color-background-surface": "#2a2a27",
-      "--color-border": "#3a3a35",
-      "--color-border-light": "#45453f",
+      "--color-border": "#4a4a44",
+      "--color-border-light": "#555550",
       "--color-text": "#e8e5da",
-      "--color-text-secondary": "#a09d90",
-      "--color-text-muted": "#706d62",
+      "--color-text-secondary": "#b0ad9f",
+      "--color-text-muted": "#9a9789",
       "--font-body":
         "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
     },
@@ -468,7 +468,12 @@ function applyTheme(
 function readStoredPreset(): PresetName {
   if (typeof window === "undefined") return "claude";
   const stored = localStorage.getItem(PRESET_KEY);
-  return stored && stored in PRESETS ? (stored as PresetName) : "parchment";
+  // Migrate old default "parchment" → "claude"
+  if (stored === "parchment") {
+    localStorage.setItem(PRESET_KEY, "claude");
+    return "claude";
+  }
+  return stored && stored in PRESETS ? (stored as PresetName) : "claude";
 }
 
 function readStoredDark(): boolean {

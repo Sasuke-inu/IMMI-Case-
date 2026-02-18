@@ -76,13 +76,21 @@ export function OutcomeByCourtChart({ data }: OutcomeByCourtChartProps) {
             backgroundColor: "var(--color-background-card)",
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius)",
+            color: "var(--color-text)",
             fontSize: 12,
             padding: "8px 12px",
           }}
           itemStyle={{ fontSize: 12, padding: "1px 0" }}
           labelStyle={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}
         />
-        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconSize={10} />
+        <Legend
+          wrapperStyle={{
+            fontSize: 11,
+            paddingTop: 8,
+            color: "var(--color-text-secondary)",
+          }}
+          iconSize={10}
+        />
         {outcomeLabels.map((label) => (
           <Bar
             key={label}

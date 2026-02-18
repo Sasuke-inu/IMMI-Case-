@@ -42,8 +42,8 @@ class TestThemePersistence:
         react_navigate(react_page, "/app/")
         wait_for_loading_gone(react_page)
         react_page.get_by_label("Toggle theme").click()
-        stored = react_page.evaluate("localStorage.getItem('theme')")
-        assert stored == "dark"
+        stored = react_page.evaluate("localStorage.getItem('theme-dark')")
+        assert stored == "true"
 
     def test_theme_persists_across_navigation(self, react_page):
         """After toggling to dark, navigating to another page keeps dark mode."""
@@ -62,7 +62,7 @@ class TestThemePersistence:
         react_navigate(react_page, "/app/")
         wait_for_loading_gone(react_page)
         react_page.get_by_label("Toggle theme").click()
-        assert react_page.evaluate("localStorage.getItem('theme')") == "dark"
+        assert react_page.evaluate("localStorage.getItem('theme-dark')") == "true"
 
         react_page.reload(wait_until="networkidle")
         wait_for_loading_gone(react_page)
