@@ -46,11 +46,11 @@ export function JudgeComparePage() {
         </p>
       ) : isError ? (
         <ApiErrorState
-          title="Judge comparison failed to load"
+          title={t("judges.profile_load_failed")}
           message={
             error instanceof Error
               ? error.message
-              : "Judge compare API request failed."
+              : t("errors.api_request_failed", { name: "Judge Compare" })
           }
           onRetry={() => {
             void refetch();
@@ -58,8 +58,8 @@ export function JudgeComparePage() {
         />
       ) : !data ? (
         <ApiErrorState
-          title="Comparison data unavailable"
-          message="No comparison payload was returned."
+          title={t("judges.profile_not_found")}
+          message={t("errors.payload_error", { name: "Judge Compare" })}
           onRetry={() => {
             void refetch();
           }}
@@ -76,16 +76,16 @@ export function JudgeComparePage() {
               </h2>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <Stat
-                  label="Cases"
+                  label={t("judges.total_cases")}
                   value={judge.judge.total_cases.toLocaleString()}
                 />
                 <Stat
-                  label="Approval"
+                  label={t("judges.approval_rate")}
                   value={`${judge.approval_rate.toFixed(1)}%`}
                 />
-                <Stat label="Court Type" value={judge.court_type} />
+                <Stat label={t("judges.court_type")} value={judge.court_type} />
                 <Stat
-                  label="Active Years"
+                  label={t("judges.active_years")}
                   value={`${judge.judge.active_years.first ?? "-"} - ${judge.judge.active_years.last ?? "-"}`}
                 />
               </div>

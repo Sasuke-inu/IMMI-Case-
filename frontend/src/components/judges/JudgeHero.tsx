@@ -53,7 +53,8 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
 
   const first = profile.judge.active_years.first ?? "-";
   const last = profile.judge.active_years.last ?? "-";
-  const displayName = bio.found && bio.full_name ? bio.full_name : profile.judge.name;
+  const displayName =
+    bio.found && bio.full_name ? bio.full_name : profile.judge.name;
 
   const currentYear = new Date().getFullYear();
   const age = bio.birth_year ? currentYear - bio.birth_year : null;
@@ -132,7 +133,7 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
       </div>
 
       {/* Stats row */}
-      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-5">
         <Stat
           label={t("judges.total_cases")}
           value={profile.judge.total_cases.toLocaleString()}
@@ -143,6 +144,33 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
         />
         <Stat label={t("judges.court_type")} value={profile.court_type} />
         <Stat label={t("judges.active_years")} value={`${first} - ${last}`} />
+        {(() => {
+          const trend = profile.recent_3yr_trend;
+          if (trend.length < 2)
+            return <Stat label={t("judges.recent_3yr_trend")} value="—" />;
+          const delta =
+            trend[trend.length - 1].approval_rate - trend[0].approval_rate;
+          if (delta > 2)
+            return (
+              <Stat
+                label={t("judges.recent_3yr_trend")}
+                value={`↑ ${t("judges.trend_improving")}`}
+              />
+            );
+          if (delta < -2)
+            return (
+              <Stat
+                label={t("judges.recent_3yr_trend")}
+                value={`↓ ${t("judges.trend_declining")}`}
+              />
+            );
+          return (
+            <Stat
+              label={t("judges.recent_3yr_trend")}
+              value={`→ ${t("judges.trend_stable")}`}
+            />
+          );
+        })()}
       </div>
 
       {/* Education */}

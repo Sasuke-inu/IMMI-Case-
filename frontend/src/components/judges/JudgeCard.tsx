@@ -1,4 +1,5 @@
 import { Briefcase, Scale } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { CourtBadge } from "@/components/shared/CourtBadge";
 import { courtColors } from "@/tokens/tokens";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ export function JudgeCard({
   onToggleCompare,
   onOpen,
 }: JudgeCardProps) {
+  const { t } = useTranslation();
   const accentColor = courtColors[judge.primary_court ?? ""] ?? "#6b7585";
   const yearsLabel =
     judge.active_years.first && judge.active_years.last
@@ -73,7 +75,7 @@ export function JudgeCard({
             <div className="flex flex-wrap gap-x-4 gap-y-1">
               <span className="inline-flex items-center gap-1">
                 <Scale className="h-3 w-3 shrink-0" />
-                {judge.total_cases.toLocaleString()} cases
+                {judge.total_cases.toLocaleString()} {t("judges.cases")}
               </span>
               {judge.top_visa_subclasses[0] && (
                 <span
@@ -97,7 +99,9 @@ export function JudgeCard({
                 checked={isSelected}
                 onChange={() => onToggleCompare(judge.name)}
               />
-              <span className="select-none text-[11px]">Compare</span>
+              <span className="select-none text-[11px]">
+                {t("judges.compare")}
+              </span>
             </label>
           </div>
         </div>

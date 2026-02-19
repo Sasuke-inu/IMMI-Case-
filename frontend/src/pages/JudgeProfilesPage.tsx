@@ -21,6 +21,7 @@ export function JudgeProfilesPage() {
   const [sortBy, setSortBy] = useState<"cases" | "approval_rate" | "name">(
     "cases",
   );
+  const [nameFilter, setNameFilter] = useState("");
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"table" | "cards">(() => {
     const stored = localStorage.getItem("judges-view-mode");
@@ -42,6 +43,11 @@ export function JudgeProfilesPage() {
     useJudgeLeaderboard(params);
 
   const judges = data?.judges ?? [];
+  const filteredJudges = nameFilter.trim()
+    ? judges.filter((j) =>
+        j.name.toLowerCase().includes(nameFilter.trim().toLowerCase()),
+      )
+    : judges;
 
   // Clear stale selections when filters change the visible judge set
   useEffect(() => {
@@ -136,7 +142,14 @@ export function JudgeProfilesPage() {
             }}
           />
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              placeholder={t("judges.search_placeholder")}
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-text"
+            />
             <label className="text-xs font-medium uppercase tracking-wide text-muted-text">
               {t("judges.sort_label")}
             </label>
@@ -158,7 +171,7 @@ export function JudgeProfilesPage() {
 
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm text-secondary-text">
-            {t("judges.judges_found", { count: data?.total_judges ?? 0 })}
+            {t("judges.judges_found", { count: filteredJudges.length })}
           </p>
           <div className="flex items-center gap-2">
             {selectedNames.length >= MAX_COMPARE && (
@@ -195,16 +208,16 @@ export function JudgeProfilesPage() {
           />
         ) : viewMode === "table" ? (
           <JudgeLeaderboard
-            data={judges}
+            data={filteredJudges}
             selectedNames={selectedNames}
             onToggleCompare={toggleCompare}
             onOpen={openJudge}
           />
-        ) : judges.length === 0 ? (
+        ) : filteredJudges.length === 0 ? (
           <p className="text-sm text-muted-text">{t("judges.empty_state")}</p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {judges.map((judge) => (
+            {filteredJudges.map((judge) => (
               <JudgeCard
                 key={judge.name}
                 judge={judge}

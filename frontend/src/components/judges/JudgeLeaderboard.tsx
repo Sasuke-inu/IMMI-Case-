@@ -24,13 +24,14 @@ export function JudgeLeaderboard({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-card">
-      <table className="w-full min-w-[900px] text-sm">
+      <table className="w-full min-w-[1000px] text-sm">
         <thead>
           <tr className="border-b border-border bg-surface text-left text-xs uppercase tracking-wide text-muted-text">
             <th className="px-3 py-2">{t("judges.compare")}</th>
             <th className="px-3 py-2">{t("judges.judge_member")}</th>
             <th className="px-3 py-2">{t("judges.total_cases")}</th>
             <th className="px-3 py-2">{t("judges.approval_rate")}</th>
+            <th className="px-3 py-2">{t("judges.active_years_column")}</th>
             <th className="px-3 py-2">{t("judges.courts")}</th>
             <th className="px-3 py-2">{t("judges.top_visa_subclasses")}</th>
           </tr>
@@ -73,6 +74,9 @@ export function JudgeLeaderboard({
                     />
                   </div>
                 </div>
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-secondary-text">
+                {row.active_years.first ?? "-"} – {row.active_years.last ?? "-"}
               </td>
               <td className="px-3 py-2 text-secondary-text">
                 {row.courts.join(", ") || "-"}
