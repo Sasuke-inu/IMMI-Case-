@@ -1,0 +1,82 @@
+{
+  "legislations": [
+    {
+      "id": "migration-act-1958",
+      "title": "Migration Act 1958",
+      "shortcode": "MA1958",
+      "jurisdiction": "Commonwealth",
+      "type": "Act",
+      "version": "1.0",
+      "updated_date": "2026-02-19",
+      "description": "The primary legislation governing migration to, from and within Australia. It establishes the framework for immigration control, visa processing, deportation procedures, and the rights and obligations of non-citizens.",
+      "full_text": "AN ACT to provide for and in relation to the entry into, and residence in, Australia of non-citizens, and for purposes connected with the foregoing.\n\nPart 1 - Preliminary\n\n1. Short title\nThis Act may be cited as the Migration Act 1958.\n\n2. Commencement\nThis Act shall come into operation on such date as the Governor-General, by proclamation, appoints.\n\nPart 2 - Interpretation\n\n3. Definitions\nIn this Act, unless the contrary intention appears:\n'approved form' means a form approved in writing by the Minister;\n'Australia' includes the external Territories;\n'citizen' means an Australian citizen;\n'non-citizen' means a person who is not an Australian citizen;\n'visa' means a permission granted to a non-citizen to be in Australia.\n\nPart 3 - Visas\n\n4. Visa requirements\nA non-citizen must hold a valid visa to enter and remain in Australia, unless specifically exempted.\n\n5. Classes of visas\nThe Minister may specify the following classes of visas:\n(a) Protection visas\n(b) Skilled migration visas\n(c) Family reunion visas\n(d) Temporary visas\n(e) Special category visas\n\nPart 4 - Deportation and Removal\n\n6. Grounds for deportation\nThe Minister may cancel a visa and deport a non-citizen on specified grounds including:\n(a) Security concerns\n(b) Health grounds\n(c) Character grounds\n(d) Visa condition breaches\n(e) Criminal convictions\n\nPart 5 - Administrative Appeals\n\n7. Review of decisions\nA non-citizen may seek review of visa decisions through the Migration Review Tribunal or the Administrative Appeals Tribunal.\n\nPart 6 - Refugee and Humanitarian\n\n8. Refugee Convention\nThis Act gives effect to Australia's obligations under the 1951 Refugee Convention and Protocol.",
+      "sections": 231,
+      "last_amended": "2025-12-01"
+    },
+    {
+      "id": "migration-regulations-1994",
+      "title": "Migration Regulations 1994",
+      "shortcode": "MR1994",
+      "jurisdiction": "Commonwealth",
+      "type": "Regulation",
+      "version": "1.0",
+      "updated_date": "2026-02-19",
+      "description": "Subordinate legislation made under the Migration Act 1958. Sets out detailed procedures, requirements, and criteria for visa applications, processing, and administrative decisions related to migration.",
+      "full_text": "MIGRATION REGULATIONS 1994\nMade under the Migration Act 1958\n\nPart 1 - Preliminary\n\n1. Short title\nThese Regulations may be cited as the Migration Regulations 1994.\n\n2. Commencement\nThese Regulations commence on [date].\n\nPart 2 - Interpretation\n\n3. Definitions\nIn these Regulations:\n'visa' has the same meaning as in the Act;\n'eligible family member' means a member of the family as defined in Schedule 1;\n'points test' means the assessment system for skilled migration visas.\n\nPart 3 - Application Requirements\n\n4. Form of applications\nApplications must be made in an approved form and must include:\n(a) Personal details of the applicant\n(b) Details of family members\n(c) Evidence of identity\n(d) Health and character assessments\n\nPart 4 - Skilled Migration\n\n5. Points requirements\nFor skilled migration visas, applicants must achieve the minimum points score based on:\n(a) Age (maximum 45 points)\n(b) English language (maximum 20 points)\n(c) Skilled employment (maximum 20 points)\n(d) Qualifications (maximum 25 points)\n\nPart 5 - Family Migration\n\n6. Sponsorship requirements\nFamily reunion visas require a citizen or permanent resident sponsor who must:\n(a) Be at least 18 years old\n(b) Pass a character test\n(c) Meet financial requirements\n\nPart 6 - Health and Character\n\n7. Health assessments\nApplicants must undergo health assessments by approved panel doctors.\n\n8. Character requirements\nApplicants must be of good character and not have serious criminal convictions.",
+      "sections": 456,
+      "last_amended": "2025-11-15"
+    },
+    {
+      "id": "australian-citizenship-act-2007",
+      "title": "Australian Citizenship Act 2007",
+      "shortcode": "ACA2007",
+      "jurisdiction": "Commonwealth",
+      "type": "Act",
+      "version": "1.0",
+      "updated_date": "2026-02-19",
+      "description": "Legislation that governs the acquisition, loss, and cessation of Australian citizenship. Establishes pathways to citizenship and criteria for maintaining citizenship status.",
+      "full_text": "AN ACT relating to Australian citizenship.\n\nPart 1 - Preliminary\n\n1. Short title\nThis Act may be cited as the Australian Citizenship Act 2007.\n\nPart 2 - Citizenship by Descent\n\n2. Citizenship by descent\nA person may be an Australian citizen by descent if:\n(a) Their parent was an Australian citizen at the time of their birth; or\n(b) Their parent acquired Australian citizenship by descent from an Australian citizen.\n\nPart 3 - Citizenship by Conferral\n\n3. Citizenship by conferral\nThe Minister may confer Australian citizenship on a person who:\n(a) Is at least 18 years old\n(b) Has been a permanent resident for at least 4 years\n(c) Intends to reside in Australia\n(d) Has knowledge of English\n(e) Is of good character\n(f) Demonstrates commitment to Australia\n\nPart 4 - Loss and Cessation\n\n4. Renunciation\nAn Australian citizen may renounce their citizenship by making a declaration.\n\n5. Cessation\nCitizenship ceases if a person acquires citizenship of another country.\n\nPart 5 - Citizenship Tests\n\n6. Citizenship test requirements\nApplicants for citizenship must pass a test demonstrating knowledge of:\n(a) Australian history\n(b) Rights and responsibilities of citizenship\n(c) Government and democracy in Australia\n(d) The Australian Constitution",
+      "sections": 134,
+      "last_amended": "2025-10-20"
+    },
+    {
+      "id": "migration-agents-registration-act-1994",
+      "title": "Migration Agents Registration Act 1994",
+      "shortcode": "MARA1994",
+      "jurisdiction": "Commonwealth",
+      "type": "Act",
+      "version": "1.0",
+      "updated_date": "2026-02-19",
+      "description": "Legislation establishing a registration system for migration agents in Australia. Sets out professional standards, ethics, and procedures for regulatory oversight of agents who provide migration assistance.",
+      "full_text": "AN ACT relating to the registration of migration agents.\n\nPart 1 - Preliminary\n\n1. Short title\nThis Act may be cited as the Migration Agents Registration Act 1994.\n\nPart 2 - Interpretation\n\n2. Definitions\n'migration agent' means a person who gives immigration advice or represents a person in migration matters;\n'immigration advice' includes advice about Australian migration law.\n\nPart 3 - Registration\n\n3. Registration requirement\nA person must not give immigration advice or represent a person in migration matters unless they:\n(a) Are registered as a migration agent; or\n(b) Are exempt from registration.\n\n4. Exemptions\nThe following are exempt:\n(a) Lawyers practising as lawyers\n(b) Employees of government agencies\n(c) Relatives acting without fee\n\nPart 4 - Conduct and Discipline\n\n5. Code of Conduct\nRegistered migration agents must:\n(a) Act honestly and with integrity\n(b) Treat clients fairly\n(c) Maintain confidentiality\n(d) Keep proper records\n(e) Not engage in misleading conduct\n\n6. Complaints\nComplaints about migration agents may be made to the Commissioner.\n\nPart 5 - Termination of Registration\n\n7. Grounds for termination\nRegistration may be terminated for:\n(a) Breach of Code of Conduct\n(b) Dishonesty or fraud\n(c) Incompetence\n(d) Failure to comply with obligations",
+      "sections": 89,
+      "last_amended": "2025-09-30"
+    },
+    {
+      "id": "protection-of-borders-act-2015",
+      "title": "Protection of Borders Act 2015",
+      "shortcode": "PBA2015",
+      "jurisdiction": "Commonwealth",
+      "type": "Act",
+      "version": "1.0",
+      "updated_date": "2026-02-19",
+      "description": "Legislation that amends the Migration Act 1958 to provide enhanced border control measures, establish regional processing centres, and set out procedures for managing maritime arrivals.",
+      "full_text": "AN ACT to amend the Migration Act 1958 and for related purposes.\n\nPart 1 - Preliminary\n\n1. Short title\nThis Act may be cited as the Protection of Borders Act 2015.\n\nPart 2 - Regional Processing\n\n2. Regional processing centres\nThe Minister may establish and maintain regional processing centres for the processing of asylum seekers.\n\n3. Transfer powers\nNon-citizens may be transferred to regional processing centres for assessment.\n\nPart 3 - Maritime Powers\n\n4. Maritime patrol\nThe Minister may authorize the Australian Defence Force to conduct maritime operations.\n\n5. Interception powers\nVessels carrying asylum seekers may be intercepted and diverted.\n\nPart 4 - No Visa on Arrival\n\n6. Exclusion from visa\nPeople who arrive by sea without authority cannot be granted certain visas.\n\n7. Third country resettlement\nAsylum seekers may be resettled in third countries.",
+      "sections": 67,
+      "last_amended": "2025-08-15"
+    },
+    {
+      "id": "family-law-act-1975",
+      "title": "Family Law Act 1975",
+      "shortcode": "FLA1975",
+      "jurisdiction": "Commonwealth",
+      "type": "Act",
+      "version": "1.0",
+      "updated_date": "2026-02-19",
+      "description": "Legislation governing family law matters in Australia, including marriage, divorce, and property settlement. Relevant to immigration in contexts involving family-based visa sponsorship and spousal relationships.",
+      "full_text": "AN ACT to establish a court and to provide for the determination by that court of matters arising out of the marital relationship.\n\nPart 1 - Preliminary\n\n1. Short title\nThis Act may be cited as the Family Law Act 1975.\n\nPart 2 - Jurisdiction\n\n2. Family Court jurisdiction\nThe Family Court has jurisdiction to hear and determine:\n(a) Applications for marriage dissolution\n(b) Property settlement disputes\n(c) Parenting disputes\n(d) Child support matters\n\nPart 3 - Marriage\n\n3. Recognition of marriage\nA marriage is valid if solemnized according to law.\n\n4. De facto relationships\nDe facto relationships have similar recognition to marriage.\n\nPart 4 - Property\n\n5. Property settlement\nUpon divorce, property must be divided according to:\n(a) Contributions of each party\n(b) Future needs\n(c) Other relevant factors\n\nPart 5 - Children\n\n6. Parental responsibility\nEach parent has responsibility for children until age 18.\n\n7. Child support\nParents must provide financial support for children.",
+      "sections": 234,
+      "last_amended": "2025-07-01"
+    }
+  ]
+}
