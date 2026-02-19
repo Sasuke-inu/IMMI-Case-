@@ -70,7 +70,7 @@ class TestCharts:
         )
         react_navigate(react_page, "/app/")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_text("Dashboard failed to load").is_visible()
+        assert react_page.get_by_text("Failed to load Dashboard").is_visible()
 
 
 class TestQuickActions:

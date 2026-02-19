@@ -72,12 +72,12 @@ class TestPipelinePage:
     def test_quick_presets_section(self, react_page):
         react_navigate(react_page, "/app/pipeline")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_text("Quick Presets").is_visible()
+        assert react_page.get_by_role("heading", name="Quick Update").is_visible()
 
     def test_quick_update_button(self, react_page):
         react_navigate(react_page, "/app/pipeline")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_text("Quick Update").is_visible()
+        assert react_page.get_by_role("button", name="Quick Update").first.is_visible()
 
     def test_log_viewer(self, react_page):
         react_navigate(react_page, "/app/pipeline")

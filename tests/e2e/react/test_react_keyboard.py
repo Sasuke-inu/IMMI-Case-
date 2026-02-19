@@ -80,7 +80,7 @@ class TestInputExclusion:
         react_navigate(react_page, "/app/cases")
         wait_for_loading_gone(react_page)
         # Use the keyword filter input on the cases page
-        keyword_input = react_page.locator("input[placeholder*='eyword']")
+        keyword_input = react_page.locator("input[placeholder*='earch']")
         keyword_input.click()
         keyword_input.type("d")
         react_page.wait_for_timeout(300)
@@ -111,7 +111,7 @@ class TestInputExclusion:
         """After blurring an input, shortcuts work again."""
         react_navigate(react_page, "/app/cases")
         wait_for_loading_gone(react_page)
-        keyword_input = react_page.locator("input[placeholder*='eyword']")
+        keyword_input = react_page.locator("input[placeholder*='earch']")
         keyword_input.click()
         keyword_input.type("test")
         # Click outside to blur

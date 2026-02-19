@@ -54,7 +54,7 @@ class TestDesktopSidebar:
     def test_sidebar_footer_text(self, react_page):
         react_navigate(react_page, "/app/")
         wait_for_loading_gone(react_page)
-        footer = react_page.locator("aside").get_by_text("Australian Immigration Cases")
+        footer = react_page.locator("aside").get_by_text("Australian Immigration Case Database")
         assert footer.is_visible()
 
 

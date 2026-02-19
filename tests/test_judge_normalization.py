@@ -30,7 +30,7 @@ class TestNormalizeJudgeName:
     def test_handles_special_chars(self):
         """Remove special characters and apostrophes"""
         assert normalize_judge_name("O'Brien") == "obrien"
-        assert normalize_judge_name("Smith-Jones") == "smith"
+        assert normalize_judge_name("Smith-Jones") == "smithjones"
 
     def test_handles_accents(self):
         """Normalize accented characters"""

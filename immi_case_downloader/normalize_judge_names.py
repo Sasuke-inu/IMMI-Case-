@@ -4,16 +4,28 @@ import re
 from typing import Dict, List, Optional
 from fuzzywuzzy import fuzz
 
+# Titles to strip (case-insensitive)
+_TITLE_PATTERN = re.compile(
+    r"\b(Justice|Hon\.?|Judge|Mr\.?|Ms\.?|Mrs\.?|Dr\.?|ACJ|FCA|"
+    r"Senior\s+Member|Deputy\s+President|Member|President)\b\.?\s*",
+    re.IGNORECASE,
+)
+
 
 def normalize_judge_name(name: Optional[str]) -> str:
     """
     Normalize judge name for duplicate detection.
 
-    Removes titles, extracts surname, converts to lowercase,
-    removes special characters and diacritics.
+    Removes titles, extracts surname (ignoring trailing initials),
+    converts to lowercase, removes special characters and diacritics.
+
+    In Australian legal naming convention, "Smith J" means Judge Smith
+    — the trailing single letter is a title initial, not a surname.
 
     Examples:
         >>> normalize_judge_name("Justice Smith")
+        'smith'
+        >>> normalize_judge_name("SMITH J")
         'smith'
         >>> normalize_judge_name("O'Brien")
         'obrien'
@@ -30,15 +42,30 @@ def normalize_judge_name(name: Optional[str]) -> str:
         return ""
 
     # Remove titles
-    titles = r"(Justice|Hon\.|Judge|Mr\.|Ms\.|ACJ|FCA)\s*"
-    cleaned = re.sub(titles, "", name, flags=re.IGNORECASE).strip()
+    cleaned = _TITLE_PATTERN.sub("", name).strip()
 
     # Handle empty result
     if not cleaned:
         return ""
 
-    # Normalize whitespace and extract surname (last word)
-    words = re.sub(r"\s+", " ", cleaned).split()
+    # Normalize whitespace
+    cleaned = re.sub(r"\s+", " ", cleaned)
+
+    # Remove commas (e.g. "Smith, J." → "Smith J.")
+    cleaned = cleaned.replace(",", " ")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    # Split into words
+    words = cleaned.split()
+    if not words:
+        return ""
+
+    # Strip trailing single-letter initials (e.g. "Smith J" → "Smith")
+    # In Australian legal naming, trailing single chars are title abbreviations
+    while len(words) > 1 and len(words[-1].rstrip(".")) <= 1:
+        words.pop()
+
+    # Take the last remaining word as the surname
     surname = words[-1] if words else ""
 
     # Convert to lowercase
@@ -59,7 +86,7 @@ def normalize_judge_name(name: Optional[str]) -> str:
         for char in chars:
             surname = surname.replace(char, replacement)
 
-    # Remove all non-alphanumeric characters
+    # Remove all non-alphanumeric characters (hyphens, apostrophes, etc.)
     surname = re.sub(r"[^a-z0-9]", "", surname)
 
     return surname
@@ -75,7 +102,7 @@ def find_duplicate_judges(
     based on normalized surname comparison.
 
     Args:
-        names: List of judge names.
+        names: List of judge names (may contain duplicates).
         threshold: Similarity threshold (0-1) for grouping.
 
     Returns:
@@ -85,30 +112,30 @@ def find_duplicate_judges(
         return []
 
     groups: List[List[str]] = []
-    processed = set()
+    assigned = [False] * len(names)
 
-    for name in names:
-        if name in processed:
+    for i, name in enumerate(names):
+        if assigned[i]:
             continue
 
         group = [name]
-        normalized_current = normalize_judge_name(name)
+        assigned[i] = True
+        normalized_i = normalize_judge_name(name)
 
-        for other_name in names:
-            if other_name in processed or other_name == name:
+        for j in range(i + 1, len(names)):
+            if assigned[j]:
                 continue
 
-            # Use fuzzy ratio for similarity comparison
-            similarity = fuzz.ratio(
-                normalized_current, normalize_judge_name(other_name)
-            )
+            normalized_j = normalize_judge_name(names[j])
 
-            # Convert to 0-1 scale
-            if similarity / 100.0 >= threshold:
-                group.append(other_name)
+            # Use fuzzy ratio for similarity comparison
+            similarity = fuzz.ratio(normalized_i, normalized_j) / 100.0
+
+            if similarity >= threshold:
+                group.append(names[j])
+                assigned[j] = True
 
         groups.append(group)
-        processed.update(group)
 
     return groups
 

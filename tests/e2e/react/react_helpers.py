@@ -20,6 +20,7 @@ REACT_ROUTES = {
     "download": "/app/download",
     "jobs": "/app/jobs",
     "pipeline": "/app/pipeline",
+    "legislations": "/app/legislations",
     "data_dictionary": "/app/data-dictionary",
     "design_tokens": "/app/design-tokens",
 }
@@ -34,6 +35,7 @@ SMOKE_PAGES = [
     ("download", "/app/download"),
     ("jobs", "/app/jobs"),
     ("pipeline", "/app/pipeline"),
+    ("legislations", "/app/legislations"),
     ("data_dictionary", "/app/data-dictionary"),
     ("design_tokens", "/app/design-tokens"),
 ]
@@ -69,8 +71,9 @@ SIDEBAR_NAV_ITEMS = [
     ("Analytics", "/app/analytics"),
     ("Judge Profiles", "/app/judge-profiles"),
     ("Cases", "/app/cases"),
-    ("Scrape AustLII", "/app/download"),
-    ("Smart Pipeline", "/app/pipeline"),
+    ("Scrape AustLII", "/app/download"),  # Matches pipeline.download_title i18n key
+    ("Smart Pipeline", "/app/pipeline"),  # Matches pipeline.crawl_title i18n key
+    ("Legislations", "/app/legislations"),  # Added in 2026-02-20
     ("Data Dictionary", "/app/data-dictionary"),
     ("Design Tokens", "/app/design-tokens"),
 ]
