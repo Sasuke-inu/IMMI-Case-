@@ -10,9 +10,10 @@ import {
   Twitter,
   User,
 } from "lucide-react";
-import type { JudgeBio } from "@/types/case";
+import type { JudgeProfile, JudgeBio } from "@/types/case";
 
-interface JudgeBioCardProps {
+interface JudgeHeroProps {
+  profile: JudgeProfile;
   bio: JudgeBio;
   isLoading: boolean;
 }
@@ -37,112 +38,115 @@ function PlatformIcon({ platform }: { platform: string }) {
   }
 }
 
-export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border-light/60 p-3">
+      <p className="text-xs uppercase tracking-wide text-muted-text">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
   const { t } = useTranslation();
   const [imgError, setImgError] = useState(false);
 
-  if (isLoading) {
-    return (
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h2 className="mb-3 text-base font-semibold text-foreground">
-          {t("judges.biography")}
-        </h2>
-        <div className="flex gap-4">
-          <div className="h-20 w-20 shrink-0 animate-pulse rounded-full bg-border" />
-          <div className="flex-1 space-y-2">
-            <div className="h-4 w-3/4 animate-pulse rounded bg-border" />
-            <div className="h-3 w-1/2 animate-pulse rounded bg-border" />
-            <div className="h-3 w-2/3 animate-pulse rounded bg-border" />
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  if (!bio.found) {
-    return (
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h2 className="mb-3 text-base font-semibold text-foreground">
-          {t("judges.biography")}
-        </h2>
-        <p className="text-sm text-muted-text">
-          {t("judges.no_public_record")}
-        </p>
-      </section>
-    );
-  }
+  const first = profile.judge.active_years.first ?? "-";
+  const last = profile.judge.active_years.last ?? "-";
+  const displayName = bio.found && bio.full_name ? bio.full_name : profile.judge.name;
 
   const currentYear = new Date().getFullYear();
   const age = bio.birth_year ? currentYear - bio.birth_year : null;
-  const hasPhoto = bio.photo_url && !imgError;
+  const hasPhoto = bio.found && bio.photo_url && !imgError;
 
-  // Split career history into items if it contains semicolons
-  const careerItems = bio.previously
-    ? bio.previously.split(/;\s*/).filter(Boolean)
-    : [];
+  const careerItems =
+    bio.found && bio.previously
+      ? bio.previously.split(/;\s*/).filter(Boolean)
+      : [];
 
-  // Collect social media entries
-  const socialEntries = bio.social_media
-    ? Object.entries(bio.social_media).filter(
-        ([, url]) => url && typeof url === "string" && url.startsWith("http"),
-      )
-    : [];
+  const socialEntries =
+    bio.found && bio.social_media
+      ? Object.entries(bio.social_media).filter(
+          ([, url]) => url && typeof url === "string" && url.startsWith("http"),
+        )
+      : [];
 
   return (
-    <section className="rounded-lg border border-border bg-card p-4">
-      <h2 className="mb-3 text-base font-semibold text-foreground">
-        {t("judges.biography")}
-      </h2>
-
+    <div className="rounded-lg border border-border bg-card p-4">
+      {/* Top section: avatar + name + role */}
       <div className="flex gap-4">
-        {/* Profile photo or avatar */}
         <div className="shrink-0">
-          {hasPhoto ? (
+          {isLoading ? (
+            <div className="h-20 w-20 animate-pulse rounded-full bg-border" />
+          ) : hasPhoto ? (
             <img
               src={bio.photo_url}
-              alt={bio.full_name ?? "Judge photo"}
+              alt={displayName}
               className="h-20 w-20 rounded-full border border-border object-cover"
               onError={() => setImgError(true)}
             />
           ) : (
             <img
-              src={`https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(bio.full_name ?? "")}&backgroundColor=1a5276,2d7d46,6c3483,b9770e,a83232,117864&textColor=ffffff&fontSize=36`}
-              alt={bio.full_name ?? "Avatar"}
+              src={`https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=1a5276,2d7d46,6c3483,b9770e,a83232,117864&textColor=ffffff&fontSize=36`}
+              alt={displayName}
               className="h-20 w-20 rounded-full border border-border"
             />
           )}
         </div>
 
-        {/* Name, role, court */}
         <div className="flex-1 space-y-1">
-          {bio.full_name && (
-            <p className="text-lg font-semibold text-foreground">
-              {bio.full_name}
-            </p>
+          {isLoading ? (
+            <div className="space-y-2">
+              <div className="h-5 w-3/4 animate-pulse rounded bg-border" />
+              <div className="h-3 w-1/2 animate-pulse rounded bg-border" />
+              <div className="h-3 w-2/3 animate-pulse rounded bg-border" />
+            </div>
+          ) : (
+            <>
+              <h1 className="text-2xl font-semibold text-foreground">
+                {displayName}
+              </h1>
+              {bio.found && bio.role && (
+                <p className="text-sm text-secondary-text">{bio.role}</p>
+              )}
+              {bio.found && bio.court && (
+                <p className="text-sm text-muted-text">{bio.court}</p>
+              )}
+              <div className="flex flex-wrap gap-3 pt-1 text-xs text-muted-text">
+                {bio.found && bio.appointed_year && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {t("judges.appointed")} {bio.appointed_year}
+                  </span>
+                )}
+                {age && age > 0 && age < 120 && (
+                  <span className="flex items-center gap-1">
+                    <User className="h-3 w-3" />
+                    {t("judges.age", { age })}
+                  </span>
+                )}
+              </div>
+            </>
           )}
-          {bio.role && (
-            <p className="text-sm text-secondary-text">{bio.role}</p>
-          )}
-          {bio.court && <p className="text-sm text-muted-text">{bio.court}</p>}
-          <div className="flex flex-wrap gap-3 pt-1 text-xs text-muted-text">
-            {bio.appointed_year && (
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {t("judges.appointed")} {bio.appointed_year}
-              </span>
-            )}
-            {age && age > 0 && age < 120 && (
-              <span className="flex items-center gap-1">
-                <User className="h-3 w-3" />
-                {t("judges.age", { age })}
-              </span>
-            )}
-          </div>
         </div>
       </div>
 
+      {/* Stats row */}
+      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+        <Stat
+          label={t("judges.total_cases")}
+          value={profile.judge.total_cases.toLocaleString()}
+        />
+        <Stat
+          label={t("judges.approval_rate")}
+          value={`${profile.approval_rate.toFixed(1)}%`}
+        />
+        <Stat label={t("judges.court_type")} value={profile.court_type} />
+        <Stat label={t("judges.active_years")} value={`${first} - ${last}`} />
+      </div>
+
       {/* Education */}
-      {bio.education && bio.education.length > 0 && (
+      {bio.found && bio.education && bio.education.length > 0 && (
         <div className="mt-4">
           <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-text">
             <GraduationCap className="h-3.5 w-3.5" />
@@ -206,7 +210,7 @@ export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
       )}
 
       {/* Source link */}
-      {bio.source_url && (
+      {bio.found && bio.source_url && (
         <div className="mt-4 border-t border-border-light/60 pt-3">
           <a
             href={bio.source_url}
@@ -227,6 +231,6 @@ export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
           </a>
         </div>
       )}
-    </section>
+    </div>
   );
 }
