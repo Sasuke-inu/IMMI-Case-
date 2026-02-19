@@ -11,7 +11,8 @@
     "pipeline": "管道",
     "reference": "參考",
     "data_dictionary": "資料字典",
-    "design_tokens": "設計代幣"
+    "design_tokens": "設計代幣",
+    "legislations": "法律法規"
   },
   "common": {
     "search": "搜尋",
@@ -241,6 +242,24 @@
     "loading": "載入中...",
     "no_data": "暫無數據",
     "cases": "案例"
+  },
+  "legislations": {
+    "title": "法律法規",
+    "subtitle": "澳大利亞移民法律與法規",
+    "description": "瀏覽完整的澳大利亞移民法律、法規和相關法律文書。",
+    "empty_title": "未找到法律法規",
+    "empty_description": "未找到符合您搜尋條件的法律法規。",
+    "not_found_title": "未找到法律法規",
+    "not_found_description": "找不到所請求的法律法規。",
+    "search_placeholder": "搜尋法律法規...",
+    "search_info": "搜尋法律法規的標題、描述和內容",
+    "type": "類型",
+    "updated": "更新於",
+    "version": "版本",
+    "jurisdiction": "司法管轄區",
+    "sections_count": "條文數",
+    "back_button": "返回法律法規",
+    "search_query_too_short": "搜尋查詢必須至少 2 個字元"
   },
   "pipeline": {
     "title": "管道",

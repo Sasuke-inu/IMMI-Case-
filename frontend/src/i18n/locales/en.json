@@ -11,7 +11,8 @@
     "pipeline": "Pipeline",
     "reference": "Reference",
     "data_dictionary": "Data Dictionary",
-    "design_tokens": "Design Tokens"
+    "design_tokens": "Design Tokens",
+    "legislations": "Legislations"
   },
   "common": {
     "search": "Search",
@@ -277,6 +278,24 @@
     "year_label": "Year",
     "visa_subclass": "Visa Subclass",
     "case_nature": "Case Nature"
+  },
+  "legislations": {
+    "title": "Legislations",
+    "subtitle": "Australian Immigration Laws & Regulations",
+    "description": "Browse complete Australian immigration legislation, regulations, and related legal instruments.",
+    "empty_title": "No legislations found",
+    "empty_description": "No legislations match your search.",
+    "not_found_title": "Legislation not found",
+    "not_found_description": "The requested legislation could not be found.",
+    "search_placeholder": "Search legislations...",
+    "search_info": "Search across legislation titles, descriptions, and content",
+    "type": "Type",
+    "updated": "Updated",
+    "version": "Version",
+    "jurisdiction": "Jurisdiction",
+    "sections_count": "Sections",
+    "back_button": "Back to Legislations",
+    "search_query_too_short": "Search query must be at least 2 characters"
   },
   "pipeline": {
     "title": "Pipeline",
