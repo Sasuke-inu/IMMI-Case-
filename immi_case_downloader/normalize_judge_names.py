@@ -62,7 +62,7 @@ def normalize_judge_name(name: Optional[str]) -> str:
 
     # Strip trailing single-letter initials (e.g. "Smith J" → "Smith")
     # In Australian legal naming, trailing single chars are title abbreviations
-    while len(words) > 1 and len(words[-1].rstrip(".")) <= 1:
+    while len(words) > 1 and len(words[-1].rstrip(".")) == 1:
         words.pop()
 
     # Take the last remaining word as the surname
@@ -111,6 +111,9 @@ def find_duplicate_judges(
     if not names:
         return []
 
+    # First pass: normalize all names for comparison
+    normalized = {i: normalize_judge_name(name) for i, name in enumerate(names)}
+    
     groups: List[List[str]] = []
     assigned = [False] * len(names)
 
@@ -120,16 +123,22 @@ def find_duplicate_judges(
 
         group = [name]
         assigned[i] = True
-        normalized_i = normalize_judge_name(name)
+        norm_i = normalized[i]
+        
+        if not norm_i:  # Skip if normalization resulted in empty string
+            groups.append(group)
+            continue
 
         for j in range(i + 1, len(names)):
             if assigned[j]:
                 continue
 
-            normalized_j = normalize_judge_name(names[j])
+            norm_j = normalized[j]
+            if not norm_j:  # Skip if normalization resulted in empty string
+                continue
 
             # Use fuzzy ratio for similarity comparison
-            similarity = fuzz.ratio(normalized_i, normalized_j) / 100.0
+            similarity = fuzz.ratio(norm_i, norm_j) / 100.0
 
             if similarity >= threshold:
                 group.append(names[j])

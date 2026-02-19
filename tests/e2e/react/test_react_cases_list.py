@@ -123,7 +123,7 @@ class TestFilters:
     def test_keyword_filter(self, react_page):
         react_navigate(react_page, "/app/cases")
         wait_for_loading_gone(react_page)
-        keyword_input = react_page.locator("input[placeholder*='eyword']")
+        keyword_input = react_page.locator("input[placeholder*='earch']")
         keyword_input.fill("Singh")
         # Wait for the filtered API response after pressing Enter
         with react_page.expect_response(
