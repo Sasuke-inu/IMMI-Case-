@@ -368,6 +368,73 @@ export function fetchDataDictionary(): Promise<{
   return apiFetch("/api/v1/data-dictionary");
 }
 
+// ─── Legislations ──────────────────────────────────────────────
+export interface Legislation {
+  id: string;
+  title: string;
+  shortcode: string;
+  jurisdiction: string;
+  type: string;
+  version: string;
+  updated_date: string;
+  description: string;
+  full_text: string;
+  sections: number;
+  last_amended: string;
+}
+
+export interface PaginatedLegislations {
+  success: boolean;
+  data: Legislation[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+}
+
+export interface LegislationDetail {
+  success: boolean;
+  data: Legislation;
+}
+
+export interface SearchLegislations {
+  success: boolean;
+  data: Legislation[];
+  meta: {
+    query: string;
+    total_results: number;
+    limit: number;
+  };
+}
+
+export function fetchLegislations(
+  page: number = 1,
+  limit: number = 10,
+): Promise<PaginatedLegislations> {
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("limit", String(limit));
+  return apiFetch(`/api/v1/legislations?${params}`);
+}
+
+export function fetchLegislation(
+  legislationId: string,
+): Promise<LegislationDetail> {
+  return apiFetch(`/api/v1/legislations/${encodeURIComponent(legislationId)}`);
+}
+
+export function searchLegislations(
+  query: string,
+  limit: number = 20,
+): Promise<SearchLegislations> {
+  const params = new URLSearchParams();
+  params.set("q", query);
+  params.set("limit", String(limit));
+  return apiFetch(`/api/v1/legislations/search?${params}`);
+}
+
 // ─── Export (file downloads) ───────────────────────────────────
 export function downloadExportFile(format: "csv" | "json"): void {
   window.location.href = `/api/v1/export/${format}`;
