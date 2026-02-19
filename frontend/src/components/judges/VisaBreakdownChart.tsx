@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   ResponsiveContainer,
   BarChart,
@@ -12,8 +13,14 @@ interface VisaBreakdownChartProps {
 }
 
 export function VisaBreakdownChart({ data }: VisaBreakdownChartProps) {
+  const { t } = useTranslation();
+
   if (!data.length) {
-    return <p className="text-sm text-muted-text">No visa subclass data for this judge.</p>;
+    return (
+      <p className="text-sm text-muted-text">
+        {t("judges.no_visa_subclass_data")}
+      </p>
+    );
   }
 
   const rows = data.slice(0, 12).map((item) => ({
@@ -24,8 +31,15 @@ export function VisaBreakdownChart({ data }: VisaBreakdownChartProps) {
 
   return (
     <ResponsiveContainer width="100%" height={Math.max(rows.length * 32, 260)}>
-      <BarChart data={rows} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-        <XAxis type="number" tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+      <BarChart
+        data={rows}
+        layout="vertical"
+        margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
+      >
+        <XAxis
+          type="number"
+          tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+        />
         <YAxis
           type="category"
           dataKey="name"
@@ -37,8 +51,9 @@ export function VisaBreakdownChart({ data }: VisaBreakdownChartProps) {
         <Tooltip
           formatter={(value: number | string | undefined, key) => {
             const numeric = Number(value ?? 0);
-            if (key === "winRate") return [`${numeric.toFixed(1)}%`, "Win Rate"];
-            return [String(value ?? 0), "Cases"];
+            if (key === "winRate")
+              return [`${numeric.toFixed(1)}%`, t("judges.win_rate")];
+            return [String(value ?? 0), t("judges.cases")];
           }}
           contentStyle={{
             backgroundColor: "var(--color-background-card)",

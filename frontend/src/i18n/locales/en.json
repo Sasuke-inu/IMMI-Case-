@@ -178,12 +178,39 @@
     "table_view_label": "Table view",
     "card_view_label": "Card view",
     "empty_state": "No judges found with the selected filters.",
-    "loading_judges": "Loading judges..."
+    "loading_judges": "Loading judges...",
+    "compare": "Compare",
+    "judge_member": "Judge / Member",
+    "no_judge_records": "No judge records found for selected filters.",
+    "education": "Education",
+    "career_history": "Career History",
+    "appointed": "Appointed",
+    "age": "Age ~{{age}}",
+    "no_public_record": "No public biographical record found for this judge/member.",
+    "court_comparison_desc": "This judge's approval rate compared to the court-wide average. Positive delta = more applicant-favourable.",
+    "judge_rate": "Judge Rate",
+    "court_avg": "Court Avg",
+    "delta": "Delta",
+    "representation_analysis": "Representation Analysis",
+    "with_lawyer": "With Lawyer",
+    "self_represented": "Self-Represented",
+    "win_rate": "Win Rate",
+    "difference_in_approval": "Represented applicants have a {{delta}} difference in approval rate vs self-represented.",
+    "unknown_representation": "{{count}} cases with unknown representation status.",
+    "concept": "Concept",
+    "total": "Total",
+    "lift": "Lift",
+    "no_concept_data": "No concept effectiveness data.",
+    "country": "Country",
+    "no_visa_subclass_data": "No visa subclass data for this judge.",
+    "cases": "Cases",
+    "court_type": "Court Type"
   },
   "analytics": {
     "title": "Analytics",
     "subtitle": "Case Insights & Trends",
     "success_rate_calculator": "Success Rate Calculator",
+    "success_calculator_desc": "Estimate historical success rate by court, visa subclass, case nature, and legal concepts",
     "applicant_win_rate": "Applicant Win Rate",
     "success_rate": "Success Rate",
     "calculate": "Calculate",
@@ -192,24 +219,64 @@
     "outcome_by_court": "Outcome by Court",
     "outcome_by_subclass": "Outcome by Visa Subclass",
     "outcome_trends": "Outcome Trends",
+    "outcome_trends_desc": "Success rate trends by applicant wins vs. court affirmations",
     "legal_concepts": "Legal Concepts by Outcome",
     "top_judges": "Top Judges by Win Rate",
     "concept_heatmap": "Nature-Outcome Correlation",
     "concept_cooccurrence": "Legal Concept Cooccurrence",
+    "concept_cooccurrence_desc": "Cases where multiple legal concepts appear together",
     "court_breakdown": "Court Concept Breakdown",
+    "concepts_by_court": "Concepts by Court",
+    "concepts_by_court_desc": "Concept effectiveness variance across courts",
     "emerging_concepts": "Emerging Concepts",
+    "emerging_concepts_desc": "Concepts with strong growth or decline trends",
     "concept_effectiveness": "Concept Effectiveness",
+    "concept_effectiveness_desc": "Lift impact of legal concepts on case outcomes",
     "concept_trends": "Concept Trends",
+    "concept_trends_desc": "Win rate evolution for key legal concepts",
     "concept_combos": "Common Concept Combinations",
+    "common_combinations_desc": "Most effective concept pairings with lift metrics",
     "outcome_rate_by_court": "Outcome Rate by Court",
     "affirmed_rate_trend": "Affirmed Rate Trend",
+    "affirmed_rate": "Affirmed Rate",
     "affirmed_rate_visa": "Affirmed Rate by Visa Subclass",
     "active_judges": "Most Active Judges / Members",
     "legal_concepts_frequency": "Legal Concepts Frequency",
     "nature_outcome_matrix": "Case Nature × Outcome Matrix",
+    "nature_outcome": "Case Nature vs Outcome",
+    "nature_outcome_desc": "Outcome distribution by case nature classification",
     "concept_intelligence": "Concept Intelligence",
     "concept_intelligence_desc": "Identify legal concepts that correlate with better outcomes and how they evolve over time.",
-    "concept_by_court": "Concept Effectiveness by Court"
+    "concept_by_court": "Concept Effectiveness by Court",
+    "lift_delta": "Lift Delta",
+    "win_rate": "Win Rate",
+    "rate": "Rate",
+    "trend": "Trend",
+    "frequency": "Frequency",
+    "correlation": "Correlation",
+    "enter_case_nature": "Enter case nature",
+    "legal_concepts_label": "Legal Concepts",
+    "all": "All",
+    "matching_cases": "matching cases",
+    "confidence": "confidence",
+    "outcome_funnel": "Outcome Funnel",
+    "top_concept_lift": "Top Concept Lift",
+    "win_trend": "Win Trend",
+    "top_concept_combinations": "Top Concept Combinations",
+    "concepts_col": "Concepts",
+    "cases_col": "Cases",
+    "lift": "Lift",
+    "no_effectiveness_data": "No concept effectiveness data",
+    "no_trend_data": "No trend data available",
+    "no_cooccurrence_data": "No co-occurrence data for current filters",
+    "no_concepts_detected": "No strong emerging or declining concepts detected",
+    "no_court_data": "Not enough court-specific concept data",
+    "emerging": "Emerging",
+    "declining": "Declining",
+    "loading_calculator": "Loading calculator...",
+    "year_label": "Year",
+    "visa_subclass": "Visa Subclass",
+    "case_nature": "Case Nature"
   },
   "pipeline": {
     "title": "Pipeline",
@@ -361,5 +428,175 @@
     "case": "case",
     "years": "years",
     "year": "year"
+  },
+  "components": {
+    "stat_card": {
+      "coverage": "{{percentage}}% coverage"
+    },
+    "charts": {
+      "court_chart": "Cases by Court",
+      "nature_chart": "Case Nature",
+      "trend_chart": "Year Trend",
+      "subclass_chart": "Visa Subclasses",
+      "chart_loading": "Loading chart...",
+      "chart_no_data": "No data available",
+      "chart_cases": "Cases"
+    },
+    "case_card": {
+      "no_data_text": "No metadata available"
+    },
+    "case_text_viewer": {
+      "full_text": "Full Text",
+      "search_in_text": "Search in text...",
+      "search_tooltip": "Search (Ctrl+F)",
+      "download_tooltip": "Download .txt",
+      "print_tooltip": "Print",
+      "expand_tooltip": "Expand",
+      "collapse_tooltip": "Collapse",
+      "table_of_contents": "Contents",
+      "case_not_available": "Case full text not available",
+      "no_text_error": "Unable to load case full text"
+    },
+    "badges": {
+      "outcome": "Outcome",
+      "court": "Court",
+      "nature": "Nature",
+      "visa_subclass": "Visa Subclass",
+      "legal_concept": "Concept",
+      "source": "Source"
+    },
+    "empty_state": {
+      "no_results": "No results found",
+      "try_adjusting": "Try adjusting your filters",
+      "no_data": "No data available",
+      "select_cases": "Select cases to compare",
+      "go_to_cases": "Go to Cases",
+      "select_judges": "Select judges to compare",
+      "back_to_profiles": "Back to Judge Profiles"
+    },
+    "analytics_filters": {
+      "all_time": "All Time",
+      "last_5_years": "Last 5y",
+      "last_10_years": "Last 10y",
+      "from": "From",
+      "to": "To"
+    },
+    "breadcrumb": {
+      "home": "Home"
+    },
+    "filter_pill": {
+      "clear": "Clear"
+    }
+  },
+  "pages": {
+    "case_comparison": {
+      "title": "Case Comparison",
+      "field_label": "Field",
+      "differs": "differs",
+      "select_cases": "Select cases to compare",
+      "description": "Select 2-5 cases from the Cases page, then click Compare.",
+      "go_to_cases": "Go to Cases"
+    },
+    "judge_comparison": {
+      "title": "Judge Comparison",
+      "back_to_profiles": "Back to Judge Profiles",
+      "min_judges": "Select at least two judges to compare.",
+      "cases": "Cases",
+      "approval": "Approval",
+      "court_type": "Court Type",
+      "active_years": "Active Years",
+      "loading": "Loading comparison...",
+      "loading_ellipsis": "Loading..."
+    },
+    "job_status": {
+      "title": "Job Status",
+      "job_running": "Job Running",
+      "job_failed": "Job Failed",
+      "job_completed": "Job Completed",
+      "no_active_job": "No Active Job",
+      "elapsed": "Elapsed",
+      "next_steps": "Next Steps",
+      "no_job_running": "No job is currently running. Start one from:",
+      "activity": "Activity",
+      "errors": "Errors",
+      "error_count": "Errors ({{count}})"
+    },
+    "data_dictionary": {
+      "title": "Data Dictionary",
+      "subtitle": "Understanding the case database schema",
+      "field_name": "Field Name",
+      "field_type": "Type",
+      "field_description": "Description",
+      "example": "Example",
+      "editable": "Editable",
+      "yes": "Yes",
+      "no": "No",
+      "identification": "Identification",
+      "court_information": "Court Information",
+      "case_content": "Case Content",
+      "extracted_fields": "Extracted Fields",
+      "user_data": "User Data",
+      "fields": "fields",
+      "loading": "Loading data dictionary..."
+    },
+    "design_tokens": {
+      "title": "Design Tokens",
+      "subtitle": "Visual design system variables",
+      "colors": "Colors",
+      "typography": "Typography",
+      "spacing": "Spacing",
+      "copy_value": "Click to copy",
+      "copied": "Copied!"
+    },
+    "case_edit": {
+      "title": "Edit Case",
+      "breadcrumb_edit": "Edit Case",
+      "loading": "Loading...",
+      "save_button": "Save",
+      "cancel_button": "Cancel",
+      "title_required": "Title is required",
+      "success": "Case updated",
+      "error": "Failed to update case"
+    },
+    "case_add": {
+      "title": "Add New Case",
+      "breadcrumb_add": "Add Case",
+      "new_case": "New Case",
+      "required_fields": "* = Required fields",
+      "title_required": "Title is required",
+      "citation_format": "Citation format should be like [2024] FCA 123",
+      "success": "Case created",
+      "error": "Failed to create case",
+      "save_button": "Create Case"
+    }
+  },
+  "components": {
+    "stat_card": {
+      "coverage": "{{percentage}}% coverage"
+    },
+    "charts": {
+      "court_chart": "Cases by Court",
+      "nature_chart": "Case Nature",
+      "trend_chart": "Year Trend",
+      "subclass_chart": "Visa Subclasses",
+      "chart_loading": "Loading chart...",
+      "chart_no_data": "No data available",
+      "chart_cases": "Cases"
+    },
+    "case_card": {
+      "no_data_text": "No metadata available"
+    },
+    "case_text_viewer": {
+      "full_text": "Full Text",
+      "search_in_text": "Search in text...",
+      "search_tooltip": "Search (Ctrl+F)",
+      "download_tooltip": "Download .txt",
+      "print_tooltip": "Print",
+      "expand_tooltip": "Expand",
+      "collapse_tooltip": "Collapse",
+      "table_of_contents": "Contents",
+      "case_not_available": "Case full text not available",
+      "no_text_error": "Unable to load case full text"
+    }
   }
 }

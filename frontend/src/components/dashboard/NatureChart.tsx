@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   BarChart,
   Bar,
@@ -38,6 +39,7 @@ interface NatureChartProps {
 }
 
 export function NatureChart({ data }: NatureChartProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const chartData = Object.entries(data)
     .sort(([, a], [, b]) => b - a)
@@ -94,7 +96,7 @@ export function NatureChart({ data }: NatureChartProps) {
           }}
           formatter={(value: number | undefined) => [
             Number(value ?? 0).toLocaleString(),
-            "Cases",
+            t("components.charts.chart_cases"),
           ]}
         />
         <Bar dataKey="value" radius={[0, 4, 4, 0]} cursor="pointer">

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   AreaChart,
   Area,
@@ -29,6 +30,7 @@ interface TrendChartProps {
 }
 
 export function TrendChart({ data }: TrendChartProps) {
+  const { t } = useTranslation();
   if (!data || data.length === 0) return null;
 
   // Discover which courts appear in the data
@@ -85,7 +87,9 @@ export function TrendChart({ data }: TrendChartProps) {
                   fontSize: 12,
                 }}
               >
-                <p style={{ fontWeight: 600, marginBottom: 4 }}>Year {label}</p>
+                <p style={{ fontWeight: 600, marginBottom: 4 }}>
+                  {t("filters.date")}: {label}
+                </p>
                 {nonZero.map((entry) => (
                   <p
                     key={entry.dataKey as string}

@@ -3,8 +3,6 @@ import {
   fetchLegislations,
   fetchLegislation,
   searchLegislations,
-  type PaginatedLegislations,
-  type SearchLegislations,
 } from "@/lib/api";
 
 /**

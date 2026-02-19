@@ -1,81 +1,96 @@
-import { useState, useEffect, useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Loader2, CheckCircle, XCircle, AlertCircle, Clock,
-  Search, Download, Database, FileText, ArrowRight,
-  ChevronDown, ChevronUp,
-} from "lucide-react"
-import { useQuery } from "@tanstack/react-query"
-import { fetchJobStatus } from "@/lib/api"
+  Loader2,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Clock,
+  Search,
+  Download,
+  Database,
+  FileText,
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchJobStatus } from "@/lib/api";
 
-const TYPE_META: Record<string, { label: string; icon: typeof Search; color: string }> = {
+const TYPE_META: Record<
+  string,
+  { label: string; icon: typeof Search; color: string }
+> = {
   search: { label: "Search", icon: Search, color: "text-info" },
   download: { label: "Download", icon: Download, color: "text-success" },
-  "bulk download": { label: "Bulk Download", icon: Download, color: "text-success" },
+  "bulk download": {
+    label: "Bulk Download",
+    icon: Download,
+    color: "text-success",
+  },
   update: { label: "Update DB", icon: Database, color: "text-accent" },
-}
+};
 
 export function JobStatusPage() {
-  const navigate = useNavigate()
-  const [errorsExpanded, setErrorsExpanded] = useState(false)
-  const [startTime] = useState(() => Date.now())
-  const [elapsed, setElapsed] = useState(0)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const navigate = useNavigate();
+  const [errorsExpanded, setErrorsExpanded] = useState(false);
+  const [startTime] = useState(() => Date.now());
+  const [elapsed, setElapsed] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: status } = useQuery({
     queryKey: ["job-status"],
     queryFn: fetchJobStatus,
-    refetchInterval: (query) =>
-      query.state.data?.running ? 2000 : 5000,
-  })
+    refetchInterval: (query) => (query.state.data?.running ? 2000 : 5000),
+  });
 
   // Timer for running job
   useEffect(() => {
     if (status?.running) {
       intervalRef.current = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - startTime) / 1000))
-      }, 1000)
+        setElapsed(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
     } else if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
-  }, [status?.running, startTime])
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [status?.running, startTime]);
 
   if (!status) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-text">
         Loading job status...
       </div>
-    )
+    );
   }
 
-  const running = status.running
-  const jobType = status.type ?? ""
-  const typeMeta = TYPE_META[jobType]
-  const TypeIcon = typeMeta?.icon ?? FileText
-  const total = status.total ?? 0
-  const completed = status.completed ?? 0
-  const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0
-  const errors = status.errors ?? []
-  const results = status.results ?? []
-  const message = status.message ?? status.progress ?? ""
-  const isDone = !running && (completed > 0 || results.length > 0)
-  const hasError = !running && errors.length > 0 && !isDone
+  const running = status.running;
+  const jobType = status.type ?? "";
+  const typeMeta = TYPE_META[jobType];
+  const TypeIcon = typeMeta?.icon ?? FileText;
+  const total = status.total ?? 0;
+  const completed = status.completed ?? 0;
+  const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const errors = status.errors ?? [];
+  const results = status.results ?? [];
+  const message = status.message ?? status.progress ?? "";
+  const isDone = !running && (completed > 0 || results.length > 0);
+  const hasError = !running && errors.length > 0 && !isDone;
 
   const formatTime = (s: number) => {
-    const m = Math.floor(s / 60)
-    const sec = s % 60
-    return m > 0 ? `${m}m ${sec}s` : `${sec}s`
-  }
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  };
 
   const quickLinks = [
     { label: "View Cases", icon: FileText, to: "/cases" },
     { label: "Dashboard", icon: Database, to: "/" },
     { label: "Download", icon: Download, to: "/download" },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -88,15 +103,17 @@ export function JobStatusPage() {
       <div className="rounded-lg border border-border bg-card p-6">
         <div className="flex items-start gap-4">
           {/* Status icon */}
-          <div className={`rounded-full p-3 ${
-            running
-              ? "bg-accent-muted"
-              : hasError
-                ? "bg-danger/10"
-                : isDone
-                  ? "bg-success/10"
-                  : "bg-surface"
-          }`}>
+          <div
+            className={`rounded-full p-3 ${
+              running
+                ? "bg-accent-muted"
+                : hasError
+                  ? "bg-danger/10"
+                  : isDone
+                    ? "bg-success/10"
+                    : "bg-surface"
+            }`}
+          >
             {running ? (
               <Loader2 className="h-8 w-8 animate-spin text-accent" />
             ) : hasError ? (
@@ -121,7 +138,9 @@ export function JobStatusPage() {
                       : "No Active Job"}
               </h2>
               {jobType && typeMeta && (
-                <span className={`flex items-center gap-1 rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium ${typeMeta.color}`}>
+                <span
+                  className={`flex items-center gap-1 rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium ${typeMeta.color}`}
+                >
                   <TypeIcon className="h-3 w-3" />
                   {typeMeta.label}
                 </span>
@@ -162,7 +181,9 @@ export function JobStatusPage() {
         {/* Idle state actions */}
         {!running && !isDone && !hasError && (
           <div className="mt-4 rounded-md bg-surface p-4 text-center">
-            <p className="text-sm text-muted-text">No job is currently running. Start one from:</p>
+            <p className="text-sm text-muted-text">
+              No job is currently running. Start one from:
+            </p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
               {[
                 { label: "Download", to: "/download" },
@@ -186,12 +207,15 @@ export function JobStatusPage() {
         <div className="rounded-lg border border-border bg-card p-6">
           <h3 className="mb-4 font-heading text-lg font-semibold">Activity</h3>
           <div className="space-y-3">
-            {results.slice(-10).reverse().map((item, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
-                <p className="text-sm text-foreground">{item}</p>
-              </div>
-            ))}
+            {results
+              .slice(-10)
+              .reverse()
+              .map((item, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
+                  <p className="text-sm text-foreground">{item}</p>
+                </div>
+              ))}
           </div>
         </div>
       )}
@@ -230,7 +254,9 @@ export function JobStatusPage() {
       {/* Completion Quick Links */}
       {isDone && !running && (
         <div className="rounded-lg border border-border bg-card p-6">
-          <h3 className="mb-3 font-heading text-lg font-semibold">Next Steps</h3>
+          <h3 className="mb-3 font-heading text-lg font-semibold">
+            Next Steps
+          </h3>
           <div className="grid gap-2 sm:grid-cols-4">
             {quickLinks.map(({ label, icon: Icon, to }) => (
               <button
@@ -241,7 +267,9 @@ export function JobStatusPage() {
                 <div className="rounded-md bg-accent-muted p-2 text-accent">
                   <Icon className="h-4 w-4" />
                 </div>
-                <span className="flex-1 text-sm font-medium text-foreground">{label}</span>
+                <span className="flex-1 text-sm font-medium text-foreground">
+                  {label}
+                </span>
                 <ArrowRight className="h-4 w-4 text-muted-text" />
               </button>
             ))}
@@ -249,5 +277,5 @@ export function JobStatusPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

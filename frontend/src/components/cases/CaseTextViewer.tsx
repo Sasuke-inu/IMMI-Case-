@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Search,
   ChevronUp,
@@ -8,80 +9,93 @@ import {
   X,
   Maximize2,
   Minimize2,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CaseTextViewerProps {
-  text: string
-  citation?: string
+  text: string;
+  citation?: string;
 }
 
 interface TocSection {
-  id: string
-  title: string
+  id: string;
+  title: string;
 }
 
-const SECTION_HEADINGS = /^(CATCHWORDS?|THE DECISION|DECISION RECORD?|DECISION|REASONS FOR DECISION|STATEMENT OF DECISION AND REASONS|REASONS|ORDERS?|THE FACTS?|LEGISLATION|RELEVANT LAW|RELEVANT LEGISLATION|BACKGROUND|FINDINGS AND REASONS|FINDINGS|CONSIDERATION OF CLAIMS AND EVIDENCE|CONSIDERATION OF CLAIMS|CONSIDERATION|CONCLUSIONS?|APPEARANCES|REPRESENTATION|ISSUES|SUBMISSIONS|ANALYSIS|EVIDENCE|INTRODUCTION|MATERIALS BEFORE THE TRIBUNAL|JURISDICTION|APPENDIX [A-Z]:?|ANNEXURE [A-Z]:?)/m
+const SECTION_HEADINGS =
+  /^(CATCHWORDS?|THE DECISION|DECISION RECORD?|DECISION|REASONS FOR DECISION|STATEMENT OF DECISION AND REASONS|REASONS|ORDERS?|THE FACTS?|LEGISLATION|RELEVANT LAW|RELEVANT LEGISLATION|BACKGROUND|FINDINGS AND REASONS|FINDINGS|CONSIDERATION OF CLAIMS AND EVIDENCE|CONSIDERATION OF CLAIMS|CONSIDERATION|CONCLUSIONS?|APPEARANCES|REPRESENTATION|ISSUES|SUBMISSIONS|ANALYSIS|EVIDENCE|INTRODUCTION|MATERIALS BEFORE THE TRIBUNAL|JURISDICTION|APPENDIX [A-Z]:?|ANNEXURE [A-Z]:?)/m;
 
 // Line classification patterns
-type LineType = "separator" | "metadata" | "major-heading" | "dialogue" | "footnote" | "blank" | "body"
+type LineType =
+  | "separator"
+  | "metadata"
+  | "major-heading"
+  | "dialogue"
+  | "footnote"
+  | "blank"
+  | "body";
 
-const METADATA_LINE = /^(Title|Citation|Court|Date|URL|Division|Applicant|Representative|Case Number)\s*:/
-const DIALOGUE_LINE = /^(Member|Applicant|HH|Counsel|Senior Member|Presiding Member|Tribunal)(\s+\w+)?\s*:/
-const FOOTNOTE_LINE = /^\[\d+\]/
-const SEPARATOR_LINE = /^={5,}$/
+const METADATA_LINE =
+  /^(Title|Citation|Court|Date|URL|Division|Applicant|Representative|Case Number)\s*:/;
+const DIALOGUE_LINE =
+  /^(Member|Applicant|HH|Counsel|Senior Member|Presiding Member|Tribunal)(\s+\w+)?\s*:/;
+const FOOTNOTE_LINE = /^\[\d+\]/;
+const SEPARATOR_LINE = /^={5,}$/;
 
 function classifyLine(line: string): LineType {
-  const trimmed = line.trim()
-  if (SEPARATOR_LINE.test(trimmed)) return "separator"
-  if (METADATA_LINE.test(trimmed)) return "metadata"
-  if (SECTION_HEADINGS.test(trimmed)) return "major-heading"
-  if (DIALOGUE_LINE.test(trimmed)) return "dialogue"
-  if (FOOTNOTE_LINE.test(trimmed)) return "footnote"
-  if (!trimmed) return "blank"
-  return "body"
+  const trimmed = line.trim();
+  if (SEPARATOR_LINE.test(trimmed)) return "separator";
+  if (METADATA_LINE.test(trimmed)) return "metadata";
+  if (SECTION_HEADINGS.test(trimmed)) return "major-heading";
+  if (DIALOGUE_LINE.test(trimmed)) return "dialogue";
+  if (FOOTNOTE_LINE.test(trimmed)) return "footnote";
+  if (!trimmed) return "blank";
+  return "body";
 }
 
 // Smart line rendering function for reading mode
 function renderSmartLines(text: string): React.ReactNode {
-  const lines = text.split("\n")
-  const usedIds = new Set<string>()
-  const result: React.ReactNode[] = []
-  let consecutiveBlanks = 0
+  const lines = text.split("\n");
+  const usedIds = new Set<string>();
+  const result: React.ReactNode[] = [];
+  let consecutiveBlanks = 0;
 
   lines.forEach((line, i) => {
-    const type = classifyLine(line)
-    const trimmed = line.trim()
+    const type = classifyLine(line);
+    const trimmed = line.trim();
 
     // Compress consecutive blank lines (max 2)
     if (type === "blank") {
-      consecutiveBlanks++
+      consecutiveBlanks++;
       if (consecutiveBlanks <= 2) {
-        result.push(<div key={i} className="h-2" />)
+        result.push(<div key={i} className="h-2" />);
       }
-      return
+      return;
     }
-    consecutiveBlanks = 0
+    consecutiveBlanks = 0;
 
     switch (type) {
       case "separator":
-        result.push(<div key={i} className="my-4 border-t border-border" />)
-        break
+        result.push(<div key={i} className="my-4 border-t border-border" />);
+        break;
 
       case "metadata":
         result.push(
           <div key={i} className="font-mono text-[10px] text-muted-text pb-0.5">
             {line}
-          </div>
-        )
-        break
+          </div>,
+        );
+        break;
 
       case "major-heading": {
-        const baseId = `toc-${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50)}`
-        let id = baseId
-        let counter = 1
-        while (usedIds.has(id)) id = `${baseId}-${++counter}`
-        usedIds.add(id)
+        const baseId = `toc-${trimmed
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .slice(0, 50)}`;
+        let id = baseId;
+        let counter = 1;
+        while (usedIds.has(id)) id = `${baseId}-${++counter}`;
+        usedIds.add(id);
         result.push(
           <div key={i} className="mt-6 pt-4 border-t-2 border-accent/20">
             <strong
@@ -90,9 +104,9 @@ function renderSmartLines(text: string): React.ReactNode {
             >
               {trimmed}
             </strong>
-          </div>
-        )
-        break
+          </div>,
+        );
+        break;
       }
 
       case "dialogue":
@@ -102,61 +116,73 @@ function renderSmartLines(text: string): React.ReactNode {
             className="my-0.5 border-l-2 border-info/40 bg-surface/40 pl-3 py-0.5 rounded-r font-sans text-xs text-foreground whitespace-pre-wrap"
           >
             {line}
-          </div>
-        )
-        break
+          </div>,
+        );
+        break;
 
       case "footnote":
         result.push(
-          <div key={i} className="font-mono text-[10px] text-muted-text leading-loose whitespace-pre-wrap">
+          <div
+            key={i}
+            className="font-mono text-[10px] text-muted-text leading-loose whitespace-pre-wrap"
+          >
             {line}
-          </div>
-        )
-        break
+          </div>,
+        );
+        break;
 
       default: // body
         result.push(
-          <div key={i} className="font-mono text-xs text-foreground whitespace-pre-wrap leading-relaxed min-h-[1rem]">
+          <div
+            key={i}
+            className="font-mono text-xs text-foreground whitespace-pre-wrap leading-relaxed min-h-[1rem]"
+          >
             {line}
-          </div>
-        )
+          </div>,
+        );
     }
-  })
+  });
 
-  return result
+  return result;
 }
 
 // Parse sections from full text
 function parseSections(text: string): TocSection[] {
-  const lines = text.split("\n")
-  const sections: TocSection[] = []
-  const usedIds = new Set<string>()
+  const lines = text.split("\n");
+  const sections: TocSection[] = [];
+  const usedIds = new Set<string>();
   lines.forEach((line) => {
-    const trimmed = line.trim()
+    const trimmed = line.trim();
     if (SECTION_HEADINGS.test(trimmed)) {
-      const baseId = `toc-${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50)}`
-      let id = baseId
-      let counter = 1
-      while (usedIds.has(id)) id = `${baseId}-${++counter}`
-      usedIds.add(id)
-      sections.push({ id, title: trimmed })
+      const baseId = `toc-${trimmed
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .slice(0, 50)}`;
+      let id = baseId;
+      let counter = 1;
+      while (usedIds.has(id)) id = `${baseId}-${++counter}`;
+      usedIds.add(id);
+      sections.push({ id, title: trimmed });
     }
-  })
-  return sections
+  });
+  return sections;
 }
 
 // Format sections with ID attributes for TOC navigation
 function formatSectionsWithIds(text: string): React.ReactNode {
-  const lines = text.split("\n")
-  const usedIds = new Set<string>()
+  const lines = text.split("\n");
+  const usedIds = new Set<string>();
   return lines.map((line, i) => {
-    const trimmed = line.trim()
+    const trimmed = line.trim();
     if (SECTION_HEADINGS.test(trimmed)) {
-      const baseId = `toc-${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50)}`
-      let id = baseId
-      let counter = 1
-      while (usedIds.has(id)) id = `${baseId}-${++counter}`
-      usedIds.add(id)
+      const baseId = `toc-${trimmed
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .slice(0, 50)}`;
+      let id = baseId;
+      let counter = 1;
+      while (usedIds.has(id)) id = `${baseId}-${++counter}`;
+      usedIds.add(id);
       return (
         <span key={i}>
           {i > 0 && "\n"}
@@ -164,141 +190,157 @@ function formatSectionsWithIds(text: string): React.ReactNode {
             {line}
           </strong>
         </span>
-      )
+      );
     }
     return (
       <span key={i}>
         {i > 0 ? "\n" : ""}
         {line}
       </span>
-    )
-  })
+    );
+  });
 }
 
 export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [activeMatchIdx, setActiveMatchIdx] = useState(0)
-  const [expanded, setExpanded] = useState(false)
-  const [showSearch, setShowSearch] = useState(false)
-  const [activeId, setActiveId] = useState<string | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const searchInputRef = useRef<HTMLInputElement>(null)
+  const { t } = useTranslation();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeMatchIdx, setActiveMatchIdx] = useState(0);
+  const [expanded, setExpanded] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Parse sections for TOC
-  const sections = useMemo(() => parseSections(text), [text])
+  const sections = useMemo(() => parseSections(text), [text]);
 
   // Find all matches
   const matches = useMemo(() => {
-    if (!searchTerm || searchTerm.length < 2) return []
-    const results: number[] = []
-    const lower = text.toLowerCase()
-    const term = searchTerm.toLowerCase()
-    let idx = lower.indexOf(term)
+    if (!searchTerm || searchTerm.length < 2) return [];
+    const results: number[] = [];
+    const lower = text.toLowerCase();
+    const term = searchTerm.toLowerCase();
+    let idx = lower.indexOf(term);
     while (idx !== -1) {
-      results.push(idx)
-      idx = lower.indexOf(term, idx + 1)
+      results.push(idx);
+      idx = lower.indexOf(term, idx + 1);
     }
-    return results
-  }, [text, searchTerm])
+    return results;
+  }, [text, searchTerm]);
 
   // Reset active match when matches change
   useEffect(() => {
-    setActiveMatchIdx(0)
-  }, [matches.length])
+    setActiveMatchIdx(0);
+  }, [matches.length]);
 
   // Scroll active match into view
   useEffect(() => {
-    if (matches.length === 0) return
-    const el = containerRef.current?.querySelector(".active-match")
-    el?.scrollIntoView({ block: "center", behavior: "smooth" })
-  }, [activeMatchIdx, matches.length])
+    if (matches.length === 0) return;
+    const el = containerRef.current?.querySelector(".active-match");
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [activeMatchIdx, matches.length]);
 
   // Track active section via IntersectionObserver
   useEffect(() => {
-    if (sections.length === 0) return
+    if (sections.length === 0) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting)
+        const visible = entries.filter((e) => e.isIntersecting);
         if (visible.length > 0) {
-          setActiveId(visible[0].target.id)
+          setActiveId(visible[0].target.id);
         }
       },
-      { root: containerRef.current, rootMargin: "0px 0px -75% 0px", threshold: 0 }
-    )
+      {
+        root: containerRef.current,
+        rootMargin: "0px 0px -75% 0px",
+        threshold: 0,
+      },
+    );
     sections.forEach((s) => {
-      const el = document.getElementById(s.id)
-      if (el) observer.observe(el)
-    })
-    return () => observer.disconnect()
-  }, [sections, expanded])
+      const el = document.getElementById(s.id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, [sections, expanded]);
 
   // Ctrl+F intercept
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "f") {
-        e.preventDefault()
-        setShowSearch(true)
-        setTimeout(() => searchInputRef.current?.focus(), 50)
+        e.preventDefault();
+        setShowSearch(true);
+        setTimeout(() => searchInputRef.current?.focus(), 50);
       }
       if (e.key === "Escape" && showSearch) {
-        setShowSearch(false)
-        setSearchTerm("")
+        setShowSearch(false);
+        setSearchTerm("");
       }
-    }
-    document.addEventListener("keydown", handler)
-    return () => document.removeEventListener("keydown", handler)
-  }, [showSearch])
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [showSearch]);
 
   const goToMatch = useCallback(
     (dir: 1 | -1) => {
-      if (matches.length === 0) return
-      setActiveMatchIdx((prev) => (prev + dir + matches.length) % matches.length)
+      if (matches.length === 0) return;
+      setActiveMatchIdx(
+        (prev) => (prev + dir + matches.length) % matches.length,
+      );
     },
-    [matches.length]
-  )
+    [matches.length],
+  );
 
   const scrollToSection = useCallback((id: string) => {
-    const el = document.getElementById(id)
-    el?.scrollIntoView({ behavior: "smooth", block: "start" })
-  }, [])
+    const el = document.getElementById(id);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   const handleDownload = useCallback(() => {
-    const blob = new Blob([text], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `${citation ?? "case"}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
-  }, [text, citation])
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${citation ?? "case"}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [text, citation]);
 
   const handlePrint = useCallback(() => {
-    const w = window.open("", "_blank")
-    if (!w) return
+    const w = window.open("", "_blank");
+    if (!w) return;
     w.document.write(`<html><head><title>${citation ?? "Case"}</title>
       <style>body{font-family:monospace;font-size:12px;white-space:pre-wrap;padding:2em;line-height:1.6}</style>
-      </head><body>${text.replace(/</g, "&lt;")}</body></html>`)
-    w.document.close()
-    w.print()
-  }, [text, citation])
+      </head><body>${text.replace(/</g, "&lt;")}</body></html>`);
+    w.document.close();
+    w.print();
+  }, [text, citation]);
 
   // Render text with search highlights and section formatting
   const rendered = useMemo(() => {
-    if (!text) return null
+    if (!text) return null;
 
     // Search mode: preserve existing whitespace-pre-wrap + span rendering
     if (searchTerm && searchTerm.length >= 2 && matches.length > 0) {
-      const parts: Array<{ text: string; isMatch: boolean; matchIdx: number }> = []
-      let lastEnd = 0
+      const parts: Array<{ text: string; isMatch: boolean; matchIdx: number }> =
+        [];
+      let lastEnd = 0;
       matches.forEach((start, i) => {
         if (start > lastEnd) {
-          parts.push({ text: text.slice(lastEnd, start), isMatch: false, matchIdx: -1 })
+          parts.push({
+            text: text.slice(lastEnd, start),
+            isMatch: false,
+            matchIdx: -1,
+          });
         }
-        parts.push({ text: text.slice(start, start + searchTerm.length), isMatch: true, matchIdx: i })
-        lastEnd = start + searchTerm.length
-      })
+        parts.push({
+          text: text.slice(start, start + searchTerm.length),
+          isMatch: true,
+          matchIdx: i,
+        });
+        lastEnd = start + searchTerm.length;
+      });
       if (lastEnd < text.length) {
-        parts.push({ text: text.slice(lastEnd), isMatch: false, matchIdx: -1 })
+        parts.push({ text: text.slice(lastEnd), isMatch: false, matchIdx: -1 });
       }
 
       return parts.map((part, i) =>
@@ -315,19 +357,21 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
           </mark>
         ) : (
           <span key={i}>{formatSectionsWithIds(part.text)}</span>
-        )
-      )
+        ),
+      );
     }
 
     // Reading mode: use smart line classification rendering
-    return renderSmartLines(text)
-  }, [text, searchTerm, matches, activeMatchIdx])
+    return renderSmartLines(text);
+  }, [text, searchTerm, matches, activeMatchIdx]);
 
   return (
     <div className="rounded-lg border border-border bg-card">
       {/* Toolbar */}
       <div className="flex items-center gap-2 border-b border-border px-4 py-2">
-        <h2 className="font-heading text-lg font-semibold text-foreground">Full Text</h2>
+        <h2 className="font-heading text-lg font-semibold text-foreground">
+          {t("components.case_text_viewer.full_text")}
+        </h2>
         <div className="ml-auto flex items-center gap-1.5">
           {showSearch ? (
             <div className="flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1">
@@ -338,9 +382,9 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") goToMatch(e.shiftKey ? -1 : 1)
+                  if (e.key === "Enter") goToMatch(e.shiftKey ? -1 : 1);
                 }}
-                placeholder="Search in text..."
+                placeholder={t("components.case_text_viewer.search_in_text")}
                 className="w-40 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-text"
               />
               {matches.length > 0 && (
@@ -348,14 +392,23 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
                   {activeMatchIdx + 1}/{matches.length}
                 </span>
               )}
-              <button onClick={() => goToMatch(-1)} className="p-0.5 text-muted-text hover:text-foreground">
+              <button
+                onClick={() => goToMatch(-1)}
+                className="p-0.5 text-muted-text hover:text-foreground"
+              >
                 <ChevronUp className="h-3.5 w-3.5" />
               </button>
-              <button onClick={() => goToMatch(1)} className="p-0.5 text-muted-text hover:text-foreground">
+              <button
+                onClick={() => goToMatch(1)}
+                className="p-0.5 text-muted-text hover:text-foreground"
+              >
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
               <button
-                onClick={() => { setShowSearch(false); setSearchTerm("") }}
+                onClick={() => {
+                  setShowSearch(false);
+                  setSearchTerm("");
+                }}
                 className="p-0.5 text-muted-text hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
@@ -363,9 +416,12 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
             </div>
           ) : (
             <button
-              onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 50) }}
+              onClick={() => {
+                setShowSearch(true);
+                setTimeout(() => searchInputRef.current?.focus(), 50);
+              }}
               className="rounded-md p-1.5 text-muted-text hover:bg-surface hover:text-foreground"
-              title="Search (Ctrl+F)"
+              title={t("components.case_text_viewer.search_tooltip")}
             >
               <Search className="h-4 w-4" />
             </button>
@@ -373,23 +429,31 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
           <button
             onClick={handleDownload}
             className="rounded-md p-1.5 text-muted-text hover:bg-surface hover:text-foreground"
-            title="Download .txt"
+            title={t("components.case_text_viewer.download_tooltip")}
           >
             <Download className="h-4 w-4" />
           </button>
           <button
             onClick={handlePrint}
             className="rounded-md p-1.5 text-muted-text hover:bg-surface hover:text-foreground"
-            title="Print"
+            title={t("components.case_text_viewer.print_tooltip")}
           >
             <Printer className="h-4 w-4" />
           </button>
           <button
             onClick={() => setExpanded(!expanded)}
             className="rounded-md p-1.5 text-muted-text hover:bg-surface hover:text-foreground"
-            title={expanded ? "Collapse" : "Expand"}
+            title={
+              expanded
+                ? t("components.case_text_viewer.collapse_tooltip")
+                : t("components.case_text_viewer.expand_tooltip")
+            }
           >
-            {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            {expanded ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
           </button>
         </div>
       </div>
@@ -404,7 +468,7 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
             }`}
           >
             <p className="sticky top-0 bg-card px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-text">
-              Contents
+              {t("components.case_text_viewer.table_of_contents")}
             </p>
             <nav className="pb-3">
               {sections.map((s) => (
@@ -415,7 +479,7 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
                     "w-full border-l-2 px-3 py-1 text-left text-[11px] leading-snug transition-colors",
                     activeId === s.id
                       ? "border-accent bg-accent/5 font-medium text-accent"
-                      : "border-transparent text-secondary-text hover:bg-surface hover:text-foreground"
+                      : "border-transparent text-secondary-text hover:bg-surface hover:text-foreground",
                   )}
                 >
                   {s.title}
@@ -434,13 +498,12 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
             searchTerm && searchTerm.length >= 2 && matches.length > 0
               ? "whitespace-pre-wrap font-mono text-xs"
               : "",
-            expanded ? "max-h-none" : "max-h-[600px]"
+            expanded ? "max-h-none" : "max-h-[600px]",
           )}
         >
           {rendered}
         </div>
       </div>
     </div>
-  )
+  );
 }
-

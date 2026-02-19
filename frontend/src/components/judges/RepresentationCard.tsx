@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { RepresentationStats } from "@/types/case";
 
 interface RepresentationCardProps {
@@ -5,6 +6,7 @@ interface RepresentationCardProps {
 }
 
 export function RepresentationCard({ data }: RepresentationCardProps) {
+  const { t } = useTranslation();
   const rep = data.represented;
   const selfRep = data.self_represented;
 
@@ -19,44 +21,36 @@ export function RepresentationCard({ data }: RepresentationCardProps) {
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <h2 className="mb-3 text-base font-semibold text-foreground">
-        Representation Analysis
+        {t("judges.representation_analysis")}
       </h2>
       <div className="grid gap-3 sm:grid-cols-2">
         <StatBox
-          label="With Lawyer"
+          label={t("judges.with_lawyer")}
           total={rep?.total ?? 0}
           winRate={rep?.win_rate ?? 0}
+          t={t}
         />
         <StatBox
-          label="Self-Represented"
+          label={t("judges.self_represented")}
           total={selfRep?.total ?? 0}
           winRate={selfRep?.win_rate ?? 0}
+          t={t}
         />
       </div>
 
       {delta !== null && (
         <p className="mt-3 text-xs text-secondary-text">
-          Represented applicants have a{" "}
-          <span
-            className={
-              delta > 0
-                ? "font-semibold text-green-600"
-                : delta < 0
-                  ? "font-semibold text-red-600"
-                  : "font-semibold"
-            }
-          >
-            {delta > 0 ? "+" : ""}
-            {delta}pp
-          </span>{" "}
-          difference in approval rate vs self-represented.
+          {t("judges.difference_in_approval", {
+            delta: `${delta > 0 ? "+" : ""}${delta}pp`,
+          })}
         </p>
       )}
 
       {data.unknown_count > 0 && (
         <p className="mt-1 text-xs text-muted-text">
-          {data.unknown_count.toLocaleString()} cases with unknown
-          representation status.
+          {t("judges.unknown_representation", {
+            count: data.unknown_count,
+          })}
         </p>
       )}
     </section>
@@ -67,10 +61,12 @@ function StatBox({
   label,
   total,
   winRate,
+  t,
 }: {
   label: string;
   total: number;
   winRate: number;
+  t: (key: string) => string;
 }) {
   if (total === 0) {
     return (
@@ -78,18 +74,16 @@ function StatBox({
         <p className="text-xs uppercase tracking-wide text-muted-text">
           {label}
         </p>
-        <p className="mt-1 text-sm text-muted-text">No data</p>
+        <p className="mt-1 text-sm text-muted-text">{t("common.no_data")}</p>
       </div>
     );
   }
 
   return (
     <div className="rounded-md border border-border-light/60 p-3">
-      <p className="text-xs uppercase tracking-wide text-muted-text">
-        {label}
-      </p>
+      <p className="text-xs uppercase tracking-wide text-muted-text">{label}</p>
       <p className="mt-1 text-sm font-semibold text-foreground">
-        {total.toLocaleString()} cases
+        {total.toLocaleString()} {t("judges.cases")}
       </p>
       <span
         className={`mt-1 inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
@@ -98,7 +92,7 @@ function StatBox({
             : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
         }`}
       >
-        {winRate.toFixed(1)}% win rate
+        {winRate.toFixed(1)}% {t("judges.win_rate")}
       </span>
     </div>
   );

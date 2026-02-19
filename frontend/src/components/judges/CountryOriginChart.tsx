@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   BarChart,
   Bar,
@@ -14,6 +15,8 @@ interface CountryOriginChartProps {
 }
 
 export function CountryOriginChart({ data }: CountryOriginChartProps) {
+  const { t } = useTranslation();
+
   if (data.length < 3) return null;
 
   const chartData = data.slice(0, 15);
@@ -21,7 +24,7 @@ export function CountryOriginChart({ data }: CountryOriginChartProps) {
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <h2 className="mb-3 text-base font-semibold text-foreground">
-        Country of Origin
+        {t("judges.country_origin")}
       </h2>
       <ResponsiveContainer
         width="100%"
@@ -51,7 +54,7 @@ export function CountryOriginChart({ data }: CountryOriginChartProps) {
           <Tooltip
             formatter={(value: number | string | undefined) => [
               Number(value ?? 0).toLocaleString(),
-              "Cases",
+              t("judges.cases"),
             ]}
             contentStyle={{
               backgroundColor: "var(--color-background-card)",
@@ -62,7 +65,7 @@ export function CountryOriginChart({ data }: CountryOriginChartProps) {
           />
           <Bar
             dataKey="total"
-            name="Cases"
+            name={t("judges.cases")}
             fill="#64748b"
             radius={[0, 4, 4, 0]}
           />
@@ -72,9 +75,9 @@ export function CountryOriginChart({ data }: CountryOriginChartProps) {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border text-left uppercase tracking-wide text-muted-text">
-              <th className="py-1.5 pr-2">Country</th>
-              <th className="py-1.5 pr-2 text-right">Cases</th>
-              <th className="py-1.5 text-right">Win Rate</th>
+              <th className="py-1.5 pr-2">{t("judges.country")}</th>
+              <th className="py-1.5 pr-2 text-right">{t("judges.cases")}</th>
+              <th className="py-1.5 text-right">{t("judges.win_rate")}</th>
             </tr>
           </thead>
           <tbody>

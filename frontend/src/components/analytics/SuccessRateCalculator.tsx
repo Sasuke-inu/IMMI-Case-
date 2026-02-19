@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import {
   ResponsiveContainer,
@@ -24,6 +25,7 @@ interface SuccessRateCalculatorProps {
 }
 
 export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
+  const { t } = useTranslation();
   const [visaSubclass, setVisaSubclass] = useState("");
   const [caseNature, setCaseNature] = useState("");
   const [selectedConcepts, setSelectedConcepts] = useState<string[]>([]);
@@ -46,7 +48,9 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
 
   const subclassOptions = useMemo(() => {
     if (!outcomes) return [];
-    return Object.keys(outcomes.by_subclass).sort((a, b) => Number(a) - Number(b));
+    return Object.keys(outcomes.by_subclass).sort(
+      (a, b) => Number(a) - Number(b),
+    );
   }, [outcomes]);
 
   const conceptList = conceptOptions?.concepts ?? [];
@@ -67,17 +71,24 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
         : "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200";
 
   return (
-    <section className="rounded-lg border border-border bg-card p-4" data-testid="success-rate-calculator">
+    <section
+      className="rounded-lg border border-border bg-card p-4"
+      data-testid="success-rate-calculator"
+    >
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-foreground">Success Rate Calculator</h2>
+        <h2 className="text-lg font-semibold text-foreground">
+          {t("analytics.success_calculator")}
+        </h2>
         <p className="text-sm text-muted-text">
-          Estimate historical success rate by court, visa subclass, case nature, and legal concepts.
+          {t("analytics.success_calculator_desc")}
         </p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
         <label className="text-sm">
-          <span className="mb-1 block text-xs font-medium text-muted-text">Visa Subclass</span>
+          <span className="mb-1 block text-xs font-medium text-muted-text">
+            {t("analytics.visa_subclass")}
+          </span>
           <select
             value={visaSubclass}
             onChange={(e) => setVisaSubclass(e.target.value)}
@@ -93,7 +104,9 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
         </label>
 
         <label className="text-sm">
-          <span className="mb-1 block text-xs font-medium text-muted-text">Case Nature</span>
+          <span className="mb-1 block text-xs font-medium text-muted-text">
+            {t("analytics.case_nature")}
+          </span>
           <select
             value={caseNature}
             onChange={(e) => setCaseNature(e.target.value)}
@@ -109,7 +122,9 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
         </label>
 
         <div className="text-sm">
-          <span className="mb-1 block text-xs font-medium text-muted-text">Legal Concepts</span>
+          <span className="mb-1 block text-xs font-medium text-muted-text">
+            {t("analytics.legal_concepts_label")}
+          </span>
           <div className="max-h-24 overflow-y-auto rounded-md border border-border p-2">
             <div className="flex flex-wrap gap-1.5">
               {conceptList.slice(0, 12).map((concept) => {
@@ -136,25 +151,37 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
       </div>
 
       {isLoading || !data ? (
-        <div className="mt-4 text-sm text-muted-text">Loading calculator...</div>
+        <div className="mt-4 text-sm text-muted-text">
+          {t("analytics.loading_calculator")}
+        </div>
       ) : (
         <div className="mt-4 space-y-4">
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="rounded-md border border-border p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-text">Success Rate</p>
-              <p className="mt-1 text-3xl font-bold text-foreground" data-testid="success-rate-number">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-text">
+                {t("analytics.success_rate")}
+              </p>
+              <p
+                className="mt-1 text-3xl font-bold text-foreground"
+                data-testid="success-rate-number"
+              >
                 {data.success_rate.overall.toFixed(1)}%
               </p>
               <p className="mt-1 text-xs text-secondary-text">
-                {data.query.total_matching.toLocaleString()} matching cases
+                {data.query.total_matching.toLocaleString()}{" "}
+                {t("analytics.matching_cases")}
               </p>
-              <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${confidenceTone}`}>
-                {data.success_rate.confidence} confidence
+              <span
+                className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${confidenceTone}`}
+              >
+                {data.success_rate.confidence} {t("analytics.confidence")}
               </span>
             </div>
 
             <div className="rounded-md border border-border p-3 lg:col-span-2">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-text">Outcome Funnel</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-text">
+                {t("analytics.outcome_funnel")}
+              </p>
               <OutcomeFunnelChart
                 winCount={data.success_rate.win_count}
                 lossCount={data.success_rate.loss_count}
@@ -164,13 +191,17 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-md border border-border p-3">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-text">Top Concept Lift</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-text">
+                {t("analytics.top_concept_lift")}
+              </p>
               <div className="space-y-2">
                 {data.by_concept.slice(0, 6).map((item) => (
                   <div key={item.concept}>
                     <div className="mb-1 flex items-center justify-between text-xs">
                       <span className="text-foreground">{item.concept}</span>
-                      <span className="text-secondary-text">{item.win_rate.toFixed(1)}%</span>
+                      <span className="text-secondary-text">
+                        {item.win_rate.toFixed(1)}%
+                      </span>
                     </div>
                     <div className="h-2 rounded bg-surface">
                       <div
@@ -184,16 +215,30 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
             </div>
 
             <div className="rounded-md border border-border p-3">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-text">Win Trend</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-text">
+                {t("analytics.win_trend")}
+              </p>
               <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={data.trend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.35} />
-                  <XAxis dataKey="year" tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
-                  <YAxis tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+                <LineChart
+                  data={data.trend}
+                  margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--color-border)"
+                    opacity={0.35}
+                  />
+                  <XAxis
+                    dataKey="year"
+                    tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+                  />
                   <Tooltip
                     formatter={(value: number | string | undefined) => [
                       `${Number(value ?? 0).toFixed(1)}%`,
-                      "Success Rate",
+                      t("analytics.success_rate"),
                     ]}
                     contentStyle={{
                       backgroundColor: "var(--color-background-card)",
@@ -201,14 +246,22 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
                       borderRadius: "var(--radius)",
                     }}
                   />
-                  <Line type="monotone" dataKey="rate" stroke="#1a5276" strokeWidth={2} dot={{ r: 2 }} />
+                  <Line
+                    type="monotone"
+                    dataKey="rate"
+                    stroke="#1a5276"
+                    strokeWidth={2}
+                    dot={{ r: 2 }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           <div className="rounded-md border border-border p-3">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-text">Top Concept Combinations</p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-text">
+              {t("analytics.top_concept_combinations")}
+            </p>
             <ConceptComboTable combos={data.top_combos} />
           </div>
         </div>

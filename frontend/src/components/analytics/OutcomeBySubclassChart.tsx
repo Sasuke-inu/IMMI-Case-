@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   BarChart,
   Bar,
@@ -17,6 +18,7 @@ export function OutcomeBySubclassChart({
   data,
   limit = 12,
 }: OutcomeBySubclassChartProps) {
+  const { t } = useTranslation();
   const chartData = Object.entries(data)
     .map(([subclass, outcomes]) => {
       const total = Object.values(outcomes).reduce((a, b) => a + b, 0);
@@ -64,9 +66,11 @@ export function OutcomeBySubclassChart({
         <Tooltip
           formatter={(value: number | undefined) => [
             `${Number(value ?? 0).toFixed(1)}%`,
-            "Affirmed Rate",
+            t("analytics.affirmed_rate"),
           ]}
-          labelFormatter={(label: unknown) => `Subclass ${label}`}
+          labelFormatter={(label: unknown) =>
+            `${t("analytics.visa_subclass")} ${label}`
+          }
           contentStyle={{
             backgroundColor: "var(--color-background-card)",
             border: "1px solid var(--color-border)",

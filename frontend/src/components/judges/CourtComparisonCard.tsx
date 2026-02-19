@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { CourtComparisonEntry } from "@/types/case";
 
 interface CourtComparisonCardProps {
@@ -5,26 +6,29 @@ interface CourtComparisonCardProps {
 }
 
 export function CourtComparisonCard({ data }: CourtComparisonCardProps) {
+  const { t } = useTranslation();
+
   if (data.length === 0) return null;
 
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <h2 className="mb-1 text-base font-semibold text-foreground">
-        Court Comparison
+        {t("judges.court_comparison")}
       </h2>
       <p className="mb-3 text-xs text-muted-text">
-        This judge&apos;s approval rate compared to the court-wide average.
-        Positive delta = more applicant-favourable.
+        {t("judges.court_comparison_desc")}
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-text">
-              <th className="py-2 pr-2">Court</th>
-              <th className="py-2 pr-2 text-right">Cases</th>
-              <th className="py-2 pr-2 text-right">Judge Rate</th>
-              <th className="py-2 pr-2 text-right">Court Avg</th>
-              <th className="py-2 text-right">Delta</th>
+              <th className="py-2 pr-2">{t("judges.courts")}</th>
+              <th className="py-2 pr-2 text-right">
+                {t("judges.total_cases")}
+              </th>
+              <th className="py-2 pr-2 text-right">{t("judges.judge_rate")}</th>
+              <th className="py-2 pr-2 text-right">{t("judges.court_avg")}</th>
+              <th className="py-2 text-right">{t("judges.delta")}</th>
             </tr>
           </thead>
           <tbody>
@@ -71,8 +75,7 @@ function DeltaBadge({ delta }: { delta: number }) {
             : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
       }`}
     >
-      {isPositive ? "▲" : isNegative ? "▼" : "─"}{" "}
-      {isPositive ? "+" : ""}
+      {isPositive ? "▲" : isNegative ? "▼" : "─"} {isPositive ? "+" : ""}
       {delta.toFixed(1)}pp
     </span>
   );

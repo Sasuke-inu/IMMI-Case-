@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { GraduationCap, Briefcase, Calendar, ExternalLink, User } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import {
+  GraduationCap,
+  Briefcase,
+  Calendar,
+  ExternalLink,
+  User,
+} from "lucide-react";
 import type { JudgeBio } from "@/types/case";
 
 interface JudgeBioCardProps {
@@ -8,12 +15,15 @@ interface JudgeBioCardProps {
 }
 
 export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
+  const { t } = useTranslation();
   const [imgError, setImgError] = useState(false);
 
   if (isLoading) {
     return (
       <section className="rounded-lg border border-border bg-card p-4">
-        <h2 className="mb-3 text-base font-semibold text-foreground">Biography</h2>
+        <h2 className="mb-3 text-base font-semibold text-foreground">
+          {t("judges.biography")}
+        </h2>
         <div className="flex gap-4">
           <div className="h-20 w-20 shrink-0 animate-pulse rounded-full bg-border" />
           <div className="flex-1 space-y-2">
@@ -29,9 +39,11 @@ export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
   if (!bio.found) {
     return (
       <section className="rounded-lg border border-border bg-card p-4">
-        <h2 className="mb-3 text-base font-semibold text-foreground">Biography</h2>
+        <h2 className="mb-3 text-base font-semibold text-foreground">
+          {t("judges.biography")}
+        </h2>
         <p className="text-sm text-muted-text">
-          No public biographical record found for this judge/member.
+          {t("judges.no_public_record")}
         </p>
       </section>
     );
@@ -48,7 +60,9 @@ export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
 
   return (
     <section className="rounded-lg border border-border bg-card p-4">
-      <h2 className="mb-3 text-base font-semibold text-foreground">Biography</h2>
+      <h2 className="mb-3 text-base font-semibold text-foreground">
+        {t("judges.biography")}
+      </h2>
 
       <div className="flex gap-4">
         {/* Profile photo or avatar */}
@@ -61,34 +75,36 @@ export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
               onError={() => setImgError(true)}
             />
           ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full border border-border bg-accent/10">
-              <User className="h-8 w-8 text-accent/60" />
-            </div>
+            <img
+              src={`https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(bio.full_name ?? "")}&backgroundColor=1a5276,2d7d46,6c3483,b9770e,a83232,117864&textColor=ffffff&fontSize=36`}
+              alt={bio.full_name ?? "Avatar"}
+              className="h-20 w-20 rounded-full border border-border"
+            />
           )}
         </div>
 
         {/* Name, role, court */}
         <div className="flex-1 space-y-1">
           {bio.full_name && (
-            <p className="text-lg font-semibold text-foreground">{bio.full_name}</p>
+            <p className="text-lg font-semibold text-foreground">
+              {bio.full_name}
+            </p>
           )}
           {bio.role && (
             <p className="text-sm text-secondary-text">{bio.role}</p>
           )}
-          {bio.court && (
-            <p className="text-sm text-muted-text">{bio.court}</p>
-          )}
+          {bio.court && <p className="text-sm text-muted-text">{bio.court}</p>}
           <div className="flex flex-wrap gap-3 pt-1 text-xs text-muted-text">
             {bio.appointed_year && (
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                Appointed {bio.appointed_year}
+                {t("judges.appointed")} {bio.appointed_year}
               </span>
             )}
             {age && age > 0 && age < 120 && (
               <span className="flex items-center gap-1">
                 <User className="h-3 w-3" />
-                Age ~{age}
+                {t("judges.age", { age })}
               </span>
             )}
           </div>
@@ -100,7 +116,7 @@ export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
         <div className="mt-4">
           <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-text">
             <GraduationCap className="h-3.5 w-3.5" />
-            Education
+            {t("judges.education")}
           </div>
           <ul className="mt-1.5 space-y-0.5 text-sm text-foreground">
             {bio.education.map((edu) => (
@@ -118,7 +134,7 @@ export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
         <div className="mt-4">
           <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-text">
             <Briefcase className="h-3.5 w-3.5" />
-            Career History
+            {t("judges.career_history")}
           </div>
           {careerItems.length === 1 ? (
             <p className="mt-1.5 text-sm text-foreground">{careerItems[0]}</p>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { JudgeLeaderboardEntry } from "@/types/case";
 
 interface JudgeLeaderboardProps {
@@ -13,8 +14,12 @@ export function JudgeLeaderboard({
   onToggleCompare,
   onOpen,
 }: JudgeLeaderboardProps) {
+  const { t } = useTranslation();
+
   if (!data.length) {
-    return <p className="text-sm text-muted-text">No judge records found for selected filters.</p>;
+    return (
+      <p className="text-sm text-muted-text">{t("judges.no_judge_records")}</p>
+    );
   }
 
   return (
@@ -22,12 +27,12 @@ export function JudgeLeaderboard({
       <table className="w-full min-w-[900px] text-sm">
         <thead>
           <tr className="border-b border-border bg-surface text-left text-xs uppercase tracking-wide text-muted-text">
-            <th className="px-3 py-2">Compare</th>
-            <th className="px-3 py-2">Judge / Member</th>
-            <th className="px-3 py-2">Cases</th>
-            <th className="px-3 py-2">Approval Rate</th>
-            <th className="px-3 py-2">Courts</th>
-            <th className="px-3 py-2">Top Visa</th>
+            <th className="px-3 py-2">{t("judges.compare")}</th>
+            <th className="px-3 py-2">{t("judges.judge_member")}</th>
+            <th className="px-3 py-2">{t("judges.total_cases")}</th>
+            <th className="px-3 py-2">{t("judges.approval_rate")}</th>
+            <th className="px-3 py-2">{t("judges.courts")}</th>
+            <th className="px-3 py-2">{t("judges.top_visa_subclasses")}</th>
           </tr>
         </thead>
         <tbody>
@@ -50,17 +55,28 @@ export function JudgeLeaderboard({
                   onChange={() => onToggleCompare(row.name)}
                 />
               </td>
-              <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
-              <td className="px-3 py-2 text-secondary-text">{row.total_cases.toLocaleString()}</td>
+              <td className="px-3 py-2 font-medium text-foreground">
+                {row.name}
+              </td>
+              <td className="px-3 py-2 text-secondary-text">
+                {row.total_cases.toLocaleString()}
+              </td>
               <td className="px-3 py-2">
                 <div className="w-40">
-                  <div className="mb-1 text-xs text-secondary-text">{row.approval_rate.toFixed(1)}%</div>
+                  <div className="mb-1 text-xs text-secondary-text">
+                    {row.approval_rate.toFixed(1)}%
+                  </div>
                   <div className="h-2 rounded bg-surface">
-                    <div className="h-2 rounded bg-accent" style={{ width: `${Math.min(row.approval_rate, 100)}%` }} />
+                    <div
+                      className="h-2 rounded bg-accent"
+                      style={{ width: `${Math.min(row.approval_rate, 100)}%` }}
+                    />
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-2 text-secondary-text">{row.courts.join(", ") || "-"}</td>
+              <td className="px-3 py-2 text-secondary-text">
+                {row.courts.join(", ") || "-"}
+              </td>
               <td className="px-3 py-2 text-secondary-text">
                 {row.top_visa_subclasses[0]
                   ? `${row.top_visa_subclasses[0].subclass} (${row.top_visa_subclasses[0].count})`

@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   BarChart,
   Bar,
@@ -58,6 +59,7 @@ interface SubclassChartProps {
 }
 
 export function SubclassChart({ data }: SubclassChartProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const chartData = Object.entries(data)
     .sort(([, a], [, b]) => b - a)
@@ -120,7 +122,7 @@ export function SubclassChart({ data }: SubclassChartProps) {
           }}
           formatter={(value: number | undefined) => [
             Number(value ?? 0).toLocaleString(),
-            "Cases",
+            t("components.charts.chart_cases"),
           ]}
           labelFormatter={(label: unknown) => String(label)}
         />

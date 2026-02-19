@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   AreaChart,
   Area,
@@ -14,6 +15,7 @@ interface OutcomeTrendChartProps {
 }
 
 export function OutcomeTrendChart({ data }: OutcomeTrendChartProps) {
+  const { t } = useTranslation();
   const chartData = Object.entries(data)
     .map(([yearStr, outcomes]) => {
       const total = Object.values(outcomes).reduce((a, b) => a + b, 0);
@@ -74,7 +76,9 @@ export function OutcomeTrendChart({ data }: OutcomeTrendChartProps) {
             `${Number(value ?? 0).toFixed(1)}%`,
             name ?? "",
           ]}
-          labelFormatter={(label: unknown) => `Year ${label}`}
+          labelFormatter={(label: unknown) =>
+            `${t("analytics.year_label")} ${label}`
+          }
           contentStyle={{
             backgroundColor: "var(--color-background-card)",
             border: "1px solid var(--color-border)",
@@ -93,7 +97,7 @@ export function OutcomeTrendChart({ data }: OutcomeTrendChartProps) {
         <Area
           type="monotone"
           dataKey="affirmedRate"
-          name="Affirmed Rate"
+          name={t("analytics.affirmed_rate")}
           stroke="#2d7d46"
           strokeWidth={2}
           fill="url(#affirmedGrad)"
@@ -103,7 +107,7 @@ export function OutcomeTrendChart({ data }: OutcomeTrendChartProps) {
         <Area
           type="monotone"
           dataKey="applicantWinRate"
-          name="Applicant Win Rate"
+          name={t("analytics.applicant_win_rate")}
           stroke="#2a6496"
           strokeWidth={2}
           fill="url(#applicantGrad)"

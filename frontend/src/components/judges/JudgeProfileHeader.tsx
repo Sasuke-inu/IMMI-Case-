@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { JudgeProfile } from "@/types/case";
 
 interface JudgeProfileHeaderProps {
@@ -5,17 +6,26 @@ interface JudgeProfileHeaderProps {
 }
 
 export function JudgeProfileHeader({ profile }: JudgeProfileHeaderProps) {
+  const { t } = useTranslation();
   const first = profile.judge.active_years.first ?? "-";
   const last = profile.judge.active_years.last ?? "-";
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
-      <h1 className="text-2xl font-semibold text-foreground">{profile.judge.name}</h1>
+      <h1 className="text-2xl font-semibold text-foreground">
+        {profile.judge.name}
+      </h1>
       <div className="mt-3 grid gap-3 sm:grid-cols-4">
-        <Stat label="Total Cases" value={profile.judge.total_cases.toLocaleString()} />
-        <Stat label="Approval Rate" value={`${profile.approval_rate.toFixed(1)}%`} />
-        <Stat label="Court Type" value={profile.court_type} />
-        <Stat label="Active Years" value={`${first} - ${last}`} />
+        <Stat
+          label={t("judges.total_cases")}
+          value={profile.judge.total_cases.toLocaleString()}
+        />
+        <Stat
+          label={t("judges.approval_rate")}
+          value={`${profile.approval_rate.toFixed(1)}%`}
+        />
+        <Stat label={t("judges.court_type")} value={profile.court_type} />
+        <Stat label={t("judges.active_years")} value={`${first} - ${last}`} />
       </div>
     </div>
   );

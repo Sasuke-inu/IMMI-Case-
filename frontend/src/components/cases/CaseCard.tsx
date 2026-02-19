@@ -1,16 +1,19 @@
-import { Calendar, User, Briefcase } from "lucide-react"
-import { CourtBadge } from "@/components/shared/CourtBadge"
-import { OutcomeBadge } from "@/components/shared/OutcomeBadge"
-import { courtColors } from "@/tokens/tokens"
-import type { ImmigrationCase } from "@/types/case"
+import { Calendar, User, Briefcase } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { CourtBadge } from "@/components/shared/CourtBadge";
+import { OutcomeBadge } from "@/components/shared/OutcomeBadge";
+import { courtColors } from "@/tokens/tokens";
+import type { ImmigrationCase } from "@/types/case";
 
 interface CaseCardProps {
-  case_: ImmigrationCase
-  onClick: () => void
+  case_: ImmigrationCase;
+  onClick: () => void;
 }
 
 export function CaseCard({ case_: c, onClick }: CaseCardProps) {
-  const accentColor = courtColors[c.court_code] ?? "#6b7585"
+  // i18n support ready; currently all metadata comes from case data props
+  useTranslation();
+  const accentColor = courtColors[c.court_code] ?? "#6b7585";
 
   return (
     <button
@@ -35,7 +38,10 @@ export function CaseCard({ case_: c, onClick }: CaseCardProps) {
 
         {/* Citation */}
         {c.citation && (
-          <p className="mt-1 truncate text-xs text-muted-text" title={c.citation}>
+          <p
+            className="mt-1 truncate text-xs text-muted-text"
+            title={c.citation}
+          >
             {c.citation}
           </p>
         )}
@@ -54,7 +60,10 @@ export function CaseCard({ case_: c, onClick }: CaseCardProps) {
                 </span>
               )}
               {c.judges && (
-                <span className="inline-flex max-w-[180px] items-center gap-1 truncate" title={c.judges}>
+                <span
+                  className="inline-flex max-w-[180px] items-center gap-1 truncate"
+                  title={c.judges}
+                >
                   <User className="h-3 w-3 shrink-0" />
                   {c.judges}
                 </span>
@@ -73,5 +82,5 @@ export function CaseCard({ case_: c, onClick }: CaseCardProps) {
         )}
       </div>
     </button>
-  )
+  );
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   BarChart,
   Bar,
@@ -34,6 +35,7 @@ interface CourtChartProps {
 }
 
 export function CourtChart({ data, type = "bar" }: CourtChartProps) {
+  const { t } = useTranslation();
   const chartData = Object.entries(data)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value);
@@ -71,7 +73,7 @@ export function CourtChart({ data, type = "bar" }: CourtChartProps) {
               const num = Number(value ?? 0);
               return [
                 `${num.toLocaleString()} (${((num / total) * 100).toFixed(1)}%)`,
-                "Cases",
+                t("components.charts.chart_cases"),
               ];
             }}
             contentStyle={{

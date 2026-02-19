@@ -152,33 +152,59 @@
     "subtitle": "探索法官/成員的批准率、工作量和案件組成。",
     "judge_profile": "法官簡介",
     "judge_comparison": "法官比較",
-    "leaderboard": "裁判排行榜",
-    "total_cases": "病例總數",
+    "leaderboard": "法官排行榜",
+    "total_cases": "案件總數",
     "approval_rate": "批准率",
-    "biography": "傳",
-    "biography_not_available": "暫無傳記資料",
-    "active_years": "活躍時期",
-    "primary_court": "初級法院",
+    "biography": "簡歷",
+    "biography_not_available": "暫無簡歷資料",
+    "active_years": "活躍期間",
+    "primary_court": "主要法院",
     "courts": "法院",
     "top_visa_subclasses": "熱門簽證子類別",
-    "outcome_summary": "結果總結",
+    "outcome_summary": "結果概述",
     "court_comparison": "法院比較",
-    "representation": "表示",
+    "representation": "代理情況",
     "case_outcomes": "案件結果",
     "legal_concepts": "法律概念",
-    "country_origin": "原產地",
-    "case_nature_breakdown": "案例性質分析",
+    "country_origin": "原籍國",
+    "case_nature_breakdown": "案件性質分析",
     "sort_label": "排序",
-    "sort_cases": "最多案件",
-    "sort_approval": "最高批准率",
+    "sort_cases": "案件最多",
+    "sort_approval": "批准率最高",
     "sort_name": "名字",
     "judges_found": "找到 {{count}} 位法官",
     "max_selected": "最多選擇 {{max}} 位",
     "compare_selected": "比較所選 ({{count}})",
     "table_view_label": "表格視圖",
     "card_view_label": "卡片視圖",
-    "empty_state": "未找到符合所選篩選條件的評審。",
-    "loading_judges": "載入法官中..."
+    "empty_state": "未找到符合所選篩選條件的法官。",
+    "loading_judges": "載入法官中...",
+    "compare": "比較",
+    "judge_member": "法官 / 成員",
+    "no_judge_records": "未找到符合所選篩選條件的法官記錄。",
+    "education": "學歷",
+    "career_history": "職業經歷",
+    "appointed": "任命於",
+    "age": "年齡 ~{{age}}",
+    "no_public_record": "未找到該法官/成員的公開簡歷記錄。",
+    "court_comparison_desc": "此法官的批准率與法院平均批准率的對比。正差值 = 更有利於申請人。",
+    "judge_rate": "法官批准率",
+    "court_avg": "法院平均",
+    "delta": "差值",
+    "representation_analysis": "代理情況分析",
+    "with_lawyer": "有律師代理",
+    "self_represented": "自行代理",
+    "win_rate": "批准率",
+    "difference_in_approval": "有律師代理的申請人的批准率比自行代理高 {{delta}} 個百分點。",
+    "unknown_representation": "{{count}} 件案的代理情況未知。",
+    "concept": "概念",
+    "total": "總計",
+    "lift": "升幅",
+    "no_concept_data": "暫無概念有效性資料。",
+    "country": "國家",
+    "no_visa_subclass_data": "此法官無簽證子類別資料。",
+    "cases": "案件",
+    "court_type": "法院類型"
   },
   "analytics": {
     "title": "分析",
@@ -375,5 +401,175 @@
     "catchwords": "概述詞",
     "tags": "標籤",
     "notes": "註釋"
+  },
+  "components": {
+    "stat_card": {
+      "coverage": "{{percentage}}% 覆蓋率"
+    },
+    "charts": {
+      "court_chart": "法院案件數",
+      "nature_chart": "案件性質",
+      "trend_chart": "年度趨勢",
+      "subclass_chart": "簽證子類別",
+      "chart_loading": "載入圖表中...",
+      "chart_no_data": "暫無數據",
+      "chart_cases": "案件"
+    },
+    "case_card": {
+      "no_data_text": "暫無中繼資料"
+    },
+    "case_text_viewer": {
+      "full_text": "全文",
+      "search_in_text": "在文本中搜尋...",
+      "search_tooltip": "搜尋 (Ctrl+F)",
+      "download_tooltip": "下載 .txt",
+      "print_tooltip": "列印",
+      "expand_tooltip": "展開",
+      "collapse_tooltip": "收合",
+      "table_of_contents": "內容",
+      "case_not_available": "案件全文不可用",
+      "no_text_error": "無法載入案件全文"
+    },
+    "badges": {
+      "outcome": "判決結果",
+      "court": "法院",
+      "nature": "性質",
+      "visa_subclass": "簽證子類別",
+      "legal_concept": "法律概念",
+      "source": "來源"
+    },
+    "empty_state": {
+      "no_results": "未找到結果",
+      "try_adjusting": "請嘗試調整篩選條件",
+      "no_data": "暫無數據",
+      "select_cases": "選擇要比較的案件",
+      "go_to_cases": "前往案件",
+      "select_judges": "選擇要比較的法官",
+      "back_to_profiles": "返回法官簡介"
+    },
+    "analytics_filters": {
+      "all_time": "所有時間",
+      "last_5_years": "過去 5 年",
+      "last_10_years": "過去 10 年",
+      "from": "從",
+      "to": "至"
+    },
+    "breadcrumb": {
+      "home": "首頁"
+    },
+    "filter_pill": {
+      "clear": "清除"
+    }
+  },
+  "pages": {
+    "case_comparison": {
+      "title": "案件比較",
+      "field_label": "欄位",
+      "differs": "不同",
+      "select_cases": "選擇要比較的案件",
+      "description": "從案件頁面選擇 2-5 個案件，然後點擊比較。",
+      "go_to_cases": "前往案件"
+    },
+    "judge_comparison": {
+      "title": "法官比較",
+      "back_to_profiles": "返回法官簡介",
+      "min_judges": "選擇至少兩名法官進行比較。",
+      "cases": "案件數",
+      "approval": "批准率",
+      "court_type": "法院類型",
+      "active_years": "活躍年份",
+      "loading": "載入比較中...",
+      "loading_ellipsis": "載入中..."
+    },
+    "job_status": {
+      "title": "工作狀態",
+      "job_running": "工作執行中",
+      "job_failed": "工作失敗",
+      "job_completed": "工作完成",
+      "no_active_job": "無活躍工作",
+      "elapsed": "已運行時間",
+      "next_steps": "後續步驟",
+      "no_job_running": "目前沒有執行的工作。開始一個工作：",
+      "activity": "活動",
+      "errors": "錯誤",
+      "error_count": "錯誤 ({{count}})"
+    },
+    "data_dictionary": {
+      "title": "資料字典",
+      "subtitle": "理解案件資料庫架構",
+      "field_name": "欄位名稱",
+      "field_type": "類型",
+      "field_description": "描述",
+      "example": "範例",
+      "editable": "可編輯",
+      "yes": "是",
+      "no": "否",
+      "identification": "識別",
+      "court_information": "法院資訊",
+      "case_content": "案件內容",
+      "extracted_fields": "提取的欄位",
+      "user_data": "使用者數據",
+      "fields": "欄位",
+      "loading": "載入資料字典中..."
+    },
+    "design_tokens": {
+      "title": "設計代幣",
+      "subtitle": "視覺設計系統變數",
+      "colors": "顏色",
+      "typography": "排版",
+      "spacing": "間距",
+      "copy_value": "點擊複製",
+      "copied": "已複製！"
+    },
+    "case_edit": {
+      "title": "編輯案件",
+      "breadcrumb_edit": "編輯案件",
+      "loading": "載入中...",
+      "save_button": "保存",
+      "cancel_button": "取消",
+      "title_required": "標題為必填項",
+      "success": "案件已更新",
+      "error": "更新案件失敗"
+    },
+    "case_add": {
+      "title": "新增案件",
+      "breadcrumb_add": "新增案件",
+      "new_case": "新案件",
+      "required_fields": "* = 必填欄位",
+      "title_required": "標題為必填項",
+      "citation_format": "引用格式應如 [2024] FCA 123",
+      "success": "案件已創建",
+      "error": "創建案件失敗",
+      "save_button": "建立案件"
+    }
+  },
+  "components": {
+    "stat_card": {
+      "coverage": "{{percentage}}% 覆蓋率"
+    },
+    "charts": {
+      "court_chart": "法院案件數",
+      "nature_chart": "案件性質",
+      "trend_chart": "年度趨勢",
+      "subclass_chart": "簽證子類別",
+      "chart_loading": "載入圖表中...",
+      "chart_no_data": "暫無數據",
+      "chart_cases": "案件"
+    },
+    "case_card": {
+      "no_data_text": "暫無中繼資料"
+    },
+    "case_text_viewer": {
+      "full_text": "全文",
+      "search_in_text": "在文本中搜尋...",
+      "search_tooltip": "搜尋 (Ctrl+F)",
+      "download_tooltip": "下載 .txt",
+      "print_tooltip": "列印",
+      "expand_tooltip": "展開",
+      "collapse_tooltip": "收合",
+      "table_of_contents": "內容",
+      "case_not_available": "案件全文不可用",
+      "no_text_error": "無法載入案件全文"
+    }
   }
 }

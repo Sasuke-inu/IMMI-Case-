@@ -8,15 +8,24 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import { useTranslation } from "react-i18next";
 import type { ConceptTrendData } from "@/types/case";
 
 interface ConceptTrendChartProps {
   data: ConceptTrendData;
 }
 
-const COLORS = ["#1a5276", "#2d7d46", "#6c3483", "#b9770e", "#a83232", "#117864"];
+const COLORS = [
+  "#1a5276",
+  "#2d7d46",
+  "#6c3483",
+  "#b9770e",
+  "#a83232",
+  "#117864",
+];
 
 export function ConceptTrendChart({ data }: ConceptTrendChartProps) {
+  const { t } = useTranslation();
   const concepts = Object.keys(data.series).slice(0, 6);
   const years = new Set<number>();
   concepts.forEach((concept) => {
@@ -35,19 +44,31 @@ export function ConceptTrendChart({ data }: ConceptTrendChartProps) {
     });
 
   if (!rows.length) {
-    return <p className="text-sm text-muted-text">No trend data available.</p>;
+    return (
+      <p className="text-sm text-muted-text">{t("analytics.no_trend_data")}</p>
+    );
   }
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <LineChart data={rows} margin={{ top: 5, right: 10, left: -20, bottom: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.35} />
-        <XAxis dataKey="year" tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+      <LineChart
+        data={rows}
+        margin={{ top: 5, right: 10, left: -20, bottom: 10 }}
+      >
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="var(--color-border)"
+          opacity={0.35}
+        />
+        <XAxis
+          dataKey="year"
+          tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+        />
         <YAxis tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
         <Tooltip
           formatter={(value: number | string | undefined) => [
             `${Number(value ?? 0).toFixed(1)}%`,
-            "Win Rate",
+            t("analytics.win_rate"),
           ]}
           contentStyle={{
             backgroundColor: "var(--color-background-card)",

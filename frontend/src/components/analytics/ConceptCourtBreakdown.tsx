@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   ResponsiveContainer,
   BarChart,
@@ -14,6 +15,7 @@ interface ConceptCourtBreakdownProps {
 }
 
 export function ConceptCourtBreakdown({ data }: ConceptCourtBreakdownProps) {
+  const { t } = useTranslation();
   const concepts = data.concepts.slice(0, 8);
   const courts = Array.from(
     new Set(concepts.flatMap((concept) => Object.keys(concept.by_court))),
@@ -28,13 +30,22 @@ export function ConceptCourtBreakdown({ data }: ConceptCourtBreakdownProps) {
   });
 
   if (!rows.length || !courts.length) {
-    return <p className="text-sm text-muted-text">Not enough court-specific concept data.</p>;
+    return (
+      <p className="text-sm text-muted-text">{t("analytics.no_court_data")}</p>
+    );
   }
 
   return (
     <ResponsiveContainer width="100%" height={Math.max(rows.length * 38, 260)}>
-      <BarChart data={rows} layout="vertical" margin={{ top: 0, right: 10, left: 20, bottom: 0 }}>
-        <XAxis type="number" tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+      <BarChart
+        data={rows}
+        layout="vertical"
+        margin={{ top: 0, right: 10, left: 20, bottom: 0 }}
+      >
+        <XAxis
+          type="number"
+          tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+        />
         <YAxis
           type="category"
           dataKey="name"
@@ -46,7 +57,7 @@ export function ConceptCourtBreakdown({ data }: ConceptCourtBreakdownProps) {
         <Tooltip
           formatter={(value: number | string | undefined) => [
             `${Number(value ?? 0).toFixed(1)}%`,
-            "Win Rate",
+            t("analytics.win_rate"),
           ]}
           contentStyle={{
             backgroundColor: "var(--color-background-card)",
