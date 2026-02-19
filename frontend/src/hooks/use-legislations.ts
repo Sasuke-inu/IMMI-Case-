@@ -1,13 +1,11 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query";
 import {
   fetchLegislations,
   fetchLegislation,
   searchLegislations,
-  type Legislation,
   type PaginatedLegislations,
-  type LegislationDetail,
   type SearchLegislations,
-} from "@/lib/api"
+} from "@/lib/api";
 
 /**
  * Hook to fetch a paginated list of legislations
@@ -24,8 +22,8 @@ export function useLegislations(page: number = 1, limit: number = 10) {
     queryKey: ["legislations", page, limit],
     queryFn: () => fetchLegislations(page, limit),
     staleTime: 10_000, // 10 seconds
-    keepPreviousData: true, // Smooth pagination
-  })
+    placeholderData: (previousData) => previousData, // Smooth pagination
+  });
 }
 
 /**
@@ -43,7 +41,7 @@ export function useLegislationDetail(legislationId: string | null) {
     queryFn: () => fetchLegislation(legislationId!),
     enabled: !!legislationId, // Don't fetch if no ID
     staleTime: 60_000, // 1 minute
-  })
+  });
 }
 
 /**
@@ -64,5 +62,5 @@ export function useLegislationSearch(query: string = "", limit: number = 20) {
     queryFn: () => searchLegislations(query, limit),
     enabled: query.length > 0, // Don't fetch if query is empty
     staleTime: 15_000, // 15 seconds
-  })
+  });
 }
