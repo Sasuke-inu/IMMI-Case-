@@ -9,14 +9,14 @@ import json
 import logging
 from typing import Any
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 
 logger = logging.getLogger(__name__)
 
 legislations_bp = Blueprint("legislations", __name__, url_prefix="/api/v1/legislations")
 
 # Cache for legislations data loaded at app startup
-_legislations_cache: dict[str, Any] | None = None
+_legislations_cache: list[dict[str, Any]] | None = None
 
 
 def _load_legislations() -> list[dict[str, Any]]:
