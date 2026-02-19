@@ -1,11 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { List, LayoutGrid } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { AnalyticsFilters } from "@/components/shared/AnalyticsFilters";
 import { JudgeLeaderboard } from "@/components/judges/JudgeLeaderboard";
+import { JudgeCard } from "@/components/judges/JudgeCard";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { useJudgeLeaderboard } from "@/hooks/use-judges";
 
 const CURRENT_YEAR = new Date().getFullYear();
+const MAX_COMPARE = 4;
 
 export function JudgeProfilesPage() {
   const navigate = useNavigate();
@@ -14,6 +18,10 @@ export function JudgeProfilesPage() {
   const [yearTo, setYearTo] = useState(CURRENT_YEAR);
   const [sortBy, setSortBy] = useState<"cases" | "approval_rate" | "name">("cases");
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<"table" | "cards">(() => {
+    const stored = localStorage.getItem("judges-view-mode");
+    return stored === "cards" ? "cards" : "table";
+  });
 
   const params = useMemo(
     () => ({
@@ -28,11 +36,23 @@ export function JudgeProfilesPage() {
 
   const { data, isLoading, isError, error, refetch } = useJudgeLeaderboard(params);
 
+  const judges = data?.judges ?? [];
+
+  // Clear stale selections when filters change the visible judge set
+  useEffect(() => {
+    if (!judges.length) return;
+    const visibleNames = new Set(judges.map((j) => j.name));
+    setSelectedNames((prev) => {
+      const pruned = prev.filter((n) => visibleNames.has(n));
+      return pruned.length === prev.length ? prev : pruned;
+    });
+  }, [judges]);
+
   const toggleCompare = (name: string) => {
     setSelectedNames((prev) => {
       const exists = prev.includes(name);
       if (exists) return prev.filter((item) => item !== name);
-      if (prev.length >= 4) return prev;
+      if (prev.length >= MAX_COMPARE) return prev;
       return [...prev, name];
     });
   };
@@ -43,13 +63,45 @@ export function JudgeProfilesPage() {
     navigate(`/judge-profiles/compare?names=${names}`);
   };
 
+  const openJudge = (name: string) => {
+    navigate(`/judge-profiles/${encodeURIComponent(name)}`);
+  };
+
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Judge Profiles</h1>
-        <p className="text-sm text-muted-text">
-          Explore approval rates, workload, and case composition by judge/member.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Judge Profiles</h1>
+          <p className="text-sm text-muted-text">
+            Explore approval rates, workload, and case composition by judge/member.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Table view"
+            aria-pressed={viewMode === "table"}
+            onClick={() => { setViewMode("table"); localStorage.setItem("judges-view-mode", "table"); }}
+            className={cn(
+              "rounded-md p-1.5",
+              viewMode === "table" ? "bg-accent-muted text-accent" : "text-muted-text hover:text-foreground",
+            )}
+          >
+            <List className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Card view"
+            aria-pressed={viewMode === "cards"}
+            onClick={() => { setViewMode("cards"); localStorage.setItem("judges-view-mode", "cards"); }}
+            className={cn(
+              "rounded-md p-1.5",
+              viewMode === "cards" ? "bg-accent-muted text-accent" : "text-muted-text hover:text-foreground",
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className="rounded-lg border border-border bg-card p-4">
@@ -83,14 +135,19 @@ export function JudgeProfilesPage() {
           <p className="text-sm text-secondary-text">
             {data?.total_judges ?? 0} judges found
           </p>
-          <button
-            type="button"
-            onClick={openCompare}
-            disabled={selectedNames.length < 2}
-            className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Compare Selected ({selectedNames.length})
-          </button>
+          <div className="flex items-center gap-2">
+            {selectedNames.length >= MAX_COMPARE && (
+              <span className="text-xs text-semantic-warning">Max {MAX_COMPARE} selected</span>
+            )}
+            <button
+              type="button"
+              onClick={openCompare}
+              disabled={selectedNames.length < 2}
+              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Compare Selected ({selectedNames.length})
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -103,13 +160,27 @@ export function JudgeProfilesPage() {
               void refetch();
             }}
           />
-        ) : (
+        ) : viewMode === "table" ? (
           <JudgeLeaderboard
-            data={data?.judges ?? []}
+            data={judges}
             selectedNames={selectedNames}
             onToggleCompare={toggleCompare}
-            onOpen={(name) => navigate(`/judge-profiles/${encodeURIComponent(name)}`)}
+            onOpen={openJudge}
           />
+        ) : judges.length === 0 ? (
+          <p className="text-sm text-muted-text">No judge records found for selected filters.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {judges.map((judge) => (
+              <JudgeCard
+                key={judge.name}
+                judge={judge}
+                isSelected={selectedNames.includes(judge.name)}
+                onToggleCompare={toggleCompare}
+                onOpen={openJudge}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>

@@ -3,6 +3,7 @@ import {
   fetchJudgeLeaderboard,
   fetchJudgeProfile,
   fetchJudgeCompare,
+  fetchJudgeBio,
 } from "@/lib/api";
 
 export function useJudgeLeaderboard(params: {
@@ -46,16 +47,20 @@ export function useJudgeCompare(
   params: { yearFrom?: number; yearTo?: number } = {},
 ) {
   return useQuery({
-    queryKey: [
-      "judges",
-      "compare",
-      ...names,
-      params.yearFrom,
-      params.yearTo,
-    ],
+    queryKey: ["judges", "compare", ...names, params.yearFrom, params.yearTo],
     queryFn: () => fetchJudgeCompare(names, params),
     enabled: names.length >= 2,
     staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useJudgeBio(name: string) {
+  return useQuery({
+    queryKey: ["judges", "bio", name],
+    queryFn: () => fetchJudgeBio(name),
+    enabled: !!name,
+    staleTime: 10 * 60_000,
     placeholderData: keepPreviousData,
   });
 }

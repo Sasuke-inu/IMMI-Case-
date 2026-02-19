@@ -14,6 +14,7 @@ import type {
   SuccessRateData,
   JudgeLeaderboardEntry,
   JudgeProfile,
+  JudgeBio,
   ConceptEffectivenessData,
   ConceptCooccurrenceData,
   ConceptTrendData,
@@ -205,6 +206,12 @@ export function fetchJudgeCompare(
     qs.set("year_to", String(params.yearTo));
   }
   return apiFetch(`/api/v1/analytics/judge-compare?${qs.toString()}`);
+}
+
+export function fetchJudgeBio(name: string): Promise<JudgeBio> {
+  return apiFetch(
+    `/api/v1/analytics/judge-bio?name=${encodeURIComponent(name)}`,
+  );
 }
 
 export function fetchConceptEffectiveness(

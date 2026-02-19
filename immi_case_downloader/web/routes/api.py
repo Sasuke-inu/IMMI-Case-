@@ -5,6 +5,7 @@ Reuses existing CaseRepository methods — no new backend logic.
 """
 
 import io
+import os
 import csv
 import re
 import json
@@ -152,7 +153,10 @@ def _round_rate(numerator: int, denominator: int) -> float:
 
 
 def _judge_profile_payload(
-    name: str, judge_cases: list[ImmigrationCase], include_recent_cases: bool = True
+    name: str,
+    judge_cases: list[ImmigrationCase],
+    include_recent_cases: bool = True,
+    court_baselines: dict[str, float] | None = None,
 ) -> dict:
     total = len(judge_cases)
     if total == 0:
@@ -170,6 +174,10 @@ def _judge_profile_payload(
             "concept_effectiveness": [],
             "yearly_trend": [],
             "nature_breakdown": [],
+            "representation_analysis": {"unknown_count": 0},
+            "country_breakdown": [],
+            "court_comparison": [],
+            "recent_3yr_trend": [],
         }
         if include_recent_cases:
             payload["recent_cases"] = []
@@ -186,6 +194,11 @@ def _judge_profile_payload(
     nature_wins: Counter = Counter()
     concept_totals: Counter = Counter()
     concept_wins: Counter = Counter()
+    rep_totals: Counter = Counter()
+    rep_wins: Counter = Counter()
+    country_totals: Counter = Counter()
+    country_wins: Counter = Counter()
+    court_wins: Counter = Counter()
 
     years = [c.year for c in judge_cases if c.year]
 
@@ -213,6 +226,30 @@ def _judge_profile_payload(
             concept_totals[concept] += 1
             if won:
                 concept_wins[concept] += 1
+
+        # Representation analysis
+        rep_raw = (case.is_represented or "").strip().lower()
+        if rep_raw in ("yes", "true", "1", "represented"):
+            rep_key = "represented"
+        elif rep_raw in ("no", "false", "0", "unrepresented", "self"):
+            rep_key = "self_represented"
+        else:
+            rep_key = None
+        if rep_key:
+            rep_totals[rep_key] += 1
+            if won:
+                rep_wins[rep_key] += 1
+
+        # Country of origin
+        country = (case.country_of_origin or "").strip()
+        if country:
+            country_totals[country] += 1
+            if won:
+                country_wins[country] += 1
+
+        # Per-court win tracking (for court comparison)
+        if case.court_code and won:
+            court_wins[case.court_code] += 1
 
     approval_rate = _round_rate(wins, total)
     courts = sorted(court_counter.keys())
@@ -262,6 +299,54 @@ def _judge_profile_payload(
         for year in sorted(year_totals.keys())
     ]
 
+    # Representation analysis
+    representation_analysis: dict = {}
+    for rk in ("represented", "self_represented"):
+        if rep_totals[rk]:
+            representation_analysis[rk] = {
+                "total": rep_totals[rk],
+                "win_rate": _round_rate(rep_wins[rk], rep_totals[rk]),
+            }
+    representation_analysis["unknown_count"] = total - sum(rep_totals.values())
+
+    # Country breakdown (top 20)
+    country_breakdown = [
+        {
+            "country": country,
+            "total": count,
+            "win_rate": _round_rate(country_wins[country], count),
+        }
+        for country, count in sorted(
+            country_totals.items(), key=lambda x: x[1], reverse=True
+        )
+    ][:20]
+
+    # Court comparison (requires court_baselines arg)
+    court_comparison = []
+    if court_baselines:
+        for code in courts:
+            judge_court_total = court_counter[code]
+            if judge_court_total == 0:
+                continue
+            judge_rate = _round_rate(court_wins[code], judge_court_total)
+            avg = court_baselines.get(code)
+            if avg is not None:
+                court_comparison.append({
+                    "court_code": code,
+                    "judge_rate": judge_rate,
+                    "court_avg_rate": avg,
+                    "delta": round(judge_rate - avg, 1),
+                    "judge_total": judge_court_total,
+                })
+
+    # Recent 3-year summary
+    current_year = max(years) if years else 0
+    recent_3yr = [
+        {"year": y["year"], "total": y["total"], "approval_rate": y["approval_rate"]}
+        for y in yearly_trend
+        if y["year"] >= current_year - 2
+    ]
+
     payload = {
         "judge": {
             "name": name,
@@ -279,6 +364,10 @@ def _judge_profile_payload(
         "concept_effectiveness": concept_effectiveness,
         "yearly_trend": yearly_trend,
         "nature_breakdown": nature_breakdown,
+        "representation_analysis": representation_analysis,
+        "country_breakdown": country_breakdown,
+        "court_comparison": court_comparison,
+        "recent_3yr_trend": recent_3yr,
     }
 
     if include_recent_cases:
@@ -1180,7 +1269,22 @@ def analytics_judge_profile():
         if lowered_name in {j.lower() for j in _split_judges(c.judges)}
     ]
 
-    payload = _judge_profile_payload(name, judge_cases, include_recent_cases=True)
+    # Compute court-wide approval rates for comparison
+    judge_court_codes = {c.court_code for c in judge_cases if c.court_code}
+    court_baselines: dict[str, float] = {}
+    for court_code in judge_court_codes:
+        court_cases = [c for c in cases if c.court_code == court_code]
+        if court_cases:
+            cw = sum(
+                1
+                for c in court_cases
+                if _is_win(_normalise_outcome(c.outcome), court_code)
+            )
+            court_baselines[court_code] = _round_rate(cw, len(court_cases))
+
+    payload = _judge_profile_payload(
+        name, judge_cases, include_recent_cases=True, court_baselines=court_baselines
+    )
     return jsonify(payload)
 
 
@@ -1415,6 +1519,25 @@ def analytics_concept_trends():
             "declining": declining,
         }
     )
+
+
+# ── Judge Bio ──────────────────────────────────────────────────────────
+
+@api_bp.route("/analytics/judge-bio")
+def analytics_judge_bio():
+    """Lookup pre-fetched biographical data for a judge/member."""
+    name = request.args.get("name", "").strip()
+    if not name:
+        return _error("name is required")
+    bio_path = os.path.join(get_output_dir(), "judge_bios.json")
+    if not os.path.exists(bio_path):
+        return jsonify({"found": False})
+    with open(bio_path, encoding="utf-8") as f:
+        bios = json.load(f)
+    bio = bios.get(name.lower())
+    if not bio:
+        return jsonify({"found": False})
+    return jsonify({"found": True, **bio})
 
 
 # ── Data Dictionary ─────────────────────────────────────────────────────

@@ -12,10 +12,14 @@ import {
   CartesianGrid,
 } from "recharts";
 import { JudgeProfileHeader } from "@/components/judges/JudgeProfileHeader";
+import { JudgeBioCard } from "@/components/judges/JudgeBioCard";
+import { CourtComparisonCard } from "@/components/judges/CourtComparisonCard";
+import { RepresentationCard } from "@/components/judges/RepresentationCard";
+import { CountryOriginChart } from "@/components/judges/CountryOriginChart";
 import { VisaBreakdownChart } from "@/components/judges/VisaBreakdownChart";
 import { ConceptEffectivenessTable } from "@/components/judges/ConceptEffectivenessTable";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
-import { useJudgeProfile } from "@/hooks/use-judges";
+import { useJudgeProfile, useJudgeBio } from "@/hooks/use-judges";
 
 const OUTCOME_COLORS = ["#1a5276", "#2d7d46", "#6c3483", "#b9770e", "#a83232", "#117864"];
 
@@ -23,6 +27,7 @@ export function JudgeDetailPage() {
   const { name = "" } = useParams();
   const decodedName = decodeURIComponent(name);
   const { data, isLoading, isError, error, refetch } = useJudgeProfile(decodedName);
+  const { data: bioData, isLoading: bioLoading } = useJudgeBio(decodedName);
 
   if (isLoading) {
     return <p className="text-sm text-muted-text">Loading judge profile...</p>;
@@ -77,6 +82,9 @@ export function JudgeDetailPage() {
 
       <JudgeProfileHeader profile={data} />
 
+      {/* Bio Card — fetched independently */}
+      <JudgeBioCard bio={bioData ?? { found: false }} isLoading={bioLoading} />
+
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="mb-3 text-base font-semibold text-foreground">Outcome Distribution</h2>
@@ -97,6 +105,7 @@ export function JudgeDetailPage() {
                     backgroundColor: "var(--color-background-card)",
                     border: "1px solid var(--color-border)",
                     borderRadius: "var(--radius)",
+                    color: "var(--color-text)",
                   }}
                 />
               </PieChart>
@@ -123,6 +132,7 @@ export function JudgeDetailPage() {
                     backgroundColor: "var(--color-background-card)",
                     border: "1px solid var(--color-border)",
                     borderRadius: "var(--radius)",
+                    color: "var(--color-text)",
                   }}
                 />
                 <Area type="monotone" dataKey="approval_rate" stroke="#1a5276" fill="#1a527640" strokeWidth={2} />
@@ -134,10 +144,19 @@ export function JudgeDetailPage() {
         </section>
       </div>
 
+      {/* Court Comparison — shows judge vs court average */}
+      <CourtComparisonCard data={data.court_comparison} />
+
       <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="mb-3 text-base font-semibold text-foreground">Visa Breakdown</h2>
         <VisaBreakdownChart data={data.visa_breakdown} />
       </section>
+
+      {/* Representation Analysis — with lawyer vs self-represented */}
+      <RepresentationCard data={data.representation_analysis} />
+
+      {/* Country of Origin — top 15 countries with win rates */}
+      <CountryOriginChart data={data.country_breakdown} />
 
       <section>
         <h2 className="mb-3 text-base font-semibold text-foreground">Concept Effectiveness</h2>
