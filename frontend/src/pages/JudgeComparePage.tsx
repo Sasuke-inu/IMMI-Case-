@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
+import { JudgeCompareCard } from "@/components/judges/JudgeCompareCard";
 import { useJudgeCompare } from "@/hooks/use-judges";
 
 function useQueryNames() {
@@ -21,6 +22,11 @@ export function JudgeComparePage() {
   const { t } = useTranslation();
   const names = useQueryNames();
   const { data, isLoading, isError, error, refetch } = useJudgeCompare(names);
+
+  const gridCols =
+    (data?.judges.length ?? 0) >= 4
+      ? "lg:grid-cols-2 xl:grid-cols-4"
+      : "lg:grid-cols-2";
 
   return (
     <div className="space-y-4">
@@ -65,43 +71,12 @@ export function JudgeComparePage() {
           }}
         />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className={`grid gap-4 ${gridCols}`}>
           {data.judges.map((judge) => (
-            <section
-              key={judge.judge.name}
-              className="rounded-lg border border-border bg-card p-4"
-            >
-              <h2 className="text-lg font-semibold text-foreground">
-                {judge.judge.name}
-              </h2>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <Stat
-                  label={t("judges.total_cases")}
-                  value={judge.judge.total_cases.toLocaleString()}
-                />
-                <Stat
-                  label={t("judges.approval_rate")}
-                  value={`${judge.approval_rate.toFixed(1)}%`}
-                />
-                <Stat label={t("judges.court_type")} value={judge.court_type} />
-                <Stat
-                  label={t("judges.active_years")}
-                  value={`${judge.judge.active_years.first ?? "-"} - ${judge.judge.active_years.last ?? "-"}`}
-                />
-              </div>
-            </section>
+            <JudgeCompareCard key={judge.judge.name} judge={judge} />
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border-light/60 p-3">
-      <p className="text-xs uppercase tracking-wide text-muted-text">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
     </div>
   );
 }

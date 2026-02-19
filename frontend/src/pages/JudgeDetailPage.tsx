@@ -21,15 +21,7 @@ import { NatureBreakdownChart } from "@/components/judges/NatureBreakdownChart";
 import { ConceptEffectivenessTable } from "@/components/judges/ConceptEffectivenessTable";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { useJudgeProfile, useJudgeBio } from "@/hooks/use-judges";
-
-const OUTCOME_COLORS = [
-  "#1a5276",
-  "#2d7d46",
-  "#6c3483",
-  "#b9770e",
-  "#a83232",
-  "#117864",
-];
+import { OUTCOME_COLORS } from "@/components/judges/constants";
 
 const SECTION_NAV = [
   { id: "section-outcomes", key: "judges.section_outcomes" },
@@ -92,7 +84,7 @@ export function JudgeDetailPage() {
         </Link>
         <ApiErrorState
           title={t("judges.profile_not_found")}
-          message={`No profile data returned for "${decodedName}".`}
+          message={t("errors.payload_error", { name: decodedName })}
           onRetry={() => {
             void refetch();
           }}
@@ -166,7 +158,7 @@ export function JudgeDetailPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <section
           id="section-outcomes"
-          className="rounded-lg border border-border bg-card p-4"
+          className="scroll-mt-12 rounded-lg border border-border bg-card p-4"
         >
           <h2 className="mb-3 text-base font-semibold text-foreground">
             {t("judges.outcome_distribution")}
@@ -210,7 +202,7 @@ export function JudgeDetailPage() {
 
         <section
           id="section-trend"
-          className="rounded-lg border border-border bg-card p-4"
+          className="scroll-mt-12 rounded-lg border border-border bg-card p-4"
         >
           <h2 className="mb-3 text-base font-semibold text-foreground">
             {t("judges.yearly_approval_trend")}
@@ -263,14 +255,14 @@ export function JudgeDetailPage() {
       </div>
 
       {/* Court Comparison */}
-      <div id="section-court">
+      <div id="section-court" className="scroll-mt-12">
         <CourtComparisonCard data={data.court_comparison} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section
           id="section-visa"
-          className="rounded-lg border border-border bg-card p-4"
+          className="scroll-mt-12 rounded-lg border border-border bg-card p-4"
         >
           <h2 className="mb-3 text-base font-semibold text-foreground">
             {t("judges.visa_breakdown")}
@@ -280,7 +272,7 @@ export function JudgeDetailPage() {
 
         <section
           id="section-nature"
-          className="rounded-lg border border-border bg-card p-4"
+          className="scroll-mt-12 rounded-lg border border-border bg-card p-4"
         >
           <h2 className="mb-3 text-base font-semibold text-foreground">
             {t("judges.nature_breakdown")}
@@ -290,16 +282,16 @@ export function JudgeDetailPage() {
       </div>
 
       {/* Representation Analysis */}
-      <div id="section-representation">
+      <div id="section-representation" className="scroll-mt-12">
         <RepresentationCard data={data.representation_analysis} />
       </div>
 
       {/* Country of Origin */}
-      <div id="section-country">
+      <div id="section-country" className="scroll-mt-12">
         <CountryOriginChart data={data.country_breakdown} />
       </div>
 
-      <section id="section-concepts">
+      <section id="section-concepts" className="scroll-mt-12">
         <h2 className="mb-3 text-base font-semibold text-foreground">
           {t("judges.concept_effectiveness")}
         </h2>
@@ -308,7 +300,7 @@ export function JudgeDetailPage() {
 
       <section
         id="section-recent"
-        className="rounded-lg border border-border bg-card p-4"
+        className="scroll-mt-12 rounded-lg border border-border bg-card p-4"
       >
         <h2 className="mb-3 text-base font-semibold text-foreground">
           {t("judges.recent_cases")}

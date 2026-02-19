@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   GraduationCap,
@@ -59,6 +59,16 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
   const currentYear = new Date().getFullYear();
   const age = bio.birth_year ? currentYear - bio.birth_year : null;
   const hasPhoto = bio.found && bio.photo_url && !imgError;
+
+  const trendLabel = useMemo(() => {
+    const trend = profile.recent_3yr_trend;
+    if (trend.length < 2) return "—";
+    const delta =
+      trend[trend.length - 1].approval_rate - trend[0].approval_rate;
+    if (delta > 2) return "up";
+    if (delta < -2) return "down";
+    return "stable";
+  }, [profile.recent_3yr_trend]);
 
   const careerItems =
     bio.found && bio.previously
@@ -133,7 +143,7 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
       </div>
 
       {/* Stats row */}
-      <div className="mt-4 grid gap-3 sm:grid-cols-5">
+      <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Stat
           label={t("judges.total_cases")}
           value={profile.judge.total_cases.toLocaleString()}
@@ -144,33 +154,18 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
         />
         <Stat label={t("judges.court_type")} value={profile.court_type} />
         <Stat label={t("judges.active_years")} value={`${first} - ${last}`} />
-        {(() => {
-          const trend = profile.recent_3yr_trend;
-          if (trend.length < 2)
-            return <Stat label={t("judges.recent_3yr_trend")} value="—" />;
-          const delta =
-            trend[trend.length - 1].approval_rate - trend[0].approval_rate;
-          if (delta > 2)
-            return (
-              <Stat
-                label={t("judges.recent_3yr_trend")}
-                value={`↑ ${t("judges.trend_improving")}`}
-              />
-            );
-          if (delta < -2)
-            return (
-              <Stat
-                label={t("judges.recent_3yr_trend")}
-                value={`↓ ${t("judges.trend_declining")}`}
-              />
-            );
-          return (
-            <Stat
-              label={t("judges.recent_3yr_trend")}
-              value={`→ ${t("judges.trend_stable")}`}
-            />
-          );
-        })()}
+        <Stat
+          label={t("judges.recent_3yr_trend")}
+          value={
+            trendLabel === "up"
+              ? `↑ ${t("judges.trend_improving")}`
+              : trendLabel === "down"
+                ? `↓ ${t("judges.trend_declining")}`
+                : trendLabel === "stable"
+                  ? `→ ${t("judges.trend_stable")}`
+                  : "—"
+          }
+        />
       </div>
 
       {/* Education */}

@@ -43,11 +43,10 @@ export function JudgeProfilesPage() {
     useJudgeLeaderboard(params);
 
   const judges = data?.judges ?? [];
-  const filteredJudges = nameFilter.trim()
-    ? judges.filter((j) =>
-        j.name.toLowerCase().includes(nameFilter.trim().toLowerCase()),
-      )
-    : judges;
+  const filteredJudges = useMemo(() => {
+    const q = nameFilter.trim().toLowerCase();
+    return q ? judges.filter((j) => j.name.toLowerCase().includes(q)) : judges;
+  }, [judges, nameFilter]);
 
   // Clear stale selections when filters change the visible judge set
   useEffect(() => {

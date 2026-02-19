@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CourtBadge } from "@/components/shared/CourtBadge";
 import { courtColors } from "@/tokens/tokens";
 import { cn } from "@/lib/utils";
+import { approvalBadgeClass } from "./constants";
 import type { JudgeLeaderboardEntry } from "@/types/case";
 
 interface JudgeCardProps {
@@ -10,12 +11,6 @@ interface JudgeCardProps {
   isSelected: boolean;
   onToggleCompare: (name: string) => void;
   onOpen: (name: string) => void;
-}
-
-function approvalBadgeClass(rate: number): string {
-  if (rate >= 35) return "bg-semantic-success/15 text-semantic-success";
-  if (rate >= 20) return "bg-semantic-warning/15 text-semantic-warning";
-  return "bg-semantic-danger/15 text-semantic-danger";
 }
 
 export function JudgeCard({
