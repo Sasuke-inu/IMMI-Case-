@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ResponsiveContainer,
   LineChart,
@@ -17,6 +18,7 @@ import {
 } from "@/hooks/use-analytics";
 import { OutcomeFunnelChart } from "@/components/analytics/OutcomeFunnelChart";
 import { ConceptComboTable } from "@/components/analytics/ConceptComboTable";
+import { ConfidenceBadge } from "@/components/analytics/ConfidenceBadge";
 import type { AnalyticsFilterParams } from "@/types/case";
 import { cn } from "@/lib/utils";
 
@@ -62,13 +64,6 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
         : [...prev, concept],
     );
   };
-
-  const confidenceTone =
-    data?.success_rate.confidence === "high"
-      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
-      : data?.success_rate.confidence === "medium"
-        ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-        : "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200";
 
   return (
     <section
@@ -157,11 +152,9 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
                 {data.query.total_matching.toLocaleString()}{" "}
                 {t("analytics.matching_cases")}
               </p>
-              <span
-                className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${confidenceTone}`}
-              >
-                {data.success_rate.confidence} {t("analytics.confidence")}
-              </span>
+              <div className="mt-2">
+                <ConfidenceBadge totalMatching={data.query.total_matching} />
+              </div>
             </div>
 
             <div className="rounded-md border border-border p-3 lg:col-span-2">
