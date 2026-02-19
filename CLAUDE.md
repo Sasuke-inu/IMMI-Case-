@@ -170,6 +170,26 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 - 前端層：React SPA，支援搜尋（最少 2 個字）、分頁、多語言
 - 禁用功能：下載/匯出（按需求）
 
+## Judge Features (Improved - 2026-02-20)
+
+**法官分析功能改進**：
+- **Pages**: `JudgeProfilesPage` (排行榜), `JudgeDetailPage` (詳細分析), `JudgeComparePage` (對比)
+- **Components**: `JudgeHero` (統一展示), `JudgeCard` (列表項), `JudgeLeaderboard` (排名)
+- **Navigation**: JudgeDetailPage 新增分段導航 (section-outcomes, section-trend, section-court, section-visa, section-nature, section-representation, section-country, section-concepts, section-recent)
+- **i18n**: 完整繁體中文翻譯，包含法官分析頁面標籤
+- **Styling**: 改進響應式布局，優化代碼格式化
+- **Data**: 15,465 個獨特法官記錄，需進行名字正規化（模糊匹配）
+- **Features**:
+  - 法官成功率分析（按法庭、簽證類別、案件性質分類）
+  - 法官概念有效性追蹤
+  - 法官對比分析功能
+  - 多層級過濾和排序
+
+**已知限制**：
+- 法官名字標準化（15,465 記錄需要整合至 ~3,000-4,000 實人）
+- 缺少律師代理數據（representative_name 僅為 Y/N 標記）
+- 法律概念需要大小寫正規化
+
 ## MCP Servers Configuration (2026-02-20)
 
 **已配置的 MCP 伺服器**（位置：`.mcp.json`）：
