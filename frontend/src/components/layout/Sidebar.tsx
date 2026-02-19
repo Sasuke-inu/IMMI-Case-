@@ -1,38 +1,37 @@
-import { NavLink } from "react-router-dom"
-import { useTranslation } from "react-i18next"
-import type { LucideIcon } from "lucide-react"
+import { NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   FileText,
   CloudDownload,
   Workflow,
   BookOpen,
+  BookMarked,
   Palette,
   TrendingUp,
   Users,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface NavItem {
-  readonly to: string
-  readonly icon: LucideIcon
-  readonly label: string
-  readonly description?: string
+  readonly to: string;
+  readonly icon: LucideIcon;
+  readonly label: string;
+  readonly description?: string;
 }
 
 interface NavGroup {
-  readonly title: string
-  readonly items: readonly NavItem[]
+  readonly title: string;
+  readonly items: readonly NavItem[];
 }
 
-
-
 interface SidebarProps {
-  collapsed?: boolean
+  collapsed?: boolean;
 }
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
 
   const navGroups: readonly NavGroup[] = [
     {
@@ -64,17 +63,26 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
     {
       title: t("nav.reference"),
       items: [
-        { to: "/data-dictionary", icon: BookOpen, label: t("nav.data_dictionary") },
+        {
+          to: "/legislations",
+          icon: BookMarked,
+          label: t("nav.legislations", "Legislations"),
+        },
+        {
+          to: "/data-dictionary",
+          icon: BookOpen,
+          label: t("nav.data_dictionary"),
+        },
         { to: "/design-tokens", icon: Palette, label: t("nav.design_tokens") },
       ],
     },
-  ]
+  ];
 
   return (
     <aside
       className={cn(
         "fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-sidebar transition-all duration-200",
-        collapsed ? "w-16" : "w-56"
+        collapsed ? "w-16" : "w-56",
       )}
     >
       {/* Logo */}
@@ -110,7 +118,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                     "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     isActive
                       ? "bg-accent-muted text-accent"
-                      : "text-secondary-text hover:bg-surface hover:text-foreground"
+                      : "text-secondary-text hover:bg-surface hover:text-foreground",
                   )
                 }
               >
@@ -125,11 +133,9 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       {/* Footer */}
       <div className="border-t border-border p-3">
         {!collapsed && (
-          <p className="text-xs text-muted-text">
-            {t("dashboard.subtitle")}
-          </p>
+          <p className="text-xs text-muted-text">{t("dashboard.subtitle")}</p>
         )}
       </div>
     </aside>
-  )
+  );
 }
