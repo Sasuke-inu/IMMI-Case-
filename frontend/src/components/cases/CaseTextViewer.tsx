@@ -21,7 +21,110 @@ interface TocSection {
   title: string
 }
 
-const SECTION_HEADINGS = /^(CATCHWORDS|DECISION|REASONS FOR DECISION|ORDER|ORDERS|THE DECISION|LEGISLATION|REASONS|BACKGROUND|FINDINGS AND REASONS|CONSIDERATION|CONCLUSION|APPEARANCES|REPRESENTATION|THE FACTS|ISSUES|SUBMISSIONS|ANALYSIS|EVIDENCE)/m
+const SECTION_HEADINGS = /^(CATCHWORDS?|THE DECISION|DECISION RECORD?|DECISION|REASONS FOR DECISION|STATEMENT OF DECISION AND REASONS|REASONS|ORDERS?|THE FACTS?|LEGISLATION|RELEVANT LAW|RELEVANT LEGISLATION|BACKGROUND|FINDINGS AND REASONS|FINDINGS|CONSIDERATION OF CLAIMS AND EVIDENCE|CONSIDERATION OF CLAIMS|CONSIDERATION|CONCLUSIONS?|APPEARANCES|REPRESENTATION|ISSUES|SUBMISSIONS|ANALYSIS|EVIDENCE|INTRODUCTION|MATERIALS BEFORE THE TRIBUNAL|JURISDICTION|APPENDIX [A-Z]:?|ANNEXURE [A-Z]:?)/m
+
+// Line classification patterns
+type LineType = "separator" | "metadata" | "major-heading" | "dialogue" | "footnote" | "blank" | "body"
+
+const METADATA_LINE = /^(Title|Citation|Court|Date|URL|Division|Applicant|Representative|Case Number)\s*:/
+const DIALOGUE_LINE = /^(Member|Applicant|HH|Counsel|Senior Member|Presiding Member|Tribunal)(\s+\w+)?\s*:/
+const FOOTNOTE_LINE = /^\[\d+\]/
+const SEPARATOR_LINE = /^={5,}$/
+
+function classifyLine(line: string): LineType {
+  const trimmed = line.trim()
+  if (SEPARATOR_LINE.test(trimmed)) return "separator"
+  if (METADATA_LINE.test(trimmed)) return "metadata"
+  if (SECTION_HEADINGS.test(trimmed)) return "major-heading"
+  if (DIALOGUE_LINE.test(trimmed)) return "dialogue"
+  if (FOOTNOTE_LINE.test(trimmed)) return "footnote"
+  if (!trimmed) return "blank"
+  return "body"
+}
+
+// Smart line rendering function for reading mode
+function renderSmartLines(text: string): React.ReactNode {
+  const lines = text.split("\n")
+  const usedIds = new Set<string>()
+  const result: React.ReactNode[] = []
+  let consecutiveBlanks = 0
+
+  lines.forEach((line, i) => {
+    const type = classifyLine(line)
+    const trimmed = line.trim()
+
+    // Compress consecutive blank lines (max 2)
+    if (type === "blank") {
+      consecutiveBlanks++
+      if (consecutiveBlanks <= 2) {
+        result.push(<div key={i} className="h-2" />)
+      }
+      return
+    }
+    consecutiveBlanks = 0
+
+    switch (type) {
+      case "separator":
+        result.push(<div key={i} className="my-4 border-t border-border" />)
+        break
+
+      case "metadata":
+        result.push(
+          <div key={i} className="font-mono text-[10px] text-muted-text pb-0.5">
+            {line}
+          </div>
+        )
+        break
+
+      case "major-heading": {
+        const baseId = `toc-${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50)}`
+        let id = baseId
+        let counter = 1
+        while (usedIds.has(id)) id = `${baseId}-${++counter}`
+        usedIds.add(id)
+        result.push(
+          <div key={i} className="mt-6 pt-4 border-t-2 border-accent/20">
+            <strong
+              id={id}
+              className="block font-sans text-sm font-bold text-accent tracking-wide uppercase"
+            >
+              {trimmed}
+            </strong>
+          </div>
+        )
+        break
+      }
+
+      case "dialogue":
+        result.push(
+          <div
+            key={i}
+            className="my-0.5 border-l-2 border-info/40 bg-surface/40 pl-3 py-0.5 rounded-r font-sans text-xs text-foreground whitespace-pre-wrap"
+          >
+            {line}
+          </div>
+        )
+        break
+
+      case "footnote":
+        result.push(
+          <div key={i} className="font-mono text-[10px] text-muted-text leading-loose whitespace-pre-wrap">
+            {line}
+          </div>
+        )
+        break
+
+      default: // body
+        result.push(
+          <div key={i} className="font-mono text-xs text-foreground whitespace-pre-wrap leading-relaxed min-h-[1rem]">
+            {line}
+          </div>
+        )
+    }
+  })
+
+  return result
+}
 
 // Parse sections from full text
 function parseSections(text: string): TocSection[] {
@@ -183,6 +286,7 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
   const rendered = useMemo(() => {
     if (!text) return null
 
+    // Search mode: preserve existing whitespace-pre-wrap + span rendering
     if (searchTerm && searchTerm.length >= 2 && matches.length > 0) {
       const parts: Array<{ text: string; isMatch: boolean; matchIdx: number }> = []
       let lastEnd = 0
@@ -215,7 +319,8 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
       )
     }
 
-    return formatSectionsWithIds(text)
+    // Reading mode: use smart line classification rendering
+    return renderSmartLines(text)
   }, [text, searchTerm, matches, activeMatchIdx])
 
   return (
@@ -323,9 +428,14 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
         {/* Text Content */}
         <div
           ref={containerRef}
-          className={`flex-1 overflow-auto whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed text-foreground ${
+          className={cn(
+            "flex-1 overflow-auto p-4 leading-relaxed text-foreground",
+            // Search mode needs whitespace-pre-wrap font-mono, reading mode doesn't
+            searchTerm && searchTerm.length >= 2 && matches.length > 0
+              ? "whitespace-pre-wrap font-mono text-xs"
+              : "",
             expanded ? "max-h-none" : "max-h-[600px]"
-          }`}
+          )}
         >
           {rendered}
         </div>
