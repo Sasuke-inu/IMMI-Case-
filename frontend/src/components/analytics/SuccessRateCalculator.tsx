@@ -84,69 +84,55 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
         </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <label className="text-sm">
-          <span className="mb-1 block text-xs font-medium text-muted-text">
-            {t("analytics.visa_subclass")}
-          </span>
-          <select
-            value={visaSubclass}
-            onChange={(e) => setVisaSubclass(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-foreground"
-          >
-            <option value="">{t("common.all")}</option>
-            {subclassOptions.map((subclass) => (
-              <option key={subclass} value={subclass}>
-                {subclass}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="mb-1 flex flex-wrap items-center gap-x-1.5 text-xs font-medium text-muted-text">
+        <span>{t("analytics.visa_subclass")}</span>
+        <select
+          value={visaSubclass}
+          onChange={(e) => setVisaSubclass(e.target.value)}
+          className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+        >
+          <option value="">{t("common.all")}</option>
+          {subclassOptions.map((subclass) => (
+            <option key={subclass} value={subclass}>
+              {subclass}
+            </option>
+          ))}
+        </select>
 
-        <label className="text-sm">
-          <span className="mb-1 block text-xs font-medium text-muted-text">
-            {t("analytics.case_nature")}
-          </span>
-          <select
-            value={caseNature}
-            onChange={(e) => setCaseNature(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-foreground"
-          >
-            <option value="">{t("common.all")}</option>
-            {(filterOptions?.natures ?? []).map((nature) => (
-              <option key={nature} value={nature}>
-                {nature}
-              </option>
-            ))}
-          </select>
-        </label>
+        <span className="ml-2">{t("analytics.case_nature")}</span>
+        <select
+          value={caseNature}
+          onChange={(e) => setCaseNature(e.target.value)}
+          className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+        >
+          <option value="">{t("common.all")}</option>
+          {(filterOptions?.natures ?? []).map((nature) => (
+            <option key={nature} value={nature}>
+              {nature}
+            </option>
+          ))}
+        </select>
 
-        <div className="text-sm">
-          <span className="mb-1 block text-xs font-medium text-muted-text">
-            {t("analytics.legal_concepts_label")}
-          </span>
-          <div className="max-h-24 overflow-y-auto rounded-md border border-border p-2">
-            <div className="flex flex-wrap gap-1.5">
-              {conceptList.slice(0, 12).map((concept) => {
-                const active = selectedConcepts.includes(concept.name);
-                return (
-                  <button
-                    key={concept.name}
-                    type="button"
-                    onClick={() => toggleConcept(concept.name)}
-                    className={cn(
-                      "rounded-full px-2 py-1 text-xs",
-                      active
-                        ? "bg-accent text-white"
-                        : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
-                    )}
-                  >
-                    {concept.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <span className="ml-2">{t("analytics.legal_concepts_label")}</span>
+        <div className="flex flex-wrap gap-1.5">
+          {conceptList.slice(0, 12).map((concept) => {
+            const active = selectedConcepts.includes(concept.name);
+            return (
+              <button
+                key={concept.name}
+                type="button"
+                onClick={() => toggleConcept(concept.name)}
+                className={cn(
+                  "rounded-full px-2 py-1 text-xs",
+                  active
+                    ? "bg-accent text-white"
+                    : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
+                )}
+              >
+                {concept.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
