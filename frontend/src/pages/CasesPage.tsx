@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from "react"
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   List,
   LayoutGrid,
@@ -11,43 +12,50 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
-} from "lucide-react"
-import { useCases, useFilterOptions, useBatchCases } from "@/hooks/use-cases"
-import { CourtBadge } from "@/components/shared/CourtBadge"
-import { OutcomeBadge } from "@/components/shared/OutcomeBadge"
-import { NatureBadge } from "@/components/shared/NatureBadge"
-import { CaseCard } from "@/components/cases/CaseCard"
-import { FilterPill } from "@/components/shared/FilterPill"
-import { Pagination } from "@/components/shared/Pagination"
-import { EmptyState } from "@/components/shared/EmptyState"
-import { ConfirmModal } from "@/components/shared/ConfirmModal"
-import { cn } from "@/lib/utils"
-import { toast } from "sonner"
-import type { CaseFilters, ImmigrationCase } from "@/types/case"
+} from "lucide-react";
+import { useCases, useFilterOptions, useBatchCases } from "@/hooks/use-cases";
+import { CourtBadge } from "@/components/shared/CourtBadge";
+import { OutcomeBadge } from "@/components/shared/OutcomeBadge";
+import { NatureBadge } from "@/components/shared/NatureBadge";
+import { CaseCard } from "@/components/cases/CaseCard";
+import { FilterPill } from "@/components/shared/FilterPill";
+import { Pagination } from "@/components/shared/Pagination";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ConfirmModal } from "@/components/shared/ConfirmModal";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import type { CaseFilters, ImmigrationCase } from "@/types/case";
 
 function formatDateCompact(date: string): string {
-  if (!date) return ""
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return date
-  return d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+  if (!date) return "";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return date;
+  return d.toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function CasesPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const navigate = useNavigate()
+  const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"table" | "cards">(() => {
-    const stored = localStorage.getItem("cases-view-mode")
-    return stored === "cards" ? "cards" : "table"
-  })
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [focusedIdx, setFocusedIdx] = useState(-1)
-  const [deleteConfirm, setDeleteConfirm] = useState(false)
-  const tableRef = useRef<HTMLTableSectionElement>(null)
+    const stored = localStorage.getItem("cases-view-mode");
+    return stored === "cards" ? "cards" : "table";
+  });
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [focusedIdx, setFocusedIdx] = useState(-1);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const tableRef = useRef<HTMLTableSectionElement>(null);
 
   const filters: CaseFilters = {
     court: searchParams.get("court") ?? "",
-    year: searchParams.get("year") ? Number(searchParams.get("year")) : undefined,
+    year: searchParams.get("year")
+      ? Number(searchParams.get("year"))
+      : undefined,
     visa_type: searchParams.get("visa_type") ?? "",
     nature: searchParams.get("nature") ?? "",
     source: searchParams.get("source") ?? "",
@@ -57,162 +65,239 @@ export function CasesPage() {
     sort_dir: (searchParams.get("sort_dir") as "asc" | "desc") ?? "desc",
     page: Number(searchParams.get("page") ?? 1),
     page_size: 100,
-  }
+  };
 
-  const { data, isLoading } = useCases(filters)
-  const { data: filterOpts } = useFilterOptions()
-  const batchMutation = useBatchCases()
+  const { data, isLoading } = useCases(filters);
+  const { data: filterOpts } = useFilterOptions();
+  const batchMutation = useBatchCases();
 
   const updateFilter = useCallback(
     (key: string, value: string) => {
-      const params = new URLSearchParams(searchParams)
+      const params = new URLSearchParams(searchParams);
       if (value) {
-        params.set(key, value)
+        params.set(key, value);
       } else {
-        params.delete(key)
+        params.delete(key);
       }
-      if (key !== "page") params.set("page", "1")
-      setSearchParams(params)
+      if (key !== "page") params.set("page", "1");
+      setSearchParams(params);
     },
-    [searchParams, setSearchParams]
-  )
+    [searchParams, setSearchParams],
+  );
 
   const clearAllFilters = useCallback(() => {
-    setSearchParams(new URLSearchParams())
-  }, [setSearchParams])
+    setSearchParams(new URLSearchParams());
+  }, [setSearchParams]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const toggleAll = useCallback(() => {
-    if (!data) return
+    if (!data) return;
     if (selected.size === data.cases.length) {
-      setSelected(new Set())
+      setSelected(new Set());
     } else {
-      setSelected(new Set(data.cases.map((c) => c.case_id)))
+      setSelected(new Set(data.cases.map((c) => c.case_id)));
     }
-  }, [data, selected.size])
+  }, [data, selected.size]);
 
   const handleBatch = useCallback(
     async (action: string) => {
-      if (selected.size === 0) return
-      const tag = action === "tag" ? prompt("Enter tag:") : undefined
-      if (action === "tag" && !tag) return
+      if (selected.size === 0) return;
+      const tag =
+        action === "tag"
+          ? prompt(t("cases.add_tag") || "Enter tag:")
+          : undefined;
+      if (action === "tag" && !tag) return;
       try {
         const result = await batchMutation.mutateAsync({
           action,
           ids: Array.from(selected),
           tag: tag ?? undefined,
-        })
-        toast.success(`${result.affected} cases updated`)
-        setSelected(new Set())
-        setDeleteConfirm(false)
+        });
+        toast.success(t("cases.batch_updated", { count: result.affected }));
+        setSelected(new Set());
+        setDeleteConfirm(false);
       } catch (e) {
-        toast.error((e as Error).message)
+        toast.error((e as Error).message);
       }
     },
-    [selected, batchMutation]
-  )
+    [selected, batchMutation],
+  );
 
   const exportCsv = useCallback(() => {
-    if (!data?.cases.length) return
-    const headers = ["citation", "title", "court_code", "date", "year", "judges", "outcome", "visa_type", "case_nature"]
+    if (!data?.cases.length) return;
+    const headers = [
+      "citation",
+      "title",
+      "court_code",
+      "date",
+      "year",
+      "judges",
+      "outcome",
+      "visa_type",
+      "case_nature",
+    ];
     const rows = data.cases.map((c) =>
       headers.map((h) => {
-        const val = String(c[h as keyof ImmigrationCase] ?? "")
-        return val.includes(",") || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val
-      })
-    )
-    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
-    const blob = new Blob([csv], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `cases-export-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success(`Exported ${data.cases.length} cases`)
-  }, [data])
+        const val = String(c[h as keyof ImmigrationCase] ?? "");
+        return val.includes(",") || val.includes('"')
+          ? `"${val.replace(/"/g, '""')}"`
+          : val;
+      }),
+    );
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cases-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(t("cases.exported", { count: data.cases.length }));
+  }, [data]);
 
   // Keyboard navigation
   useEffect(() => {
-    if (viewMode !== "table") return
+    if (viewMode !== "table") return;
     const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement
-      if (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA") return
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "SELECT" ||
+        target.tagName === "TEXTAREA"
+      )
+        return;
 
-      const count = data?.cases.length ?? 0
-      if (count === 0) return
+      const count = data?.cases.length ?? 0;
+      if (count === 0) return;
 
       if (e.key === "j") {
-        e.preventDefault()
-        setFocusedIdx((prev) => Math.min(prev + 1, count - 1))
+        e.preventDefault();
+        setFocusedIdx((prev) => Math.min(prev + 1, count - 1));
       } else if (e.key === "k") {
-        e.preventDefault()
-        setFocusedIdx((prev) => Math.max(prev - 1, 0))
+        e.preventDefault();
+        setFocusedIdx((prev) => Math.max(prev - 1, 0));
       } else if (e.key === "Enter" && focusedIdx >= 0) {
-        e.preventDefault()
-        const c = data?.cases[focusedIdx]
-        if (c) navigate(`/cases/${c.case_id}`)
+        e.preventDefault();
+        const c = data?.cases[focusedIdx];
+        if (c) navigate(`/cases/${c.case_id}`);
       }
-    }
-    document.addEventListener("keydown", handler)
-    return () => document.removeEventListener("keydown", handler)
-  }, [viewMode, data, focusedIdx, navigate])
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [viewMode, data, focusedIdx, navigate]);
 
   // Scroll focused row into view
   useEffect(() => {
-    if (focusedIdx < 0 || !tableRef.current) return
-    const row = tableRef.current.children[focusedIdx] as HTMLElement
-    row?.scrollIntoView({ block: "nearest" })
-  }, [focusedIdx])
+    if (focusedIdx < 0 || !tableRef.current) return;
+    const row = tableRef.current.children[focusedIdx] as HTMLElement;
+    row?.scrollIntoView({ block: "nearest" });
+  }, [focusedIdx]);
 
-  const cases = data?.cases ?? []
-  const total = data?.total ?? 0
-  const totalPages = data?.total_pages ?? 1
-  const currentPage = filters.page ?? 1
+  const cases = data?.cases ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.total_pages ?? 1;
+  const currentPage = filters.page ?? 1;
 
   // Active filter pills
-  const activeFilters: Array<{ key: string; label: string; value: string }> = []
-  if (filters.court) activeFilters.push({ key: "court", label: "Court", value: filters.court })
-  if (filters.year) activeFilters.push({ key: "year", label: "Year", value: String(filters.year) })
-  if (filters.nature) activeFilters.push({ key: "nature", label: "Nature", value: filters.nature })
-  if (filters.visa_type) activeFilters.push({ key: "visa_type", label: "Visa", value: filters.visa_type })
-  if (filters.source) activeFilters.push({ key: "source", label: "Source", value: filters.source })
-  if (filters.tag) activeFilters.push({ key: "tag", label: "Tag", value: filters.tag })
-  if (filters.keyword) activeFilters.push({ key: "keyword", label: "Keyword", value: filters.keyword })
+  const activeFilters: Array<{ key: string; label: string; value: string }> =
+    [];
+  if (filters.court)
+    activeFilters.push({
+      key: "court",
+      label: t("filters.court"),
+      value: filters.court,
+    });
+  if (filters.year)
+    activeFilters.push({
+      key: "year",
+      label: t("units.year"),
+      value: String(filters.year),
+    });
+  if (filters.nature)
+    activeFilters.push({
+      key: "nature",
+      label: t("cases.nature"),
+      value: filters.nature,
+    });
+  if (filters.visa_type)
+    activeFilters.push({
+      key: "visa_type",
+      label: t("cases.visa_subclass"),
+      value: filters.visa_type,
+    });
+  if (filters.source)
+    activeFilters.push({
+      key: "source",
+      label: t("cases.source") || "Source",
+      value: filters.source,
+    });
+  if (filters.tag)
+    activeFilters.push({
+      key: "tag",
+      label: t("common.tags") || "Tags",
+      value: filters.tag,
+    });
+  if (filters.keyword)
+    activeFilters.push({
+      key: "keyword",
+      label: t("common.search"),
+      value: filters.keyword,
+    });
 
-  const sortLabel = filters.sort_by === "date" ? "Date" : filters.sort_by === "year" ? "Year" : filters.sort_by === "title" ? "Title" : "Court"
+  const sortLabel =
+    filters.sort_by === "date"
+      ? t("filters.date") || "Date"
+      : filters.sort_by === "year"
+        ? t("units.year")
+        : filters.sort_by === "title"
+          ? t("cases.title")
+          : t("filters.court");
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Cases</h1>
-          <p className="text-sm text-muted-text">{total.toLocaleString()} total cases</p>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("cases.title")}
+          </h1>
+          <p className="text-sm text-muted-text">
+            {total.toLocaleString()} {t("units.cases")}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setViewMode("table"); localStorage.setItem("cases-view-mode", "table") }}
+            onClick={() => {
+              setViewMode("table");
+              localStorage.setItem("cases-view-mode", "table");
+            }}
             className={cn(
               "rounded-md p-1.5",
-              viewMode === "table" ? "bg-accent-muted text-accent" : "text-muted-text hover:text-foreground"
+              viewMode === "table"
+                ? "bg-accent-muted text-accent"
+                : "text-muted-text hover:text-foreground",
             )}
           >
             <List className="h-4 w-4" />
           </button>
           <button
-            onClick={() => { setViewMode("cards"); localStorage.setItem("cases-view-mode", "cards") }}
+            onClick={() => {
+              setViewMode("cards");
+              localStorage.setItem("cases-view-mode", "cards");
+            }}
             className={cn(
               "rounded-md p-1.5",
-              viewMode === "cards" ? "bg-accent-muted text-accent" : "text-muted-text hover:text-foreground"
+              viewMode === "cards"
+                ? "bg-accent-muted text-accent"
+                : "text-muted-text hover:text-foreground",
             )}
           >
             <LayoutGrid className="h-4 w-4" />
@@ -221,7 +306,7 @@ export function CasesPage() {
             onClick={() => navigate("/cases/add")}
             className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-light"
           >
-            Add Case
+            {t("buttons.add_case")}
           </button>
         </div>
       </div>
@@ -233,9 +318,11 @@ export function CasesPage() {
           onChange={(e) => updateFilter("court", e.target.value)}
           className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
         >
-          <option value="">All Courts</option>
+          <option value="">{t("filters.all_courts")}</option>
           {filterOpts?.courts?.map((c) => (
-            <option key={c} value={c}>{c}</option>
+            <option key={c} value={c}>
+              {c}
+            </option>
           ))}
         </select>
         <select
@@ -243,9 +330,11 @@ export function CasesPage() {
           onChange={(e) => updateFilter("year", e.target.value)}
           className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
         >
-          <option value="">All Years</option>
+          <option value="">{t("filters.year_from")}</option>
           {filterOpts?.years?.map((y) => (
-            <option key={y} value={y}>{y}</option>
+            <option key={y} value={y}>
+              {y}
+            </option>
           ))}
         </select>
         <select
@@ -253,20 +342,23 @@ export function CasesPage() {
           onChange={(e) => updateFilter("nature", e.target.value)}
           className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
         >
-          <option value="">All Natures</option>
+          <option value="">{t("filters.all_natures")}</option>
           {filterOpts?.natures?.map((n) => (
-            <option key={n} value={n}>{n}</option>
+            <option key={n} value={n}>
+              {n}
+            </option>
           ))}
         </select>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-text" />
           <input
             type="text"
-            placeholder="Keyword..."
+            placeholder={t("common.search_placeholder")}
             defaultValue={filters.keyword}
             onBlur={(e) => updateFilter("keyword", e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") updateFilter("keyword", e.currentTarget.value)
+              if (e.key === "Enter")
+                updateFilter("keyword", e.currentTarget.value);
             }}
             className="rounded-md border border-border bg-card py-1.5 pl-8 pr-3 text-sm text-foreground placeholder:text-muted-text"
           />
@@ -275,29 +367,44 @@ export function CasesPage() {
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-muted-text hover:text-foreground"
         >
-          More Filters
-          {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {t("filters.filter")}
+          {showAdvanced ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
         </button>
 
         {/* Sort */}
         <div className="ml-auto flex items-center gap-1.5">
-          <span className="text-xs text-muted-text">Sort:</span>
+          <span className="text-xs text-muted-text">
+            {t("judges.sort_label")}:
+          </span>
           <select
             value={filters.sort_by ?? "date"}
             onChange={(e) => updateFilter("sort_by", e.target.value)}
             className="rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground"
           >
-            <option value="date">Date</option>
-            <option value="year">Year</option>
-            <option value="title">Title</option>
-            <option value="court">Court</option>
+            <option value="date">{t("cases.date")}</option>
+            <option value="year">{t("units.year")}</option>
+            <option value="title">{t("cases.title")}</option>
+            <option value="court">{t("filters.court")}</option>
           </select>
           <button
-            onClick={() => updateFilter("sort_dir", filters.sort_dir === "asc" ? "desc" : "asc")}
+            onClick={() =>
+              updateFilter(
+                "sort_dir",
+                filters.sort_dir === "asc" ? "desc" : "asc",
+              )
+            }
             className="rounded-md border border-border p-1.5 text-muted-text hover:text-foreground"
-            title={`Sorted ${sortLabel} ${filters.sort_dir === "asc" ? "ascending" : "descending"}`}
+            title={`${t("cases.sorted")} ${sortLabel} ${filters.sort_dir === "asc" ? t("cases.ascending") : t("cases.descending")}`}
           >
-            {filters.sort_dir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            {filters.sort_dir === "asc" ? (
+              <ChevronUp className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            )}
           </button>
         </div>
       </div>
@@ -310,9 +417,11 @@ export function CasesPage() {
             onChange={(e) => updateFilter("visa_type", e.target.value)}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
           >
-            <option value="">All Visa Types</option>
+            <option value="">{t("filters.all_visa_types")}</option>
             {filterOpts?.visa_types?.map((v) => (
-              <option key={v} value={v}>{v}</option>
+              <option key={v} value={v}>
+                {v}
+              </option>
             ))}
           </select>
           <select
@@ -320,9 +429,11 @@ export function CasesPage() {
             onChange={(e) => updateFilter("source", e.target.value)}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
           >
-            <option value="">All Sources</option>
+            <option value="">{t("filters.all_sources")}</option>
             {filterOpts?.sources?.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
           <select
@@ -330,9 +441,11 @@ export function CasesPage() {
             onChange={(e) => updateFilter("tag", e.target.value)}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
           >
-            <option value="">All Tags</option>
+            <option value="">{t("filters.all_tags")}</option>
             {filterOpts?.tags?.map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>
+                {t}
+              </option>
             ))}
           </select>
         </div>
@@ -353,7 +466,7 @@ export function CasesPage() {
             onClick={clearAllFilters}
             className="ml-1 text-xs text-muted-text hover:text-foreground"
           >
-            Clear all
+            {t("filters.clear_filters")}
           </button>
         </div>
       )}
@@ -361,26 +474,28 @@ export function CasesPage() {
       {/* Batch bar */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 rounded-md bg-accent-muted px-4 py-2 text-sm">
-          <span className="font-medium text-accent">{selected.size} selected</span>
+          <span className="font-medium text-accent">
+            {selected.size} {t("cases.selected") || "selected"}
+          </span>
           <button
             onClick={() => handleBatch("tag")}
             className="flex items-center gap-1 text-accent hover:text-accent-light"
           >
-            <Tag className="h-3.5 w-3.5" /> Tag
+            <Tag className="h-3.5 w-3.5" /> {t("case_detail.tags")}
           </button>
           <button
             onClick={exportCsv}
             className="flex items-center gap-1 text-accent hover:text-accent-light"
           >
-            <Download className="h-3.5 w-3.5" /> Export CSV
+            <Download className="h-3.5 w-3.5" /> {t("buttons.export_csv")}
           </button>
           {selected.size >= 2 && selected.size <= 5 && (
             <button
               onClick={() => {
-                const ids = Array.from(selected)
-                const params = new URLSearchParams()
-                ids.forEach((id) => params.append("ids", id))
-                navigate(`/cases/compare?${params}`)
+                const ids = Array.from(selected);
+                const params = new URLSearchParams();
+                ids.forEach((id) => params.append("ids", id));
+                navigate(`/cases/compare?${params}`);
               }}
               className="flex items-center gap-1 text-accent hover:text-accent-light"
             >
@@ -404,7 +519,9 @@ export function CasesPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="flex h-32 items-center justify-center text-muted-text">Loading cases...</div>
+        <div className="flex h-32 items-center justify-center text-muted-text">
+          Loading cases...
+        </div>
       )}
 
       {/* Empty state */}
@@ -412,14 +529,24 @@ export function CasesPage() {
         <EmptyState
           icon={<FileText className="h-8 w-8" />}
           title="No cases found"
-          description={activeFilters.length > 0 ? "Try adjusting your filters or clearing them." : "Get started by searching or downloading cases."}
+          description={
+            activeFilters.length > 0
+              ? "Try adjusting your filters or clearing them."
+              : "Get started by searching or downloading cases."
+          }
           action={
             activeFilters.length > 0 ? (
-              <button onClick={clearAllFilters} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light">
+              <button
+                onClick={clearAllFilters}
+                className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
+              >
                 Clear Filters
               </button>
             ) : (
-              <button onClick={() => navigate("/pipeline")} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light">
+              <button
+                onClick={() => navigate("/pipeline")}
+                className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
+              >
                 Run Pipeline
               </button>
             )
@@ -441,13 +568,27 @@ export function CasesPage() {
                     className="rounded"
                   />
                 </th>
-                <th className="px-2 py-2.5 text-left font-medium text-secondary-text">Title</th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Citation</th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Court</th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Date</th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Country</th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Outcome</th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">Nature</th>
+                <th className="px-2 py-2.5 text-left font-medium text-secondary-text">
+                  Title
+                </th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  Citation
+                </th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  Court
+                </th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  Date
+                </th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  Country
+                </th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  Outcome
+                </th>
+                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  Nature
+                </th>
               </tr>
             </thead>
             <tbody ref={tableRef}>
@@ -456,12 +597,17 @@ export function CasesPage() {
                   key={c.case_id}
                   className={cn(
                     "border-b border-border-light transition-colors cursor-pointer",
-                    focusedIdx === i ? "bg-accent-muted" : "hover:bg-surface/50",
-                    selected.has(c.case_id) && "bg-accent-muted/50"
+                    focusedIdx === i
+                      ? "bg-accent-muted"
+                      : "hover:bg-surface/50",
+                    selected.has(c.case_id) && "bg-accent-muted/50",
                   )}
                   onClick={() => navigate(`/cases/${c.case_id}`)}
                 >
-                  <td className="w-10 px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                  <td
+                    className="w-10 px-2 py-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <input
                       type="checkbox"
                       checked={selected.has(c.case_id)}
@@ -470,23 +616,47 @@ export function CasesPage() {
                     />
                   </td>
                   <td className="max-w-xs px-2 py-2">
-                    <span className="block truncate font-medium text-foreground" title={c.title || c.citation}>
+                    <span
+                      className="block truncate font-medium text-foreground"
+                      title={c.title || c.citation}
+                    >
                       {c.title || c.citation}
                     </span>
                     {(c.applicant_name || c.judges) && (
-                      <span className="block truncate text-xs text-muted-text" title={c.applicant_name || c.judges}>
-                        {c.applicant_name ? `Applicant: ${c.applicant_name}` : c.judges}
+                      <span
+                        className="block truncate text-xs text-muted-text"
+                        title={c.applicant_name || c.judges}
+                      >
+                        {c.applicant_name
+                          ? `Applicant: ${c.applicant_name}`
+                          : c.judges}
                       </span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text" title={c.citation}>
+                  <td
+                    className="whitespace-nowrap px-2 py-2 text-xs text-muted-text"
+                    title={c.citation}
+                  >
                     {c.citation}
                   </td>
-                  <td className="whitespace-nowrap px-2 py-2"><CourtBadge court={c.court_code} /></td>
-                  <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text" title={c.date}>{formatDateCompact(c.date)}</td>
-                  <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text">{c.country_of_origin || ""}</td>
-                  <td className="whitespace-nowrap px-2 py-2"><OutcomeBadge outcome={c.outcome} /></td>
-                  <td className="whitespace-nowrap px-2 py-2"><NatureBadge nature={c.case_nature} /></td>
+                  <td className="whitespace-nowrap px-2 py-2">
+                    <CourtBadge court={c.court_code} />
+                  </td>
+                  <td
+                    className="whitespace-nowrap px-2 py-2 text-xs text-muted-text"
+                    title={c.date}
+                  >
+                    {formatDateCompact(c.date)}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text">
+                    {c.country_of_origin || ""}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2">
+                    <OutcomeBadge outcome={c.outcome} />
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2">
+                    <NatureBadge nature={c.case_nature} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -498,7 +668,11 @@ export function CasesPage() {
       {!isLoading && cases.length > 0 && viewMode === "cards" && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cases.map((c) => (
-            <CaseCard key={c.case_id} case_={c} onClick={() => navigate(`/cases/${c.case_id}`)} />
+            <CaseCard
+              key={c.case_id}
+              case_={c}
+              onClick={() => navigate(`/cases/${c.case_id}`)}
+            />
           ))}
         </div>
       )}
@@ -523,5 +697,5 @@ export function CasesPage() {
         onCancel={() => setDeleteConfirm(false)}
       />
     </div>
-  )
+  );
 }

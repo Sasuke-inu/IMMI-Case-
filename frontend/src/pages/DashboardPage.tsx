@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   FileText,
   BookOpen,
@@ -26,6 +27,7 @@ import type { AnalyticsFilterParams } from "@/types/case";
 const CURRENT_YEAR = new Date().getFullYear();
 
 export function DashboardPage() {
+  const { t } = useTranslation();
   const [court, setCourt] = useState("");
   const [yearFrom, setYearFrom] = useState(2000);
   const [yearTo, setYearTo] = useState(CURRENT_YEAR);
@@ -35,7 +37,14 @@ export function DashboardPage() {
     [court, yearFrom, yearTo],
   );
 
-  const { data: stats, isLoading, isFetching, isError, error, refetch } = useStats(filters);
+  const {
+    data: stats,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useStats(filters);
   const { data: trendsData } = useTrends(filters);
   const navigate = useNavigate();
   const [courtView, setCourtView] = useState<"chart" | "table">("chart");
@@ -43,7 +52,7 @@ export function DashboardPage() {
   if (isLoading && !stats) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-text">
-        Loading dashboard...
+        {t("common.loading_ellipsis")}
       </div>
     );
   }
@@ -52,10 +61,10 @@ export function DashboardPage() {
     const message =
       error instanceof Error
         ? error.message
-        : "Dashboard API request failed.";
+        : t("errors.api_request_failed", { name: "Dashboard" });
     return (
       <ApiErrorState
-        title="Dashboard failed to load"
+        title={t("errors.failed_to_load", { name: "Dashboard" })}
         message={message}
         onRetry={() => {
           void refetch();
@@ -67,8 +76,8 @@ export function DashboardPage() {
   if (!stats) {
     return (
       <ApiErrorState
-        title="Dashboard data unavailable"
-        message="No dashboard payload was returned."
+        title={t("errors.data_unavailable", { name: "Dashboard" })}
+        message={t("errors.payload_error", { name: "Dashboard" })}
         onRetry={() => {
           void refetch();
         }}
@@ -80,32 +89,36 @@ export function DashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("dashboard.title")}
+          </h1>
           <p className="text-sm text-muted-text">
-            Australian Immigration Case Database
+            {t("dashboard.subtitle_empty")}
           </p>
         </div>
         <EmptyState
           icon={<FileText className="h-10 w-10" />}
-          title="Welcome to IMMI-Case"
-          description="Get started by downloading cases from AustLII."
+          title={t("dashboard.welcome_title")}
+          description={t("dashboard.welcome_description")}
           action={
             <div className="flex flex-col items-center gap-3">
               <div className="grid gap-2 text-left text-sm text-muted-text">
                 <p>
-                  <strong className="text-foreground">Step 1:</strong> Run the
-                  Pipeline to crawl, clean &amp; download
+                  <strong className="text-foreground">
+                    {t("dashboard.step_1")}
+                  </strong>
                 </p>
                 <p>
-                  <strong className="text-foreground">Step 2:</strong> Browse,
-                  filter, and analyse cases
+                  <strong className="text-foreground">
+                    {t("dashboard.step_2")}
+                  </strong>
                 </p>
               </div>
               <button
                 onClick={() => navigate("/pipeline")}
                 className="mt-2 rounded-md bg-accent px-6 py-2 text-sm font-medium text-white hover:bg-accent-light"
               >
-                Start Pipeline
+                {t("buttons.start_pipeline")}
               </button>
             </div>
           }
@@ -125,10 +138,10 @@ export function DashboardPage() {
       {/* Header + Filters */}
       <div className="space-y-3">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-text">
-            Australian Immigration Case Database Overview
-          </p>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("dashboard.title")}
+          </h1>
+          <p className="text-sm text-muted-text">{t("dashboard.subtitle")}</p>
         </div>
         <AnalyticsFilters
           court={court}
@@ -145,30 +158,38 @@ export function DashboardPage() {
       {/* Row 1: 4 Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Total Cases"
+          title={t("dashboard.total_cases")}
           value={stats.total_cases}
           icon={<FileText className="h-5 w-5" />}
         />
         <StatCard
-          title="With Full Text"
+          title={t("dashboard.with_full_text")}
           value={stats.with_full_text}
           icon={<BookOpen className="h-5 w-5" />}
-          description={`${((stats.with_full_text / stats.total_cases) * 100).toFixed(1)}% coverage`}
+          description={t("dashboard.coverage", {
+            percentage: (
+              (stats.with_full_text / stats.total_cases) *
+              100
+            ).toFixed(1),
+          })}
         />
         <StatCard
-          title="Courts / Tribunals"
+          title={t("dashboard.courts_tribunals")}
           value={Object.keys(stats.courts).length}
           icon={<Database className="h-5 w-5" />}
         />
         <StatCard
-          title="Case Categories"
+          title={t("dashboard.case_categories")}
           value={natureCount}
           icon={<Layers className="h-5 w-5" />}
           description={
             natureCount > 0
-              ? `${Object.values(stats.natures)
-                  .reduce((a, b) => a + b, 0)
-                  .toLocaleString()} classified`
+              ? t("dashboard.classified", {
+                  count: Object.values(stats.natures).reduce(
+                    (a, b) => a + b,
+                    0,
+                  ),
+                })
               : undefined
           }
         />
@@ -180,7 +201,7 @@ export function DashboardPage() {
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-heading text-base font-semibold">
-              Cases by Court
+              {t("dashboard.cases_by_court")}
             </h2>
             <div className="flex gap-1">
               <button
@@ -228,7 +249,7 @@ export function DashboardPage() {
         {/* Year trend area chart */}
         <div className="rounded-lg border border-border bg-card p-4">
           <h2 className="mb-3 font-heading text-base font-semibold">
-            Year Trend (2000-2026)
+            {t("dashboard.year_trend")}
           </h2>
           {trends.length > 0 ? (
             <TrendChart data={trends} />
@@ -244,7 +265,7 @@ export function DashboardPage() {
         {Object.keys(stats.natures || {}).length > 0 && (
           <div className="rounded-lg border border-border bg-card p-4">
             <h2 className="mb-3 font-heading text-base font-semibold">
-              Case Categories
+              {t("dashboard.case_categories_dist")}
             </h2>
             <NatureChart data={stats.natures} />
           </div>
@@ -254,7 +275,7 @@ export function DashboardPage() {
         {Object.keys(stats.visa_subclasses || {}).length > 0 && (
           <div className="rounded-lg border border-border bg-card p-4">
             <h2 className="mb-3 font-heading text-base font-semibold">
-              Top Visa Subclasses
+              {t("dashboard.top_visa_subclasses")}
             </h2>
             <SubclassChart data={stats.visa_subclasses} />
           </div>
@@ -270,7 +291,9 @@ export function DashboardPage() {
           <div className="rounded-md bg-accent-muted p-2 text-accent">
             <Download className="h-4 w-4" />
           </div>
-          <span className="text-sm font-medium text-foreground">Download</span>
+          <span className="text-sm font-medium text-foreground">
+            {t("nav.download")}
+          </span>
         </button>
         <button
           onClick={() => navigate("/pipeline")}
@@ -279,7 +302,9 @@ export function DashboardPage() {
           <div className="rounded-md bg-accent-muted p-2 text-accent">
             <GitBranch className="h-4 w-4" />
           </div>
-          <span className="text-sm font-medium text-foreground">Pipeline</span>
+          <span className="text-sm font-medium text-foreground">
+            {t("nav.pipeline")}
+          </span>
         </button>
         <button
           onClick={() => downloadExportFile("csv")}
@@ -289,7 +314,7 @@ export function DashboardPage() {
             <Download className="h-4 w-4" />
           </div>
           <span className="text-sm font-medium text-foreground">
-            Export CSV
+            {t("buttons.export_csv")}
           </span>
         </button>
         <button
@@ -300,7 +325,7 @@ export function DashboardPage() {
             <Download className="h-4 w-4" />
           </div>
           <span className="text-sm font-medium text-foreground">
-            Export JSON
+            {t("buttons.export_json")}
           </span>
         </button>
       </div>
@@ -309,7 +334,7 @@ export function DashboardPage() {
       {stats.recent_cases && stats.recent_cases.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-4">
           <h2 className="mb-3 font-heading text-base font-semibold">
-            Recent Cases
+            {t("dashboard.recent_cases")}
           </h2>
           <div className="space-y-1">
             {stats.recent_cases.slice(0, 5).map((c) => (

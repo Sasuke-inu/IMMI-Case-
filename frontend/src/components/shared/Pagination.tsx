@@ -1,12 +1,13 @@
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 interface PaginationProps {
-  currentPage: number
-  totalPages: number
-  totalItems: number
-  pageSize: number
-  onPageChange: (page: number) => void
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
 }
 
 export function Pagination({
@@ -16,18 +17,19 @@ export function Pagination({
   pageSize,
   onPageChange,
 }: PaginationProps) {
-  if (totalPages <= 1) return null
+  const { t } = useTranslation();
 
-  const start = (currentPage - 1) * pageSize + 1
-  const end = Math.min(currentPage * pageSize, totalItems)
+  if (totalPages <= 1) return null;
 
-  const pages = getVisiblePages(currentPage, totalPages)
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(currentPage * pageSize, totalItems);
+
+  const pages = getVisiblePages(currentPage, totalPages);
 
   return (
     <div className="flex items-center justify-between">
       <p className="text-sm text-muted-text">
-        Showing {start.toLocaleString()}-{end.toLocaleString()} of{" "}
-        {totalItems.toLocaleString()}
+        {t("pagination.showing", { start, end, total: totalItems })}
       </p>
       <div className="flex items-center gap-1">
         <button
@@ -39,8 +41,11 @@ export function Pagination({
         </button>
         {pages.map((p, i) =>
           p === "..." ? (
-            <span key={`ellipsis-${i}`} className="px-1 text-sm text-muted-text">
-              ...
+            <span
+              key={`ellipsis-${i}`}
+              className="px-1 text-sm text-muted-text"
+            >
+              {t("pagination.ellipsis")}
             </span>
           ) : (
             <button
@@ -50,12 +55,12 @@ export function Pagination({
                 "min-w-[32px] rounded-md px-2 py-1.5 text-sm",
                 p === currentPage
                   ? "bg-accent text-white font-medium"
-                  : "text-muted-text hover:bg-surface"
+                  : "text-muted-text hover:bg-surface",
               )}
             >
               {p}
             </button>
-          )
+          ),
         )}
         <button
           disabled={currentPage >= totalPages}
@@ -66,22 +71,19 @@ export function Pagination({
         </button>
       </div>
     </div>
-  )
+  );
 }
 
-function getVisiblePages(
-  current: number,
-  total: number
-): (number | "...")[] {
+function getVisiblePages(current: number, total: number): (number | "...")[] {
   if (total <= 7) {
-    return Array.from({ length: total }, (_, i) => i + 1)
+    return Array.from({ length: total }, (_, i) => i + 1);
   }
-  const pages: (number | "...")[] = [1]
-  if (current > 3) pages.push("...")
-  const start = Math.max(2, current - 1)
-  const end = Math.min(total - 1, current + 1)
-  for (let i = start; i <= end; i++) pages.push(i)
-  if (current < total - 2) pages.push("...")
-  pages.push(total)
-  return pages
+  const pages: (number | "...")[] = [1];
+  if (current > 3) pages.push("...");
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+  return pages;
 }

@@ -181,8 +181,10 @@ export interface JudgeBio {
   role?: string;
   court?: string;
   appointed_year?: string | number;
+  birth_year?: number;
   education?: string[];
   previously?: string;
+  photo_url?: string;
   source_url?: string;
 }
 

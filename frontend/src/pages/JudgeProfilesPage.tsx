@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { List, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnalyticsFilters } from "@/components/shared/AnalyticsFilters";
@@ -13,10 +14,13 @@ const MAX_COMPARE = 4;
 
 export function JudgeProfilesPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [court, setCourt] = useState("");
   const [yearFrom, setYearFrom] = useState(2000);
   const [yearTo, setYearTo] = useState(CURRENT_YEAR);
-  const [sortBy, setSortBy] = useState<"cases" | "approval_rate" | "name">("cases");
+  const [sortBy, setSortBy] = useState<"cases" | "approval_rate" | "name">(
+    "cases",
+  );
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"table" | "cards">(() => {
     const stored = localStorage.getItem("judges-view-mode");
@@ -34,7 +38,8 @@ export function JudgeProfilesPage() {
     [court, yearFrom, yearTo, sortBy],
   );
 
-  const { data, isLoading, isError, error, refetch } = useJudgeLeaderboard(params);
+  const { data, isLoading, isError, error, refetch } =
+    useJudgeLeaderboard(params);
 
   const judges = data?.judges ?? [];
 
@@ -59,7 +64,9 @@ export function JudgeProfilesPage() {
 
   const openCompare = () => {
     if (selectedNames.length < 2) return;
-    const names = selectedNames.map((name) => encodeURIComponent(name)).join(",");
+    const names = selectedNames
+      .map((name) => encodeURIComponent(name))
+      .join(",");
     navigate(`/judge-profiles/compare?names=${names}`);
   };
 
@@ -71,33 +78,45 @@ export function JudgeProfilesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Judge Profiles</h1>
-          <p className="text-sm text-muted-text">
-            Explore approval rates, workload, and case composition by judge/member.
-          </p>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("judges.title")}
+          </h1>
+          <p className="text-sm text-muted-text">{t("judges.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            aria-label="Table view"
+            aria-label={t("tooltips.table_view")}
             aria-pressed={viewMode === "table"}
-            onClick={() => { setViewMode("table"); localStorage.setItem("judges-view-mode", "table"); }}
+            onClick={() => {
+              setViewMode("table");
+              localStorage.setItem("judges-view-mode", "table");
+            }}
             className={cn(
               "rounded-md p-1.5",
-              viewMode === "table" ? "bg-accent-muted text-accent" : "text-muted-text hover:text-foreground",
+              viewMode === "table"
+                ? "bg-accent-muted text-accent"
+                : "text-muted-text hover:text-foreground",
             )}
+            title={t("judges.table_view_label")}
           >
             <List className="h-4 w-4" />
           </button>
           <button
             type="button"
-            aria-label="Card view"
+            aria-label={t("tooltips.chart_view")}
             aria-pressed={viewMode === "cards"}
-            onClick={() => { setViewMode("cards"); localStorage.setItem("judges-view-mode", "cards"); }}
+            onClick={() => {
+              setViewMode("cards");
+              localStorage.setItem("judges-view-mode", "cards");
+            }}
             className={cn(
               "rounded-md p-1.5",
-              viewMode === "cards" ? "bg-accent-muted text-accent" : "text-muted-text hover:text-foreground",
+              viewMode === "cards"
+                ? "bg-accent-muted text-accent"
+                : "text-muted-text hover:text-foreground",
             )}
+            title={t("judges.card_view_label")}
           >
             <LayoutGrid className="h-4 w-4" />
           </button>
@@ -118,26 +137,34 @@ export function JudgeProfilesPage() {
           />
 
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-text">Sort</label>
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-text">
+              {t("judges.sort_label")}
+            </label>
             <select
               value={sortBy}
-              onChange={(event) => setSortBy(event.target.value as "cases" | "approval_rate" | "name")}
+              onChange={(event) =>
+                setSortBy(
+                  event.target.value as "cases" | "approval_rate" | "name",
+                )
+              }
               className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
             >
-              <option value="cases">Most Cases</option>
-              <option value="approval_rate">Highest Approval</option>
-              <option value="name">Name</option>
+              <option value="cases">{t("judges.sort_cases")}</option>
+              <option value="approval_rate">{t("judges.sort_approval")}</option>
+              <option value="name">{t("judges.sort_name")}</option>
             </select>
           </div>
         </div>
 
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm text-secondary-text">
-            {data?.total_judges ?? 0} judges found
+            {t("judges.judges_found", { count: data?.total_judges ?? 0 })}
           </p>
           <div className="flex items-center gap-2">
             {selectedNames.length >= MAX_COMPARE && (
-              <span className="text-xs text-semantic-warning">Max {MAX_COMPARE} selected</span>
+              <span className="text-xs text-semantic-warning">
+                {t("judges.max_selected", { max: MAX_COMPARE })}
+              </span>
             )}
             <button
               type="button"
@@ -145,17 +172,23 @@ export function JudgeProfilesPage() {
               disabled={selectedNames.length < 2}
               className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Compare Selected ({selectedNames.length})
+              {t("judges.compare_selected", { count: selectedNames.length })}
             </button>
           </div>
         </div>
 
         {isLoading ? (
-          <p className="text-sm text-muted-text">Loading judges...</p>
+          <p className="text-sm text-muted-text">
+            {t("judges.loading_judges")}
+          </p>
         ) : isError ? (
           <ApiErrorState
-            title="Judge leaderboard failed to load"
-            message={error instanceof Error ? error.message : "Judge API request failed."}
+            title={t("errors.failed_to_load", { name: "judges" })}
+            message={
+              error instanceof Error
+                ? error.message
+                : t("errors.api_request_failed", { name: "Judge" })
+            }
             onRetry={() => {
               void refetch();
             }}
@@ -168,7 +201,7 @@ export function JudgeProfilesPage() {
             onOpen={openJudge}
           />
         ) : judges.length === 0 ? (
-          <p className="text-sm text-muted-text">No judge records found for selected filters.</p>
+          <p className="text-sm text-muted-text">{t("judges.empty_state")}</p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {judges.map((judge) => (

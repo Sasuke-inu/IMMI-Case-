@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import type { LucideIcon } from "lucide-react"
 import {
   LayoutDashboard,
@@ -24,47 +25,51 @@ interface NavGroup {
   readonly items: readonly NavItem[]
 }
 
-const navGroups: readonly NavGroup[] = [
-  {
-    title: "Browse",
-    items: [
-      { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-      { to: "/analytics", icon: TrendingUp, label: "Analytics" },
-      { to: "/judge-profiles", icon: Users, label: "Judge Profiles" },
-      { to: "/cases", icon: FileText, label: "Cases" },
-    ],
-  },
-  {
-    title: "Data Tools",
-    items: [
-      {
-        to: "/download",
-        icon: CloudDownload,
-        label: "Scrape AustLII",
-        description: "Manual download by court & year",
-      },
-      {
-        to: "/pipeline",
-        icon: Workflow,
-        label: "Smart Pipeline",
-        description: "Auto 3-phase crawl → clean → download",
-      },
-    ],
-  },
-  {
-    title: "Reference",
-    items: [
-      { to: "/data-dictionary", icon: BookOpen, label: "Data Dictionary" },
-      { to: "/design-tokens", icon: Palette, label: "Design Tokens" },
-    ],
-  },
-]
+
 
 interface SidebarProps {
   collapsed?: boolean
 }
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
+  const { t } = useTranslation()
+
+  const navGroups: readonly NavGroup[] = [
+    {
+      title: t("nav.browse"),
+      items: [
+        { to: "/", icon: LayoutDashboard, label: t("nav.dashboard") },
+        { to: "/analytics", icon: TrendingUp, label: t("nav.analytics") },
+        { to: "/judge-profiles", icon: Users, label: t("nav.judge_profiles") },
+        { to: "/cases", icon: FileText, label: t("nav.cases") },
+      ],
+    },
+    {
+      title: t("nav.data_tools"),
+      items: [
+        {
+          to: "/download",
+          icon: CloudDownload,
+          label: t("pipeline.download_title"),
+          description: t("pipeline.download_description"),
+        },
+        {
+          to: "/pipeline",
+          icon: Workflow,
+          label: t("pipeline.crawl_title"),
+          description: t("pipeline.crawl_description"),
+        },
+      ],
+    },
+    {
+      title: t("nav.reference"),
+      items: [
+        { to: "/data-dictionary", icon: BookOpen, label: t("nav.data_dictionary") },
+        { to: "/design-tokens", icon: Palette, label: t("nav.design_tokens") },
+      ],
+    },
+  ]
+
   return (
     <aside
       className={cn(
@@ -121,7 +126,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       <div className="border-t border-border p-3">
         {!collapsed && (
           <p className="text-xs text-muted-text">
-            Australian Immigration Cases
+            {t("dashboard.subtitle")}
           </p>
         )}
       </div>

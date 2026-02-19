@@ -6,6 +6,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useTranslation } from "react-i18next";
 import type { ConceptEntry } from "@/types/case";
 
 interface LegalConceptsChartProps {
@@ -13,6 +14,7 @@ interface LegalConceptsChartProps {
 }
 
 export function LegalConceptsChart({ data }: LegalConceptsChartProps) {
+  const { t } = useTranslation();
   const chartData = data.slice(0, 12).map((c) => ({
     ...c,
     displayName: c.name.length > 18 ? c.name.slice(0, 16) + "\u2026" : c.name,
@@ -37,7 +39,7 @@ export function LegalConceptsChart({ data }: LegalConceptsChartProps) {
         <Tooltip
           formatter={(value: number | undefined) => [
             Number(value ?? 0).toLocaleString(),
-            "Cases",
+            t("chart.cases"),
           ]}
           labelFormatter={(
             _: unknown,

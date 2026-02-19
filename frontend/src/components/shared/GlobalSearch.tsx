@@ -1,38 +1,40 @@
-import { useState, useRef, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
-import { Search, X } from "lucide-react"
-import { useSearchCases } from "@/hooks/use-cases"
-import { cn } from "@/lib/utils"
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { Search, X } from "lucide-react";
+import { useSearchCases } from "@/hooks/use-cases";
+import { cn } from "@/lib/utils";
 
 interface GlobalSearchProps {
-  open: boolean
-  onClose: () => void
+  open: boolean;
+  onClose: () => void;
 }
 
 export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
-  const [query, setQuery] = useState("")
-  const inputRef = useRef<HTMLInputElement>(null)
-  const navigate = useNavigate()
-  const { data } = useSearchCases(query, 8)
+  const { t } = useTranslation();
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+  const { data } = useSearchCases(query, 8);
 
   useEffect(() => {
     if (open) {
-      inputRef.current?.focus()
-      setQuery("")
+      inputRef.current?.focus();
+      setQuery("");
     }
-  }, [open])
+  }, [open]);
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose()
+      if (e.key === "Escape") onClose();
     }
-    if (open) window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
-  }, [open, onClose])
+    if (open) window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
 
-  if (!open) return null
+  if (!open) return null;
 
-  const cases = data?.cases ?? []
+  const cases = data?.cases ?? [];
 
   return (
     <>
@@ -51,10 +53,13 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search cases..."
+              placeholder={t("common.search_cases_placeholder")}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-text focus:outline-none"
             />
-            <button onClick={onClose} className="text-muted-text hover:text-foreground">
+            <button
+              onClick={onClose}
+              className="text-muted-text hover:text-foreground"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -66,12 +71,12 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                 <li key={c.case_id}>
                   <button
                     onClick={() => {
-                      navigate(`/cases/${c.case_id}`)
-                      onClose()
+                      navigate(`/cases/${c.case_id}`);
+                      onClose();
                     }}
                     className={cn(
                       "flex w-full flex-col gap-0.5 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                      "hover:bg-surface"
+                      "hover:bg-surface",
                     )}
                   >
                     <span
@@ -91,20 +96,27 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
 
           {query.length > 0 && cases.length === 0 && (
             <div className="flex flex-col items-center gap-1 p-6 text-center">
-              <p className="text-sm font-medium text-foreground">No results found</p>
-              <p className="text-xs text-muted-text">Try different keywords or check spelling</p>
+              <p className="text-sm font-medium text-foreground">
+                {t("common.no_results")}
+              </p>
+              <p className="text-xs text-muted-text">
+                {t("tooltips.navigate_up_down")}
+              </p>
             </div>
           )}
 
           {/* Shortcuts hint */}
           <div className="flex items-center justify-between border-t border-border px-4 py-2 text-[10px] text-muted-text">
-            <span>Navigate with &uarr;&darr;</span>
+            <span>{t("tooltips.navigate_up_down")}</span>
             <span>
-              <kbd className="rounded bg-surface px-1 py-0.5 font-mono">esc</kbd> to close
+              <kbd className="rounded bg-surface px-1 py-0.5 font-mono">
+                esc
+              </kbd>{" "}
+              {t("tooltips.escape_to_close")}
             </span>
           </div>
         </div>
       </div>
     </>
-  )
+  );
 }

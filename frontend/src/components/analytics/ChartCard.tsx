@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ChartCardProps {
   title: string;
@@ -15,6 +16,8 @@ export function ChartCard({
   isEmpty,
   className,
 }: ChartCardProps) {
+  const { t } = useTranslation();
+
   return (
     <div
       className={`flex h-full flex-col rounded-lg border border-border bg-card p-4 ${className ?? ""}`}
@@ -24,11 +27,11 @@ export function ChartCard({
       </h3>
       {isLoading ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-text">
-          Loading...
+          {t("chart.loading")}
         </div>
       ) : isEmpty ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-text">
-          No data available
+          {t("chart.no_data")}
         </div>
       ) : (
         <div className="min-h-0 flex-1">{children}</div>

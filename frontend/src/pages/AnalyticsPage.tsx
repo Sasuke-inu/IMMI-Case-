@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { AnalyticsFilters } from "@/components/shared/AnalyticsFilters";
 import { ChartCard } from "@/components/analytics/ChartCard";
 import { SuccessRateCalculator } from "@/components/analytics/SuccessRateCalculator";
@@ -27,6 +28,7 @@ import type { AnalyticsFilterParams } from "@/types/case";
 const CURRENT_YEAR = new Date().getFullYear();
 
 export function AnalyticsPage() {
+  const { t } = useTranslation();
   const [court, setCourt] = useState("");
   const [yearFrom, setYearFrom] = useState(2000);
   const [yearTo, setYearTo] = useState(CURRENT_YEAR);
@@ -38,20 +40,24 @@ export function AnalyticsPage() {
 
   const { data: outcomes, isLoading: loadingOutcomes } = useOutcomes(filters);
   const { data: judgesData, isLoading: loadingJudges } = useJudges(filters);
-  const { data: conceptsData, isLoading: loadingConcepts } = useLegalConcepts(filters);
-  const { data: natureOutcome, isLoading: loadingHeatmap } = useNatureOutcome(filters);
+  const { data: conceptsData, isLoading: loadingConcepts } =
+    useLegalConcepts(filters);
+  const { data: natureOutcome, isLoading: loadingHeatmap } =
+    useNatureOutcome(filters);
 
   const { data: conceptEffectiveness, isLoading: loadingEffectiveness } =
     useConceptEffectiveness({ ...filters, limit: 30 });
-  const { data: cooccurrence, isLoading: loadingCooccurrence } = useConceptCooccurrence({
-    ...filters,
-    limit: 15,
-    min_count: 2,
-  });
-  const { data: conceptTrends, isLoading: loadingConceptTrends } = useConceptTrends({
-    ...filters,
-    limit: 10,
-  });
+  const { data: cooccurrence, isLoading: loadingCooccurrence } =
+    useConceptCooccurrence({
+      ...filters,
+      limit: 15,
+      min_count: 2,
+    });
+  const { data: conceptTrends, isLoading: loadingConceptTrends } =
+    useConceptTrends({
+      ...filters,
+      limit: 10,
+    });
 
   const handleYearRangeChange = (from: number, to: number) => {
     setYearFrom(from);
@@ -62,10 +68,10 @@ export function AnalyticsPage() {
     <div className="space-y-6">
       <div className="space-y-3">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Analytics & Insights</h1>
-          <p className="text-sm text-muted-text">
-            Cross-analysis of {court || "all"} court outcomes, trends, and patterns
-          </p>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("analytics.title")}
+          </h1>
+          <p className="text-sm text-muted-text">{t("analytics.subtitle")}</p>
         </div>
         <AnalyticsFilters
           court={court}
@@ -79,7 +85,7 @@ export function AnalyticsPage() {
       <SuccessRateCalculator filters={filters} />
 
       <ChartCard
-        title="Outcome Rate by Court"
+        title={t("analytics.outcome_rate_by_court")}
         isLoading={loadingOutcomes}
         isEmpty={!outcomes || Object.keys(outcomes.by_court).length === 0}
       >
@@ -88,7 +94,7 @@ export function AnalyticsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Affirmed Rate Trend"
+          title={t("analytics.affirmed_rate_trend")}
           isLoading={loadingOutcomes}
           isEmpty={!outcomes || Object.keys(outcomes.by_year).length === 0}
         >
@@ -96,7 +102,7 @@ export function AnalyticsPage() {
         </ChartCard>
 
         <ChartCard
-          title="Affirmed Rate by Visa Subclass"
+          title={t("analytics.affirmed_rate_visa")}
           isLoading={loadingOutcomes}
           isEmpty={!outcomes || Object.keys(outcomes.by_subclass).length === 0}
         >
@@ -106,7 +112,7 @@ export function AnalyticsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Most Active Judges / Members"
+          title={t("analytics.active_judges")}
           isLoading={loadingJudges}
           isEmpty={!judgesData || judgesData.judges.length === 0}
         >
@@ -114,7 +120,7 @@ export function AnalyticsPage() {
         </ChartCard>
 
         <ChartCard
-          title="Legal Concepts Frequency"
+          title={t("analytics.legal_concepts_frequency")}
           isLoading={loadingConcepts}
           isEmpty={!conceptsData || conceptsData.concepts.length === 0}
         >
@@ -123,7 +129,7 @@ export function AnalyticsPage() {
       </div>
 
       <ChartCard
-        title="Case Nature × Outcome Matrix"
+        title={t("analytics.nature_outcome_matrix")}
         isLoading={loadingHeatmap}
         isEmpty={!natureOutcome || natureOutcome.natures.length === 0}
       >
@@ -132,32 +138,45 @@ export function AnalyticsPage() {
 
       <section className="space-y-4" data-testid="concept-intelligence-section">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">Concept Intelligence</h2>
+          <h2 className="text-xl font-semibold text-foreground">
+            {t("analytics.concept_intelligence")}
+          </h2>
           <p className="text-sm text-muted-text">
-            Identify legal concepts that correlate with better outcomes and how they evolve over time.
+            {t("analytics.concept_intelligence_desc") ||
+              "Identify legal concepts that correlate with better outcomes and how they evolve over time."}
           </p>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
           <ChartCard
-            title="Concept Effectiveness"
+            title={t("analytics.concept_effectiveness")}
             isLoading={loadingEffectiveness}
-            isEmpty={!conceptEffectiveness || conceptEffectiveness.concepts.length === 0}
+            isEmpty={
+              !conceptEffectiveness ||
+              conceptEffectiveness.concepts.length === 0
+            }
           >
-            {conceptEffectiveness && <ConceptEffectivenessChart data={conceptEffectiveness} />}
+            {conceptEffectiveness && (
+              <ConceptEffectivenessChart data={conceptEffectiveness} />
+            )}
           </ChartCard>
 
           <ChartCard
-            title="Concept Effectiveness by Court"
+            title={t("analytics.concept_by_court")}
             isLoading={loadingEffectiveness}
-            isEmpty={!conceptEffectiveness || conceptEffectiveness.concepts.length === 0}
+            isEmpty={
+              !conceptEffectiveness ||
+              conceptEffectiveness.concepts.length === 0
+            }
           >
-            {conceptEffectiveness && <ConceptCourtBreakdown data={conceptEffectiveness} />}
+            {conceptEffectiveness && (
+              <ConceptCourtBreakdown data={conceptEffectiveness} />
+            )}
           </ChartCard>
         </div>
 
         <ChartCard
-          title="Concept Co-occurrence Heatmap"
+          title={t("analytics.concept_cooccurrence")}
           isLoading={loadingCooccurrence}
           isEmpty={!cooccurrence || cooccurrence.concepts.length === 0}
         >
@@ -166,15 +185,17 @@ export function AnalyticsPage() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <ChartCard
-            title="Concept Trends"
+            title={t("analytics.concept_trends")}
             isLoading={loadingConceptTrends}
-            isEmpty={!conceptTrends || Object.keys(conceptTrends.series).length === 0}
+            isEmpty={
+              !conceptTrends || Object.keys(conceptTrends.series).length === 0
+            }
           >
             {conceptTrends && <ConceptTrendChart data={conceptTrends} />}
           </ChartCard>
 
           <ChartCard
-            title="Emerging / Declining Concepts"
+            title={t("analytics.emerging_concepts")}
             isLoading={loadingConceptTrends}
             isEmpty={!conceptTrends}
           >

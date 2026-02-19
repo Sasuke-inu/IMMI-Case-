@@ -7,6 +7,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import type { JudgeEntry } from "@/types/case";
 
 interface TopJudgesChartProps {
@@ -23,6 +24,7 @@ function titleCase(name: string): string {
 }
 
 export function TopJudgesChart({ data }: TopJudgesChartProps) {
+  const { t } = useTranslation();
   const chartData = data.slice(0, 12).map((j) => {
     const normalized = titleCase(j.name);
     return {
@@ -42,7 +44,7 @@ export function TopJudgesChart({ data }: TopJudgesChartProps) {
           to="/judge-profiles"
           className="text-xs font-medium text-accent hover:underline"
         >
-          View All →
+          {t("buttons.view_all")} →
         </Link>
       </div>
       <ResponsiveContainer width="100%" height={chartData.length * 38 + 35}>
@@ -63,7 +65,7 @@ export function TopJudgesChart({ data }: TopJudgesChartProps) {
           <Tooltip
             formatter={(value: number | undefined) => [
               Number(value ?? 0).toLocaleString(),
-              "Cases",
+              t("chart.cases"),
             ]}
             labelFormatter={(
               _: unknown,

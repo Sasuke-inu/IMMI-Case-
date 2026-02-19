@@ -105,23 +105,28 @@ IMPORTANT:
 - Present your findings as a clear structured list for each judge, with their name as a heading.
 """
 
-GROUNDING_PROMPT = """Search for PUBLIC biographical information about the following Australian court judges / tribunal members
+GROUNDING_PROMPT = """Search for DETAILED PUBLIC biographical information about the following Australian court judges / tribunal members
 who handle immigration and refugee cases.
 
-They may serve on: Administrative Appeals Tribunal (AAT), Administrative Review Tribunal (ARTA),
+They may serve on: Administrative Appeals Tribunal (AAT), Administrative Review Tribunal (ART/ARTA),
 Federal Court of Australia (FCA), Federal Circuit and Family Court (FedCFamC2G/FCCA/FMCA),
 Migration Review Tribunal (MRTA), Refugee Review Tribunal (RRTA), or High Court of Australia (HCA).
 
 JUDGES:
 {judge_list}
 
-For EACH judge, use Google Search to find:
+For EACH judge, use Google Search THOROUGHLY to find:
 1. Full name with title (e.g. "Senior Member Jane Smith")
 2. Current or most recent role and court/tribunal
 3. Year of appointment (if publicly available)
-4. Education background (university, degree)
-5. Previous career roles
-6. Source URL
+4. Birth year or approximate age (search for "born", birth year, age — public figures only)
+5. EDUCATION — THIS IS CRITICAL. Search specifically for their university degrees, law school, postgraduate qualifications.
+   Check LinkedIn, university alumni directories, court biographies, legal directories, law society profiles.
+   Return as a list like: ["University of Melbourne (LLB)", "Australian National University (PhD)"]
+6. CAREER HISTORY — detailed chronological career path. Search for prior roles at law firms, government agencies,
+   other courts/tribunals, academic positions, public service. Be specific with years and organisations.
+7. Professional profile photo URL (search LinkedIn, court website, government directory for a portrait/headshot photo URL)
+8. Source URL where you found the information
 
 Return your answer as a JSON object (no markdown fences) where each key is the judge's FULL NAME in lowercase
 (exactly as listed above, e.g. "megan hodgkinson", "c packer").
@@ -132,13 +137,21 @@ Example format:
     "role": "Senior Member",
     "court": "Administrative Review Tribunal (ART)",
     "appointed_year": 2020,
-    "education": ["University of Sydney (LLB)"],
-    "previously": "Solicitor at XYZ firm",
+    "birth_year": 1975,
+    "education": ["University of Sydney (Bachelor of Laws)", "University of NSW (Master of Laws)"],
+    "previously": "Solicitor at ABC Law (2005-2010); Senior Associate at XYZ Partners (2010-2015); Member, Migration Review Tribunal (2015-2020)",
+    "photo_url": "https://example.com/photo.jpg",
     "source_url": "https://..."
   }}
 }}
 
-If you CANNOT find information for a judge, set "full_name" to null.
+IMPORTANT RULES:
+- EDUCATION is the MOST important field. Try HARD to find it. Search "[name] university degree", "[name] law school", "[name] LinkedIn", "[name] education".
+- If you find education for a judge, ALWAYS include it even if other fields are missing.
+- For career history ("previously"), include YEARS and ORGANISATIONS. Be chronological and specific.
+- For photo_url, only include direct image URLs (ending in .jpg, .png, .webp) from official or professional sources. Skip if not found.
+- For birth_year, only include if publicly documented. Do NOT guess.
+- If you CANNOT find information for a judge, set "full_name" to null.
 Return ONLY valid JSON."""
 
 PARSE_PROMPT = """Parse the following research report about Australian judges into structured JSON.
@@ -469,6 +482,8 @@ def main():
     parser.add_argument("--mode", choices=["deep-research", "grounding"], default="deep-research",
                         help="deep-research: thorough but expensive ($2-5/batch). grounding: fast+cheap (~$0.05/batch)")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be queried")
+    parser.add_argument("--enrich", action="store_true",
+                        help="Re-fetch judges with incomplete data (missing education, career, etc.)")
     args = parser.parse_args()
 
     # Load judge names
@@ -480,8 +495,22 @@ def main():
 
     bios = load_existing_bios()
 
-    # Filter out already-fetched judges
-    names_to_fetch = [n for n in all_names if n.lower() not in bios]
+    if args.enrich:
+        # Re-fetch judges with incomplete data (have bio but missing education/career)
+        names_to_fetch = []
+        for n in all_names:
+            key = n.lower()
+            bio = bios.get(key)
+            if not bio or not bio.get("full_name"):
+                continue  # skip not-found entries
+            has_edu = bio.get("education") and len(bio.get("education", [])) > 0
+            has_career = bio.get("previously")
+            if not has_edu or not has_career:
+                names_to_fetch.append(n)
+        print(f"Enrich mode: {len(names_to_fetch)} judges with incomplete data (missing education or career)")
+    else:
+        # Filter out already-fetched judges
+        names_to_fetch = [n for n in all_names if n.lower() not in bios]
     print(f"Total judges: {len(all_names)}, already fetched: {len(all_names) - len(names_to_fetch)}, to fetch: {len(names_to_fetch)}")
 
     if not names_to_fetch:
@@ -570,15 +599,24 @@ def main():
         for name in batch:
             key = name.lower()
             bio = parsed.get(key)
-            if bio:
-                bios[key] = bio
-                found = bio.get("full_name") is not None
-                total_fetched += 1 if found else 0
-                status_label = "found" if found else "not found"
-                print(f"    {name}: {status_label}")
-            else:
+            if bio and bio.get("full_name"):
+                if args.enrich and key in bios and bios[key].get("full_name"):
+                    # Merge: keep existing fields, update with new non-empty fields
+                    existing = bios[key]
+                    for field, value in bio.items():
+                        if value and value != [] and value != "null":
+                            existing[field] = value
+                    bios[key] = existing
+                    print(f"    {name}: enriched")
+                else:
+                    bios[key] = bio
+                    print(f"    {name}: found")
+                total_fetched += 1
+            elif not args.enrich:
                 bios[key] = {"full_name": None, "not_found": True}
                 print(f"    {name}: not in parsed output")
+            else:
+                print(f"    {name}: no new data")
 
         save_bios(bios)
         print(f"  Saved checkpoint. Total bios: {len(bios)}")

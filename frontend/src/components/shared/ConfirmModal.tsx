@@ -1,14 +1,15 @@
-import { useEffect, useRef } from "react"
-import { AlertTriangle } from "lucide-react"
+import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { AlertTriangle } from "lucide-react";
 
 interface ConfirmModalProps {
-  open: boolean
-  title: string
-  message: string
-  confirmLabel?: string
-  variant?: "danger" | "default"
-  onConfirm: () => void
-  onCancel: () => void
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  variant?: "danger" | "default";
+  onConfirm: () => void;
+  onCancel: () => void;
 }
 
 export function ConfirmModal({
@@ -20,24 +21,25 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
-  const cancelRef = useRef<HTMLButtonElement>(null)
+  const { t } = useTranslation();
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (open) cancelRef.current?.focus()
-  }, [open])
+    if (open) cancelRef.current?.focus();
+  }, [open]);
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel()
-    }
-    document.addEventListener("keydown", handler)
-    return () => document.removeEventListener("keydown", handler)
-  }, [open, onCancel])
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onCancel]);
 
-  if (!open) return null
+  if (!open) return null;
 
-  const isDanger = variant === "danger"
+  const isDanger = variant === "danger";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -60,7 +62,7 @@ export function ConfirmModal({
             onClick={onCancel}
             className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-surface"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={onConfirm}
@@ -75,5 +77,5 @@ export function ConfirmModal({
         </div>
       </div>
     </div>
-  )
+  );
 }
