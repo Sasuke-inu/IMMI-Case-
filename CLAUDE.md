@@ -65,6 +65,7 @@ immi_case_downloader/
     security.py       → CSRF config
     routes/
       api.py          → /api/v1/* JSON endpoints (22 endpoints) for React SPA
+      legislations.py → /api/v1/legislations/* endpoints (3 routes: list, detail, search)
       dashboard.py    → Legacy Jinja2 dashboard
       cases.py        → Legacy Jinja2 case CRUD
       search.py       → Legacy Jinja2 search
@@ -82,10 +83,10 @@ immi_case_downloader/
 
 frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v4)
   src/
-    pages/            → 12 pages (Dashboard, Analytics, Cases CRUD, Compare, Download, Pipeline, etc.)
+    pages/            → 14 pages (Dashboard, Analytics, Cases CRUD, Compare, Download, Pipeline, **Legislations**, etc.)
     components/       → Shared (Breadcrumb, CourtBadge, ConfirmModal, etc.) + layout
-    hooks/            → TanStack Query hooks (use-cases, use-stats, use-theme, use-keyboard)
-    lib/api.ts        → CSRF-aware fetch wrapper for all API calls
+    hooks/            → TanStack Query hooks (use-cases, use-stats, use-theme, use-keyboard, **use-legislations**)
+    lib/api.ts        → CSRF-aware fetch wrapper for all API calls (includes legislations endpoints)
     tokens/           → Design tokens JSON → CSS + TS build pipeline
   scripts/build-tokens.ts → Token pipeline: JSON → CSS + TS
 ```
@@ -149,6 +150,25 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 - **Dashboard empty state** — shows "Welcome to IMMI-Case" when `stats.total_cases === 0 && !isFetching`; guard with `isFetching` to avoid false empty state
 - **E2E tests must match UI** — after renaming Dashboard sections, update test assertions in `tests/e2e/react/test_react_dashboard.py`
 - **Analytics page** — at `/analytics` route, uses 4 API endpoints: `/api/v1/analytics/{outcomes,judges,legal-concepts,nature-outcome}`
+
+## Legislations Feature (NEW - 2026-02-20)
+
+**新增功能**：澳洲移民法律瀏覽器
+- **Pages**: `LegislationsPage` (列表 + 搜尋 + 分頁), `LegislationDetailPage` (詳細內容)
+- **API**: `/api/v1/legislations/` (list, detail, search) — 3 個端點，28 個單元測試
+- **Hooks**: `useListLegislations`, `useGetLegislation`, `useSearchLegislations` (TanStack Query v5)
+- **Data**: `immi_case_downloader/data/legislations.json` (6 部澳洲移民相關法律)
+- **i18n**: 英文 + 繁體中文翻譯完整支援
+- **Navigation**: Sidebar 中的「法律法規」導航項目已配置
+- **Routing**: `/legislations` 主頁面，`/legislations/<id>` 詳細頁面
+- **Tests**: API 單元測試 28/28 通過 ✓，覆蓋率 76%
+- **Build**: 前端構建成功，無 TypeScript 錯誤
+
+**架構說明**：
+- 資料源：靜態 JSON 檔案（無需爬蟲）
+- API 層：Flask Blueprint 模式，3 個 REST 端點
+- 前端層：React SPA，支援搜尋（最少 2 個字）、分頁、多語言
+- 禁用功能：下載/匯出（按需求）
 
 ## Important Notes
 
