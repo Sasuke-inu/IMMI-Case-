@@ -77,7 +77,7 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
     >
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-foreground">
-          {t("analytics.success_calculator")}
+          {t("analytics.success_rate_calculator")}
         </h2>
         <p className="text-sm text-muted-text">
           {t("analytics.success_calculator_desc")}

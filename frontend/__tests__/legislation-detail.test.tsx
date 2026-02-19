@@ -336,7 +336,8 @@ describe("LegislationDetailPage", () => {
     renderWithProviders(<LegislationDetailPage />);
 
     // The error message should be displayed immediately
-    expect(screen.getByText(/not found/i)).toBeInTheDocument();
+    // Look for the error description text instead
+    expect(screen.getByText(/could not be found/i)).toBeInTheDocument();
   });
 
   // Test 12: Not found error has return link

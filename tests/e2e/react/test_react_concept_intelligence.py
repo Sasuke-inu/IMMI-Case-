@@ -12,7 +12,7 @@ class TestConceptIntelligence:
     def test_cooccurrence_heatmap_visible(self, react_page):
         react_navigate(react_page, "/app/analytics")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_text("Concept Co-occurrence Heatmap").is_visible()
+        assert react_page.get_by_text("Legal Concept Co-occurrence").is_visible()
 
     def test_trend_chart_visible(self, react_page):
         react_navigate(react_page, "/app/analytics")
@@ -22,7 +22,7 @@ class TestConceptIntelligence:
     def test_emerging_badges_visible(self, react_page):
         react_navigate(react_page, "/app/analytics")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_text("Emerging / Declining Concepts").is_visible()
+        assert react_page.get_by_text("Emerging Concepts").is_visible()
 
     def test_no_js_errors(self, react_page):
         react_navigate(react_page, "/app/analytics")
