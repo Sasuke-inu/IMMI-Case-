@@ -52,6 +52,7 @@
     "export_json": "Export JSON",
     "download_cases": "Download Cases",
     "view_details": "View Details",
+    "view_all": "View All",
     "back": "Back",
     "next": "Next",
     "previous": "Previous"
@@ -85,7 +86,6 @@
     "related_cases": "Related Cases",
     "comparison": "Case Comparison",
     "citation": "Citation",
-    "title": "Title",
     "date": "Date",
     "court": "Court",
     "court_code": "Court Code",
@@ -117,6 +117,13 @@
     "sorted": "Sorted",
     "ascending": "ascending",
     "descending": "descending"
+  },
+  "case_detail": {
+    "loading": "Loading case...",
+    "copy_citation": "Copy citation",
+    "catchwords": "Catchwords",
+    "tags": "Tags",
+    "notes": "Notes"
   },
   "filters": {
     "filter": "Filter",
@@ -205,7 +212,8 @@
     "country": "Country",
     "no_visa_subclass_data": "No visa subclass data for this judge.",
     "cases": "Cases",
-    "court_type": "Court Type"
+    "court_type": "Court Type",
+    "social_profiles": "Online Profiles"
   },
   "analytics": {
     "title": "Analytics",
@@ -217,6 +225,7 @@
     "calculate": "Calculate",
     "enter_court": "Enter court code",
     "enter_visa_subclass": "Enter visa subclass",
+    "enter_case_nature": "Enter case nature",
     "outcome_by_court": "Outcome by Court",
     "outcome_by_subclass": "Outcome by Visa Subclass",
     "outcome_trends": "Outcome Trends",
@@ -224,7 +233,7 @@
     "legal_concepts": "Legal Concepts by Outcome",
     "top_judges": "Top Judges by Win Rate",
     "concept_heatmap": "Nature-Outcome Correlation",
-    "concept_cooccurrence": "Legal Concept Cooccurrence",
+    "concept_cooccurrence": "Legal Concept Co-occurrence",
     "concept_cooccurrence_desc": "Cases where multiple legal concepts appear together",
     "court_breakdown": "Court Concept Breakdown",
     "concepts_by_court": "Concepts by Court",
@@ -255,7 +264,6 @@
     "trend": "Trend",
     "frequency": "Frequency",
     "correlation": "Correlation",
-    "enter_case_nature": "Enter case nature",
     "legal_concepts_label": "Legal Concepts",
     "all": "All",
     "matching_cases": "matching cases",
@@ -278,6 +286,11 @@
     "year_label": "Year",
     "visa_subclass": "Visa Subclass",
     "case_nature": "Case Nature"
+  },
+  "chart": {
+    "loading": "Loading...",
+    "no_data": "No data available",
+    "cases": "Cases"
   },
   "legislations": {
     "title": "Legislations",
@@ -411,6 +424,8 @@
     "api_request_failed": "{{name}} API request failed.",
     "data_unavailable": "{{name}} data unavailable",
     "payload_error": "No {{name}} payload was returned.",
+    "unable_to_load_data": "Unable to load data",
+    "unable_to_load_message": "Please try again. If the problem persists, check the API/backend connection.",
     "retry": "Retry",
     "try_again": "Try again",
     "something_went_wrong": "Something went wrong"
@@ -587,35 +602,6 @@
       "success": "Case created",
       "error": "Failed to create case",
       "save_button": "Create Case"
-    }
-  },
-  "components": {
-    "stat_card": {
-      "coverage": "{{percentage}}% coverage"
-    },
-    "charts": {
-      "court_chart": "Cases by Court",
-      "nature_chart": "Case Nature",
-      "trend_chart": "Year Trend",
-      "subclass_chart": "Visa Subclasses",
-      "chart_loading": "Loading chart...",
-      "chart_no_data": "No data available",
-      "chart_cases": "Cases"
-    },
-    "case_card": {
-      "no_data_text": "No metadata available"
-    },
-    "case_text_viewer": {
-      "full_text": "Full Text",
-      "search_in_text": "Search in text...",
-      "search_tooltip": "Search (Ctrl+F)",
-      "download_tooltip": "Download .txt",
-      "print_tooltip": "Print",
-      "expand_tooltip": "Expand",
-      "collapse_tooltip": "Collapse",
-      "table_of_contents": "Contents",
-      "case_not_available": "Case full text not available",
-      "no_text_error": "Unable to load case full text"
     }
   }
 }
