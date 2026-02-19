@@ -268,14 +268,20 @@ export function JudgeDetailPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section id="section-visa" className="rounded-lg border border-border bg-card p-4">
+        <section
+          id="section-visa"
+          className="rounded-lg border border-border bg-card p-4"
+        >
           <h2 className="mb-3 text-base font-semibold text-foreground">
             {t("judges.visa_breakdown")}
           </h2>
           <VisaBreakdownChart data={data.visa_breakdown} />
         </section>
 
-        <section id="section-nature" className="rounded-lg border border-border bg-card p-4">
+        <section
+          id="section-nature"
+          className="rounded-lg border border-border bg-card p-4"
+        >
           <h2 className="mb-3 text-base font-semibold text-foreground">
             {t("judges.nature_breakdown")}
           </h2>
@@ -300,7 +306,10 @@ export function JudgeDetailPage() {
         <ConceptEffectivenessTable data={data.concept_effectiveness} />
       </section>
 
-      <section id="section-recent" className="rounded-lg border border-border bg-card p-4">
+      <section
+        id="section-recent"
+        className="rounded-lg border border-border bg-card p-4"
+      >
         <h2 className="mb-3 text-base font-semibold text-foreground">
           {t("judges.recent_cases")}
         </h2>
