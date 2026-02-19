@@ -170,6 +170,27 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 - 前端層：React SPA，支援搜尋（最少 2 個字）、分頁、多語言
 - 禁用功能：下載/匯出（按需求）
 
+## MCP Servers Configuration (2026-02-20)
+
+**已配置的 MCP 伺服器**（位置：`.mcp.json`）：
+
+| MCP | 用途 | 狀態 |
+|-----|------|------|
+| **context7** | 文件上下文關聯與知識檢索 | ✅ 啟用 |
+| **supabase** | Supabase PostgreSQL 資料庫操作 | ✅ 啟用 |
+
+**Supabase MCP 可用工具**：
+- 資料庫查詢 (SQL 執行)
+- 表格管理 (CRUD 操作)
+- 行數據批次處理
+- RPC 函數調用
+- 實時事件監聽
+
+**相關文件**：
+- Supabase 專案 URL: `https://urntbuqczarkuoaosjxd.supabase.co`
+- 數據狀態: 149,023 個案件記錄已同步至 Supabase
+- 認證方式: Publishable API Key (環境變數: `SUPABASE_ANON_KEY`)
+
 ## Important Notes
 
 - `downloaded_cases/` is gitignored — all scraped data is local only

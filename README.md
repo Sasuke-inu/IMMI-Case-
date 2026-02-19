@@ -177,6 +177,26 @@ python extract_llm_fields.py    # Process cases in batches via Claude Sonnet
 python merge_llm_results.py     # Merge batch JSON results back into main CSV
 ```
 
+## New Features (Feb 2026)
+
+### 1. **澳洲移民法律瀏覽器** (Legislations Feature)
+Browse and search Australian immigration legislation with full i18n support (English + Traditional Chinese):
+
+- **Pages**: Legislations list with search and pagination, detailed legislation view
+- **API**: `/api/v1/legislations/*` endpoints (list, detail, search)
+- **Data**: 6 Australian immigration laws in static JSON format
+- **Features**: Full-text search (minimum 2 characters), pagination, multi-language interface
+
+Navigate to **"法律法規"** in the sidebar to explore.
+
+### 2. **Supabase Cloud Sync**
+Cloud-based case database with PostgreSQL backend:
+
+- **Synced Data**: 149,023 immigration cases
+- **Tools**: Supabase MCP for direct database access
+- **Configuration**: Already set up for IMMI-Case project
+- **Access**: Via Supabase Python client or MCP server
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -186,6 +206,7 @@ python merge_llm_results.py     # Merge batch JSON results back into main CSV
 | **Storage** | CSV/JSON (default), SQLite (FTS5+WAL), Supabase (PostgreSQL) |
 | **Testing** | pytest (296 unit tests), Playwright (181 E2E tests) |
 | **LLM** | Claude Sonnet (field extraction), 10 parallel sub-agents |
+| **MCP** | Context7 (knowledge retrieval), Supabase (database operations) |
 
 ## Rate Limiting & User-Agent
 

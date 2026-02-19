@@ -3,6 +3,14 @@
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "supabase": {
+      "command": "supabase-mcp",
+      "env": {
+        "MCP_API_KEY": "${SUPABASE_ANON_KEY}",
+        "MCP_PROJECT_ID": "urntbuqczarkuoaosjxd",
+        "MCP_PROJECT_URL": "https://urntbuqczarkuoaosjxd.supabase.co"
+      }
     }
   }
 }
