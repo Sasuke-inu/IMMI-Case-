@@ -402,3 +402,81 @@ def test_concept_trends_emerging_declining(client, patch_analytics_cases):
     data = client.get("/api/v1/analytics/concept-trends").get_json()
     assert "emerging" in data
     assert "declining" in data
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: Flow Matrix (Sankey)
+# ---------------------------------------------------------------------------
+
+
+def test_flow_matrix_returns_200(client, patch_analytics_cases):
+    resp = client.get("/api/v1/analytics/flow-matrix")
+    assert resp.status_code == 200
+
+
+def test_flow_matrix_has_nodes_and_links(client, patch_analytics_cases):
+    data = client.get("/api/v1/analytics/flow-matrix").get_json()
+    assert "nodes" in data
+    assert "links" in data
+    assert len(data["nodes"]) > 0
+    assert len(data["links"]) > 0
+
+
+def test_flow_matrix_nodes_have_required_fields(client, patch_analytics_cases):
+    data = client.get("/api/v1/analytics/flow-matrix").get_json()
+    for node in data["nodes"]:
+        assert "name" in node
+
+
+def test_flow_matrix_links_have_required_fields(client, patch_analytics_cases):
+    data = client.get("/api/v1/analytics/flow-matrix").get_json()
+    for link in data["links"]:
+        assert "source" in link
+        assert "target" in link
+        assert "value" in link
+        assert link["value"] > 0
+
+
+def test_flow_matrix_court_filter(client, patch_analytics_cases):
+    data = client.get("/api/v1/analytics/flow-matrix?court=AATA").get_json()
+    # All court-layer nodes should be AATA only
+    court_nodes = [n for n in data["nodes"] if n.get("layer") == "court"]
+    for node in court_nodes:
+        assert node["name"] == "AATA"
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Monthly Trends
+# ---------------------------------------------------------------------------
+
+
+def test_monthly_trends_returns_200(client, patch_analytics_cases):
+    resp = client.get("/api/v1/analytics/monthly-trends")
+    assert resp.status_code == 200
+
+
+def test_monthly_trends_has_series(client, patch_analytics_cases):
+    data = client.get("/api/v1/analytics/monthly-trends").get_json()
+    assert "series" in data
+    assert isinstance(data["series"], list)
+
+
+def test_monthly_trends_entry_fields(client, patch_analytics_cases):
+    data = client.get("/api/v1/analytics/monthly-trends").get_json()
+    if data["series"]:
+        entry = data["series"][0]
+        assert "month" in entry
+        assert "total" in entry
+        assert "win_rate" in entry
+
+
+def test_monthly_trends_sorted_by_month(client, patch_analytics_cases):
+    data = client.get("/api/v1/analytics/monthly-trends").get_json()
+    months = [e["month"] for e in data["series"]]
+    assert months == sorted(months)
+
+
+def test_monthly_trends_has_events(client, patch_analytics_cases):
+    data = client.get("/api/v1/analytics/monthly-trends").get_json()
+    assert "events" in data
+    assert isinstance(data["events"], list)

@@ -415,10 +415,17 @@ def _get_all_cases() -> list[ImmigrationCase]:
 
 
 def _apply_filters(cases: list[ImmigrationCase]) -> list[ImmigrationCase]:
-    """Apply ?court=&year_from=&year_to= query params to a case list."""
+    """Apply query params to a case list.
+
+    Supported params: court, year_from, year_to, case_natures (comma-sep),
+    visa_subclasses (comma-sep), outcome_types (comma-sep).
+    """
     court = request.args.get("court", "").strip()
     year_from = safe_int(request.args.get("year_from"), default=0, min_val=0, max_val=2100)
     year_to = safe_int(request.args.get("year_to"), default=0, min_val=0, max_val=2100)
+    case_natures_raw = request.args.get("case_natures", "").strip()
+    visa_subclasses_raw = request.args.get("visa_subclasses", "").strip()
+    outcome_types_raw = request.args.get("outcome_types", "").strip()
 
     if court:
         cases = [c for c in cases if c.court_code == court]
@@ -426,6 +433,15 @@ def _apply_filters(cases: list[ImmigrationCase]) -> list[ImmigrationCase]:
         cases = [c for c in cases if c.year and c.year >= year_from]
     if year_to:
         cases = [c for c in cases if c.year and c.year <= year_to]
+    if case_natures_raw:
+        natures = {n.strip().lower() for n in case_natures_raw.split(",") if n.strip()}
+        cases = [c for c in cases if (c.case_nature or "").strip().lower() in natures]
+    if visa_subclasses_raw:
+        subclasses = {s.strip() for s in visa_subclasses_raw.split(",") if s.strip()}
+        cases = [c for c in cases if (c.visa_subclass or "").strip() in subclasses]
+    if outcome_types_raw:
+        outcomes = {o.strip().lower() for o in outcome_types_raw.split(",") if o.strip()}
+        cases = [c for c in cases if _normalise_outcome(c.outcome).lower() in outcomes]
     return cases
 
 DATA_DICTIONARY_FIELDS = [
@@ -1519,6 +1535,127 @@ def analytics_concept_trends():
             "declining": declining,
         }
     )
+
+
+# ── Flow Matrix (Sankey) ──────────────────────────────────────────────
+
+
+@api_bp.route("/analytics/flow-matrix")
+def analytics_flow_matrix():
+    """Three-layer flow: Court → Case Nature → Outcome (for Sankey diagrams)."""
+    cases = _apply_filters(_get_all_cases())
+    top_n = safe_int(request.args.get("top_n"), default=8, min_val=1, max_val=20)
+
+    # Count case natures and outcomes to pick top-N
+    nature_counter: Counter = Counter()
+    outcome_counter: Counter = Counter()
+    for c in cases:
+        nature = (c.case_nature or "").strip() or "Unknown"
+        outcome = _normalise_outcome(c.outcome)
+        nature_counter[nature] += 1
+        outcome_counter[outcome] += 1
+
+    top_natures = {n for n, _ in nature_counter.most_common(top_n)}
+    top_outcomes = {o for o, _ in outcome_counter.most_common(top_n)}
+
+    # Build link counts: court→nature and nature→outcome
+    court_nature: dict[tuple[str, str], int] = defaultdict(int)
+    nature_outcome: dict[tuple[str, str], int] = defaultdict(int)
+
+    for c in cases:
+        court = c.court_code or "Unknown"
+        nature = (c.case_nature or "").strip() or "Unknown"
+        outcome = _normalise_outcome(c.outcome)
+
+        # Collapse minor categories into "Other"
+        if nature not in top_natures:
+            nature = "Other Nature"
+        if outcome not in top_outcomes:
+            outcome = "Other"
+
+        court_nature[(court, nature)] += 1
+        nature_outcome[(nature, outcome)] += 1
+
+    # Collect unique node names by layer
+    court_names = sorted({k[0] for k in court_nature})
+    nature_names = sorted({k[1] for k in court_nature} | {k[0] for k in nature_outcome})
+    outcome_names = sorted({k[1] for k in nature_outcome})
+
+    # Build nodes list with layer info
+    nodes: list[dict] = []
+    node_index: dict[str, int] = {}
+
+    for name in court_names:
+        node_index[f"court:{name}"] = len(nodes)
+        nodes.append({"name": name, "layer": "court"})
+    for name in nature_names:
+        node_index[f"nature:{name}"] = len(nodes)
+        nodes.append({"name": name, "layer": "nature"})
+    for name in outcome_names:
+        node_index[f"outcome:{name}"] = len(nodes)
+        nodes.append({"name": name, "layer": "outcome"})
+
+    # Build links with source/target as node indices
+    links: list[dict] = []
+    for (court, nature), value in sorted(court_nature.items()):
+        src = node_index.get(f"court:{court}")
+        tgt = node_index.get(f"nature:{nature}")
+        if src is not None and tgt is not None:
+            links.append({"source": src, "target": tgt, "value": value})
+
+    for (nature, outcome), value in sorted(nature_outcome.items()):
+        src = node_index.get(f"nature:{nature}")
+        tgt = node_index.get(f"outcome:{outcome}")
+        if src is not None and tgt is not None:
+            links.append({"source": src, "target": tgt, "value": value})
+
+    return jsonify({"nodes": nodes, "links": links})
+
+
+# ── Monthly Trends ─────────────────────────────────────────────────────
+
+# Key Australian immigration system events for timeline markers
+_POLICY_EVENTS = [
+    {"month": "2015-07", "label": "RRTA/MRTA merged into AATA"},
+    {"month": "2021-09", "label": "FCCA → FedCFamC2G restructure"},
+    {"month": "2024-10", "label": "AATA → ARTA transition"},
+]
+
+
+@api_bp.route("/analytics/monthly-trends")
+def analytics_monthly_trends():
+    """Monthly case volume and win-rate time series with policy event markers."""
+    cases = _apply_filters(_get_all_cases())
+
+    monthly: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "wins": 0})
+
+    for c in cases:
+        if not c.date:
+            continue
+        # Extract YYYY-MM from date string
+        month_key = c.date[:7] if len(c.date) >= 7 else None
+        if not month_key or len(month_key) != 7:
+            continue
+        bucket = monthly[month_key]
+        bucket["total"] += 1
+        norm = _normalise_outcome(c.outcome)
+        court_type = "tribunal" if (c.court_code or "") in TRIBUNAL_CODES else "court"
+        if court_type == "tribunal":
+            if norm in ("Remitted", "Set Aside"):
+                bucket["wins"] += 1
+        else:
+            if norm in ("Allowed", "Set Aside"):
+                bucket["wins"] += 1
+
+    series = []
+    for month_key in sorted(monthly.keys()):
+        bucket = monthly[month_key]
+        total = bucket["total"]
+        wins = bucket["wins"]
+        rate = round(wins / total * 100, 1) if total > 0 else 0
+        series.append({"month": month_key, "total": total, "wins": wins, "win_rate": rate})
+
+    return jsonify({"series": series, "events": _POLICY_EVENTS})
 
 
 # ── Judge Bio ──────────────────────────────────────────────────────────

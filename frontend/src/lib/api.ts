@@ -18,6 +18,8 @@ import type {
   ConceptEffectivenessData,
   ConceptCooccurrenceData,
   ConceptTrendData,
+  FlowMatrixData,
+  MonthlyTrendsData,
 } from "@/types/case";
 
 let csrfToken: string | null = null;
@@ -73,15 +75,28 @@ async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
 // ─── Shared filter query string builder ───────────────────────
 const CURRENT_YEAR = new Date().getFullYear();
 
+function appendAdvancedFilters(
+  params: URLSearchParams,
+  filters?: AnalyticsFilterParams,
+): void {
+  if (!filters) return;
+  if (filters.caseNatures?.length)
+    params.set("case_natures", filters.caseNatures.join(","));
+  if (filters.visaSubclasses?.length)
+    params.set("visa_subclasses", filters.visaSubclasses.join(","));
+  if (filters.outcomeTypes?.length)
+    params.set("outcome_types", filters.outcomeTypes.join(","));
+}
+
 function buildFilterParams(filters?: AnalyticsFilterParams): string {
   if (!filters) return "";
   const params = new URLSearchParams();
   if (filters.court) params.set("court", filters.court);
-  // Only send year range if it's narrower than the full 2000–current range
   if (filters.yearFrom && filters.yearFrom > 2000)
     params.set("year_from", String(filters.yearFrom));
   if (filters.yearTo && filters.yearTo < CURRENT_YEAR)
     params.set("year_to", String(filters.yearTo));
+  appendAdvancedFilters(params, filters);
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 }
@@ -98,6 +113,7 @@ function appendAnalyticsFilters(
   if (filters.yearTo && filters.yearTo < CURRENT_YEAR) {
     params.set("year_to", String(filters.yearTo));
   }
+  appendAdvancedFilters(params, filters);
 }
 
 // ─── Dashboard ─────────────────────────────────────────────────
@@ -245,6 +261,25 @@ export function fetchConceptTrends(
   if (typeof params.limit === "number") qs.set("limit", String(params.limit));
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   return apiFetch(`/api/v1/analytics/concept-trends${suffix}`);
+}
+
+export function fetchMonthlyTrends(
+  params: AnalyticsFilterParams = {},
+): Promise<MonthlyTrendsData> {
+  const qs = new URLSearchParams();
+  appendAnalyticsFilters(qs, params);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch(`/api/v1/analytics/monthly-trends${suffix}`);
+}
+
+export function fetchFlowMatrix(
+  params: AnalyticsFilterParams & { top_n?: number } = {},
+): Promise<FlowMatrixData> {
+  const qs = new URLSearchParams();
+  appendAnalyticsFilters(qs, params);
+  if (typeof params.top_n === "number") qs.set("top_n", String(params.top_n));
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch(`/api/v1/analytics/flow-matrix${suffix}`);
 }
 
 // ─── Cases ─────────────────────────────────────────────────────

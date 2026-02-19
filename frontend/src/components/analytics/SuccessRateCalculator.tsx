@@ -9,6 +9,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+import { Microscope } from "lucide-react";
 import { useFilterOptions } from "@/hooks/use-cases";
 import {
   useSuccessRate,
@@ -18,6 +19,8 @@ import {
 import { OutcomeFunnelChart } from "@/components/analytics/OutcomeFunnelChart";
 import { ConceptComboTable } from "@/components/analytics/ConceptComboTable";
 import { ConfidenceBadge } from "@/components/analytics/ConfidenceBadge";
+import { SuccessRateDeepModal } from "@/components/analytics/SuccessRateDeepModal";
+import { RiskGauge } from "@/components/analytics/RiskGauge";
 import type { AnalyticsFilterParams } from "@/types/case";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +33,7 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
   const [visaSubclass, setVisaSubclass] = useState("");
   const [caseNature, setCaseNature] = useState("");
   const [selectedConcepts, setSelectedConcepts] = useState<string[]>([]);
+  const [deepModalOpen, setDeepModalOpen] = useState(false);
 
   const { data: filterOptions } = useFilterOptions();
   const { data: outcomes } = useOutcomes(filters);
@@ -136,7 +140,7 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
         </div>
       ) : (
         <div className="mt-4 space-y-4">
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-4">
             <div className="rounded-md border border-border p-3">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-text">
                 {t("analytics.success_rate")}
@@ -151,9 +155,32 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
                 {data.query.total_matching.toLocaleString()}{" "}
                 {t("analytics.matching_cases")}
               </p>
-              <div className="mt-2">
+              <div className="mt-2 flex items-center gap-2">
                 <ConfidenceBadge totalMatching={data.query.total_matching} />
+                <button
+                  type="button"
+                  onClick={() => setDeepModalOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-secondary-text hover:bg-surface hover:text-foreground"
+                >
+                  <Microscope className="h-3 w-3" />
+                  {t("analytics.deep_dive", { defaultValue: "Deep Dive" })}
+                </button>
               </div>
+            </div>
+
+            <div className="flex items-center justify-center rounded-md border border-border p-3">
+              <RiskGauge
+                score={data.success_rate.overall}
+                label={
+                  data.success_rate.overall >= 65
+                    ? t("analytics.favourable", { defaultValue: "Favourable" })
+                    : data.success_rate.overall >= 40
+                      ? t("analytics.moderate", { defaultValue: "Moderate" })
+                      : t("analytics.unfavourable", {
+                          defaultValue: "Unfavourable",
+                        })
+                }
+              />
             </div>
 
             <div className="rounded-md border border-border p-3 lg:col-span-2">
@@ -244,6 +271,16 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
             <ConceptComboTable combos={data.top_combos} />
           </div>
         </div>
+      )}
+
+      {data && (
+        <SuccessRateDeepModal
+          open={deepModalOpen}
+          onClose={() => setDeepModalOpen(false)}
+          filters={filters}
+          currentRate={data.success_rate.overall}
+          totalMatching={data.query.total_matching}
+        />
       )}
     </section>
   );

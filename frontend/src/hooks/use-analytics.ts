@@ -8,6 +8,8 @@ import {
   fetchConceptEffectiveness,
   fetchConceptCooccurrence,
   fetchConceptTrends,
+  fetchFlowMatrix,
+  fetchMonthlyTrends,
 } from "@/lib/api";
 import type { AnalyticsFilterParams } from "@/types/case";
 
@@ -15,6 +17,9 @@ const filterKey = (f?: AnalyticsFilterParams) => [
   f?.court,
   f?.yearFrom,
   f?.yearTo,
+  f?.caseNatures?.join(","),
+  f?.visaSubclasses?.join(","),
+  f?.outcomeTypes?.join(","),
 ];
 
 export function useOutcomes(filters?: AnalyticsFilterParams) {
@@ -119,6 +124,31 @@ export function useConceptTrends(
       params?.limit ?? 10,
     ],
     queryFn: () => fetchConceptTrends(params),
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useFlowMatrix(
+  params?: AnalyticsFilterParams & { top_n?: number },
+) {
+  return useQuery({
+    queryKey: [
+      "analytics",
+      "flow-matrix",
+      ...filterKey(params),
+      params?.top_n ?? 8,
+    ],
+    queryFn: () => fetchFlowMatrix(params),
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useMonthlyTrends(params?: AnalyticsFilterParams) {
+  return useQuery({
+    queryKey: ["analytics", "monthly-trends", ...filterKey(params)],
+    queryFn: () => fetchMonthlyTrends(params),
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });

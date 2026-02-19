@@ -94,6 +94,9 @@ export interface AnalyticsFilterParams {
   court?: string;
   yearFrom?: number;
   yearTo?: number;
+  caseNatures?: string[];
+  visaSubclasses?: string[];
+  outcomeTypes?: string[];
 }
 
 export interface OutcomeData {
@@ -280,4 +283,37 @@ export interface ConceptTrendData {
   >;
   emerging: Array<{ name: string; growth_pct: number; recent_count: number }>;
   declining: Array<{ name: string; decline_pct: number; recent_count: number }>;
+}
+
+export interface MonthlyEntry {
+  month: string;
+  total: number;
+  wins: number;
+  win_rate: number;
+}
+
+export interface PolicyEvent {
+  month: string;
+  label: string;
+}
+
+export interface MonthlyTrendsData {
+  series: MonthlyEntry[];
+  events: PolicyEvent[];
+}
+
+export interface FlowNode {
+  name: string;
+  layer?: string;
+}
+
+export interface FlowLink {
+  source: number;
+  target: number;
+  value: number;
+}
+
+export interface FlowMatrixData {
+  nodes: FlowNode[];
+  links: FlowLink[];
 }

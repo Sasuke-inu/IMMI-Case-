@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AnalyticsFilters } from "@/components/shared/AnalyticsFilters";
+import { AdvancedFilterPanel } from "@/components/analytics/AdvancedFilterPanel";
 import { ChartCard } from "@/components/analytics/ChartCard";
 import { SuccessRateCalculator } from "@/components/analytics/SuccessRateCalculator";
 import { OutcomeByCourtChart } from "@/components/analytics/OutcomeByCourtChart";
@@ -14,6 +15,9 @@ import { ConceptCourtBreakdown } from "@/components/analytics/ConceptCourtBreakd
 import { ConceptCooccurrenceHeatmap } from "@/components/analytics/ConceptCooccurrenceHeatmap";
 import { ConceptTrendChart } from "@/components/analytics/ConceptTrendChart";
 import { EmergingConceptsBadges } from "@/components/analytics/EmergingConceptsBadges";
+import { FlowSankeyChart } from "@/components/analytics/FlowSankeyChart";
+import { MonthlyTrendsChart } from "@/components/analytics/MonthlyTrendsChart";
+import { useFilterOptions } from "@/hooks/use-cases";
 import {
   useOutcomes,
   useJudges,
@@ -22,20 +26,54 @@ import {
   useConceptEffectiveness,
   useConceptCooccurrence,
   useConceptTrends,
+  useFlowMatrix,
+  useMonthlyTrends,
 } from "@/hooks/use-analytics";
 import type { AnalyticsFilterParams } from "@/types/case";
 
 const CURRENT_YEAR = new Date().getFullYear();
+
+const OUTCOME_TYPES = [
+  "Affirmed",
+  "Dismissed",
+  "Remitted",
+  "Set Aside",
+  "Allowed",
+  "Refused",
+  "Withdrawn",
+  "Other",
+];
 
 export function AnalyticsPage() {
   const { t } = useTranslation();
   const [court, setCourt] = useState("");
   const [yearFrom, setYearFrom] = useState(2000);
   const [yearTo, setYearTo] = useState(CURRENT_YEAR);
+  const [selectedNatures, setSelectedNatures] = useState<string[]>([]);
+  const [selectedSubclasses, setSelectedSubclasses] = useState<string[]>([]);
+  const [selectedOutcomes, setSelectedOutcomes] = useState<string[]>([]);
+
+  const { data: filterOptions } = useFilterOptions();
 
   const filters: AnalyticsFilterParams = useMemo(
-    () => ({ court: court || undefined, yearFrom, yearTo }),
-    [court, yearFrom, yearTo],
+    () => ({
+      court: court || undefined,
+      yearFrom,
+      yearTo,
+      caseNatures: selectedNatures.length ? selectedNatures : undefined,
+      visaSubclasses: selectedSubclasses.length
+        ? selectedSubclasses
+        : undefined,
+      outcomeTypes: selectedOutcomes.length ? selectedOutcomes : undefined,
+    }),
+    [
+      court,
+      yearFrom,
+      yearTo,
+      selectedNatures,
+      selectedSubclasses,
+      selectedOutcomes,
+    ],
   );
 
   const { data: outcomes, isLoading: loadingOutcomes } = useOutcomes(filters);
@@ -58,6 +96,10 @@ export function AnalyticsPage() {
       ...filters,
       limit: 10,
     });
+  const { data: flowMatrix, isLoading: loadingFlowMatrix } =
+    useFlowMatrix(filters);
+  const { data: monthlyTrends, isLoading: loadingMonthlyTrends } =
+    useMonthlyTrends(filters);
 
   const handleYearRangeChange = (from: number, to: number) => {
     setYearFrom(from);
@@ -79,6 +121,17 @@ export function AnalyticsPage() {
           yearTo={yearTo}
           onCourtChange={setCourt}
           onYearRangeChange={handleYearRangeChange}
+        />
+        <AdvancedFilterPanel
+          caseNatures={filterOptions?.natures ?? []}
+          visaSubclasses={filterOptions?.visa_types ?? []}
+          outcomeTypes={OUTCOME_TYPES}
+          selectedNatures={selectedNatures}
+          selectedSubclasses={selectedSubclasses}
+          selectedOutcomes={selectedOutcomes}
+          onNaturesChange={setSelectedNatures}
+          onSubclassesChange={setSelectedSubclasses}
+          onOutcomesChange={setSelectedOutcomes}
         />
       </div>
 
@@ -134,6 +187,26 @@ export function AnalyticsPage() {
         isEmpty={!natureOutcome || natureOutcome.natures.length === 0}
       >
         {natureOutcome && <NatureOutcomeHeatmap data={natureOutcome} />}
+      </ChartCard>
+
+      <ChartCard
+        title={t("analytics.flow_sankey", {
+          defaultValue: "Case Flow (Court → Nature → Outcome)",
+        })}
+        isLoading={loadingFlowMatrix}
+        isEmpty={!flowMatrix || flowMatrix.nodes.length === 0}
+      >
+        {flowMatrix && <FlowSankeyChart data={flowMatrix} />}
+      </ChartCard>
+
+      <ChartCard
+        title={t("analytics.monthly_trends", {
+          defaultValue: "Monthly Trends & Policy Events",
+        })}
+        isLoading={loadingMonthlyTrends}
+        isEmpty={!monthlyTrends || monthlyTrends.series.length === 0}
+      >
+        {monthlyTrends && <MonthlyTrendsChart data={monthlyTrends} />}
       </ChartCard>
 
       <section className="space-y-4" data-testid="concept-intelligence-section">
