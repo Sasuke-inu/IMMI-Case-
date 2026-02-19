@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { useJudgeCompare } from "@/hooks/use-judges";
 
@@ -17,7 +18,7 @@ function useQueryNames() {
 }
 
 export function JudgeComparePage() {
-  
+  const { t } = useTranslation();
   const names = useQueryNames();
   const { data, isLoading, isError, error, refetch } = useJudgeCompare(names);
 
@@ -25,22 +26,24 @@ export function JudgeComparePage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">
-          Judge Comparison
+          {t("pages.judge_comparison.title")}
         </h1>
         <Link
           to="/judge-profiles"
           className="text-sm font-medium text-accent hover:underline"
         >
-          ← Back to Judge Profiles
+          ← {t("pages.judge_comparison.back_to_profiles")}
         </Link>
       </div>
 
       {names.length < 2 ? (
         <p className="text-sm text-muted-text">
-          Select at least two judges to compare.
+          {t("pages.judge_comparison.min_judges")}
         </p>
       ) : isLoading ? (
-        <p className="text-sm text-muted-text">Loading comparison...</p>
+        <p className="text-sm text-muted-text">
+          {t("common.loading_ellipsis")}
+        </p>
       ) : isError ? (
         <ApiErrorState
           title="Judge comparison failed to load"

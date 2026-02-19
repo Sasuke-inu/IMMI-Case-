@@ -119,40 +119,6 @@ def list_legislations():
         return _error("Failed to list legislations", 500)
 
 
-# ── Get a specific legislation by ID ────────────────────────────────────────
-
-
-@legislations_bp.route("/<legislation_id>", methods=["GET"])
-def get_legislation(legislation_id: str):
-    """Get a specific legislation by ID.
-
-    Args:
-        legislation_id: The legislation ID (e.g., 'migration-act-1958')
-
-    Returns JSON with legislation details or 404 if not found.
-    """
-    try:
-        if not legislation_id or not legislation_id.strip():
-            return _error("legislation_id is required", 400)
-
-        legislation_id = legislation_id.strip().lower()
-        legislations = _load_legislations()
-
-        # Find legislation by ID (case-insensitive)
-        for leg in legislations:
-            if leg.get("id", "").lower() == legislation_id:
-                return jsonify({
-                    "success": True,
-                    "data": leg
-                })
-
-        return _error(f"Legislation with ID '{legislation_id}' not found", 404)
-
-    except Exception as e:
-        logger.error(f"Error fetching legislation {legislation_id}: {e}")
-        return _error("Failed to fetch legislation", 500)
-
-
 # ── Search legislations ────────────────────────────────────────────────────
 
 
@@ -190,6 +156,7 @@ def search_legislations():
 
         # Search across multiple fields
         results = []
+        total_matched = 0
         for leg in legislations:
             # Check if query matches any searchable field
             searchable = [
@@ -201,16 +168,16 @@ def search_legislations():
 
             # Case-insensitive substring match
             if any(query_lower in field.lower() for field in searchable):
-                results.append(leg)
-                if len(results) >= limit:
-                    break
+                total_matched += 1
+                if len(results) < limit:
+                    results.append(leg)
 
         return jsonify({
             "success": True,
             "data": results,
             "meta": {
                 "query": query,
-                "total_results": len(results),
+                "total_results": total_matched,
                 "limit": limit
             }
         })
@@ -218,6 +185,40 @@ def search_legislations():
     except Exception as e:
         logger.error(f"Error searching legislations: {e}")
         return _error("Failed to search legislations", 500)
+
+
+# ── Get a specific legislation by ID ────────────────────────────────────────
+
+
+@legislations_bp.route("/<legislation_id>", methods=["GET"])
+def get_legislation(legislation_id: str):
+    """Get a specific legislation by ID.
+
+    Args:
+        legislation_id: The legislation ID (e.g., 'migration-act-1958')
+
+    Returns JSON with legislation details or 404 if not found.
+    """
+    try:
+        if not legislation_id or not legislation_id.strip():
+            return _error("legislation_id is required", 400)
+
+        legislation_id = legislation_id.strip().lower()
+        legislations = _load_legislations()
+
+        # Find legislation by ID (case-insensitive)
+        for leg in legislations:
+            if leg.get("id", "").lower() == legislation_id:
+                return jsonify({
+                    "success": True,
+                    "data": leg
+                })
+
+        return _error(f"Legislation with ID '{legislation_id}' not found", 404)
+
+    except Exception as e:
+        logger.error(f"Error fetching legislation {legislation_id}: {e}")
+        return _error("Failed to fetch legislation", 500)
 
 
 def init_routes(app):

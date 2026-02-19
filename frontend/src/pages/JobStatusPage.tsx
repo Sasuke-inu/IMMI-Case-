@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Loader2,
   CheckCircle,
@@ -32,6 +33,7 @@ const TYPE_META: Record<
 };
 
 export function JobStatusPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [errorsExpanded, setErrorsExpanded] = useState(false);
   const [startTime] = useState(() => Date.now());
@@ -62,7 +64,7 @@ export function JobStatusPage() {
   if (!status) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-text">
-        Loading job status...
+        {t("common.loading_ellipsis")}
       </div>
     );
   }
@@ -96,7 +98,9 @@ export function JobStatusPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Clock className="h-6 w-6 text-accent" />
-        <h1 className="text-2xl font-semibold text-foreground">Job Status</h1>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {t("pages.job_status.title")}
+        </h1>
       </div>
 
       {/* Main Status Card */}
@@ -130,12 +134,12 @@ export function JobStatusPage() {
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-foreground">
                 {running
-                  ? "Job Running"
+                  ? t("pages.job_status.job_running")
                   : hasError
-                    ? "Job Failed"
+                    ? t("pages.job_status.job_failed")
                     : isDone
-                      ? "Job Completed"
-                      : "No Active Job"}
+                      ? t("pages.job_status.job_completed")
+                      : t("pages.job_status.no_active_job")}
               </h2>
               {jobType && typeMeta && (
                 <span
@@ -154,7 +158,8 @@ export function JobStatusPage() {
             {/* Timer */}
             {running && (
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-text">
-                <Clock className="h-3 w-3" /> Elapsed: {formatTime(elapsed)}
+                <Clock className="h-3 w-3" /> {t("pages.job_status.elapsed")}:{" "}
+                {formatTime(elapsed)}
               </p>
             )}
           </div>
@@ -182,7 +187,7 @@ export function JobStatusPage() {
         {!running && !isDone && !hasError && (
           <div className="mt-4 rounded-md bg-surface p-4 text-center">
             <p className="text-sm text-muted-text">
-              No job is currently running. Start one from:
+              {t("pages.job_status.no_job_running")}
             </p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
               {[
@@ -205,7 +210,9 @@ export function JobStatusPage() {
       {/* Activity Timeline (results) */}
       {results.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-6">
-          <h3 className="mb-4 font-heading text-lg font-semibold">Activity</h3>
+          <h3 className="mb-4 font-heading text-lg font-semibold">
+            {t("pages.job_status.activity")}
+          </h3>
           <div className="space-y-3">
             {results
               .slice(-10)
@@ -228,7 +235,8 @@ export function JobStatusPage() {
             className="flex w-full items-center justify-between p-4"
           >
             <h3 className="flex items-center gap-2 text-sm font-medium text-danger">
-              <AlertCircle className="h-4 w-4" /> Errors ({errors.length})
+              <AlertCircle className="h-4 w-4" />{" "}
+              {t("pages.job_status.error_count", { count: errors.length })}
             </h3>
             {errorsExpanded ? (
               <ChevronUp className="h-4 w-4 text-muted-text" />
@@ -255,7 +263,7 @@ export function JobStatusPage() {
       {isDone && !running && (
         <div className="rounded-lg border border-border bg-card p-6">
           <h3 className="mb-3 font-heading text-lg font-semibold">
-            Next Steps
+            {t("pages.job_status.next_steps")}
           </h3>
           <div className="grid gap-2 sm:grid-cols-4">
             {quickLinks.map(({ label, icon: Icon, to }) => (

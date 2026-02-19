@@ -185,6 +185,7 @@ export interface JudgeBio {
   education?: string[];
   previously?: string;
   photo_url?: string;
+  social_media?: Record<string, string>;
   source_url?: string;
 }
 

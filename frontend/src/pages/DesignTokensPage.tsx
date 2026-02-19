@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   Check,
@@ -1638,16 +1639,15 @@ function SectionNav() {
    ═══════════════════════════════════════════════════════════════ */
 
 export function DesignTokensPage() {
+  const { t } = useTranslation();
   return (
     <div className="space-y-12">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">
-          Design Tokens
+          {t("pages.design_tokens.title")}
         </h1>
         <p className="text-sm text-muted-text">
-          Live reference for all design tokens. Click colours, fonts, spacing,
-          or radius to customise the UI in real time. All preferences auto-save
-          to your browser.
+          {t("pages.design_tokens.subtitle")}
         </p>
       </div>
 

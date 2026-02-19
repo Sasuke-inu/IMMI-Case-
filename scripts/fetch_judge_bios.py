@@ -119,14 +119,25 @@ For EACH judge, use Google Search THOROUGHLY to find:
 1. Full name with title (e.g. "Senior Member Jane Smith")
 2. Current or most recent role and court/tribunal
 3. Year of appointment (if publicly available)
-4. Birth year or approximate age (search for "born", birth year, age — public figures only)
-5. EDUCATION — THIS IS CRITICAL. Search specifically for their university degrees, law school, postgraduate qualifications.
+4. BIRTH YEAR — THIS IS HIGH PRIORITY. Search aggressively:
+   - Search "[name] born [year]", "[name] age", "[name] birthday"
+   - Check Wikipedia, Who's Who in Australia, Debrett's, AustLII judicial profiles
+   - Search "[name] judge biography born", "[name] barrister born"
+   - Look for graduation year clues: if LLB in 1985, birth ~1963 (age 22). Report the birth year, NOT the estimated one.
+   - Check Federal Court annual reports, AAT annual reports (they sometimes list ages)
+   - Only report CONFIRMED birth years from public sources. Do NOT guess or estimate.
+5. EDUCATION — Search specifically for university degrees, law school, postgraduate qualifications.
    Check LinkedIn, university alumni directories, court biographies, legal directories, law society profiles.
    Return as a list like: ["University of Melbourne (LLB)", "Australian National University (PhD)"]
-6. CAREER HISTORY — detailed chronological career path. Search for prior roles at law firms, government agencies,
-   other courts/tribunals, academic positions, public service. Be specific with years and organisations.
-7. Professional profile photo URL (search LinkedIn, court website, government directory for a portrait/headshot photo URL)
-8. Source URL where you found the information
+6. CAREER HISTORY — detailed chronological career path with years and organisations.
+7. Professional profile photo URL (direct image URL from official sources, skip if not found)
+8. SOCIAL MEDIA & ONLINE PROFILES — Search thoroughly for:
+   - LinkedIn: search "site:linkedin.com/in [name] australia judge" or "[name] linkedin barrister"
+   - Twitter/X: search "site:twitter.com [name] judge australia" or "site:x.com [name]"
+   - Professional profiles: Law Society pages, bar association listings, university staff pages
+   - ResearchGate/Google Scholar (for judges with academic background)
+   - Return as an object with platform keys and profile URLs
+9. Source URL where you found the information
 
 Return your answer as a JSON object (no markdown fences) where each key is the judge's FULL NAME in lowercase
 (exactly as listed above, e.g. "megan hodgkinson", "c packer").
@@ -141,15 +152,22 @@ Example format:
     "education": ["University of Sydney (Bachelor of Laws)", "University of NSW (Master of Laws)"],
     "previously": "Solicitor at ABC Law (2005-2010); Senior Associate at XYZ Partners (2010-2015); Member, Migration Review Tribunal (2015-2020)",
     "photo_url": "https://example.com/photo.jpg",
+    "social_media": {{
+      "linkedin": "https://www.linkedin.com/in/megan-hodgkinson-12345/",
+      "twitter": "https://twitter.com/meghodgkinson"
+    }},
     "source_url": "https://..."
   }}
 }}
 
 IMPORTANT RULES:
-- EDUCATION is the MOST important field. Try HARD to find it. Search "[name] university degree", "[name] law school", "[name] LinkedIn", "[name] education".
-- If you find education for a judge, ALWAYS include it even if other fields are missing.
+- BIRTH YEAR and SOCIAL MEDIA are the TOP PRIORITY fields for this search. Search multiple queries for each.
+- EDUCATION is also critical. Search "[name] university degree", "[name] law school", "[name] LinkedIn".
+- For social_media, only include VERIFIED profile URLs that actually belong to this specific judge/member.
+  Do NOT include generic search result pages. Include only direct profile URLs.
+  Common platforms: "linkedin", "twitter", "google_scholar", "researchgate", "university_page", "bar_association"
 - For career history ("previously"), include YEARS and ORGANISATIONS. Be chronological and specific.
-- For photo_url, only include direct image URLs (ending in .jpg, .png, .webp) from official or professional sources. Skip if not found.
+- For photo_url, only include direct image URLs from official or professional sources. Skip if not found.
 - For birth_year, only include if publicly documented. Do NOT guess.
 - If you CANNOT find information for a judge, set "full_name" to null.
 Return ONLY valid JSON."""
@@ -496,7 +514,7 @@ def main():
     bios = load_existing_bios()
 
     if args.enrich:
-        # Re-fetch judges with incomplete data (have bio but missing education/career)
+        # Re-fetch judges with incomplete data (have bio but missing key fields)
         names_to_fetch = []
         for n in all_names:
             key = n.lower()
@@ -505,9 +523,11 @@ def main():
                 continue  # skip not-found entries
             has_edu = bio.get("education") and len(bio.get("education", [])) > 0
             has_career = bio.get("previously")
-            if not has_edu or not has_career:
+            has_birth_year = bio.get("birth_year")
+            has_social = bio.get("social_media") and len(bio.get("social_media", {})) > 0
+            if not has_edu or not has_career or not has_birth_year or not has_social:
                 names_to_fetch.append(n)
-        print(f"Enrich mode: {len(names_to_fetch)} judges with incomplete data (missing education or career)")
+        print(f"Enrich mode: {len(names_to_fetch)} judges with incomplete data (missing education, career, birth_year, or social_media)")
     else:
         # Filter out already-fetched judges
         names_to_fetch = [n for n in all_names if n.lower() not in bios]

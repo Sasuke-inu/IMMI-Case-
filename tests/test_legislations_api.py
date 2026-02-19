@@ -17,6 +17,15 @@ import pytest
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def clear_legislations_cache():
+    """Clear legislation cache before each test to prevent test pollution."""
+    import immi_case_downloader.web.routes.legislations as leg_module
+    leg_module._legislations_cache = None
+    yield
+    leg_module._legislations_cache = None
+
+
 @pytest.fixture
 def mock_legislations_data() -> list[dict]:
     """Mock legislations data for testing."""
@@ -222,6 +231,21 @@ class TestLegislationsListEndpoint:
             assert data["meta"]["total"] == 0
             assert data["meta"]["pages"] == 0
 
+    def test_list_returns_json_content_type(self, api_client, mock_legislations_data):
+        """Test that list endpoint returns JSON content type.
+
+        Expected:
+        - 200 status
+        - Content-Type: application/json
+        """
+        with patch(
+            "immi_case_downloader.web.routes.legislations._load_legislations",
+            return_value=mock_legislations_data,
+        ):
+            response = api_client.get("/api/v1/legislations")
+            assert response.content_type == "application/json"
+            assert response.status_code == 200
+
 
 # ── Test GET /api/v1/legislations/<id> (Detail endpoint) ────────────────────
 
@@ -301,6 +325,21 @@ class TestLegislationsDetailEndpoint:
 
             # Flask routing may return 404 for empty path or 400 for validation
             assert response.status_code in [400, 404]
+
+    def test_detail_returns_json_content_type(self, api_client, mock_legislations_data):
+        """Test that detail endpoint returns JSON content type.
+
+        Expected:
+        - 200 status
+        - Content-Type: application/json
+        """
+        with patch(
+            "immi_case_downloader.web.routes.legislations._load_legislations",
+            return_value=mock_legislations_data,
+        ):
+            response = api_client.get("/api/v1/legislations/migration-act-1958")
+            assert response.content_type == "application/json"
+            assert response.status_code == 200
 
 
 # ── Test GET /api/v1/legislations/search (Search endpoint) ──────────────────
@@ -503,3 +542,102 @@ class TestLegislationsEdgeCases:
             # Should return all matching results (fewer than 100)
             assert len(data["data"]) > 0
             assert len(data["data"]) <= 100
+
+    def test_search_returns_json_content_type(self, api_client, mock_legislations_data):
+        """Test that search endpoint returns JSON content type.
+
+        Expected:
+        - 200 status
+        - Content-Type: application/json
+        """
+        with patch(
+            "immi_case_downloader.web.routes.legislations._load_legislations",
+            return_value=mock_legislations_data,
+        ):
+            response = api_client.get("/api/v1/legislations/search?q=migration")
+            assert response.content_type == "application/json"
+            assert response.status_code == 200
+
+    def test_search_total_results_not_limited_by_limit(self, api_client, mock_legislations_data):
+        """Test that total_results shows all matches, not limited by limit parameter.
+
+        Expected:
+        - 200 status
+        - data limited to 2 items
+        - total_results shows all matches (not limited)
+        """
+        with patch(
+            "immi_case_downloader.web.routes.legislations._load_legislations",
+            return_value=mock_legislations_data,
+        ):
+            response = api_client.get("/api/v1/legislations/search?q=act&limit=2")
+
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data["success"] is True
+            # data is limited to 2 items
+            assert len(data["data"]) == 2
+            # total_results shows all matches (should be > 2)
+            assert data["meta"]["total_results"] > 2
+            assert data["meta"]["limit"] == 2
+
+
+# ── Exception Handling Tests ──────────────────────────────────────────────────
+
+
+class TestLegislationsExceptionHandling:
+    """Test exception handling in legislations endpoints."""
+
+    def test_list_legislations_handles_exception(self, api_client):
+        """Test that list endpoint returns 500 on exception.
+
+        Expected:
+        - 500 status
+        - success=false
+        - Error message contains "Failed to list legislations"
+        """
+        with patch(
+            "immi_case_downloader.web.routes.legislations._load_legislations",
+            side_effect=Exception("Unexpected error"),
+        ):
+            response = api_client.get("/api/v1/legislations")
+            data = response.get_json()
+            assert response.status_code == 500
+            assert data["success"] is False
+            assert "Failed to list legislations" in data["error"]
+
+    def test_get_legislation_handles_exception(self, api_client):
+        """Test that detail endpoint returns 500 on exception.
+
+        Expected:
+        - 500 status
+        - success=false
+        - Error message contains "Failed to fetch legislation"
+        """
+        with patch(
+            "immi_case_downloader.web.routes.legislations._load_legislations",
+            side_effect=Exception("Unexpected error"),
+        ):
+            response = api_client.get("/api/v1/legislations/test-id")
+            data = response.get_json()
+            assert response.status_code == 500
+            assert data["success"] is False
+            assert "Failed to fetch legislation" in data["error"]
+
+    def test_search_legislations_handles_exception(self, api_client):
+        """Test that search endpoint returns 500 on exception.
+
+        Expected:
+        - 500 status
+        - success=false
+        - Error message contains "Failed to search legislations"
+        """
+        with patch(
+            "immi_case_downloader.web.routes.legislations._load_legislations",
+            side_effect=Exception("Unexpected error"),
+        ):
+            response = api_client.get("/api/v1/legislations/search?q=test")
+            data = response.get_json()
+            assert response.status_code == 500
+            assert data["success"] is False
+            assert "Failed to search legislations" in data["error"]
