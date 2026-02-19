@@ -37,9 +37,10 @@ def _load_legislations() -> list[dict[str, Any]]:
     try:
         with open(data_path, encoding="utf-8") as f:
             data = json.load(f)
-        _legislations_cache = data.get("legislations", [])
-        logger.info(f"Loaded {len(_legislations_cache)} legislations from {data_path}")
-        return _legislations_cache
+        legislations: list[dict[str, Any]] = data.get("legislations", [])
+        _legislations_cache = legislations
+        logger.info(f"Loaded {len(legislations)} legislations from {data_path}")
+        return legislations
     except (json.JSONDecodeError, IOError) as e:
         logger.error(f"Failed to load legislations: {e}")
         return []
