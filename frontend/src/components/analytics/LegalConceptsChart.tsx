@@ -58,7 +58,7 @@ export function LegalConceptsChart({ data }: LegalConceptsChartProps) {
         />
         <Bar
           dataKey="count"
-          fill="#6c3483"
+          fill="var(--color-accent)"
           radius={[0, 3, 3, 0]}
           maxBarSize={22}
           label={{

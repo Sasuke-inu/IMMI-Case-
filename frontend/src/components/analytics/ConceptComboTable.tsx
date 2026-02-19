@@ -24,8 +24,8 @@ export function ConceptComboTable({ combos }: ConceptComboTableProps) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto -mx-1 px-1">
+      <table className="w-full min-w-[420px] text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-text">
             <th className="py-2 pr-2">{t("analytics.concepts_col")}</th>

@@ -68,6 +68,7 @@ export function ConceptEffectivenessChart({
             backgroundColor: "var(--color-background-card)",
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius)",
+            color: "var(--color-text)",
           }}
         />
         <Bar dataKey="liftDelta" radius={[3, 3, 3, 3]}>

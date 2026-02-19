@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 const COURTS = [
@@ -41,6 +42,7 @@ export function AnalyticsFilters({
   onCourtChange,
   onYearRangeChange,
 }: AnalyticsFiltersProps) {
+  const { t } = useTranslation();
   const isPresetActive = (p: TimePreset) =>
     yearFrom === p.from && yearTo === p.to;
   const isCustom = !TIME_PRESETS.some(isPresetActive);
@@ -54,11 +56,12 @@ export function AnalyticsFilters({
             key={preset.label}
             onClick={() => onYearRangeChange(preset.from, preset.to)}
             className={cn(
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+              "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
               isPresetActive(preset)
                 ? "bg-accent text-white"
                 : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
             )}
+            aria-pressed={isPresetActive(preset)}
           >
             {preset.label}
           </button>
@@ -105,24 +108,26 @@ export function AnalyticsFilters({
         <button
           onClick={() => onCourtChange("")}
           className={cn(
-            "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+            "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
             !court
               ? "bg-accent text-white"
               : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
           )}
+          aria-pressed={!court}
         >
-          All Courts
+          {t("filters.all_courts")}
         </button>
         {COURTS.map((c) => (
           <button
             key={c}
             onClick={() => onCourtChange(court === c ? "" : c)}
             className={cn(
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+              "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
               court === c
                 ? "bg-accent text-white"
                 : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
             )}
+            aria-pressed={court === c}
           >
             {c}
           </button>

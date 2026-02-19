@@ -43,11 +43,11 @@ export function OutcomeTrendChart({ data }: OutcomeTrendChartProps) {
         margin={{ top: 5, right: 15, bottom: 5, left: -10 }}
       >
         <defs>
-          <linearGradient id="affirmedGrad" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="affirmedGrad-trend" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="#2d7d46" stopOpacity={0.2} />
             <stop offset="95%" stopColor="#2d7d46" stopOpacity={0} />
           </linearGradient>
-          <linearGradient id="applicantGrad" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="applicantGrad-trend" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="#2a6496" stopOpacity={0.2} />
             <stop offset="95%" stopColor="#2a6496" stopOpacity={0} />
           </linearGradient>
@@ -100,7 +100,7 @@ export function OutcomeTrendChart({ data }: OutcomeTrendChartProps) {
           name={t("analytics.affirmed_rate")}
           stroke="#2d7d46"
           strokeWidth={2}
-          fill="url(#affirmedGrad)"
+          fill="url(#affirmedGrad-trend)"
           dot={{ r: 2, fill: "#2d7d46", strokeWidth: 0 }}
           activeDot={{ r: 4, fill: "#2d7d46", strokeWidth: 2, stroke: "#fff" }}
         />
@@ -110,7 +110,7 @@ export function OutcomeTrendChart({ data }: OutcomeTrendChartProps) {
           name={t("analytics.applicant_win_rate")}
           stroke="#2a6496"
           strokeWidth={2}
-          fill="url(#applicantGrad)"
+          fill="url(#applicantGrad-trend)"
           dot={{ r: 2, fill: "#2a6496", strokeWidth: 0 }}
           activeDot={{ r: 4, fill: "#2a6496", strokeWidth: 2, stroke: "#fff" }}
         />

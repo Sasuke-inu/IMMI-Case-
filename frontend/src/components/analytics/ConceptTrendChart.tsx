@@ -64,7 +64,11 @@ export function ConceptTrendChart({ data }: ConceptTrendChartProps) {
           dataKey="year"
           tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
         />
-        <YAxis tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+        <YAxis
+          domain={[0, 100]}
+          tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+          tickFormatter={(v: number) => `${v}%`}
+        />
         <Tooltip
           formatter={(value: number | string | undefined) => [
             `${Number(value ?? 0).toFixed(1)}%`,
@@ -74,6 +78,7 @@ export function ConceptTrendChart({ data }: ConceptTrendChartProps) {
             backgroundColor: "var(--color-background-card)",
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius)",
+            color: "var(--color-text)",
           }}
         />
         <Legend wrapperStyle={{ fontSize: 11 }} />

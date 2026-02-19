@@ -68,7 +68,7 @@ export function AnalyticsPage() {
     <div className="space-y-6">
       <div className="space-y-3">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">
+          <h1 className="font-semibold text-foreground">
             {t("analytics.title")}
           </h1>
           <p className="text-sm text-muted-text">{t("analytics.subtitle")}</p>
@@ -138,7 +138,7 @@ export function AnalyticsPage() {
 
       <section className="space-y-4" data-testid="concept-intelligence-section">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">
+          <h2 className="font-semibold text-foreground">
             {t("analytics.concept_intelligence")}
           </h2>
           <p className="text-sm text-muted-text">

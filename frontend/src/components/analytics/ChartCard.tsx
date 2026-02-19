@@ -26,8 +26,11 @@ export function ChartCard({
         {title}
       </h3>
       {isLoading ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-text">
-          {t("chart.loading")}
+        <div className="flex flex-1 flex-col gap-3 pt-2">
+          <div className="h-4 w-3/4 animate-pulse rounded bg-border/40" />
+          <div className="h-4 w-1/2 animate-pulse rounded bg-border/40" />
+          <div className="h-32 w-full animate-pulse rounded bg-border/40" />
+          <div className="h-4 w-2/3 animate-pulse rounded bg-border/40" />
         </div>
       ) : isEmpty ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-text">

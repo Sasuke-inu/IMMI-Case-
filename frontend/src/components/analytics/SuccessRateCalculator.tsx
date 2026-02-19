@@ -94,7 +94,7 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
             onChange={(e) => setVisaSubclass(e.target.value)}
             className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-foreground"
           >
-            <option value="">All</option>
+            <option value="">{t("common.all")}</option>
             {subclassOptions.map((subclass) => (
               <option key={subclass} value={subclass}>
                 {subclass}
@@ -112,7 +112,7 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
             onChange={(e) => setCaseNature(e.target.value)}
             className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-foreground"
           >
-            <option value="">All</option>
+            <option value="">{t("common.all")}</option>
             {(filterOptions?.natures ?? []).map((nature) => (
               <option key={nature} value={nature}>
                 {nature}
@@ -244,12 +244,13 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
                       backgroundColor: "var(--color-background-card)",
                       border: "1px solid var(--color-border)",
                       borderRadius: "var(--radius)",
+                      color: "var(--color-text)",
                     }}
                   />
                   <Line
                     type="monotone"
                     dataKey="rate"
-                    stroke="#1a5276"
+                    stroke="var(--color-primary)"
                     strokeWidth={2}
                     dot={{ r: 2 }}
                   />

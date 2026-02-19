@@ -45,6 +45,7 @@ export function ConceptCourtBreakdown({ data }: ConceptCourtBreakdownProps) {
         <XAxis
           type="number"
           tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+          tickFormatter={(v: number) => `${v}%`}
         />
         <YAxis
           type="category"
@@ -63,6 +64,7 @@ export function ConceptCourtBreakdown({ data }: ConceptCourtBreakdownProps) {
             backgroundColor: "var(--color-background-card)",
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius)",
+            color: "var(--color-text)",
           }}
         />
         <Legend wrapperStyle={{ fontSize: 11 }} />

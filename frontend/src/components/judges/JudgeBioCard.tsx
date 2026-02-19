@@ -5,6 +5,9 @@ import {
   Briefcase,
   Calendar,
   ExternalLink,
+  Globe,
+  Linkedin,
+  Twitter,
   User,
 } from "lucide-react";
 import type { JudgeBio } from "@/types/case";
@@ -12,6 +15,26 @@ import type { JudgeBio } from "@/types/case";
 interface JudgeBioCardProps {
   bio: JudgeBio;
   isLoading: boolean;
+}
+
+const PLATFORM_LABELS: Record<string, string> = {
+  linkedin: "LinkedIn",
+  twitter: "Twitter / X",
+  google_scholar: "Google Scholar",
+  researchgate: "ResearchGate",
+  university_page: "University",
+  bar_association: "Bar Association",
+};
+
+function PlatformIcon({ platform }: { platform: string }) {
+  switch (platform) {
+    case "linkedin":
+      return <Linkedin className="h-3.5 w-3.5" />;
+    case "twitter":
+      return <Twitter className="h-3.5 w-3.5" />;
+    default:
+      return <Globe className="h-3.5 w-3.5" />;
+  }
 }
 
 export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
@@ -56,6 +79,13 @@ export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
   // Split career history into items if it contains semicolons
   const careerItems = bio.previously
     ? bio.previously.split(/;\s*/).filter(Boolean)
+    : [];
+
+  // Collect social media entries
+  const socialEntries = bio.social_media
+    ? Object.entries(bio.social_media).filter(
+        ([, url]) => url && typeof url === "string" && url.startsWith("http"),
+      )
     : [];
 
   return (
@@ -148,6 +178,30 @@ export function JudgeBioCard({ bio, isLoading }: JudgeBioCardProps) {
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {/* Social Media / Online Profiles */}
+      {socialEntries.length > 0 && (
+        <div className="mt-4">
+          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-text">
+            <Globe className="h-3.5 w-3.5" />
+            {t("judges.social_profiles")}
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            {socialEntries.map(([platform, url]) => (
+              <a
+                key={platform}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-accent transition-colors hover:bg-accent/10"
+              >
+                <PlatformIcon platform={platform} />
+                {PLATFORM_LABELS[platform] ?? platform}
+              </a>
+            ))}
+          </div>
         </div>
       )}
 

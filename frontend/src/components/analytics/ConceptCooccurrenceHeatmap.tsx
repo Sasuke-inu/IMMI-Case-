@@ -7,8 +7,8 @@ interface ConceptCooccurrenceHeatmapProps {
 }
 
 function toColor(winRate: number, count: number): string {
-  if (count === 0) return "rgba(26, 82, 118, 0.04)";
-  const intensity = Math.max(0.12, Math.min(winRate / 100, 1));
+  if (count === 0) return "var(--color-surface)";
+  const intensity = Math.max(0.15, Math.min(winRate / 100, 1));
   return `rgba(26, 82, 118, ${intensity})`;
 }
 
@@ -63,7 +63,12 @@ export function ConceptCooccurrenceHeatmap({
                   className="flex items-center justify-center rounded-sm p-1.5 text-[10px]"
                   style={{
                     backgroundColor: toColor(winRate, count),
-                    color: count > 0 ? "#fff" : "var(--color-text-secondary)",
+                    color:
+                      count === 0
+                        ? "var(--color-text-muted)"
+                        : winRate > 30
+                          ? "#fff"
+                          : "var(--color-text-secondary)",
                   }}
                   title={`${rowConcept} + ${colConcept}: ${count.toLocaleString()} cases, ${winRate.toFixed(1)}%`}
                 >

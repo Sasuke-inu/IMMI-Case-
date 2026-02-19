@@ -35,6 +35,7 @@ export function NatureOutcomeHeatmap({ data }: NatureOutcomeHeatmapProps) {
           <div
             key={outcome}
             className="p-1.5 text-center text-[10px] font-semibold text-secondary-text"
+            title={outcome}
           >
             {outcome}
           </div>
@@ -57,9 +58,16 @@ export function NatureOutcomeHeatmap({ data }: NatureOutcomeHeatmapProps) {
                   key={`${nature}-${outcome}`}
                   className="flex items-center justify-center rounded-sm p-1.5 text-[10px]"
                   style={{
-                    backgroundColor: `rgba(26, 82, 118, ${Math.max(intensity * 0.85, 0.03)})`,
+                    backgroundColor:
+                      count === 0
+                        ? "var(--color-surface)"
+                        : `rgba(26, 82, 118, ${Math.max(intensity * 0.85, 0.1)})`,
                     color:
-                      intensity > 0.4 ? "#fff" : "var(--color-text-secondary)",
+                      count === 0
+                        ? "var(--color-text-muted)"
+                        : intensity > 0.3
+                          ? "#fff"
+                          : "var(--color-text-secondary)",
                   }}
                   title={`${nature} \u2192 ${outcome}: ${count.toLocaleString()}`}
                 >

@@ -44,7 +44,7 @@ export function TopJudgesChart({ data }: TopJudgesChartProps) {
           to="/judge-profiles"
           className="text-xs font-medium text-accent hover:underline"
         >
-          {t("buttons.view_all")} →
+          {t("buttons.view_all")} <span aria-hidden="true">&rarr;</span>
         </Link>
       </div>
       <ResponsiveContainer width="100%" height={chartData.length * 38 + 35}>
@@ -90,7 +90,7 @@ export function TopJudgesChart({ data }: TopJudgesChartProps) {
           />
           <Bar
             dataKey="count"
-            fill="#1a5276"
+            fill="var(--color-primary)"
             radius={[0, 3, 3, 0]}
             maxBarSize={22}
             label={{
