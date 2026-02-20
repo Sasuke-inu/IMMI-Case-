@@ -1,25 +1,31 @@
 # IMMI-Case - Immigration Case Downloader & Manager
 
-A Python tool to download, extract, browse, and manage Australian immigration, home affairs, and refugee-related court and tribunal appeal cases from the last 10 years.
+A Python tool to download, extract, browse, and manage Australian immigration, home affairs, and refugee-related court and tribunal appeal cases from 2000 to present.
 
-Includes a **React SPA** (with Vite + TypeScript + Tailwind) and a **Flask API** for searching, browsing, editing, and exporting cases.
+Includes a **React SPA** (Vite + TypeScript + Tailwind CSS v4) and a **Flask API** for searching, browsing, editing, and exporting cases. Also synced to **Supabase** (PostgreSQL) for cloud access.
 
-## Data Sources
+## Data
 
-| Source | Code | Years | Description |
-|--------|------|-------|-------------|
-| Administrative Appeals Tribunal | AATA | 2000–2024 | AAT migration & refugee review decisions (ended Oct 2024) |
-| Administrative Review Tribunal | **ARTA** | 2024– | ART migration & refugee review decisions (replaced AAT) |
-| Federal Court of Australia | FCA | 2000– | Immigration judicial review |
-| Federal Circuit Court | FCCA | 2013–2021 | Immigration cases (replaced by FedCFamC2G) |
-| Federal Circuit and Family Court (Div 2) | FedCFamC2G | 2021– | Immigration cases (post-restructure) |
-| High Court of Australia | HCA | 2000– | Immigration appeals |
-| Refugee Review Tribunal | RRTA | –2015 | Refugee decisions (merged into AATA) |
-| Migration Review Tribunal | MRTA | –2015 | Migration decisions (merged into AATA) |
+- **149,016 cases** across 9 courts/tribunals (2000–2026)
+- **148,966 with full text** (99.96%) — ~1.9 GB on disk
+- **29 data fields** per case (metadata + structured extraction + annotations)
+- Synced to Supabase Cloud (Project: Bsmart)
+
+| Court/Tribunal | Code | Cases | Years |
+|----------------|------|-------|-------|
+| Migration Review Tribunal | MRTA | 52,970 | 2000–2015 |
+| Administrative Appeals Tribunal | AATA | 39,203 | 2000–2024 |
+| Federal Court of Australia | FCA | 14,987 | 2000– |
+| Refugee Review Tribunal | RRTA | 13,765 | 2000–2015 |
+| Federal Circuit Court | FCCA | 11,157 | 2013–2021 |
+| Federal Magistrates Court | FMCA | 10,395 | 2000–2013 |
+| Federal Circuit and Family Court | FedCFamC2G | 4,109 | 2021– |
+| Administrative Review Tribunal | **ARTA** | 2,260 | 2024– |
+| High Court of Australia | HCA | 176 | 2000– |
 
 Cases are sourced from [AustLII](https://www.austlii.edu.au) (Australasian Legal Information Institute).
 
-> **Note**: The AAT was abolished in October 2024 and replaced by the Administrative Review Tribunal (ART). For cases from 2025 onwards, use the **ARTA** database code.
+> **Court lineage**: FMCA → FCCA → FedCFamC2G (lower court); MRTA+RRTA → AATA → ARTA (tribunal). AATA was abolished Oct 2024; use ARTA for 2025+ cases.
 
 ## Setup
 
@@ -50,17 +56,20 @@ npm run build                     # Production build → static/react/
 npm run tokens                    # Rebuild design tokens (CSS + TS)
 ```
 
-### Web Interface Features
+### Web Interface Pages
 
 | Page | What you can do |
 |------|-----------------|
-| **Dashboard** | View stats: total cases, cases by court/year, top outcomes, quick actions |
+| **Dashboard** | Stats: total cases, courts, outcomes, year trends |
 | **Cases** | Filter by court, year, visa type, nature, keyword, tags. Table & card views. Batch operations |
-| **Case Detail** | View metadata, catchwords, full text, related cases. Edit/delete actions |
+| **Analytics** | Success rate calculator, outcome analysis, judge analysis, legal concept intelligence |
+| **Judge Profiles** | Leaderboard, individual profiles, win rate analysis, judge comparison |
+| **Legislations** | Browse 6 Australian immigration laws (Migration Act 1958, etc.) |
+| **Case Detail** | Full metadata, catchwords, full text viewer with ToC, related cases |
 | **Case Compare** | Side-by-side comparison of 2–5 selected cases |
 | **Scrape AustLII** | Batch download full case texts with progress tracking |
 | **Smart Pipeline** | 3-phase automated workflow: crawl → clean → download |
-| **Data Dictionary** | Reference guide for all 22 data fields |
+| **Data Dictionary** | Reference guide for all 29 data fields |
 | **Design Tokens** | Live design token reference with theme presets |
 
 ## CLI Usage
@@ -77,9 +86,8 @@ python run.py search --max-results 1000                 # More results per datab
 ### Download full case texts
 
 ```bash
-python run.py download                      # Download all found cases
-python run.py download --courts FCA         # Download only Federal Court cases
-python run.py download --limit 50           # Limit to 50 downloads
+python download_fulltext.py       # Bulk download (resumable, saves every 200)
+python run.py download --courts FCA --limit 50
 ```
 
 ### Other CLI commands
@@ -89,113 +97,129 @@ python run.py list-databases    # List available databases
 python run.py --help            # Full help
 ```
 
-### CLI Options
-
-```
--v, --verbose       Enable verbose/debug logging
--o, --output DIR    Output directory (default: downloaded_cases)
---delay SECONDS     Delay between HTTP requests (default: 1.0)
-```
-
-## Output
-
-Results are saved to the `downloaded_cases/` directory:
+## Output Files
 
 ```
 downloaded_cases/
-  immigration_cases.csv       # All case metadata in CSV format
-  immigration_cases.json      # All case metadata in JSON format
+  immigration_cases.csv       # All 149,016 cases — 29 columns
+  immigration_cases.json      # Same data in JSON format
   summary_report.txt          # Summary statistics
-  case_texts/                 # Full text of downloaded cases
+  case_texts/                 # Full text files (~142,916 files, ~1.9 GB)
     [2024] AATA 1234.txt
     [2024] FCA 567.txt
     ...
 ```
 
-## Spreadsheet Data Points (CSV/JSON columns)
+## Data Fields (29 total)
 
-There are **22 data fields** per case, populated in stages:
+### Stage 1: Search metadata (auto-populated from AustLII listing pages)
 
-### Stage 1: Search (auto-populated from listing pages)
+| Field | Description | Example |
+|-------|-------------|---------|
+| `case_id` | 12-char SHA-256 hash (citation/URL/title) | `a3f8b2c1d4e5` |
+| `citation` | Legal citation | `[2024] AATA 1234` |
+| `title` | Case title / parties | `Smith v Minister for Immigration` |
+| `court` | Full court name | `Administrative Appeals Tribunal` |
+| `court_code` | Court abbreviation | `AATA`, `ARTA`, `FCA`, `FCCA`, `HCA` |
+| `year` | Decision year | `2024` |
+| `url` | Link to source document | `https://austlii.edu.au/...` |
+| `source` | Data source | `AustLII`, `Federal Court` |
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| `case_id` | Text | Auto-generated unique ID (12-char hash) | `a3f8b2c1d4e5` |
-| `citation` | Text | Legal citation | `[2024] AATA 1234` |
-| `title` | Text | Case title / parties | `Smith v Minister for Immigration` |
-| `court` | Text | Full court name | `Administrative Appeals Tribunal` |
-| `court_code` | Text | Court abbreviation | `AATA`, `ARTA`, `FCA`, `FCCA`, `HCA` |
-| `year` | Integer | Decision year | `2024` |
-| `url` | URL | Link to source document | `https://austlii.edu.au/...` |
-| `source` | Text | Where found | `AustLII`, `Federal Court` |
+### Stage 2: Full text extraction (regex + LLM, from downloaded case files)
 
-### Stage 2: Download (extracted from full case text)
+| Field | Description | Example |
+|-------|-------------|---------|
+| `date` | Decision date | `15 March 2024` |
+| `judges` | Judge / tribunal member | `Gabrielle Cullen` |
+| `catchwords` | Legal topics/keywords | `MIGRATION - Protection visa...` |
+| `outcome` | Decision result | `Tribunal affirms the decision` |
+| `visa_type` | Visa type involved | `protection visa`, `Subclass 500` |
+| `visa_subclass` | Visa subclass number | `500`, `801`, `189` |
+| `visa_class_code` | Visa class code | `XB`, `BW`, `VC` |
+| `legislation` | Acts/sections cited | `Migration Act 1958 s 36` |
+| `text_snippet` | Brief excerpt (first ~300 chars) | |
+| `full_text_path` | Local .txt file path | `downloaded_cases/case_texts/...` |
+| `case_nature` | Case nature (LLM-extracted) | `Refugee review`, `Visa cancellation` |
+| `legal_concepts` | Key legal concepts (LLM-extracted, `;`-separated) | `well-founded fear; complementary protection` |
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| `date` | Text | Decision date | `15 March 2024` |
-| `judges` | Text | Judge / tribunal member | `Gabrielle Cullen` |
-| `catchwords` | Text | Legal topics/keywords | `MIGRATION - Protection visa...` |
-| `outcome` | Text | Decision result | `Tribunal affirms the decision` |
-| `visa_type` | Text | Visa type involved | `protection visa`, `Subclass 500` |
-| `visa_subclass` | Text | Visa subclass number | `500`, `801`, `189` |
-| `visa_class_code` | Text | Visa class code | `XB`, `BW`, `VC` |
-| `legislation` | Text | Acts/sections cited | `Migration Act 1958 s 36` |
-| `text_snippet` | Text | Brief excerpt | (first ~300 chars) |
-| `full_text_path` | Path | Local .txt file path | `downloaded_cases/case_texts/...` |
-| `case_nature` | Text | Nature of the case (LLM-extracted) | `Refugee review`, `Visa cancellation` |
-| `legal_concepts` | Text | Key legal concepts (LLM-extracted) | `well-founded fear, complementary protection` |
+### Stage 3: Structured party/hearing fields (regex-extracted via `extract_structured_fields.py`)
 
-### Stage 3: User annotations (editable via web interface)
+| Field | Description | Coverage | Example |
+|-------|-------------|----------|---------|
+| `applicant_name` | Applicant / appellant name | ~42% | `Khan`, `Sidhu` |
+| `respondent` | Respondent name | ~19% | `Minister for Immigration` |
+| `country_of_origin` | Country of origin | ~29% | `Pakistan`, `China`, `Iran` |
+| `visa_subclass_number` | Numeric visa subclass | ~40% | `866`, `572`, `500` |
+| `hearing_date` | Hearing date (may differ from decision date) | ~42% | `17 February 2025` |
+| `is_represented` | Was applicant legally represented? | ~11% | `Yes`, `No` |
+| `representative` | Representative name / firm | ~7% | `Mr Jones, Counsel` |
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| `user_notes` | Text | Your personal notes/analysis | `Key case for s501 character test` |
-| `tags` | Text | Comma-separated labels | `important, character-test, s501` |
+### Stage 4: User annotations (editable via web interface)
 
-## Smart Pipeline
+| Field | Description | Example |
+|-------|-------------|---------|
+| `user_notes` | Personal notes/analysis | `Key case for s501 character test` |
+| `tags` | Comma-separated labels | `important, character-test, s501` |
 
-The Smart Pipeline provides a 3-phase automated workflow accessible from the web UI:
+## Extraction Pipeline
 
-1. **Crawl** — Scrape case metadata from AustLII with auto-fallback strategies (year listing → viewdb → keyword search)
-2. **Clean** — Deduplicate, fill missing fields (year from citation, court codes), validate data
-3. **Download** — Bulk download full case texts with resumable progress
-
-```bash
-# Via web UI: navigate to Smart Pipeline page
-# Via CLI:
-python run.py search --databases AATA ARTA FCA --start-year 2020
-python download_fulltext.py
-```
-
-## LLM Field Extraction
-
-For enriching cases with `case_nature` and `legal_concepts` fields:
+### LLM field extraction (case_nature, legal_concepts)
 
 ```bash
 python extract_llm_fields.py    # Process cases in batches via Claude Sonnet
 python merge_llm_results.py     # Merge batch JSON results back into main CSV
 ```
 
-## New Features (Feb 2026)
+### Structured field extraction (applicant, respondent, country, etc.)
 
-### 1. **澳洲移民法律瀏覽器** (Legislations Feature)
-Browse and search Australian immigration legislation with full i18n support (English + Traditional Chinese):
+```bash
+python extract_structured_fields.py             # Process all cases (skips existing)
+python extract_structured_fields.py --court AATA  # Only AATA cases
+python extract_structured_fields.py --dry-run   # Preview without saving
+```
 
-- **Pages**: Legislations list with search and pagination, detailed legislation view
-- **API**: `/api/v1/legislations/*` endpoints (list, detail, search)
-- **Data**: 6 Australian immigration laws in static JSON format
-- **Features**: Full-text search (minimum 2 characters), pagination, multi-language interface
+### Cloudflare Workers scraper (bulk full-text)
 
-Navigate to **"法律法規"** in the sidebar to explore.
+```bash
+python scripts/enqueue_urls.py    # Enqueue URLs → Cloudflare R2
+python scripts/sync_results.py    # Download R2 results → local CSV
+```
 
-### 2. **Supabase Cloud Sync**
-Cloud-based case database with PostgreSQL backend:
+## Analytics & Intelligence Features
 
-- **Synced Data**: 149,023 immigration cases
-- **Tools**: Supabase MCP for direct database access
-- **Configuration**: Already set up for IMMI-Case project
-- **Access**: Via Supabase Python client or MCP server
+The **Analytics page** (`/analytics`) provides lawyer-focused insights:
+
+- **Success Rate Calculator**: Filter by court, year range, visa subclass, case nature, legal concepts → shows win rate + confidence (High: N>100, Medium: N>50, Low: N<50)
+- **Outcome Analysis**: Distribution charts, court comparison, nature×outcome heatmap
+- **Judge Analysis**: Win rates by judge, court benchmark comparison, judge-to-judge comparison
+- **Concept Intelligence**: Legal concept effectiveness, concept trend lines (2000–2026), emerging concepts
+
+**Key data points** (149,016 cases):
+- 9 courts/tribunals, 8 outcome types (Affirmed 40%, Remitted 23%, Dismissed 16%...)
+- 20+ visa subclasses (Subclass 866 Refugee most common at 30%)
+- 15 case natures (Visa Refusal 18%, Judicial Review 17%, Protection Visa 15%...)
+- 20+ legal concepts, 15,465 unique judge/member names
+
+## Smart Pipeline
+
+The Smart Pipeline provides a 3-phase automated workflow:
+
+1. **Crawl** — Scrape case metadata from AustLII (year listing → viewdb → keyword search fallback)
+2. **Clean** — Deduplicate, fill missing fields, validate data
+3. **Download** — Bulk download full case texts (resumable, saves every 200)
+
+## Supabase Cloud
+
+Cases are synced to Supabase (PostgreSQL) for cloud access:
+
+```bash
+python migrate_csv_to_supabase.py           # Full sync (upsert all 149,016 cases)
+python migrate_csv_to_supabase.py --dry-run # Count only
+```
+
+- Project: Bsmart (`urntbuqczarkuoaosjxd`)
+- Schema: 5 migrations in `supabase/migrations/`
+- All 29 fields available, native full-text search via `to_tsvector`
 
 ## Tech Stack
 
@@ -204,15 +228,13 @@ Cloud-based case database with PostgreSQL backend:
 | **Backend** | Python 3, Flask, pandas, BeautifulSoup/lxml |
 | **Frontend** | React 18, TypeScript, Vite 6, Tailwind CSS v4, TanStack Query, Recharts, Sonner |
 | **Storage** | CSV/JSON (default), SQLite (FTS5+WAL), Supabase (PostgreSQL) |
-| **Testing** | pytest (296 unit tests), Playwright (181 E2E tests) |
+| **Testing** | pytest (296 unit tests), Playwright (231 E2E tests) |
 | **LLM** | Claude Sonnet (field extraction), 10 parallel sub-agents |
-| **MCP** | Context7 (knowledge retrieval), Supabase (database operations) |
+| **Scraper** | Cloudflare Workers + R2 (bulk), AustLII direct scraping |
 
-## Rate Limiting & User-Agent
+## Rate Limiting
 
-Built-in rate limiting (default: 1 second between requests) to be respectful to source servers. Adjust with `--delay` (CLI) or in config.
-
-> **Note**: AustLII blocks requests with the default `python-requests` User-Agent (HTTP 410). The scraper uses a browser-like User-Agent string to avoid this.
+Built-in rate limiting (default: 1 second between requests). AustLII blocks default `python-requests` User-Agent (HTTP 410) — the scraper uses a browser-like UA string. Bulk scraping may trigger IP blocks; typically resolves within hours.
 
 ## License
 

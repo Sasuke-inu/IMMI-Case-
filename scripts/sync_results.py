@@ -188,7 +188,7 @@ def update_csv(synced: list[dict], csv_path: Path):
         print(f"  CSV not found: {csv_path}")
         return
 
-    df = pd.read_csv(csv_path, encoding="utf-8-sig", dtype={"visa_subclass": str})
+    df = pd.read_csv(csv_path, encoding="utf-8-sig", dtype=str, low_memory=False)
     print(f"  CSV loaded: {len(df)} records")
 
     # Build lookup by URL for fast matching
