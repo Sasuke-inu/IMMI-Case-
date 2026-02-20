@@ -145,7 +145,11 @@ RE_HEARING_DATE = re.compile(
     re.IGNORECASE,
 )
 RE_HEARING_DATE2 = re.compile(
-    r"Date\s+of\s+hearing[:\s]+(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})",
+    r"Date\s+of\s+(?:hearing|hearing\s+and\s+decision)[:\s]+(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})",
+    re.IGNORECASE,
+)
+RE_DATE_HEARD = re.compile(
+    r"Date\s+heard\s*:?\s*(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})",
     re.IGNORECASE,
 )
 
@@ -194,6 +198,44 @@ RE_REP_BY = re.compile(
 )
 RE_APPLICANT_REP = re.compile(
     r"Applicant(?:'s)?\s+Representative\s*:?\s*\n?\s*(.+?)(?:\n|$)",
+    re.IGNORECASE,
+)
+# FCA/FCCA multiline format: "Counsel for the Appellant:\nMr X Solicitor for the Appellant:"
+RE_FCA_COUNSEL_APPELLANT = re.compile(
+    r"(?:Counsel|Solicitor)\s+for\s+(?:the\s+)?(?:Appellant|Applicant)s?:?\s*\n\s*"
+    r"([^\n]{3,80}?)(?:\s+(?:Solicitor|Counsel|Appearing)\s+for\s+the\s+|\s*\n|$)",
+    re.IGNORECASE,
+)
+# "For the Appellant: Mr Smith" pattern
+RE_FOR_APPELLANT = re.compile(
+    r"^For\s+(?:the\s+)?(?:Appellant|Applicant)s?:?\s+(.{3,80}?)(?:\n|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
+# "Migration Agent: [name]" label (MRTA/AATA cases)
+RE_MIGRATION_AGENT = re.compile(
+    r"(?:Migration\s+Agent|Registered\s+Migration\s+Agent)\s*:\s*\n?\s*(.+?)(?:\n|$)",
+    re.IGNORECASE,
+)
+# "appeared/appearing for the applicant: name"
+RE_APPEARED_FOR = re.compile(
+    r"(?:appeared?|appearing)\s+(?:on\s+behalf\s+of|for)\s+(?:the\s+)?(?:appellant|applicant)s?"
+    r"[:\s]+([A-Z][^\n]{2,60}?)(?:\n|$)",
+    re.IGNORECASE,
+)
+
+# Country of Reference label (RRTA structured header)
+RE_COUNTRY_REF = re.compile(
+    r"Country\s+of\s+(?:Reference|Origin|Citizenship)\s*:\s*\n?\s*(.+?)(?:\n|$)",
+    re.IGNORECASE,
+)
+# Nationality label
+RE_NATIONALITY_LABEL = re.compile(
+    r"Nationality\s*:\s*\n?\s*(.+?)(?:\n|$)",
+    re.IGNORECASE,
+)
+# "People's Republic of China" alias
+RE_PRC = re.compile(
+    r"(?:People'?s?\s+Republic\s+of\s+China|P\.R\.C\.?)\b",
     re.IGNORECASE,
 )
 
@@ -252,6 +294,35 @@ def _demonym_to_country(demonym: str) -> str:
 
 def extract_country(text: str) -> str:
     """Extract country of origin from case text."""
+    # Try structured "Country of Reference:" label first (RRTA, most reliable)
+    m = RE_COUNTRY_REF.search(text[:3000])
+    if m:
+        val = m.group(1).strip()
+        for c in COUNTRIES:
+            if c.lower() == val.lower():
+                return c
+        # Try demonym fallback
+        country = _demonym_to_country(val)
+        if country:
+            return country
+        if val:
+            return val  # Return as-is if not in list (e.g. "Iran, Islamic Republic of")
+
+    # Try "Nationality: [value]" label
+    m = RE_NATIONALITY_LABEL.search(text[:3000])
+    if m:
+        val = m.group(1).strip().rstrip(".,")
+        for c in COUNTRIES:
+            if c.lower() == val.lower():
+                return c
+        country = _demonym_to_country(val)
+        if country:
+            return country
+
+    # People's Republic of China → China
+    if RE_PRC.search(text[:8000]):
+        return "China"
+
     # Try "citizen/national of [Country]" first (most reliable)
     m = RE_CITIZEN_OF.search(text)
     if m:
@@ -411,13 +482,18 @@ def extract_hearing_date(text: str) -> str:
     if m:
         return m.group(1)
 
+    # Fallback: "Date heard: DD Month YYYY"
+    m = RE_DATE_HEARD.search(text[:5000])
+    if m:
+        return m.group(1)
+
     return ""
 
 
 def extract_representation(text: str) -> tuple[str, str]:
     """Extract representation info. Returns (is_represented, representative)."""
-    # Check first 3000 chars for representation info (usually in preamble)
-    preamble = text[:5000]
+    # Extend to 8000 chars — FCA appearance sections can be deeper in document
+    preamble = text[:8000]
 
     # Check for explicit self-representation
     if RE_SELF_REP.search(preamble):
@@ -442,6 +518,36 @@ def extract_representation(text: str) -> tuple[str, str]:
     if m:
         rep_name = m.group(1).strip()
         if rep_name.lower() not in ("the applicant is self-represented", "self-represented", ""):
+            return "Yes", rep_name
+
+    # FCA/FCCA multiline: "Counsel for the Appellant:\nMr X Solicitor for the..."
+    m = RE_FCA_COUNSEL_APPELLANT.search(preamble)
+    if m:
+        rep_name = m.group(1).strip()
+        # Strip any trailing label fragment that crept in
+        rep_name = re.sub(r"\s+(?:Solicitor|Counsel|Appearing)\s+.*$", "", rep_name, flags=re.IGNORECASE).strip()
+        if rep_name and len(rep_name) > 2 and not re.search(r"self[- ]represented|nil|none|n/a", rep_name, re.IGNORECASE):
+            return "Yes", rep_name
+
+    # "For the Appellant: Mr Smith" pattern
+    m = RE_FOR_APPELLANT.search(preamble)
+    if m:
+        rep_name = m.group(1).strip()
+        if rep_name and len(rep_name) > 2:
+            return "Yes", rep_name
+
+    # Migration Agent label (MRTA/AATA cases)
+    m = RE_MIGRATION_AGENT.search(preamble)
+    if m:
+        agent = m.group(1).strip()
+        if agent and not re.search(r"nil|none|n/a|unrepresented", agent, re.IGNORECASE):
+            return "Yes", agent
+
+    # "appeared for the applicant: name" pattern
+    m = RE_APPEARED_FOR.search(preamble)
+    if m:
+        rep_name = m.group(1).strip()
+        if rep_name and len(rep_name) > 2:
             return "Yes", rep_name
 
     return "", ""
@@ -485,9 +591,16 @@ def process_case(case_row: dict) -> dict:
     # If no applicant from title, try structured fields in text
     if not applicant_name and text:
         preamble = text[:3000]
+        # Try MRTA structured "REVIEW APPLICANT: Name" format (same-line or next-line)
+        m = re.search(r"REVIEW\s+APPLICANT\s*:\s*\n?\s*([^\n]{2,80}?)(?:\n|$)", preamble, re.IGNORECASE)
+        if m:
+            name = m.group(1).strip()
+            name = re.sub(r"\s*(?:CASE\s*NUMBER|FILE\s*NUMBER|DIBP\s*REF|PRESIDING|TRIBUNAL|MRT).*$", "", name, flags=re.IGNORECASE).strip()
+            if name and not name.replace(" ", "").isdigit() and len(name) > 1:
+                applicant_name = name
         # Try AATA structured "APPLICANT:\n\nName CASE NUMBER:" format
         m = RE_AATA_APPLICANT.search(preamble)
-        if m:
+        if m and not applicant_name:
             name = m.group(1).strip()
             # Clean trailing "CASE NUMBER:" fragment
             name = re.sub(r"\s*CASE\s*NUMBER.*$", "", name, flags=re.IGNORECASE).strip()
@@ -607,22 +720,26 @@ def main():
     stats = Counter()
     total = len(rows)
 
-    print(f"Processing {total} cases...")
+    print(f"Processing {total} cases with {args.workers} workers...")
 
-    for i, row in enumerate(rows):
-        extracted = process_case(row)
+    with ProcessPoolExecutor(max_workers=args.workers) as executor:
+        future_to_idx = {executor.submit(process_case, row): i for i, row in enumerate(rows)}
+        for completed, future in enumerate(as_completed(future_to_idx)):
+            i = future_to_idx[future]
+            row = rows[i]
+            extracted = future.result()
 
-        for field, value in extracted.items():
-            if value:
-                # Don't overwrite existing values — only fill empty fields
-                if not row.get(field):
-                    row[field] = value
-                    stats[f"{field}_extracted"] += 1
-                else:
-                    stats["skipped_existing"] += 1
+            for field, value in extracted.items():
+                if value:
+                    # Don't overwrite existing values — only fill empty fields
+                    if not row.get(field):
+                        row[field] = value
+                        stats[f"{field}_extracted"] += 1
+                    else:
+                        stats["skipped_existing"] += 1
 
-        if (i + 1) % 5000 == 0:
-            print(f"  Processed {i + 1}/{total}...")
+            if (completed + 1) % 5000 == 0:
+                print(f"  Processed {completed + 1}/{total}...")
 
     # Summary
     print(f"\n{'='*60}")
