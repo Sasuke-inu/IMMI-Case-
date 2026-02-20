@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { Sankey, Tooltip, Rectangle, Layer } from "recharts";
 import type { FlowMatrixData } from "@/types/case";
 
@@ -60,7 +60,31 @@ function SankeyNode({
   );
 }
 
+function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>) {
+  const [width, setWidth] = useState(700);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setWidth(Math.floor(entry.contentRect.width));
+      }
+    });
+    observer.observe(el);
+    setWidth(Math.floor(el.getBoundingClientRect().width));
+
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return width;
+}
+
 export function FlowSankeyChart({ data }: FlowSankeyChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(containerRef);
   const isEmpty = !data.nodes.length || !data.links.length;
 
   const layers = useMemo(() => {
@@ -80,7 +104,7 @@ export function FlowSankeyChart({ data }: FlowSankeyChartProps) {
   }
 
   return (
-    <div data-testid="flow-sankey-chart" className="space-y-2">
+    <div data-testid="flow-sankey-chart" ref={containerRef} className="space-y-2">
       <div className="flex justify-between px-4 text-xs font-medium text-muted-text">
         {layers.map((layer) => (
           <span key={layer}>{LAYER_LABELS[layer] ?? layer}</span>
@@ -88,7 +112,7 @@ export function FlowSankeyChart({ data }: FlowSankeyChartProps) {
       </div>
       <div className="overflow-x-auto">
         <Sankey
-          width={700}
+          width={Math.max(containerWidth, 300)}
           height={400}
           data={{ nodes: data.nodes, links: data.links }}
           node={<SankeyNode x={0} y={0} width={0} height={0} index={0} payload={{ name: "" }} />}

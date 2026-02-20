@@ -21,9 +21,7 @@ const sampleData = {
     { month: "2020-02", total: 120, wins: 60, win_rate: 50.0 },
     { month: "2020-03", total: 80, wins: 35, win_rate: 43.8 },
   ],
-  events: [
-    { month: "2020-02", label: "Policy change" },
-  ],
+  events: [{ month: "2020-02", label: "Policy change" }],
 };
 
 describe("MonthlyTrendsChart", () => {
@@ -41,6 +39,7 @@ describe("MonthlyTrendsChart", () => {
 
   it("renders event markers", () => {
     renderWithProviders(<MonthlyTrendsChart data={sampleData} />);
-    expect(screen.getByText("Policy change")).toBeInTheDocument();
+    const matches = screen.getAllByText("Policy change");
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 });

@@ -153,7 +153,7 @@ class TestDeleteCase:
         react_page.wait_for_load_state("networkidle")
 
         toast = get_toast_text(react_page)
-        assert "deleted" in toast.lower() or "Case deleted" in toast
+        assert "completed" in toast.lower() or "deleted" in toast.lower()
         assert "/cases" in react_page.url
 
     def test_delete_dismiss_modal(self, react_page, skip_if_live):

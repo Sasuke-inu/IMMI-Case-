@@ -208,14 +208,15 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 
 **相關文件**：
 - Supabase 專案 URL: `https://urntbuqczarkuoaosjxd.supabase.co`
-- 數據狀態: 149,023 個案件記錄已同步至 Supabase
+- 數據狀態: 149,016 個案件記錄已同步至 Supabase
 - 認證方式: Publishable API Key (環境變數: `SUPABASE_ANON_KEY`)
 
 ## Important Notes
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
-- **149,023 case records** (2000-2026): ~62,500 with full text, ~86,500 metadata only (full text pending)
+- **149,016 case records** (2000-2026): ~62,500 with full text, ~86,500 metadata only (full text pending)
 - 9 courts/tribunals: MRTA 52,970 | AATA 39,203 | FCA 14,987 | RRTA 13,765 | FCCA 11,157 | FMCA 10,395 | FedCFamC2G 4,109 | ARTA 2,260 | HCA 176
+- **Supabase Cloud**: 149,016 records fully synced (Project: Bsmart, `urntbuqczarkuoaosjxd`)
 - Rate limiting enforced at `BaseScraper` level; respect default 1-second delay
 - Test suite: 527 tests (296 unit + 231 Playwright E2E) — run `python3 -m pytest`
 - CSRF protection via flask-wtf; `/api/v1/csrf-token` endpoint for React SPA

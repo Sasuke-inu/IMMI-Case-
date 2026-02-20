@@ -51,7 +51,8 @@ class TestHeroSection:
 
     def test_source_link(self, react_page):
         _navigate_to_seed_case(react_page)
-        link = react_page.get_by_role("link", name="Source")
+        # Link text is t("cases.url") = "AustLII URL"
+        link = react_page.get_by_role("link", name="AustLII URL")
         assert link.is_visible()
         href = link.get_attribute("href") or ""
         assert "austlii.edu.au" in href

@@ -2,6 +2,23 @@ import { vi, beforeEach, afterEach } from "vitest";
 import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
+// Mock ResizeObserver (not available in jsdom)
+globalThis.ResizeObserver = class ResizeObserver {
+  private cb: ResizeObserverCallback;
+  constructor(cb: ResizeObserverCallback) {
+    this.cb = cb;
+  }
+  observe() {
+    // Fire callback once with a mock entry
+    this.cb(
+      [{ contentRect: { width: 800, height: 600 } } as ResizeObserverEntry],
+      this,
+    );
+  }
+  unobserve() {}
+  disconnect() {}
+};
+
 // Cleanup after each test
 afterEach(() => {
   cleanup();

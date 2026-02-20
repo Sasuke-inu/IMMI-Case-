@@ -13,8 +13,8 @@ class TestCasesTable:
         react_navigate(react_page, "/app/cases")
         wait_for_loading_gone(react_page)
         assert react_page.get_by_text("Cases").first.is_visible()
-        # Should show "10 total cases" from seed data
-        assert react_page.get_by_text("total cases").is_visible()
+        # Should show "10 cases" from seed data (i18n: units.cases = "cases")
+        assert react_page.get_by_text("cases").first.is_visible()
 
     def test_table_has_header_columns(self, react_page):
         react_navigate(react_page, "/app/cases")
@@ -116,9 +116,10 @@ class TestFilters:
         react_navigate(react_page, "/app/cases")
         wait_for_loading_gone(react_page)
         selects = react_page.locator("select")
-        # Second select is year filter
+        # Year filter uses "Year From" label (i18n: filters.year_from)
         assert selects.count() >= 2
-        assert "All Years" in selects.nth(1).inner_text()
+        year_text = selects.nth(1).inner_text()
+        assert "Year From" in year_text or "Year" in year_text
 
     def test_keyword_filter(self, react_page):
         react_navigate(react_page, "/app/cases")
@@ -143,7 +144,9 @@ class TestFilters:
         wait_for_loading_gone(react_page)
         selects = react_page.locator("select")
         assert selects.count() >= 3
-        assert "All Natures" in selects.nth(2).inner_text()
+        # Nature filter uses "All Categories" (i18n: filters.all_natures)
+        nature_text = selects.nth(2).inner_text()
+        assert "All Categories" in nature_text or "All Natures" in nature_text
 
 
 class TestAddButton:

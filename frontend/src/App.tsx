@@ -1,24 +1,79 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { DashboardPage } from "@/pages/DashboardPage";
-import { CasesPage } from "@/pages/CasesPage";
-import { CaseDetailPage } from "@/pages/CaseDetailPage";
-import { CaseEditPage } from "@/pages/CaseEditPage";
-import { CaseAddPage } from "@/pages/CaseAddPage";
-import { CaseComparePage } from "@/pages/CaseComparePage";
-import { DownloadPage } from "@/pages/DownloadPage";
-import { JobStatusPage } from "@/pages/JobStatusPage";
-import { PipelinePage } from "@/pages/PipelinePage";
-import { DataDictionaryPage } from "@/pages/DataDictionaryPage";
-import { DesignTokensPage } from "@/pages/DesignTokensPage";
-import { AnalyticsPage } from "@/pages/AnalyticsPage";
-import { JudgeProfilesPage } from "@/pages/JudgeProfilesPage";
-import { JudgeDetailPage } from "@/pages/JudgeDetailPage";
-import { JudgeComparePage } from "@/pages/JudgeComparePage";
-import { LegislationsPage } from "@/pages/LegislationsPage";
-import { LegislationDetailPage } from "@/pages/LegislationDetailPage";
+import { PageLoader } from "@/components/shared/PageLoader";
+
+const DashboardPage = lazy(() =>
+  import("@/pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
+);
+const CasesPage = lazy(() =>
+  import("@/pages/CasesPage").then((m) => ({ default: m.CasesPage }))
+);
+const CaseDetailPage = lazy(() =>
+  import("@/pages/CaseDetailPage").then((m) => ({
+    default: m.CaseDetailPage,
+  }))
+);
+const CaseEditPage = lazy(() =>
+  import("@/pages/CaseEditPage").then((m) => ({ default: m.CaseEditPage }))
+);
+const CaseAddPage = lazy(() =>
+  import("@/pages/CaseAddPage").then((m) => ({ default: m.CaseAddPage }))
+);
+const CaseComparePage = lazy(() =>
+  import("@/pages/CaseComparePage").then((m) => ({
+    default: m.CaseComparePage,
+  }))
+);
+const DownloadPage = lazy(() =>
+  import("@/pages/DownloadPage").then((m) => ({ default: m.DownloadPage }))
+);
+const JobStatusPage = lazy(() =>
+  import("@/pages/JobStatusPage").then((m) => ({ default: m.JobStatusPage }))
+);
+const PipelinePage = lazy(() =>
+  import("@/pages/PipelinePage").then((m) => ({ default: m.PipelinePage }))
+);
+const DataDictionaryPage = lazy(() =>
+  import("@/pages/DataDictionaryPage").then((m) => ({
+    default: m.DataDictionaryPage,
+  }))
+);
+const DesignTokensPage = lazy(() =>
+  import("@/pages/DesignTokensPage").then((m) => ({
+    default: m.DesignTokensPage,
+  }))
+);
+const AnalyticsPage = lazy(() =>
+  import("@/pages/AnalyticsPage").then((m) => ({ default: m.AnalyticsPage }))
+);
+const JudgeProfilesPage = lazy(() =>
+  import("@/pages/JudgeProfilesPage").then((m) => ({
+    default: m.JudgeProfilesPage,
+  }))
+);
+const JudgeDetailPage = lazy(() =>
+  import("@/pages/JudgeDetailPage").then((m) => ({
+    default: m.JudgeDetailPage,
+  }))
+);
+const JudgeComparePage = lazy(() =>
+  import("@/pages/JudgeComparePage").then((m) => ({
+    default: m.JudgeComparePage,
+  }))
+);
+const LegislationsPage = lazy(() =>
+  import("@/pages/LegislationsPage").then((m) => ({
+    default: m.LegislationsPage,
+  }))
+);
+const LegislationDetailPage = lazy(() =>
+  import("@/pages/LegislationDetailPage").then((m) => ({
+    default: m.LegislationDetailPage,
+  }))
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,29 +90,142 @@ export default function App() {
       <BrowserRouter basename="/app">
         <Routes>
           <Route element={<AppLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="cases" element={<CasesPage />} />
-            <Route path="cases/add" element={<CaseAddPage />} />
-            <Route path="cases/compare" element={<CaseComparePage />} />
-            <Route path="cases/:id" element={<CaseDetailPage />} />
-            <Route path="cases/:id/edit" element={<CaseEditPage />} />
-            <Route path="legislations" element={<LegislationsPage />} />
+            <Route
+              index
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="cases"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CasesPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="cases/add"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CaseAddPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="cases/compare"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CaseComparePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="cases/:id"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CaseDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="cases/:id/edit"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CaseEditPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="legislations"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <LegislationsPage />
+                </Suspense>
+              }
+            />
             <Route
               path="legislations/:legislationId"
-              element={<LegislationDetailPage />}
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <LegislationDetailPage />
+                </Suspense>
+              }
             />
-            <Route path="download" element={<DownloadPage />} />
-            <Route path="jobs" element={<JobStatusPage />} />
-            <Route path="pipeline" element={<PipelinePage />} />
-            <Route path="analytics" element={<AnalyticsPage />} />
-            <Route path="judge-profiles" element={<JudgeProfilesPage />} />
+            <Route
+              path="download"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <DownloadPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="jobs"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <JobStatusPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="pipeline"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <PipelinePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="analytics"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AnalyticsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="judge-profiles"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <JudgeProfilesPage />
+                </Suspense>
+              }
+            />
             <Route
               path="judge-profiles/compare"
-              element={<JudgeComparePage />}
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <JudgeComparePage />
+                </Suspense>
+              }
             />
-            <Route path="judge-profiles/:name" element={<JudgeDetailPage />} />
-            <Route path="data-dictionary" element={<DataDictionaryPage />} />
-            <Route path="design-tokens" element={<DesignTokensPage />} />
+            <Route
+              path="judge-profiles/:name"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <JudgeDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="data-dictionary"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <DataDictionaryPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="design-tokens"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <DesignTokensPage />
+                </Suspense>
+              }
+            />
           </Route>
         </Routes>
       </BrowserRouter>

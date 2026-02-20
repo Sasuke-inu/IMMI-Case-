@@ -53,7 +53,7 @@ class TestBatchBar:
         react_navigate(react_page, "/app/cases")
         wait_for_loading_gone(react_page)
         react_page.locator("thead input[type='checkbox']").click()
-        assert react_page.get_by_text("Tag", exact=True).is_visible()
+        assert react_page.get_by_text("Tags", exact=True).is_visible()
 
     def test_batch_bar_has_delete_button(self, react_page):
         react_navigate(react_page, "/app/cases")
@@ -76,7 +76,7 @@ class TestBatchBar:
         wait_for_loading_gone(react_page)
         react_page.locator("tbody input[type='checkbox']").first.click()
         setup_dialog_handler(react_page, accept=True, prompt_text="e2e-batch-tag")
-        react_page.get_by_text("Tag", exact=True).click()
+        react_page.get_by_text("Tags", exact=True).click()
         react_page.wait_for_load_state("networkidle")
         toast = get_toast_text(react_page)
         assert "updated" in toast.lower() or "cases updated" in toast.lower()
@@ -87,7 +87,7 @@ class TestBatchBar:
         wait_for_loading_gone(react_page)
         react_page.locator("tbody input[type='checkbox']").first.click()
         setup_dialog_handler(react_page, accept=False)
-        react_page.get_by_text("Tag", exact=True).click()
+        react_page.get_by_text("Tags", exact=True).click()
         react_page.wait_for_timeout(500)
         # Selection should still be active
         assert react_page.get_by_text("1 selected").is_visible()
