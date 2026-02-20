@@ -325,5 +325,20 @@ class TestKnownLaws:
             assert "/" in meta["austlii_id"], f"{law_id} austlii_id has no '/'"
             assert meta["austlii_id"].startswith("consol_"), f"{law_id} austlii_id should start with consol_"
 
-    def test_six_laws_defined(self):
-        assert len(KNOWN_LAWS) == 6
+    def test_five_laws_defined(self):
+        # AATA 1975 was repealed Oct 2024 (replaced by ARTA 2024) and removed from AustLII.
+        assert len(KNOWN_LAWS) == 5
+
+    def test_austlii_ids_are_current(self):
+        """Verify the AustLII IDs match confirmed live URLs (updated 2026-02-21)."""
+        expected = {
+            "migration-act-1958": "consol_act/ma1958118",
+            "migration-regulations-1994": "consol_reg/mr1994227",
+            "australian-citizenship-act-2007": "consol_act/aca2007254",
+            "australian-border-force-act-2015": "consol_act/abfa2015225",
+            "administrative-review-tribunal-act-2024": "consol_act/arta2024336",
+        }
+        for law_id, expected_id in expected.items():
+            assert KNOWN_LAWS[law_id]["austlii_id"] == expected_id, (
+                f"{law_id}: expected {expected_id}, got {KNOWN_LAWS[law_id]['austlii_id']}"
+            )

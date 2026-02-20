@@ -27,7 +27,7 @@ AUSTLII_LEGIS_BASE = "https://www.austlii.edu.au/au/legis/cth"
 # The numeric suffix in the path is the AustLII-assigned database number.
 KNOWN_LAWS: dict[str, dict] = {
     "migration-act-1958": {
-        "austlii_id": "consol_act/ma1958116",
+        "austlii_id": "consol_act/ma1958118",
         "title": "Migration Act 1958",
         "shortcode": "MA1958",
         "type": "Act",
@@ -60,7 +60,7 @@ KNOWN_LAWS: dict[str, dict] = {
         ),
     },
     "australian-border-force-act-2015": {
-        "austlii_id": "consol_act/abfa2015209",
+        "austlii_id": "consol_act/abfa2015225",
         "title": "Australian Border Force Act 2015",
         "shortcode": "ABFA2015",
         "type": "Act",
@@ -71,7 +71,7 @@ KNOWN_LAWS: dict[str, dict] = {
         ),
     },
     "administrative-review-tribunal-act-2024": {
-        "austlii_id": "consol_act/arta2024319",
+        "austlii_id": "consol_act/arta2024336",
         "title": "Administrative Review Tribunal Act 2024",
         "shortcode": "ARTA2024",
         "type": "Act",
@@ -81,17 +81,9 @@ KNOWN_LAWS: dict[str, dict] = {
             "replacing the AAT from October 2024 for merits review of migration decisions."
         ),
     },
-    "administrative-appeals-tribunal-act-1975": {
-        "austlii_id": "consol_act/aata1975228",
-        "title": "Administrative Appeals Tribunal Act 1975",
-        "shortcode": "AATA1975",
-        "type": "Act",
-        "jurisdiction": "Commonwealth",
-        "description": (
-            "Historical legislation governing the Administrative Appeals Tribunal (AAT), "
-            "predecessor to the ART (2000–2024). Relevant for older case law."
-        ),
-    },
+    # NOTE: Administrative Appeals Tribunal Act 1975 (AATA) was repealed in October 2024
+    # when it was replaced by the Administrative Review Tribunal Act 2024 (ARTA).
+    # AustLII has permanently removed it (HTTP 410). Use ARTA 2024 for current law.
 }
 
 # Type alias for progress callback
@@ -244,8 +236,9 @@ class LegislationScraper(BaseScraper):
                 continue
 
             # Section pages end in s{digit}.html (e.g. s1.html, s501a.html)
+            # Regulations use dot-notation: s1.03.html, s1.05a.html
             # Excludes schedules (sch1.html) by requiring digit after 's'
-            m = re.match(r"(s\d[\w]*\.html)$", href, re.IGNORECASE)
+            m = re.match(r"(s\d[\d.a-zA-Z]*\.html)$", href, re.IGNORECASE)
             if not m:
                 continue
 
