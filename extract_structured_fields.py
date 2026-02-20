@@ -723,12 +723,9 @@ def main():
     print(f"Processing {total} cases with {args.workers} workers...")
 
     with ProcessPoolExecutor(max_workers=args.workers) as executor:
-        future_to_idx = {executor.submit(process_case, row): i for i, row in enumerate(rows)}
-        for completed, future in enumerate(as_completed(future_to_idx)):
-            i = future_to_idx[future]
-            row = rows[i]
-            extracted = future.result()
-
+        for completed, (row, extracted) in enumerate(
+            zip(rows, executor.map(process_case, rows, chunksize=500))
+        ):
             for field, value in extracted.items():
                 if value:
                     # Don't overwrite existing values — only fill empty fields
