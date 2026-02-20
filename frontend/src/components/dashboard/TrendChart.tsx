@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AreaChart,
@@ -29,7 +30,7 @@ interface TrendChartProps {
   data: TrendEntry[];
 }
 
-export function TrendChart({ data }: TrendChartProps) {
+function TrendChartInner({ data }: TrendChartProps) {
   const { t } = useTranslation();
   if (!data || data.length === 0) return null;
 
@@ -122,3 +123,5 @@ export function TrendChart({ data }: TrendChartProps) {
     </ResponsiveContainer>
   );
 }
+
+export const TrendChart = memo(TrendChartInner);

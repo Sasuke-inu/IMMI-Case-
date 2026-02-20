@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -14,7 +15,7 @@ interface OutcomeFunnelChartProps {
   lossCount: number;
 }
 
-export function OutcomeFunnelChart({
+function OutcomeFunnelChartInner({
   winCount,
   lossCount,
 }: OutcomeFunnelChartProps) {
@@ -72,3 +73,5 @@ export function OutcomeFunnelChart({
     </ResponsiveContainer>
   );
 }
+
+export const OutcomeFunnelChart = memo(OutcomeFunnelChartInner);

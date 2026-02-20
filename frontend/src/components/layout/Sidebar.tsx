@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { prefetchRoute } from "@/lib/prefetch";
 
 interface NavItem {
   readonly to: string;
@@ -119,6 +120,8 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 to={to}
                 end={to === "/"}
                 title={description ?? label}
+                onMouseEnter={() => prefetchRoute(to)}
+                onFocus={() => prefetchRoute(to)}
                 className={({ isActive }) =>
                   cn(
                     "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   BarChart,
@@ -14,7 +15,7 @@ interface OutcomeBySubclassChartProps {
   limit?: number;
 }
 
-export function OutcomeBySubclassChart({
+function OutcomeBySubclassChartInner({
   data,
   limit = 12,
 }: OutcomeBySubclassChartProps) {
@@ -102,3 +103,5 @@ export function OutcomeBySubclassChart({
     </ResponsiveContainer>
   );
 }
+
+export const OutcomeBySubclassChart = memo(OutcomeBySubclassChartInner);

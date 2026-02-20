@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -31,10 +32,13 @@ interface MonthlyTrendsChartProps {
   data: MonthlyTrendsData;
 }
 
-export function MonthlyTrendsChart({ data }: MonthlyTrendsChartProps) {
+function MonthlyTrendsChartInner({ data }: MonthlyTrendsChartProps) {
   if (!data.series.length) {
     return (
-      <div data-testid="monthly-trends-chart" className="py-12 text-center text-muted-text">
+      <div
+        data-testid="monthly-trends-chart"
+        className="py-12 text-center text-muted-text"
+      >
         No monthly data available
       </div>
     );
@@ -124,3 +128,5 @@ export function MonthlyTrendsChart({ data }: MonthlyTrendsChartProps) {
     </div>
   );
 }
+
+export const MonthlyTrendsChart = memo(MonthlyTrendsChartInner);

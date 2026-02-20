@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import type { ConceptTrendData } from "@/types/case";
@@ -6,7 +7,7 @@ interface EmergingConceptsBadgesProps {
   data: ConceptTrendData;
 }
 
-export function EmergingConceptsBadges({ data }: EmergingConceptsBadgesProps) {
+function EmergingConceptsBadgesInner({ data }: EmergingConceptsBadgesProps) {
   const { t } = useTranslation();
   const hasEmerging = data.emerging.length > 0;
   const hasDeclining = data.declining.length > 0;
@@ -61,3 +62,5 @@ export function EmergingConceptsBadges({ data }: EmergingConceptsBadgesProps) {
     </div>
   );
 }
+
+export const EmergingConceptsBadges = memo(EmergingConceptsBadgesInner);

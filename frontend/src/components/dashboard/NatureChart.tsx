@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -38,7 +39,7 @@ interface NatureChartProps {
   data: Record<string, number>;
 }
 
-export function NatureChart({ data }: NatureChartProps) {
+function NatureChartInner({ data }: NatureChartProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const chartData = Object.entries(data)
@@ -108,3 +109,5 @@ export function NatureChart({ data }: NatureChartProps) {
     </ResponsiveContainer>
   );
 }
+
+export const NatureChart = memo(NatureChartInner);

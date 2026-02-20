@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Calendar, User, Briefcase } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CourtBadge } from "@/components/shared/CourtBadge";
@@ -10,7 +11,7 @@ interface CaseCardProps {
   onClick: () => void;
 }
 
-export function CaseCard({ case_: c, onClick }: CaseCardProps) {
+function CaseCardInner({ case_: c, onClick }: CaseCardProps) {
   // i18n support ready; currently all metadata comes from case data props
   useTranslation();
   const accentColor = courtColors[c.court_code] ?? "#6b7585";
@@ -84,3 +85,5 @@ export function CaseCard({ case_: c, onClick }: CaseCardProps) {
     </button>
   );
 }
+
+export const CaseCard = memo(CaseCardInner);

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -9,7 +10,7 @@ interface ChartCardProps {
   className?: string;
 }
 
-export function ChartCard({
+function ChartCardInner({
   title,
   children,
   isLoading,
@@ -20,6 +21,7 @@ export function ChartCard({
 
   return (
     <div
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 400px" }}
       className={`flex h-full flex-col rounded-lg border border-border bg-card p-4 ${className ?? ""}`}
     >
       <h3 className="mb-3 font-heading text-base font-semibold text-foreground">
@@ -42,3 +44,5 @@ export function ChartCard({
     </div>
   );
 }
+
+export const ChartCard = memo(ChartCardInner);

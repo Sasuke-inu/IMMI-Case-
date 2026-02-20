@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import type { SuccessRateCombo } from "@/types/case";
 
@@ -13,7 +14,7 @@ function liftTone(lift: number) {
   return "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200";
 }
 
-export function ConceptComboTable({ combos }: ConceptComboTableProps) {
+function ConceptComboTableInner({ combos }: ConceptComboTableProps) {
   const { t } = useTranslation();
   if (!combos.length) {
     return (
@@ -63,3 +64,5 @@ export function ConceptComboTable({ combos }: ConceptComboTableProps) {
     </div>
   );
 }
+
+export const ConceptComboTable = memo(ConceptComboTableInner);

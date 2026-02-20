@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ResponsiveContainer,
@@ -14,7 +15,7 @@ interface ConceptCourtBreakdownProps {
   data: ConceptEffectivenessData;
 }
 
-export function ConceptCourtBreakdown({ data }: ConceptCourtBreakdownProps) {
+function ConceptCourtBreakdownInner({ data }: ConceptCourtBreakdownProps) {
   const { t } = useTranslation();
   const concepts = data.concepts.slice(0, 8);
   const courts = Array.from(
@@ -80,3 +81,5 @@ export function ConceptCourtBreakdown({ data }: ConceptCourtBreakdownProps) {
     </ResponsiveContainer>
   );
 }
+
+export const ConceptCourtBreakdown = memo(ConceptCourtBreakdownInner);

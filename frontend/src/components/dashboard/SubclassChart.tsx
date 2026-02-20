@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -58,7 +59,7 @@ interface SubclassChartProps {
   data: Record<string, number>;
 }
 
-export function SubclassChart({ data }: SubclassChartProps) {
+function SubclassChartInner({ data }: SubclassChartProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const chartData = Object.entries(data)
@@ -135,3 +136,5 @@ export function SubclassChart({ data }: SubclassChartProps) {
     </ResponsiveContainer>
   );
 }
+
+export const SubclassChart = memo(SubclassChartInner);

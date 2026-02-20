@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   BarChart,
   Bar,
@@ -23,7 +24,7 @@ interface OutcomeByCourtChartProps {
   data: Record<string, Record<string, number>>;
 }
 
-export function OutcomeByCourtChart({ data }: OutcomeByCourtChartProps) {
+function OutcomeByCourtChartInner({ data }: OutcomeByCourtChartProps) {
   const outcomeSet = new Set<string>();
   for (const outcomes of Object.values(data)) {
     for (const key of Object.keys(outcomes)) outcomeSet.add(key);
@@ -104,3 +105,5 @@ export function OutcomeByCourtChart({ data }: OutcomeByCourtChartProps) {
     </ResponsiveContainer>
   );
 }
+
+export const OutcomeByCourtChart = memo(OutcomeByCourtChartInner);

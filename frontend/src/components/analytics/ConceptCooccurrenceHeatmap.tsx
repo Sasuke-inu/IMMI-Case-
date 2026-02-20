@@ -1,6 +1,6 @@
+import { Fragment, memo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ConceptCooccurrenceData } from "@/types/case";
-import { Fragment } from "react";
 
 interface ConceptCooccurrenceHeatmapProps {
   data: ConceptCooccurrenceData;
@@ -12,7 +12,7 @@ function toColor(winRate: number, count: number): string {
   return `rgba(26, 82, 118, ${intensity})`;
 }
 
-export function ConceptCooccurrenceHeatmap({
+function ConceptCooccurrenceHeatmapInner({
   data,
 }: ConceptCooccurrenceHeatmapProps) {
   const { t } = useTranslation();
@@ -82,3 +82,5 @@ export function ConceptCooccurrenceHeatmap({
     </div>
   );
 }
+
+export const ConceptCooccurrenceHeatmap = memo(ConceptCooccurrenceHeatmapInner);

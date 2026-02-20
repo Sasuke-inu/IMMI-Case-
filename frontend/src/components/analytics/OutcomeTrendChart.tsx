@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AreaChart,
@@ -14,7 +15,7 @@ interface OutcomeTrendChartProps {
   data: Record<string, Record<string, number>>;
 }
 
-export function OutcomeTrendChart({ data }: OutcomeTrendChartProps) {
+function OutcomeTrendChartInner({ data }: OutcomeTrendChartProps) {
   const { t } = useTranslation();
   const chartData = Object.entries(data)
     .map(([yearStr, outcomes]) => {
@@ -118,3 +119,5 @@ export function OutcomeTrendChart({ data }: OutcomeTrendChartProps) {
     </ResponsiveContainer>
   );
 }
+
+export const OutcomeTrendChart = memo(OutcomeTrendChartInner);

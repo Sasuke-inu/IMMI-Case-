@@ -1,11 +1,11 @@
-import { Fragment } from "react";
+import { Fragment, memo } from "react";
 import type { NatureOutcomeData } from "@/types/case";
 
 interface NatureOutcomeHeatmapProps {
   data: NatureOutcomeData;
 }
 
-export function NatureOutcomeHeatmap({ data }: NatureOutcomeHeatmapProps) {
+function NatureOutcomeHeatmapInner({ data }: NatureOutcomeHeatmapProps) {
   const { natures, outcomes, matrix } = data;
 
   // Find global max for opacity scaling
@@ -81,3 +81,5 @@ export function NatureOutcomeHeatmap({ data }: NatureOutcomeHeatmapProps) {
     </div>
   );
 }
+
+export const NatureOutcomeHeatmap = memo(NatureOutcomeHeatmapInner);

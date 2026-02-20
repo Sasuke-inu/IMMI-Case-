@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   BarChart,
   Bar,
@@ -23,7 +24,7 @@ function titleCase(name: string): string {
     .join(" ");
 }
 
-export function TopJudgesChart({ data }: TopJudgesChartProps) {
+function TopJudgesChartInner({ data }: TopJudgesChartProps) {
   const { t } = useTranslation();
   const chartData = data.slice(0, 12).map((j) => {
     const normalized = titleCase(j.name);
@@ -108,3 +109,5 @@ export function TopJudgesChart({ data }: TopJudgesChartProps) {
     </div>
   );
 }
+
+export const TopJudgesChart = memo(TopJudgesChartInner);

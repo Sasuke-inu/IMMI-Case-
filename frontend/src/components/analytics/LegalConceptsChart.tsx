@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   BarChart,
   Bar,
@@ -13,7 +14,7 @@ interface LegalConceptsChartProps {
   data: ConceptEntry[];
 }
 
-export function LegalConceptsChart({ data }: LegalConceptsChartProps) {
+function LegalConceptsChartInner({ data }: LegalConceptsChartProps) {
   const { t } = useTranslation();
   const chartData = data.slice(0, 12).map((c) => ({
     ...c,
@@ -75,3 +76,5 @@ export function LegalConceptsChart({ data }: LegalConceptsChartProps) {
     </ResponsiveContainer>
   );
 }
+
+export const LegalConceptsChart = memo(LegalConceptsChartInner);

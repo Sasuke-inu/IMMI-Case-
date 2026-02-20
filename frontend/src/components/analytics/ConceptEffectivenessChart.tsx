@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ResponsiveContainer,
@@ -14,7 +15,7 @@ interface ConceptEffectivenessChartProps {
   data: ConceptEffectivenessData;
 }
 
-export function ConceptEffectivenessChart({
+function ConceptEffectivenessChartInner({
   data,
 }: ConceptEffectivenessChartProps) {
   const { t } = useTranslation();
@@ -83,3 +84,5 @@ export function ConceptEffectivenessChart({
     </ResponsiveContainer>
   );
 }
+
+export const ConceptEffectivenessChart = memo(ConceptEffectivenessChartInner);

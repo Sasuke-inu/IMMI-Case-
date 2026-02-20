@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -24,7 +25,7 @@ const COLORS = [
   "#117864",
 ];
 
-export function ConceptTrendChart({ data }: ConceptTrendChartProps) {
+function ConceptTrendChartInner({ data }: ConceptTrendChartProps) {
   const { t } = useTranslation();
   const concepts = Object.keys(data.series).slice(0, 6);
   const years = new Set<number>();
@@ -96,3 +97,5 @@ export function ConceptTrendChart({ data }: ConceptTrendChartProps) {
     </ResponsiveContainer>
   );
 }
+
+export const ConceptTrendChart = memo(ConceptTrendChartInner);

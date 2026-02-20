@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from "react";
+import { memo, useMemo, useRef, useState, useEffect } from "react";
 import { Sankey, Tooltip, Rectangle, Layer } from "recharts";
 import type { FlowMatrixData } from "@/types/case";
 
@@ -82,7 +82,7 @@ function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>) {
   return width;
 }
 
-export function FlowSankeyChart({ data }: FlowSankeyChartProps) {
+function FlowSankeyChartInner({ data }: FlowSankeyChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
   const isEmpty = !data.nodes.length || !data.links.length;
@@ -97,14 +97,21 @@ export function FlowSankeyChart({ data }: FlowSankeyChartProps) {
 
   if (isEmpty) {
     return (
-      <div data-testid="flow-sankey-chart" className="py-12 text-center text-muted-text">
+      <div
+        data-testid="flow-sankey-chart"
+        className="py-12 text-center text-muted-text"
+      >
         No flow data available
       </div>
     );
   }
 
   return (
-    <div data-testid="flow-sankey-chart" ref={containerRef} className="space-y-2">
+    <div
+      data-testid="flow-sankey-chart"
+      ref={containerRef}
+      className="space-y-2"
+    >
       <div className="flex justify-between px-4 text-xs font-medium text-muted-text">
         {layers.map((layer) => (
           <span key={layer}>{LAYER_LABELS[layer] ?? layer}</span>
@@ -115,7 +122,16 @@ export function FlowSankeyChart({ data }: FlowSankeyChartProps) {
           width={Math.max(containerWidth, 300)}
           height={400}
           data={{ nodes: data.nodes, links: data.links }}
-          node={<SankeyNode x={0} y={0} width={0} height={0} index={0} payload={{ name: "" }} />}
+          node={
+            <SankeyNode
+              x={0}
+              y={0}
+              width={0}
+              height={0}
+              index={0}
+              payload={{ name: "" }}
+            />
+          }
           link={{ stroke: "var(--color-border, #d1d5db)" }}
           margin={{ top: 10, right: 120, bottom: 10, left: 10 }}
         >
@@ -125,3 +141,5 @@ export function FlowSankeyChart({ data }: FlowSankeyChartProps) {
     </div>
   );
 }
+
+export const FlowSankeyChart = memo(FlowSankeyChartInner);

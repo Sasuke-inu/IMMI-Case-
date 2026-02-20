@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   BarChart,
@@ -34,7 +35,7 @@ interface CourtChartProps {
   type?: "bar" | "pie";
 }
 
-export function CourtChart({ data, type = "bar" }: CourtChartProps) {
+function CourtChartInner({ data, type = "bar" }: CourtChartProps) {
   const { t } = useTranslation();
   const chartData = Object.entries(data)
     .map(([name, value]) => ({ name, value }))
@@ -130,3 +131,5 @@ export function CourtChart({ data, type = "bar" }: CourtChartProps) {
     </ResponsiveContainer>
   );
 }
+
+export const CourtChart = memo(CourtChartInner);
