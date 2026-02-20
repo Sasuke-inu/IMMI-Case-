@@ -40,7 +40,13 @@
     "toggle_theme": "Toggle theme",
     "toggle_menu": "Toggle menu",
     "toggle_language": "Toggle language",
-    "tags": "Tags"
+    "tags": "Tags",
+    "all": "All",
+    "back": "Back",
+    "dashboard": "Dashboard",
+    "difference": "Difference",
+    "metric": "Metric",
+    "not_found": "Not Found"
   },
   "buttons": {
     "start_pipeline": "Start Pipeline",
@@ -319,7 +325,12 @@
     "loading_calculator": "Loading calculator...",
     "year_label": "Year",
     "visa_subclass": "Visa Subclass",
-    "case_nature": "Case Nature"
+    "case_nature": "Case Nature",
+    "confidence_high": "High Confidence",
+    "confidence_medium": "Medium Confidence",
+    "confidence_low": "Low Confidence",
+    "confidence_tooltip": "Based on the number of matching cases (N). High: N≥100, Medium: 50≤N<100, Low: N<50.",
+    "confidence_tooltip_label": "Confidence information"
   },
   "chart": {
     "loading": "Loading...",
@@ -624,7 +635,12 @@
       "cancel_button": "Cancel",
       "title_required": "Title is required",
       "success": "Case updated",
-      "error": "Failed to update case"
+      "error": "Failed to update case",
+      "case_metadata": "Case Metadata",
+      "parties_representation": "Parties & Representation",
+      "annotations": "Annotations",
+      "unsaved_changes": "Unsaved changes",
+      "saving": "Saving..."
     },
     "case_add": {
       "title": "Add New Case",
@@ -635,7 +651,8 @@
       "citation_format": "Citation format should be like [2024] FCA 123",
       "success": "Case created",
       "error": "Failed to create case",
-      "save_button": "Create Case"
+      "save_button": "Create Case",
+      "creating": "Creating..."
     }
   }
 }

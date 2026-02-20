@@ -52,7 +52,10 @@ export function CaseAddPage() {
   return (
     <div className="space-y-6">
       <Breadcrumb
-        items={[{ label: "Cases", href: "/cases" }, { label: "Add Case" }]}
+        items={[
+          { label: t("nav.cases"), href: "/cases" },
+          { label: t("pages.case_add.breadcrumb_add") },
+        ]}
       />
 
       <form onSubmit={handleSubmit}>
@@ -60,81 +63,81 @@ export function CaseAddPage() {
           {/* Left: Main fields */}
           <div className="rounded-lg border border-border bg-card p-5 lg:col-span-2">
             <h2 className="mb-3 font-heading text-base font-semibold">
-              New Case
+              {t("pages.case_add.new_case")}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
-                label="Title *"
+                label={`${t("cases.title")} *`}
                 value={form.title}
                 onChange={(v) => updateField("title", v)}
               />
               <Field
-                label="Citation"
+                label={t("cases.citation")}
                 value={form.citation}
                 onChange={(v) => updateField("citation", v)}
                 placeholder="[2024] FCA 123"
               />
               <Field
-                label="Court"
+                label={t("cases.court")}
                 value={form.court}
                 onChange={(v) => updateField("court", v)}
               />
               <SelectField
-                label="Court Code"
+                label={t("cases.court_code")}
                 value={form.court_code}
                 options={COURT_OPTIONS}
                 onChange={(v) => updateField("court_code", v)}
               />
               <Field
-                label="Date"
+                label={t("cases.date")}
                 value={form.date}
                 onChange={(v) => updateField("date", v)}
                 placeholder="DD Month YYYY"
               />
               <Field
-                label="Judges"
+                label={t("cases.judges")}
                 value={form.judges}
                 onChange={(v) => updateField("judges", v)}
               />
               <Field
-                label="Outcome"
+                label={t("cases.outcome")}
                 value={form.outcome}
                 onChange={(v) => updateField("outcome", v)}
               />
               <Field
-                label="Visa Type"
+                label={t("cases.visa_type")}
                 value={form.visa_type}
                 onChange={(v) => updateField("visa_type", v)}
               />
               <Field
-                label="Visa Subclass"
+                label={t("cases.visa_subclass")}
                 value={form.visa_subclass}
                 onChange={(v) => updateField("visa_subclass", v)}
               />
               <Field
-                label="Visa Class Code"
+                label={t("cases.class_code")}
                 value={form.visa_class_code}
                 onChange={(v) => updateField("visa_class_code", v)}
               />
               <SelectField
-                label="Case Nature"
+                label={t("cases.nature")}
                 value={form.case_nature}
                 options={NATURE_OPTIONS}
                 onChange={(v) => updateField("case_nature", v)}
               />
               <Field
-                label="URL"
+                label={t("cases.url")}
                 value={form.url}
                 onChange={(v) => updateField("url", v)}
                 span2
               />
               <Field
-                label="Source"
+                label={t("cases.source")}
                 value={form.source}
                 onChange={(v) => updateField("source", v)}
               />
               <Field
-                label="Legislation"
+                label={t("cases.legislation")}
                 value={form.legislation}
                 onChange={(v) => updateField("legislation", v)}
               />
@@ -145,17 +148,17 @@ export function CaseAddPage() {
           <div className="space-y-6">
             <div className="rounded-lg border border-border bg-card p-5">
               <h2 className="mb-3 font-heading text-base font-semibold">
-                Annotations
+                {t("pages.case_edit.annotations")}
               </h2>
               <Field
-                label="Tags"
+                label={t("case_detail.tags")}
                 value={form.tags}
                 onChange={(v) => updateField("tags", v)}
                 placeholder="Comma-separated"
               />
               <div className="mt-4">
                 <label className="mb-1 block text-xs font-medium text-secondary-text">
-                  Notes
+                  {t("case_detail.notes")}
                 </label>
                 <textarea
                   value={form.user_notes ?? ""}
@@ -171,7 +174,7 @@ export function CaseAddPage() {
                 onClick={() => navigate(-1)}
                 className="flex-1 rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-surface"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="submit"
@@ -179,7 +182,7 @@ export function CaseAddPage() {
                 className="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" />
-                {createMutation.isPending ? "Creating..." : "Create"}
+                {createMutation.isPending ? t("pages.case_add.creating") : t("pages.case_add.save_button")}
               </button>
             </div>
           </div>

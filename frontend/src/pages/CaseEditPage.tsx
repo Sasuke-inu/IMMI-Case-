@@ -85,7 +85,7 @@ export function CaseEditPage() {
   if (isLoading || !data) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-text">
-        Loading...
+        {t("pages.case_edit.loading")}
       </div>
     );
   }
@@ -111,14 +111,14 @@ export function CaseEditPage() {
       <div className="flex items-center justify-between">
         <Breadcrumb
           items={[
-            { label: "Cases", href: "/cases" },
-            { label: data.case.citation || "Case", href: `/cases/${id}` },
-            { label: "Edit" },
+            { label: t("nav.cases"), href: "/cases" },
+            { label: data.case.citation || t("cases.title"), href: `/cases/${id}` },
+            { label: t("pages.case_edit.breadcrumb_edit") },
           ]}
         />
         {dirty && (
           <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-            Unsaved changes
+            {t("pages.case_edit.unsaved_changes")}
           </span>
         )}
       </div>
@@ -128,142 +128,142 @@ export function CaseEditPage() {
           {/* Left: Main fields (2 cols) */}
           <div className="rounded-lg border border-border bg-card p-5 lg:col-span-2">
             <h2 className="mb-3 font-heading text-base font-semibold">
-              Case Metadata
+              {t("pages.case_edit.case_metadata")}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
-                label="Title *"
+                label={`${t("cases.title")} *`}
                 value={form.title}
                 onChange={(v) => updateField("title", v)}
               />
               <Field
-                label="Citation"
+                label={t("cases.citation")}
                 value={form.citation}
                 onChange={(v) => updateField("citation", v)}
               />
               <Field
-                label="Court"
+                label={t("cases.court")}
                 value={form.court}
                 onChange={(v) => updateField("court", v)}
               />
               <SelectField
-                label="Court Code"
+                label={t("cases.court_code")}
                 value={form.court_code}
                 options={COURT_OPTIONS}
                 onChange={(v) => updateField("court_code", v)}
               />
               <Field
-                label="Date"
+                label={t("cases.date")}
                 value={form.date}
                 onChange={(v) => updateField("date", v)}
                 placeholder="DD Month YYYY"
               />
               <Field
-                label="Year"
+                label={t("units.year")}
                 value={form.year}
                 onChange={(v) => updateField("year", v)}
                 type="number"
               />
               <Field
-                label="Judges"
+                label={t("cases.judges")}
                 value={form.judges}
                 onChange={(v) => updateField("judges", v)}
               />
               <Field
-                label="Outcome"
+                label={t("cases.outcome")}
                 value={form.outcome}
                 onChange={(v) => updateField("outcome", v)}
               />
               <Field
-                label="Visa Type"
+                label={t("cases.visa_type")}
                 value={form.visa_type}
                 onChange={(v) => updateField("visa_type", v)}
               />
               <Field
-                label="Visa Subclass"
+                label={t("cases.visa_subclass")}
                 value={form.visa_subclass}
                 onChange={(v) => updateField("visa_subclass", v)}
               />
               <Field
-                label="Visa Class Code"
+                label={t("cases.class_code")}
                 value={form.visa_class_code}
                 onChange={(v) => updateField("visa_class_code", v)}
               />
               <SelectField
-                label="Case Nature"
+                label={t("cases.nature")}
                 value={form.case_nature}
                 options={NATURE_OPTIONS}
                 onChange={(v) => updateField("case_nature", v)}
               />
               <Field
-                label="Legislation"
+                label={t("cases.legislation")}
                 value={form.legislation}
                 onChange={(v) => updateField("legislation", v)}
                 span2
               />
               <Field
-                label="Legal Concepts"
+                label={t("cases.legal_concepts")}
                 value={form.legal_concepts}
                 onChange={(v) => updateField("legal_concepts", v)}
                 span2
                 placeholder="Semicolon-separated"
               />
               <Field
-                label="URL"
+                label={t("cases.url")}
                 value={form.url}
                 onChange={(v) => updateField("url", v)}
                 span2
               />
               <Field
-                label="Source"
+                label={t("cases.source")}
                 value={form.source}
                 onChange={(v) => updateField("source", v)}
               />
               <TextareaField
-                label="Catchwords"
+                label={t("case_detail.catchwords")}
                 value={form.catchwords}
                 onChange={(v) => updateField("catchwords", v)}
                 rows={3}
               />
             </div>
             <h2 className="mb-3 mt-5 font-heading text-base font-semibold">
-              Parties & Representation
+              {t("pages.case_edit.parties_representation")}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
-                label="Applicant Name"
+                label={t("cases.applicant")}
                 value={form.applicant_name}
                 onChange={(v) => updateField("applicant_name", v)}
               />
               <Field
-                label="Respondent"
+                label={t("cases.respondent")}
                 value={form.respondent}
                 onChange={(v) => updateField("respondent", v)}
               />
               <Field
-                label="Country of Origin"
+                label={t("cases.country_of_origin")}
                 value={form.country_of_origin}
                 onChange={(v) => updateField("country_of_origin", v)}
               />
               <Field
-                label="Visa Subclass Number"
+                label={t("cases.subclass_no")}
                 value={form.visa_subclass_number}
                 onChange={(v) => updateField("visa_subclass_number", v)}
               />
               <Field
-                label="Hearing Date"
+                label={t("cases.hearing_date")}
                 value={form.hearing_date}
                 onChange={(v) => updateField("hearing_date", v)}
                 placeholder="DD Month YYYY"
               />
               <SelectField
-                label="Represented"
+                label={t("cases.represented")}
                 value={form.is_represented}
                 options={["", "Yes", "No", "Self-represented"]}
                 onChange={(v) => updateField("is_represented", v)}
               />
               <Field
-                label="Representative"
+                label={t("cases.representative")}
                 value={form.representative}
                 onChange={(v) => updateField("representative", v)}
                 span2
@@ -275,17 +275,17 @@ export function CaseEditPage() {
           <div className="space-y-6">
             <div className="rounded-lg border border-border bg-card p-5">
               <h2 className="mb-3 font-heading text-base font-semibold">
-                Annotations
+                {t("pages.case_edit.annotations")}
               </h2>
               <Field
-                label="Tags"
+                label={t("case_detail.tags")}
                 value={form.tags}
                 onChange={(v) => updateField("tags", v)}
                 placeholder="Comma-separated"
               />
               <div className="mt-4">
                 <TextareaField
-                  label="Notes"
+                  label={t("case_detail.notes")}
                   value={form.user_notes}
                   onChange={(v) => updateField("user_notes", v)}
                   rows={8}
@@ -298,7 +298,7 @@ export function CaseEditPage() {
                 onClick={() => navigate(-1)}
                 className="flex-1 rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-surface"
               >
-                Cancel
+                {t("pages.case_edit.cancel_button")}
               </button>
               <button
                 type="submit"
@@ -306,7 +306,7 @@ export function CaseEditPage() {
                 className="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
-                {updateMutation.isPending ? "Saving..." : "Save"}
+                {updateMutation.isPending ? t("pages.case_edit.saving") : t("pages.case_edit.save_button")}
               </button>
             </div>
           </div>

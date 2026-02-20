@@ -1,72 +1,91 @@
-import { NavLink } from "react-router-dom"
-import { X, FileText } from "lucide-react"
-import { cn } from "@/lib/utils"
-import type { LucideIcon } from "lucide-react"
+import { NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { X, FileText } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   CloudDownload,
   Workflow,
+  Activity,
   BookOpen,
+  BookMarked,
   Palette,
   TrendingUp,
   Users,
-} from "lucide-react"
+} from "lucide-react";
 
 interface NavItem {
-  readonly to: string
-  readonly icon: LucideIcon
-  readonly label: string
-  readonly description?: string
+  readonly to: string;
+  readonly icon: LucideIcon;
+  readonly label: string;
+  readonly description?: string;
 }
 
 interface NavGroup {
-  readonly title: string
-  readonly items: readonly NavItem[]
+  readonly title: string;
+  readonly items: readonly NavItem[];
 }
 
-const navGroups: readonly NavGroup[] = [
-  {
-    title: "Browse",
-    items: [
-      { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-      { to: "/analytics", icon: TrendingUp, label: "Analytics" },
-      { to: "/judge-profiles", icon: Users, label: "Judge Profiles" },
-      { to: "/cases", icon: FileText, label: "Cases" },
-    ],
-  },
-  {
-    title: "Data Tools",
-    items: [
-      {
-        to: "/download",
-        icon: CloudDownload,
-        label: "Scrape AustLII",
-        description: "Manual download by court & year",
-      },
-      {
-        to: "/pipeline",
-        icon: Workflow,
-        label: "Smart Pipeline",
-        description: "Auto 3-phase crawl → clean → download",
-      },
-    ],
-  },
-  {
-    title: "Reference",
-    items: [
-      { to: "/data-dictionary", icon: BookOpen, label: "Data Dictionary" },
-      { to: "/design-tokens", icon: Palette, label: "Design Tokens" },
-    ],
-  },
-]
-
 interface MobileNavProps {
-  open: boolean
-  onClose: () => void
+  open: boolean;
+  onClose: () => void;
 }
 
 export function MobileNav({ open, onClose }: MobileNavProps) {
-  if (!open) return null
+  const { t } = useTranslation();
+
+  if (!open) return null;
+
+  const navGroups: readonly NavGroup[] = [
+    {
+      title: t("nav.browse"),
+      items: [
+        { to: "/", icon: LayoutDashboard, label: t("nav.dashboard") },
+        { to: "/analytics", icon: TrendingUp, label: t("nav.analytics") },
+        { to: "/judge-profiles", icon: Users, label: t("nav.judge_profiles") },
+        { to: "/cases", icon: FileText, label: t("nav.cases") },
+      ],
+    },
+    {
+      title: t("nav.data_tools"),
+      items: [
+        {
+          to: "/download",
+          icon: CloudDownload,
+          label: t("pipeline.download_title"),
+          description: t("pipeline.download_description"),
+        },
+        {
+          to: "/pipeline",
+          icon: Workflow,
+          label: t("pipeline.crawl_title"),
+          description: t("pipeline.crawl_description"),
+        },
+        {
+          to: "/jobs",
+          icon: Activity,
+          label: t("nav.jobs"),
+        },
+      ],
+    },
+    {
+      title: t("nav.reference"),
+      items: [
+        {
+          to: "/legislations",
+          icon: BookMarked,
+          label: t("nav.legislations"),
+        },
+        {
+          to: "/data-dictionary",
+          icon: BookOpen,
+          label: t("nav.data_dictionary"),
+        },
+        { to: "/design-tokens", icon: Palette, label: t("nav.design_tokens") },
+      ],
+    },
+  ];
 
   return (
     <>
@@ -111,7 +130,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                       "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                       isActive
                         ? "bg-accent-muted text-accent"
-                        : "text-secondary-text hover:bg-surface hover:text-foreground"
+                        : "text-secondary-text hover:bg-surface hover:text-foreground",
                     )
                   }
                 >
@@ -124,5 +143,5 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
         </nav>
       </div>
     </>
-  )
+  );
 }

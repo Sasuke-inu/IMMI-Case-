@@ -40,7 +40,13 @@
     "toggle_theme": "切換主題",
     "toggle_menu": "切換選單",
     "toggle_language": "切換語言",
-    "tags": "標籤"
+    "tags": "標籤",
+    "all": "全部",
+    "back": "返回",
+    "dashboard": "儀表板",
+    "difference": "差異",
+    "metric": "指標",
+    "not_found": "找不到頁面"
   },
   "buttons": {
     "start_pipeline": "啟動管道",
@@ -319,7 +325,12 @@
     "loading_calculator": "載入計算器中...",
     "year_label": "年份",
     "visa_subclass": "簽證子類別",
-    "case_nature": "案件性質"
+    "case_nature": "案件性質",
+    "confidence_high": "高可信度",
+    "confidence_medium": "中可信度",
+    "confidence_low": "低可信度",
+    "confidence_tooltip": "依據符合條件的案件數 (N) 計算。高：N≥100、中：50≤N<100、低：N<50。",
+    "confidence_tooltip_label": "可信度說明"
   },
   "chart": {
     "loading": "載入中...",
@@ -624,7 +635,12 @@
       "cancel_button": "取消",
       "title_required": "標題為必填項",
       "success": "案件已更新",
-      "error": "更新案件失敗"
+      "error": "更新案件失敗",
+      "case_metadata": "案件資訊",
+      "parties_representation": "當事人與代理",
+      "annotations": "備註標籤",
+      "unsaved_changes": "有未儲存的變更",
+      "saving": "儲存中..."
     },
     "case_add": {
       "title": "新增案件",
@@ -635,7 +651,8 @@
       "citation_format": "引用格式範例：[2024] FCA 123",
       "success": "案件已建立",
       "error": "建立案件失敗",
-      "save_button": "建立案件"
+      "save_button": "建立案件",
+      "creating": "建立中..."
     }
   }
 }

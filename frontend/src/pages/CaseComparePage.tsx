@@ -11,21 +11,21 @@ import { cn } from "@/lib/utils";
 import { GitCompare, ExternalLink } from "lucide-react";
 import type { ImmigrationCase } from "@/types/case";
 
-const COMPARE_FIELDS: Array<{ key: keyof ImmigrationCase; label: string }> = [
-  { key: "court", label: "Court" },
-  { key: "court_code", label: "Court Code" },
-  { key: "date", label: "Date" },
-  { key: "year", label: "Year" },
-  { key: "judges", label: "Judges" },
-  { key: "outcome", label: "Outcome" },
-  { key: "case_nature", label: "Case Nature" },
-  { key: "visa_type", label: "Visa Type" },
-  { key: "visa_subclass", label: "Visa Subclass" },
-  { key: "legislation", label: "Legislation" },
-  { key: "legal_concepts", label: "Legal Concepts" },
-  { key: "catchwords", label: "Catchwords" },
-  { key: "source", label: "Source" },
-  { key: "tags", label: "Tags" },
+const COMPARE_KEYS: Array<{ key: keyof ImmigrationCase; i18nKey: string }> = [
+  { key: "court", i18nKey: "cases.court" },
+  { key: "court_code", i18nKey: "cases.court_code" },
+  { key: "date", i18nKey: "cases.date" },
+  { key: "year", i18nKey: "units.year" },
+  { key: "judges", i18nKey: "cases.judges" },
+  { key: "outcome", i18nKey: "cases.outcome" },
+  { key: "case_nature", i18nKey: "cases.nature" },
+  { key: "visa_type", i18nKey: "cases.visa_type" },
+  { key: "visa_subclass", i18nKey: "cases.visa_subclass" },
+  { key: "legislation", i18nKey: "cases.legislation" },
+  { key: "legal_concepts", i18nKey: "cases.legal_concepts" },
+  { key: "catchwords", i18nKey: "case_detail.catchwords" },
+  { key: "source", i18nKey: "cases.source" },
+  { key: "tags", i18nKey: "case_detail.tags" },
 ];
 
 export function CaseComparePage() {
@@ -68,9 +68,14 @@ export function CaseComparePage() {
 
   const cases = data.cases;
 
+  const compareFields = COMPARE_KEYS.map(({ key, i18nKey }) => ({
+    key,
+    label: t(i18nKey),
+  }));
+
   // Detect fields that differ
   const differingFields = new Set<string>();
-  for (const { key } of COMPARE_FIELDS) {
+  for (const { key } of compareFields) {
     const values = cases.map((c) => String(c[key] ?? ""));
     if (new Set(values).size > 1) differingFields.add(key);
   }
@@ -117,7 +122,7 @@ export function CaseComparePage() {
             </tr>
           </thead>
           <tbody>
-            {COMPARE_FIELDS.map(({ key, label }) => {
+            {compareFields.map(({ key, label }) => {
               const isDiffering = differingFields.has(key);
               return (
                 <tr

@@ -9,6 +9,7 @@ import os
 import csv
 import re
 import json
+import logging
 import time
 import threading
 from itertools import combinations
@@ -21,9 +22,11 @@ from flask_wtf.csrf import generate_csrf
 from ...config import START_YEAR, END_YEAR
 from ...models import ImmigrationCase
 from ...storage import CASE_FIELDS
-from ..helpers import get_repo, get_output_dir, safe_int, safe_float, _filter_cases, EDITABLE_FIELDS
-from ..jobs import _job_lock, _job_status, _run_search_job, _run_download_job, _run_update_job
+from ..helpers import get_repo, get_output_dir, safe_int, _filter_cases, EDITABLE_FIELDS
+from ..jobs import _job_lock, _job_status, _run_download_job
 from ..security import csrf
+
+logger = logging.getLogger(__name__)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
@@ -551,7 +554,7 @@ def stats():
             for c in recent_cases
         ]
     except Exception:
-        pass
+        logger.warning("Failed to fetch recent cases for stats", exc_info=True)
 
     return jsonify({
         "total_cases": s.get("total", 0),
@@ -585,7 +588,7 @@ def stats_trends():
                 resp = repo._client.rpc("get_court_year_trends").execute()
                 return jsonify({"trends": resp.data or []})
             except Exception:
-                pass
+                logger.warning("Supabase RPC get_court_year_trends failed, falling back to local", exc_info=True)
 
     all_cases = _apply_filters(_get_all_cases())
 
@@ -757,7 +760,8 @@ def compare_cases():
     ids = [i for i in ids if _valid_case_id(i)]
     if len(ids) < 2:
         return _error("At least 2 case IDs required")
-    ids = ids[:3]
+    if len(ids) > 5:
+        return _error("Maximum 5 cases can be compared at once")
 
     repo = get_repo()
     cases = []
@@ -779,7 +783,8 @@ def related_cases(case_id):
     if not _valid_case_id(case_id):
         return _error("Invalid case ID")
     repo = get_repo()
-    related = repo.find_related(case_id, limit=5)
+    limit = safe_int(request.args.get("limit"), default=5, min_val=1, max_val=20)
+    related = repo.find_related(case_id, limit=limit)
     return jsonify({"cases": [c.to_dict() for c in related]})
 
 
@@ -852,31 +857,6 @@ def job_status():
     return jsonify(snapshot)
 
 
-# ── Search Job ──────────────────────────────────────────────────────────
-
-@api_bp.route("/search/start", methods=["POST"])
-def start_search():
-    with _job_lock:
-        if _job_status["running"]:
-            return _error("A job is already running")
-
-    data = request.get_json(silent=True) or {}
-    databases = data.get("databases", ["AATA", "ARTA", "FCA"])
-    start_year = safe_int(data.get("start_year"), default=START_YEAR, min_val=2000, max_val=2030)
-    end_year = safe_int(data.get("end_year"), default=END_YEAR, min_val=2000, max_val=2030)
-    max_results = safe_int(data.get("max_results"), default=500, min_val=1, max_val=50000)
-    search_fedcourt = data.get("search_fedcourt", False)
-
-    thread = threading.Thread(
-        target=_run_search_job,
-        args=(databases, start_year, end_year, max_results, search_fedcourt),
-        kwargs={"output_dir": get_output_dir(), "repo": get_repo()},
-        daemon=True,
-    )
-    thread.start()
-    return jsonify({"started": True})
-
-
 # ── Download Job ────────────────────────────────────────────────────────
 
 @api_bp.route("/download/start", methods=["POST"])
@@ -893,35 +873,6 @@ def start_download():
         target=_run_download_job,
         args=(court_filter, limit),
         kwargs={"output_dir": get_output_dir(), "repo": get_repo()},
-        daemon=True,
-    )
-    thread.start()
-    return jsonify({"started": True})
-
-
-# ── Update DB Job ───────────────────────────────────────────────────────
-
-@api_bp.route("/update-db/start", methods=["POST"])
-def start_update_db():
-    with _job_lock:
-        if _job_status["running"]:
-            return _error("A job is already running")
-
-    data = request.get_json(silent=True) or {}
-    databases = data.get("databases", ["AATA", "ARTA", "FCA", "FCCA", "FedCFamC2G", "HCA"])
-    delay = safe_float(data.get("delay"), default=0.5, min_val=0.3, max_val=5.0)
-
-    thread = threading.Thread(
-        target=_run_update_job,
-        args=("custom",),
-        kwargs={
-            "databases": databases,
-            "start_year": END_YEAR - 1,
-            "end_year": END_YEAR,
-            "delay": delay,
-            "output_dir": get_output_dir(),
-            "repo": get_repo(),
-        },
         daemon=True,
     )
     thread.start()
