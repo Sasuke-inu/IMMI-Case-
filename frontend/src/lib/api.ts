@@ -406,18 +406,39 @@ export function fetchDataDictionary(): Promise<{
 }
 
 // ─── Legislations ──────────────────────────────────────────────
+
+export interface LegislationSection {
+  id: string; // e.g. "s501"
+  number: string; // e.g. "501", "501A"
+  title: string; // e.g. "Character test"
+  part: string; // e.g. "Part 9—Deportation"
+  division: string; // e.g. "Division 2—Cancellation of visas"
+  text: string; // full section text
+}
+
 export interface Legislation {
   id: string;
   title: string;
+  austlii_id: string; // e.g. "consol_act/ma1958116"
   shortcode: string;
   jurisdiction: string;
   type: string;
-  version: string;
-  updated_date: string;
   description: string;
-  full_text: string;
-  sections: number;
+  sections_count: number;
   last_amended: string;
+  last_scraped: string;
+  sections?: LegislationSection[]; // only present in detail endpoint
+}
+
+export interface LegislationUpdateStatus {
+  running: boolean;
+  law_id: string | null;
+  current: number;
+  total: number;
+  section_id: string;
+  completed_laws: string[];
+  failed_laws: string[];
+  error: string | null;
 }
 
 export interface PaginatedLegislations {
@@ -470,6 +491,22 @@ export function searchLegislations(
   params.set("q", query);
   params.set("limit", String(limit));
   return apiFetch(`/api/v1/legislations/search?${params}`);
+}
+
+export function startLegislationUpdate(
+  law_id?: string,
+): Promise<{ success: boolean; message: string; laws: string[] }> {
+  return apiFetch("/api/v1/legislations/update", {
+    method: "POST",
+    body: JSON.stringify(law_id ? { law_id } : {}),
+  });
+}
+
+export function fetchLegislationUpdateStatus(): Promise<{
+  success: boolean;
+  status: LegislationUpdateStatus;
+}> {
+  return apiFetch("/api/v1/legislations/update/status");
 }
 
 // ─── Export (file downloads) ───────────────────────────────────

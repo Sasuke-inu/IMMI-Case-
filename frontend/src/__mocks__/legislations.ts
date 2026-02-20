@@ -4,43 +4,62 @@ export const mockLegislations: Legislation[] = [
   {
     id: "migration-act-1958",
     title: "Migration Act 1958",
-    shortcode: "MA",
+    austlii_id: "consol_act/ma1958116",
+    shortcode: "MA1958",
     jurisdiction: "Commonwealth",
     type: "Act",
-    version: "1.0",
-    updated_date: "2024-01-15",
     description: "The primary legislation governing immigration to Australia",
-    full_text: "MIGRATION ACT 1958\n\nBeing an Act relating to immigration...",
-    sections: 500,
-    last_amended: "2023-12-01",
+    sections_count: 231,
+    last_amended: "1 December 2025",
+    last_scraped: "2026-02-20T10:00:00Z",
   },
   {
     id: "migration-regulations-1994",
     title: "Migration Regulations 1994",
-    shortcode: "MR",
+    austlii_id: "consol_reg/mr1994227",
+    shortcode: "MR1994",
     jurisdiction: "Commonwealth",
     type: "Regulation",
-    version: "2.1",
-    updated_date: "2024-02-10",
     description: "Regulations made under the Migration Act 1958",
-    full_text: "MIGRATION REGULATIONS 1994\n\nMade under the Migration Act...",
-    sections: 1200,
-    last_amended: "2024-01-20",
+    sections_count: 456,
+    last_amended: "15 November 2025",
+    last_scraped: "2026-02-20T10:05:00Z",
   },
   {
-    id: "character-test-2016",
-    title: "Character Test Amendment 2016",
-    shortcode: "CT16",
+    id: "australian-citizenship-act-2007",
+    title: "Australian Citizenship Act 2007",
+    austlii_id: "consol_act/aca2007254",
+    shortcode: "ACA2007",
     jurisdiction: "Commonwealth",
-    type: "Amendment",
-    version: "1.2",
-    updated_date: "2023-11-05",
-    description: "Amendment relating to character requirements",
-    full_text: "CHARACTER TEST AMENDMENT 2016\n\nThis amendment...",
-    sections: 50,
-    last_amended: "2023-10-15",
+    type: "Act",
+    description: "Legislation governing the acquisition and loss of Australian citizenship",
+    sections_count: 134,
+    last_amended: "20 October 2025",
+    last_scraped: "2026-02-20T10:10:00Z",
   },
 ];
+
+export const mockLegislationWithSections: Legislation = {
+  ...mockLegislations[0],
+  sections: [
+    {
+      id: "s1",
+      number: "1",
+      title: "Short title",
+      part: "Part 1—Preliminary",
+      division: "",
+      text: "This Act may be cited as the Migration Act 1958.",
+    },
+    {
+      id: "s501",
+      number: "501",
+      title: "Character test",
+      part: "Part 9—Deportation",
+      division: "Division 2—Cancellation of visas",
+      text: "The Minister may refuse to grant a visa to a person if the person does not pass the character test.",
+    },
+  ],
+};
 
 export const mockPaginatedLegislations: PaginatedLegislations = {
   success: true,
@@ -55,7 +74,7 @@ export const mockPaginatedLegislations: PaginatedLegislations = {
 
 export const mockLegislationDetail: LegislationDetail = {
   success: true,
-  data: mockLegislations[0],
+  data: mockLegislationWithSections,
 };
 
 export const mockSearchLegislations: SearchLegislations = {

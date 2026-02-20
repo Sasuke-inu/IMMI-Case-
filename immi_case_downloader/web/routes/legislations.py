@@ -1,117 +1,135 @@
-"""API endpoints for legislations (list, detail, search).
+"""API endpoints for legislations (list, detail, search, update).
 
-All endpoints are prefixed with /api/v1/.
+All endpoints are prefixed with /api/v1/legislations/.
 Returns consistent JSON response format with error handling.
+
+Endpoints:
+  GET  /                  — Paginated list (sections excluded for size)
+  GET  /search?q=...      — Full-text search across title/description
+  GET  /<id>              — Full detail including sections[]
+  POST /update            — Start background scrape job
+  GET  /update/status     — Poll scrape job progress
 """
 
-import os
 import json
 import logging
+import os
+import threading
 from typing import Any
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
+
+from ...sources.legislation_scraper import KNOWN_LAWS, LegislationScraper
 
 logger = logging.getLogger(__name__)
 
 legislations_bp = Blueprint("legislations", __name__, url_prefix="/api/v1/legislations")
 
-# Cache for legislations data loaded at app startup
+# ── In-memory state ───────────────────────────────────────────────────────────
+
+# Cache for legislations data (invalidated after a successful scrape)
 _legislations_cache: list[dict[str, Any]] | None = None
+
+# Background job status dict — single job at a time
+_job_status: dict[str, Any] = {
+    "running": False,
+    "law_id": None,       # which law is currently being scraped
+    "current": 0,
+    "total": 0,
+    "section_id": "",
+    "completed_laws": [],
+    "failed_laws": [],
+    "error": None,
+}
+_job_lock = threading.Lock()
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _data_path() -> str:
+    pkg_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    return os.path.join(pkg_dir, "data", "legislations.json")
 
 
 def _load_legislations() -> list[dict[str, Any]]:
-    """Load legislations from JSON file. Uses cache if already loaded."""
+    """Load legislations from JSON file, using cache if available."""
     global _legislations_cache
-
     if _legislations_cache is not None:
         return _legislations_cache
 
-    # Build path to legislations.json
-    pkg_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    data_path = os.path.join(pkg_dir, "data", "legislations.json")
-
-    if not os.path.exists(data_path):
-        logger.error(f"Legislations data file not found: {data_path}")
+    path = _data_path()
+    if not os.path.exists(path):
+        logger.error(f"Legislations data file not found: {path}")
         return []
 
     try:
-        with open(data_path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         legislations: list[dict[str, Any]] = data.get("legislations", [])
         _legislations_cache = legislations
-        logger.info(f"Loaded {len(legislations)} legislations from {data_path}")
+        logger.info(f"Loaded {len(legislations)} legislations from {path}")
         return legislations
     except (json.JSONDecodeError, IOError) as e:
         logger.error(f"Failed to load legislations: {e}")
         return []
 
 
+def _invalidate_cache() -> None:
+    global _legislations_cache
+    _legislations_cache = None
+
+
+def _strip_sections(leg: dict) -> dict:
+    """Return a copy of a legislation dict without the sections[] array.
+
+    Used for list and search endpoints to keep response sizes small.
+    """
+    return {k: v for k, v in leg.items() if k != "sections"}
+
+
 def _error(msg: str, status: int = 400):
-    """Return error response in consistent format."""
     return jsonify({"success": False, "error": msg}), status
 
 
-# ── List all legislations with pagination ──────────────────────────────────
+# ── List ──────────────────────────────────────────────────────────────────────
 
 
 @legislations_bp.route("", methods=["GET"])
 def list_legislations():
-    """List all legislations with pagination.
+    """List all legislations with pagination. sections[] is excluded.
 
     Query parameters:
-    - page: Page number (default: 1, min: 1)
-    - limit: Items per page (default: 10, min: 1, max: 100)
-
-    Returns JSON with pagination metadata.
+      page  (int, default 1)
+      limit (int, default 10, max 100)
     """
     try:
-        # Get and validate pagination params
         page = request.args.get("page", 1, type=int)
         limit = request.args.get("limit", 10, type=int)
 
-        # Validate ranges
         if page < 1:
-            return _error("page must be >= 1", 400)
+            return _error("page must be >= 1")
         if limit < 1:
-            return _error("limit must be >= 1", 400)
-        if limit > 100:
-            limit = 100  # Cap max limit to prevent abuse
+            return _error("limit must be >= 1")
+        limit = min(limit, 100)
 
         legislations = _load_legislations()
-
-        if not legislations:
-            return jsonify({
-                "success": True,
-                "data": [],
-                "meta": {
-                    "total": 0,
-                    "page": page,
-                    "limit": limit,
-                    "pages": 0
-                }
-            })
-
         total = len(legislations)
-        total_pages = (total + limit - 1) // limit  # Ceiling division
 
-        # Validate page number
-        if page > total_pages and total_pages > 0:
-            return _error(f"page must be <= {total_pages}", 400)
+        if not total:
+            return jsonify({"success": True, "data": [],
+                            "meta": {"total": 0, "page": page, "limit": limit, "pages": 0}})
 
-        # Calculate slice indices
-        start_idx = (page - 1) * limit
-        end_idx = start_idx + limit
-        paginated_data = legislations[start_idx:end_idx]
+        total_pages = (total + limit - 1) // limit
+        if page > total_pages:
+            return _error(f"page must be <= {total_pages}")
+
+        start = (page - 1) * limit
+        data = [_strip_sections(leg) for leg in legislations[start:start + limit]]
 
         return jsonify({
             "success": True,
-            "data": paginated_data,
-            "meta": {
-                "total": total,
-                "page": page,
-                "limit": limit,
-                "pages": total_pages
-            }
+            "data": data,
+            "meta": {"total": total, "page": page, "limit": limit, "pages": total_pages},
         })
 
     except Exception as e:
@@ -119,67 +137,45 @@ def list_legislations():
         return _error("Failed to list legislations", 500)
 
 
-# ── Search legislations ────────────────────────────────────────────────────
+# ── Search ────────────────────────────────────────────────────────────────────
 
 
 @legislations_bp.route("/search", methods=["GET"])
 def search_legislations():
-    """Search legislations by query string.
-
-    Searches across title, description, shortcode, and id fields.
-    Minimum 2 characters required for search query.
+    """Search legislations by query string. sections[] is excluded.
 
     Query parameters:
-    - q: Search query (required, min 2 chars)
-    - limit: Max results to return (default: 20, max: 100)
-
-    Returns JSON with matching legislations.
+      q     (str, required, min 2 chars) — searches title, description, shortcode, id
+      limit (int, default 20, max 100)
     """
     try:
         query = request.args.get("q", "").strip()
-        limit = request.args.get("limit", 20, type=int)
+        limit = min(request.args.get("limit", 20, type=int), 100)
 
-        # Validate query
         if not query:
-            return _error("q (query) parameter is required", 400)
+            return _error("q parameter is required")
         if len(query) < 2:
-            return _error("Query must be at least 2 characters", 400)
-
-        # Validate limit
+            return _error("Query must be at least 2 characters")
         if limit < 1:
-            return _error("limit must be >= 1", 400)
-        if limit > 100:
-            limit = 100
+            return _error("limit must be >= 1")
 
         legislations = _load_legislations()
-        query_lower = query.lower()
+        q = query.lower()
 
-        # Search across multiple fields
         results = []
         total_matched = 0
         for leg in legislations:
-            # Check if query matches any searchable field
-            searchable = [
-                leg.get("title", ""),
-                leg.get("description", ""),
-                leg.get("shortcode", ""),
-                leg.get("id", ""),
-            ]
-
-            # Case-insensitive substring match
-            if any(query_lower in field.lower() for field in searchable):
+            fields = [leg.get("title", ""), leg.get("description", ""),
+                      leg.get("shortcode", ""), leg.get("id", "")]
+            if any(q in f.lower() for f in fields):
                 total_matched += 1
                 if len(results) < limit:
-                    results.append(leg)
+                    results.append(_strip_sections(leg))
 
         return jsonify({
             "success": True,
             "data": results,
-            "meta": {
-                "query": query,
-                "total_results": total_matched,
-                "limit": limit
-            }
+            "meta": {"query": query, "total_results": total_matched, "limit": limit},
         })
 
     except Exception as e:
@@ -187,38 +183,139 @@ def search_legislations():
         return _error("Failed to search legislations", 500)
 
 
-# ── Get a specific legislation by ID ────────────────────────────────────────
+# ── Detail ────────────────────────────────────────────────────────────────────
 
 
 @legislations_bp.route("/<legislation_id>", methods=["GET"])
 def get_legislation(legislation_id: str):
-    """Get a specific legislation by ID.
-
-    Args:
-        legislation_id: The legislation ID (e.g., 'migration-act-1958')
-
-    Returns JSON with legislation details or 404 if not found.
-    """
+    """Get a specific legislation by ID, including full sections[] array."""
     try:
-        if not legislation_id or not legislation_id.strip():
-            return _error("legislation_id is required", 400)
-
         legislation_id = legislation_id.strip().lower()
-        legislations = _load_legislations()
+        if not legislation_id:
+            return _error("legislation_id is required")
 
-        # Find legislation by ID (case-insensitive)
-        for leg in legislations:
+        for leg in _load_legislations():
             if leg.get("id", "").lower() == legislation_id:
-                return jsonify({
-                    "success": True,
-                    "data": leg
-                })
+                return jsonify({"success": True, "data": leg})
 
-        return _error(f"Legislation with ID '{legislation_id}' not found", 404)
+        return _error(f"Legislation '{legislation_id}' not found", 404)
 
     except Exception as e:
         logger.error(f"Error fetching legislation {legislation_id}: {e}")
         return _error("Failed to fetch legislation", 500)
+
+
+# ── Update (background scrape job) ────────────────────────────────────────────
+
+
+@legislations_bp.route("/update", methods=["POST"])
+def start_update():
+    """Start a background scrape job for one or all laws.
+
+    Body (JSON, optional):
+      { "law_id": "migration-act-1958" }  — scrape one law
+      {}                                   — scrape all laws
+
+    Returns 409 if a job is already running.
+    """
+    with _job_lock:
+        if _job_status["running"]:
+            return jsonify({
+                "success": False,
+                "error": "A scrape job is already running",
+                "status": _job_status,
+            }), 409
+
+        body = request.get_json(silent=True) or {}
+        law_id = body.get("law_id")
+
+        if law_id and law_id not in KNOWN_LAWS:
+            return _error(f"Unknown law_id: {law_id}. Available: {list(KNOWN_LAWS)}")
+
+        law_ids = [law_id] if law_id else list(KNOWN_LAWS.keys())
+
+        # Reset status
+        _job_status.update({
+            "running": True,
+            "law_id": None,
+            "current": 0,
+            "total": 0,
+            "section_id": "",
+            "completed_laws": [],
+            "failed_laws": [],
+            "error": None,
+        })
+
+    thread = threading.Thread(target=_run_scrape_job, args=(law_ids,), daemon=True)
+    thread.start()
+    return jsonify({"success": True, "message": "Scrape job started", "laws": law_ids})
+
+
+@legislations_bp.route("/update/status", methods=["GET"])
+def update_status():
+    """Poll the current scrape job status."""
+    return jsonify({"success": True, "status": dict(_job_status)})
+
+
+def _run_scrape_job(law_ids: list[str]) -> None:
+    """Background thread: scrape laws and write results to legislations.json."""
+    scraper = LegislationScraper()
+
+    def progress(law_id: str, current: int, total: int, section_id: str) -> None:
+        _job_status.update({
+            "law_id": law_id,
+            "current": current,
+            "total": total,
+            "section_id": section_id,
+        })
+
+    try:
+        # Load existing data to merge into
+        path = _data_path()
+        try:
+            with open(path, encoding="utf-8") as f:
+                existing = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            existing = {"legislations": []}
+
+        existing_by_id = {leg["id"]: leg for leg in existing.get("legislations", [])}
+
+        for law_id in law_ids:
+            result = scraper.scrape_one(law_id, progress_callback=progress)
+            if result:
+                existing_by_id[law_id] = result
+                _job_status["completed_laws"].append(law_id)
+                logger.info(f"Scrape complete: {law_id} ({result['sections_count']} sections)")
+            else:
+                _job_status["failed_laws"].append(law_id)
+                logger.error(f"Scrape failed: {law_id}")
+
+        # Preserve canonical law order when writing
+        all_laws = []
+        for lid in KNOWN_LAWS:
+            if lid in existing_by_id:
+                all_laws.append(existing_by_id[lid])
+
+        output = {
+            "_comment": "Populated by scripts/download_legislations.py — do not edit sections manually",
+            "legislations": all_laws,
+        }
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(output, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+
+        _invalidate_cache()
+        logger.info(f"Legislations saved: {len(all_laws)} laws")
+
+    except Exception as e:
+        _job_status["error"] = str(e)
+        logger.error(f"Scrape job failed: {e}", exc_info=True)
+    finally:
+        _job_status["running"] = False
+
+
+# ── App registration ──────────────────────────────────────────────────────────
 
 
 def init_routes(app):

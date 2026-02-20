@@ -1,10 +1,12 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Search, ChevronRight } from "lucide-react";
+import { RefreshCw, Search, ChevronRight } from "lucide-react";
 import {
   useLegislations,
   useLegislationSearch,
+  useLegislationUpdateStatus,
+  useStartLegislationUpdate,
 } from "@/hooks/use-legislations";
 import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { Pagination } from "@/components/shared/Pagination";
@@ -49,6 +51,10 @@ export function LegislationsPage() {
   }, []);
 
   // Use appropriate hook based on whether we're searching
+  const updateStatus = useLegislationUpdateStatus();
+  const startUpdate = useStartLegislationUpdate();
+  const job = updateStatus.data?.status;
+
   const { data: paginatedData, isLoading: paginatedLoading } = useLegislations(
     searchQuery ? 1 : page,
     limit,
@@ -140,15 +146,74 @@ export function LegislationsPage() {
 
       {/* Header */}
       <div className="rounded-lg border border-border bg-card p-5">
-        <h1 className="font-heading text-2xl font-semibold text-foreground">
-          {t("legislations.title", { defaultValue: "Legislations" })}
-        </h1>
-        <p className="mt-1 text-sm text-secondary-text">
-          {t("legislations.description", {
-            defaultValue:
-              "Browse and search legislation relevant to immigration law",
-          })}
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-heading text-2xl font-semibold text-foreground">
+              {t("legislations.title", { defaultValue: "Legislations" })}
+            </h1>
+            <p className="mt-1 text-sm text-secondary-text">
+              {t("legislations.description", {
+                defaultValue:
+                  "Browse and search legislation relevant to immigration law",
+              })}
+            </p>
+          </div>
+          <button
+            onClick={() => startUpdate.mutate(undefined)}
+            disabled={job?.running || startUpdate.isPending}
+            className={cn(
+              "flex shrink-0 items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium",
+              "text-foreground transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50",
+            )}
+          >
+            <RefreshCw
+              className={cn("h-4 w-4", job?.running && "animate-spin")}
+            />
+            {job?.running
+              ? t("legislations.updating", { defaultValue: "Updating..." })
+              : t("legislations.update_laws", { defaultValue: "Update Laws" })}
+          </button>
+        </div>
+
+        {/* Scrape progress bar */}
+        {job?.running && job.total > 0 && (
+          <div className="mt-4 space-y-1.5">
+            <div className="flex justify-between text-xs text-muted-text">
+              <span className="truncate font-mono">{job.section_id}</span>
+              <span>
+                {job.current}/{job.total}
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface">
+              <div
+                className="h-full bg-accent transition-all duration-300"
+                style={{
+                  width: `${Math.round((job.current / job.total) * 100)}%`,
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted-text">
+              {t("legislations.scraping_law", { defaultValue: "Downloading" })}{" "}
+              <span className="font-medium text-foreground">{job.law_id}</span>
+            </p>
+          </div>
+        )}
+
+        {/* Completion summary */}
+        {!job?.running && (job?.completed_laws?.length ?? 0) > 0 && (
+          <p className="mt-3 text-xs text-success">
+            ✓{" "}
+            {t("legislations.update_complete", {
+              defaultValue: "Updated {{count}} law(s)",
+              count: job!.completed_laws.length,
+            })}
+            {(job?.failed_laws?.length ?? 0) > 0 && (
+              <span className="ml-2 text-danger">
+                · {job!.failed_laws.length} failed
+              </span>
+            )}
+          </p>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -247,7 +312,7 @@ export function LegislationsPage() {
                         <span>{leg.type}</span>
                       </div>
                     )}
-                    {leg.sections && (
+                    {leg.sections_count > 0 && (
                       <div className="flex items-center gap-1">
                         <span className="font-medium">
                           {t("legislations.sections", {
@@ -255,18 +320,29 @@ export function LegislationsPage() {
                           })}
                           :
                         </span>
-                        <span>{leg.sections}</span>
+                        <span>{leg.sections_count}</span>
                       </div>
                     )}
-                    {leg.updated_date && (
+                    {leg.last_amended && (
                       <div className="flex items-center gap-1">
                         <span className="font-medium">
-                          {t("legislations.updated", {
-                            defaultValue: "Updated",
+                          {t("legislations.last_amended", {
+                            defaultValue: "Amended",
                           })}
                           :
                         </span>
-                        <span>{formatDateCompact(leg.updated_date)}</span>
+                        <span>{leg.last_amended}</span>
+                      </div>
+                    )}
+                    {leg.last_scraped && (
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">
+                          {t("legislations.last_scraped", {
+                            defaultValue: "Scraped",
+                          })}
+                          :
+                        </span>
+                        <span>{formatDateCompact(leg.last_scraped)}</span>
                       </div>
                     )}
                   </div>
