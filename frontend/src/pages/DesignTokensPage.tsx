@@ -584,26 +584,26 @@ function ColorPalette() {
    Section 3: Typography + Font Picker
    ═══════════════════════════════════════════════════════════════ */
 
+const FONT_SIZES = [
+  { label: "xs", cls: "text-xs", px: "12px" },
+  { label: "sm", cls: "text-sm", px: "14px" },
+  { label: "base", cls: "text-base", px: "16px" },
+  { label: "lg", cls: "text-lg", px: "18px" },
+  { label: "xl", cls: "text-xl", px: "20px" },
+  { label: "2xl", cls: "text-2xl", px: "24px" },
+  { label: "3xl", cls: "text-3xl", px: "30px" },
+];
+const FONT_WEIGHTS = [
+  { label: "Light", weight: 300, cls: "font-light" },
+  { label: "Regular", weight: 400, cls: "font-normal" },
+  { label: "Medium", weight: 500, cls: "font-medium" },
+  { label: "Semibold", weight: 600, cls: "font-semibold" },
+  { label: "Bold", weight: 700, cls: "font-bold" },
+];
+
 function TypographySection() {
   const { customVars, setCustomVar } = useThemePreset();
   const activeFont = customVars["--font-body"] || "";
-
-  const fontSizes = [
-    { label: "xs", cls: "text-xs", px: "12px" },
-    { label: "sm", cls: "text-sm", px: "14px" },
-    { label: "base", cls: "text-base", px: "16px" },
-    { label: "lg", cls: "text-lg", px: "18px" },
-    { label: "xl", cls: "text-xl", px: "20px" },
-    { label: "2xl", cls: "text-2xl", px: "24px" },
-    { label: "3xl", cls: "text-3xl", px: "30px" },
-  ];
-  const fontWeights = [
-    { label: "Light", weight: 300, cls: "font-light" },
-    { label: "Regular", weight: 400, cls: "font-normal" },
-    { label: "Medium", weight: 500, cls: "font-medium" },
-    { label: "Semibold", weight: 600, cls: "font-semibold" },
-    { label: "Bold", weight: 700, cls: "font-bold" },
-  ];
 
   return (
     <section>
@@ -660,7 +660,7 @@ function TypographySection() {
       {/* Size Scale */}
       <SubHeading>Size Scale</SubHeading>
       <div className="mb-6 space-y-2">
-        {fontSizes.map((s) => (
+        {FONT_SIZES.map((s) => (
           <div key={s.label} className="flex items-baseline gap-4">
             <span className="w-12 shrink-0 text-right font-mono text-xs text-muted-text">
               {s.label}
@@ -676,7 +676,7 @@ function TypographySection() {
       {/* Weight Scale */}
       <SubHeading>Weight Scale</SubHeading>
       <div className="space-y-2">
-        {fontWeights.map((w) => (
+        {FONT_WEIGHTS.map((w) => (
           <div key={w.label} className="flex items-baseline gap-4">
             <span className="w-20 shrink-0 text-right font-mono text-xs text-muted-text">
               {w.weight}

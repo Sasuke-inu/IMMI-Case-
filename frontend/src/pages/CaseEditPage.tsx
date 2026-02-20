@@ -21,6 +21,34 @@ const NATURE_OPTIONS = [
 
 const COURT_OPTIONS = ["", "AATA", "ARTA", "FCA", "FCCA", "FedCFamC2G", "HCA"];
 
+const EDITABLE_FIELDS = [
+  "title",
+  "citation",
+  "court",
+  "court_code",
+  "date",
+  "judges",
+  "outcome",
+  "visa_type",
+  "visa_subclass",
+  "visa_class_code",
+  "case_nature",
+  "legislation",
+  "legal_concepts",
+  "catchwords",
+  "url",
+  "source",
+  "tags",
+  "user_notes",
+  "applicant_name",
+  "respondent",
+  "country_of_origin",
+  "visa_subclass_number",
+  "hearing_date",
+  "is_represented",
+  "representative",
+] as const;
+
 export function CaseEditPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -32,35 +60,8 @@ export function CaseEditPage() {
 
   useEffect(() => {
     if (data?.case) {
-      const fields = [
-        "title",
-        "citation",
-        "court",
-        "court_code",
-        "date",
-        "judges",
-        "outcome",
-        "visa_type",
-        "visa_subclass",
-        "visa_class_code",
-        "case_nature",
-        "legislation",
-        "legal_concepts",
-        "catchwords",
-        "url",
-        "source",
-        "tags",
-        "user_notes",
-        "applicant_name",
-        "respondent",
-        "country_of_origin",
-        "visa_subclass_number",
-        "hearing_date",
-        "is_represented",
-        "representative",
-      ] as const;
       const initial: Record<string, string> = {};
-      for (const f of fields) {
+      for (const f of EDITABLE_FIELDS) {
         initial[f] = String(data.case[f as keyof ImmigrationCase] ?? "");
       }
       setForm(initial);

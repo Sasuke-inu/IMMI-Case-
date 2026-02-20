@@ -28,6 +28,14 @@ const COLORS = [
 function ConceptTrendChartInner({ data }: ConceptTrendChartProps) {
   const { t } = useTranslation();
   const concepts = Object.keys(data.series).slice(0, 6);
+
+  // Build year→point Maps once per concept (O(n)) instead of O(n²) find() in loop
+  const pointMaps = new Map(
+    concepts.map((concept) => [
+      concept,
+      new Map(data.series[concept].map((p) => [p.year, p])),
+    ]),
+  );
   const years = new Set<number>();
   concepts.forEach((concept) => {
     data.series[concept].forEach((point) => years.add(point.year));
@@ -38,7 +46,7 @@ function ConceptTrendChartInner({ data }: ConceptTrendChartProps) {
     .map((year) => {
       const row: Record<string, number> = { year };
       concepts.forEach((concept) => {
-        const point = data.series[concept].find((entry) => entry.year === year);
+        const point = pointMaps.get(concept)?.get(year);
         row[concept] = point?.win_rate ?? 0;
       });
       return row;
