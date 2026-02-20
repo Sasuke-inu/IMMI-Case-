@@ -67,7 +67,7 @@ export function CaseAddPage() {
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
-                label={`${t("cases.title")} *`}
+                label={`${t("cases.case_title")} *`}
                 value={form.title}
                 onChange={(v) => updateField("title", v)}
               />
@@ -182,7 +182,9 @@ export function CaseAddPage() {
                 className="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" />
-                {createMutation.isPending ? t("pages.case_add.creating") : t("pages.case_add.save_button")}
+                {createMutation.isPending
+                  ? t("pages.case_add.creating")
+                  : t("pages.case_add.save_button")}
               </button>
             </div>
           </div>

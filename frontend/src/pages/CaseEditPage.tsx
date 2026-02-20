@@ -112,7 +112,10 @@ export function CaseEditPage() {
         <Breadcrumb
           items={[
             { label: t("nav.cases"), href: "/cases" },
-            { label: data.case.citation || t("cases.title"), href: `/cases/${id}` },
+            {
+              label: data.case.citation || t("cases.title"),
+              href: `/cases/${id}`,
+            },
             { label: t("pages.case_edit.breadcrumb_edit") },
           ]}
         />
@@ -132,7 +135,7 @@ export function CaseEditPage() {
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
-                label={`${t("cases.title")} *`}
+                label={`${t("cases.case_title")} *`}
                 value={form.title}
                 onChange={(v) => updateField("title", v)}
               />
@@ -306,7 +309,9 @@ export function CaseEditPage() {
                 className="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
-                {updateMutation.isPending ? t("pages.case_edit.saving") : t("pages.case_edit.save_button")}
+                {updateMutation.isPending
+                  ? t("pages.case_edit.saving")
+                  : t("pages.case_edit.save_button")}
               </button>
             </div>
           </div>
