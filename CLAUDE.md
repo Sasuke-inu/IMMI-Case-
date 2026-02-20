@@ -211,10 +211,20 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 - 數據狀態: 149,016 個案件記錄已同步至 Supabase
 - 認證方式: Publishable API Key (環境變數: `SUPABASE_ANON_KEY`)
 
+## Structured Field Extraction (`extract_structured_fields.py`)
+
+- Run: `python3 extract_structured_fields.py --workers 8` (parallel, ~8min for 149K cases)
+- Dry-run test: `python3 extract_structured_fields.py --dry-run --sample 500 --workers 4`
+- **Fill rates (2026-02-21)**: applicant_name 90.0% | visa_subclass 91.6% | hearing_date 78.7% | country 65.2% | respondent 32.7% | is_represented 22.4% | representative 15.7%
+- **respondent ceiling is ~33%** — MRTA/RRTA/AATA are one-party tribunal reviews; no legal respondent exists
+- **After running**, re-sync: `python3 migrate_csv_to_supabase.py`
+- Uses `ProcessPoolExecutor.map(chunksize=500)` — do NOT use `executor.submit()` for 149K+ rows (OOM)
+- Do NOT run two instances simultaneously — both write to same CSV
+
 ## Important Notes
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
-- **149,016 case records** (2000-2026): ~62,500 with full text, ~86,500 metadata only (full text pending)
+- **149,016 case records** (2000-2026): **148,966 with full text** (99.96%), 7 structured fields extracted
 - 9 courts/tribunals: MRTA 52,970 | AATA 39,203 | FCA 14,987 | RRTA 13,765 | FCCA 11,157 | FMCA 10,395 | FedCFamC2G 4,109 | ARTA 2,260 | HCA 176
 - **Supabase Cloud**: 149,016 records fully synced (Project: Bsmart, `urntbuqczarkuoaosjxd`)
 - Rate limiting enforced at `BaseScraper` level; respect default 1-second delay
