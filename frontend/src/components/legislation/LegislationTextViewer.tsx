@@ -26,6 +26,7 @@ import {
   Maximize2,
   Minimize2,
   ChevronRight,
+  Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LegislationSection } from "@/lib/api";
@@ -64,12 +65,96 @@ function classifyLine(line: string): LineType {
   return "body";
 }
 
+// ── Cross-reference linkification ─────────────────────────────────────────
+
+/** Map from section number string (e.g. "501", "501A") → DOM element id */
+type SectionMap = Map<string, string>;
+
+/**
+ * Build a lookup from section number → section element id.
+ * Handles edge cases like "501A", "1.03", "503A" etc.
+ */
+function buildSectionMap(sections: LegislationSection[]): SectionMap {
+  const map: SectionMap = new Map();
+  for (const s of sections) {
+    if (s.number) map.set(s.number.trim().toLowerCase(), s.id);
+  }
+  return map;
+}
+
+/**
+ * Pattern that matches common Australian statute cross-references:
+ *   section 501        sections 501 and 501A
+ *   subsection (1)     s. 501          s 501A
+ *   paragraph (a)
+ *
+ * Group 1 = the keyword ("section"/"subsection"/"paragraph"/"s.")
+ * Group 2 = the reference identifier (number or letter)
+ */
+const XREF_RE =
+  /\b(sections?\s+|subsections?\s+|paragraphs?\s+|s\.\s*)([A-Za-z]?\d[\d.A-Za-z]*(?:\([^)]*\))?)/g;
+
+/**
+ * Split `text` into alternating string/JSX segments.
+ * References that exist in `sectionMap` are rendered as clickable buttons.
+ * Unknown references remain as plain text (no broken links).
+ */
+function linkifyText(
+  text: string,
+  sectionMap: SectionMap,
+  onJump: (id: string) => void,
+): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  XREF_RE.lastIndex = 0; // reset stateful global regex
+
+  while ((match = XREF_RE.exec(text)) !== null) {
+    const [full, keyword, ref] = match;
+    const start = match.index;
+
+    // Push preceding plain text
+    if (start > lastIndex) parts.push(text.slice(lastIndex, start));
+
+    const refLower = ref.trim().toLowerCase();
+    const sectionId = sectionMap.get(refLower);
+
+    if (sectionId) {
+      // Render as clickable link
+      parts.push(
+        <button
+          key={start}
+          onClick={() => onJump(sectionId)}
+          className="inline-flex items-center gap-0.5 rounded px-0.5 font-mono text-accent underline decoration-dotted underline-offset-2 hover:bg-accent/10 hover:decoration-solid"
+          title={`Jump to section ${ref}`}
+        >
+          <Link2 className="inline h-2.5 w-2.5 shrink-0 opacity-60" />
+          {keyword}
+          <span className="font-semibold">{ref}</span>
+        </button>,
+      );
+    } else {
+      // Unknown section — keep as plain text to avoid dead links
+      parts.push(full);
+    }
+
+    lastIndex = start + full.length;
+  }
+
+  // Remaining text after last match
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+
+  return parts.length === 0 ? text : <>{parts}</>;
+}
+
 // ── Smart rendering (reading mode) ────────────────────────────────────────
 
 function renderStatuteLine(
   line: string,
   type: LineType,
   key: number,
+  sectionMap: SectionMap,
+  onJump: (id: string) => void,
 ): React.ReactNode {
   switch (type) {
     case "blank":
@@ -85,26 +170,29 @@ function renderStatuteLine(
         </p>
       );
 
-    case "subsection":
+    case "subsection": {
+      const rest = line.replace(SUBSECTION_RE, "").trimStart();
       return (
         <p
           key={key}
           className="mt-2 font-mono text-xs leading-relaxed text-foreground whitespace-pre-wrap"
         >
-          {line.replace(SUBSECTION_RE, () => "").trimStart() ? (
+          {rest ? (
             <>
               <span className="mr-1.5 font-bold text-accent">
                 {line.match(SUBSECTION_RE)?.[0].trim()}
               </span>
-              {line.replace(SUBSECTION_RE, "").trimStart()}
+              {linkifyText(rest, sectionMap, onJump)}
             </>
           ) : (
             line
           )}
         </p>
       );
+    }
 
-    case "paragraph":
+    case "paragraph": {
+      const rest = line.replace(PARAGRAPH_RE, "").trimStart();
       return (
         <p
           key={key}
@@ -113,11 +201,13 @@ function renderStatuteLine(
           <span className="mr-1 font-semibold text-secondary-text">
             {line.match(PARAGRAPH_RE)?.[0].trim()}
           </span>
-          {line.replace(PARAGRAPH_RE, "").trimStart()}
+          {linkifyText(rest, sectionMap, onJump)}
         </p>
       );
+    }
 
-    case "subpara":
+    case "subpara": {
+      const rest = line.replace(SUBPARA_RE, "").trimStart();
       return (
         <p
           key={key}
@@ -126,9 +216,10 @@ function renderStatuteLine(
           <span className="mr-1 text-muted-text">
             {line.match(SUBPARA_RE)?.[0].trim()}
           </span>
-          {line.replace(SUBPARA_RE, "").trimStart()}
+          {linkifyText(rest, sectionMap, onJump)}
         </p>
       );
+    }
 
     case "note":
       return (
@@ -136,7 +227,7 @@ function renderStatuteLine(
           key={key}
           className="my-1.5 ml-4 rounded-r border-l-2 border-info/40 bg-info/5 px-3 py-1.5 font-mono text-xs text-secondary-text whitespace-pre-wrap"
         >
-          {line}
+          {linkifyText(line, sectionMap, onJump)}
         </div>
       );
 
@@ -146,7 +237,7 @@ function renderStatuteLine(
           key={key}
           className="my-1.5 ml-4 rounded-r border-l-2 border-warning/50 bg-warning/5 px-3 py-1.5 font-mono text-xs font-semibold text-warning whitespace-pre-wrap"
         >
-          {line}
+          {linkifyText(line, sectionMap, onJump)}
         </div>
       );
 
@@ -156,7 +247,7 @@ function renderStatuteLine(
           key={key}
           className="my-1.5 ml-4 rounded-r border-l-2 border-success/40 bg-success/5 px-3 py-1.5 font-mono text-xs text-secondary-text whitespace-pre-wrap"
         >
-          {line}
+          {linkifyText(line, sectionMap, onJump)}
         </div>
       );
 
@@ -166,16 +257,22 @@ function renderStatuteLine(
           key={key}
           className="font-mono text-xs leading-relaxed text-foreground whitespace-pre-wrap"
         >
-          {line}
+          {linkifyText(line, sectionMap, onJump)}
         </p>
       );
   }
 }
 
-function renderStatuteText(text: string): React.ReactNode[] {
+function renderStatuteText(
+  text: string,
+  sectionMap: SectionMap,
+  onJump: (id: string) => void,
+): React.ReactNode[] {
   return text
     .split("\n")
-    .map((line, i) => renderStatuteLine(line, classifyLine(line), i));
+    .map((line, i) =>
+      renderStatuteLine(line, classifyLine(line), i, sectionMap, onJump),
+    );
 }
 
 // ── Search highlight rendering ─────────────────────────────────────────────
@@ -355,6 +452,8 @@ interface SectionCardProps {
   activeMatchIdx: number;
   matchOffsetBefore: number; // how many global matches come before this section
   searching: boolean;
+  sectionMap: SectionMap;
+  onJump: (id: string) => void;
 }
 
 function SectionCard({
@@ -363,6 +462,8 @@ function SectionCard({
   activeMatchIdx,
   matchOffsetBefore,
   searching,
+  sectionMap,
+  onJump,
 }: SectionCardProps) {
   return (
     <div
@@ -397,7 +498,7 @@ function SectionCard({
               activeMatchIdx,
               matchOffsetBefore,
             )
-          : renderStatuteText(section.text)}
+          : renderStatuteText(section.text, sectionMap, onJump)}
       </div>
     </div>
   );
@@ -419,6 +520,9 @@ export function LegislationTextViewer({
   const [activeId, setActiveId] = useState<string | null>(
     sections[0]?.id ?? null,
   );
+
+  // Build section number → id map for cross-reference links (memoised per sections list)
+  const sectionMap = useMemo(() => buildSectionMap(sections), [sections]);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -636,6 +740,8 @@ export function LegislationTextViewer({
                 activeMatchIdx={activeMatchIdx}
                 matchOffsetBefore={matchOffsets[idx] ?? 0}
                 searching={searching}
+                sectionMap={sectionMap}
+                onJump={jumpToSection}
               />
             ))}
           </div>
