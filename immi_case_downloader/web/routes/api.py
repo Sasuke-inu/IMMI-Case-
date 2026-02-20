@@ -31,8 +31,17 @@ logger = logging.getLogger(__name__)
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
 _HEX_ID = re.compile(r"^[0-9a-f]{12}$")
+
+# ── API configuration constants ───────────────────────────────────────
 MAX_BATCH_SIZE = 200
 MAX_TAG_LENGTH = 50
+MAX_COMPARE_CASES = 5
+DEFAULT_PAGE_SIZE = 100
+MAX_PAGE_SIZE = 200
+DEFAULT_SEARCH_LIMIT = 50
+MAX_SEARCH_LIMIT = 200
+DEFAULT_RELATED_LIMIT = 5
+MAX_RELATED_LIMIT = 20
 
 # ── Outcome normalisation ──────────────────────────────────────────────
 
@@ -417,6 +426,12 @@ def _get_all_cases() -> list[ImmigrationCase]:
         return _all_cases_cache
 
 
+def _invalidate_cases_cache() -> None:
+    """Reset the in-memory cases cache so the next read fetches fresh data."""
+    global _all_cases_ts
+    _all_cases_ts = 0.0
+
+
 def _apply_filters(cases: list[ImmigrationCase]) -> list[ImmigrationCase]:
     """Apply query params to a case list.
 
@@ -626,7 +641,7 @@ def list_cases():
     sort_by = request.args.get("sort_by", "date")
     sort_dir = request.args.get("sort_dir", "desc")
     page = safe_int(request.args.get("page"), default=1, min_val=1)
-    page_size = safe_int(request.args.get("page_size"), default=100, min_val=1, max_val=200)
+    page_size = safe_int(request.args.get("page_size"), default=DEFAULT_PAGE_SIZE, min_val=1, max_val=MAX_PAGE_SIZE)
 
     page_cases, total = repo.filter_cases(
         court=court, year=year, visa_type=visa_type,
@@ -666,7 +681,8 @@ def create_case():
     case = ImmigrationCase.from_dict(data)
     repo = get_repo()
     case = repo.add(case)
-    return jsonify(case.to_dict()), 201
+    _invalidate_cases_cache()
+    return jsonify({"case": case.to_dict()}), 201
 
 
 @api_bp.route("/cases/<case_id>", methods=["PUT"])
@@ -691,8 +707,9 @@ def update_case(case_id):
             updates[field] = val
 
     if repo.update(case_id, updates):
+        _invalidate_cases_cache()
         updated = repo.get_by_id(case_id)
-        return jsonify(updated.to_dict() if updated else {})
+        return jsonify({"case": updated.to_dict() if updated else {}})
     return _error("Failed to update case", 500)
 
 
@@ -702,6 +719,7 @@ def delete_case(case_id):
         return _error("Invalid case ID")
     repo = get_repo()
     if repo.delete(case_id):
+        _invalidate_cases_cache()
         return jsonify({"success": True})
     return _error("Failed to delete case", 500)
 
@@ -749,6 +767,8 @@ def batch_cases():
     else:
         return _error(f"Unknown action: {action}")
 
+    if count > 0:
+        _invalidate_cases_cache()
     return jsonify({"affected": count})
 
 
@@ -760,8 +780,8 @@ def compare_cases():
     ids = [i for i in ids if _valid_case_id(i)]
     if len(ids) < 2:
         return _error("At least 2 case IDs required")
-    if len(ids) > 5:
-        return _error("Maximum 5 cases can be compared at once")
+    if len(ids) > MAX_COMPARE_CASES:
+        return _error(f"Maximum {MAX_COMPARE_CASES} cases can be compared at once")
 
     repo = get_repo()
     cases = []
@@ -783,7 +803,7 @@ def related_cases(case_id):
     if not _valid_case_id(case_id):
         return _error("Invalid case ID")
     repo = get_repo()
-    limit = safe_int(request.args.get("limit"), default=5, min_val=1, max_val=20)
+    limit = safe_int(request.args.get("limit"), default=DEFAULT_RELATED_LIMIT, min_val=1, max_val=MAX_RELATED_LIMIT)
     related = repo.find_related(case_id, limit=limit)
     return jsonify({"cases": [c.to_dict() for c in related]})
 
@@ -793,7 +813,7 @@ def related_cases(case_id):
 @api_bp.route("/search")
 def search():
     query = request.args.get("q", "").strip()
-    limit = safe_int(request.args.get("limit"), default=50, min_val=1, max_val=200)
+    limit = safe_int(request.args.get("limit"), default=DEFAULT_SEARCH_LIMIT, min_val=1, max_val=MAX_SEARCH_LIMIT)
     if not query:
         return jsonify({"cases": []})
     repo = get_repo()

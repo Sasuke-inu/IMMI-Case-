@@ -299,23 +299,25 @@ export function fetchCase(
   return apiFetch(`/api/v1/cases/${id}`);
 }
 
-export function createCase(
+export async function createCase(
   data: Partial<ImmigrationCase>,
 ): Promise<ImmigrationCase> {
-  return apiFetch("/api/v1/cases", {
+  const res = await apiFetch<{ case: ImmigrationCase }>("/api/v1/cases", {
     method: "POST",
     body: JSON.stringify(data),
   });
+  return res.case;
 }
 
-export function updateCase(
+export async function updateCase(
   id: string,
   data: Partial<ImmigrationCase>,
 ): Promise<ImmigrationCase> {
-  return apiFetch(`/api/v1/cases/${id}`, {
+  const res = await apiFetch<{ case: ImmigrationCase }>(`/api/v1/cases/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
+  return res.case;
 }
 
 export function deleteCase(id: string): Promise<{ success: boolean }> {
