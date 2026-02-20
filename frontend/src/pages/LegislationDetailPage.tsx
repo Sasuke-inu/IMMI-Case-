@@ -1,11 +1,10 @@
-import { useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, BookOpen, ExternalLink } from "lucide-react";
 import { useLegislationDetail } from "@/hooks/use-legislations";
 import { Breadcrumb } from "@/components/shared/Breadcrumb";
+import { LegislationTextViewer } from "@/components/legislation/LegislationTextViewer";
 import { cn } from "@/lib/utils";
-import type { LegislationSection } from "@/lib/api";
 
 const AUSTLII_BASE = "https://www.austlii.edu.au/au/legis/cth";
 
@@ -22,85 +21,14 @@ function MetaField({ label, value, mono }: MetaFieldProps) {
   return (
     <div>
       <dt className="text-xs font-medium text-secondary-text">{label}</dt>
-      <dd className={cn("mt-0.5 text-sm text-foreground", mono && "font-mono text-xs")}>
+      <dd
+        className={cn(
+          "mt-0.5 text-sm text-foreground",
+          mono && "font-mono text-xs",
+        )}
+      >
         {value}
       </dd>
-    </div>
-  );
-}
-
-/** Left sidebar: TOC grouped by Part */
-function LegislationToc({ sections }: { sections: LegislationSection[] }) {
-  const parts = useMemo(() => {
-    const map = new Map<string, LegislationSection[]>();
-    for (const s of sections) {
-      const key = s.part || "General Provisions";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(s);
-    }
-    return map;
-  }, [sections]);
-
-  return (
-    <nav className="max-h-[calc(100vh-12rem)] overflow-y-auto rounded-lg border border-border bg-card p-3">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-text">
-        Contents
-      </p>
-      <ul className="space-y-3">
-        {Array.from(parts.entries()).map(([part, secs]) => (
-          <li key={part}>
-            <p className="mb-1 text-xs font-semibold leading-tight text-secondary-text">
-              {part}
-            </p>
-            <ul className="space-y-0.5 border-l border-border pl-2">
-              {secs.map((s) => (
-                <li key={s.id}>
-                  <a
-                    href={`#${s.id}`}
-                    className={cn(
-                      "block truncate rounded px-1.5 py-0.5 text-xs text-muted-text",
-                      "transition-colors hover:bg-surface hover:text-foreground",
-                    )}
-                  >
-                    <span className="font-mono text-accent">{s.number}</span>
-                    {s.title && (
-                      <span className="ml-1 text-secondary-text">{s.title}</span>
-                    )}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
-
-/** A single section card */
-function SectionCard({ section }: { section: LegislationSection }) {
-  return (
-    <div id={section.id} className="scroll-mt-4 rounded-lg border border-border bg-card p-4">
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="flex items-baseline gap-2">
-          <span className="font-mono text-sm font-semibold text-accent">
-            {section.number}
-          </span>
-          {section.title && (
-            <span className="font-heading text-sm font-medium text-foreground">
-              {section.title}
-            </span>
-          )}
-        </div>
-        {section.division && (
-          <span className="shrink-0 rounded bg-surface px-1.5 py-0.5 text-xs text-muted-text">
-            {section.division}
-          </span>
-        )}
-      </div>
-      <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-secondary-text">
-        {section.text}
-      </pre>
     </div>
   );
 }
@@ -114,7 +42,8 @@ function NotScrapedState({ onUpdate }: { onUpdate: () => void }) {
         Full text not yet downloaded
       </h3>
       <p className="mt-1 text-sm text-secondary-text">
-        Click "Update Laws" on the legislations list to download section text from AustLII.
+        Click "Update Laws" on the legislations list to download section text
+        from AustLII.
       </p>
       <button
         onClick={onUpdate}
@@ -140,7 +69,10 @@ export function LegislationDetailPage() {
         <Breadcrumb
           items={[
             { label: t("common.dashboard"), href: "/" },
-            { label: t("legislations.title", { defaultValue: "Legislations" }), href: "/legislations" },
+            {
+              label: t("legislations.title", { defaultValue: "Legislations" }),
+              href: "/legislations",
+            },
             { label: t("common.not_found") },
           ]}
         />
@@ -184,7 +116,10 @@ export function LegislationDetailPage() {
         <Breadcrumb
           items={[
             { label: t("common.dashboard"), href: "/" },
-            { label: t("legislations.title", { defaultValue: "Legislations" }), href: "/legislations" },
+            {
+              label: t("legislations.title", { defaultValue: "Legislations" }),
+              href: "/legislations",
+            },
             { label: legislation.title },
           ]}
         />
@@ -222,7 +157,9 @@ export function LegislationDetailPage() {
       <div className="rounded-lg border border-border bg-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-heading text-base font-semibold text-foreground">
-            {t("legislations.information", { defaultValue: "Legislation Information" })}
+            {t("legislations.information", {
+              defaultValue: "Legislation Information",
+            })}
           </h2>
           <a
             href={austliiUrl}
@@ -235,7 +172,6 @@ export function LegislationDetailPage() {
           </a>
         </div>
         <dl className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
-          <MetaField label="ID" value={legislation.id} mono />
           <MetaField label="Shortcode" value={legislation.shortcode} mono />
           <MetaField label="AustLII ID" value={legislation.austlii_id} mono />
           <MetaField label="Jurisdiction" value={legislation.jurisdiction} />
@@ -245,33 +181,31 @@ export function LegislationDetailPage() {
             value={legislation.sections_count || undefined}
           />
           <MetaField
-            label={t("legislations.last_amended", { defaultValue: "Last Amended" })}
+            label={t("legislations.last_amended", {
+              defaultValue: "Last Amended",
+            })}
             value={legislation.last_amended || undefined}
           />
           <MetaField
-            label={t("legislations.last_scraped", { defaultValue: "Last Scraped" })}
-            value={legislation.last_scraped ? new Date(legislation.last_scraped).toLocaleDateString("en-AU") : undefined}
+            label={t("legislations.last_scraped", {
+              defaultValue: "Last Scraped",
+            })}
+            value={
+              legislation.last_scraped
+                ? new Date(legislation.last_scraped).toLocaleDateString(
+                    "en-AU",
+                  )
+                : undefined
+            }
           />
         </dl>
       </div>
 
-      {/* Sections: TOC + Content */}
+      {/* Sections viewer */}
       {sections.length === 0 ? (
         <NotScrapedState onUpdate={() => navigate("/legislations")} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
-          {/* Sticky TOC sidebar */}
-          <div className="lg:sticky lg:top-4 lg:self-start">
-            <LegislationToc sections={sections} />
-          </div>
-
-          {/* Section cards */}
-          <div className="space-y-3">
-            {sections.map((section) => (
-              <SectionCard key={section.id} section={section} />
-            ))}
-          </div>
-        </div>
+        <LegislationTextViewer sections={sections} />
       )}
     </div>
   );
