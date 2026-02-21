@@ -1,7 +1,7 @@
-import { Moon, Sun, Menu, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useThemePreset } from "@/hooks/use-theme-preset";
 import { cn } from "@/lib/utils";
+import { CelestialToggle } from "./CelestialToggle";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -10,7 +10,6 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
   const { i18n } = useTranslation();
-  const { isDark, toggleDark } = useThemePreset();
   const isZhTW = i18n.language === "zh-TW";
 
   return (
@@ -49,14 +48,8 @@ export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
           {isZhTW ? "EN" : "中文"}
         </button>
 
-        {/* Theme toggle */}
-        <button
-          onClick={toggleDark}
-          className="rounded-md p-1.5 text-secondary-text hover:bg-surface hover:text-foreground"
-          aria-label="Toggle theme"
-        >
-          {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </button>
+        {/* Celestial theme toggle */}
+        <CelestialToggle />
       </div>
     </header>
   );
