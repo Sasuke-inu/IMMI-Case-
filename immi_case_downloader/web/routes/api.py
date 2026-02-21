@@ -22,6 +22,12 @@ from flask_wtf.csrf import generate_csrf
 from ...config import START_YEAR, END_YEAR
 from ...models import ImmigrationCase
 from ...storage import CASE_FIELDS
+from ...visa_registry import (
+    clean_subclass,
+    get_family,
+    get_registry_for_api,
+    group_by_family,
+)
 from ..helpers import get_repo, get_output_dir, safe_int, _filter_cases, EDITABLE_FIELDS
 from ..jobs import _job_lock, _job_status, _run_download_job
 from ..security import csrf
@@ -150,18 +156,222 @@ def _normalise_outcome(raw: str) -> str:
     return "Other"
 
 
+# ── Legal concept normalisation ────────────────────────────────────────────
+# Maps ~200 raw LLM-extracted variant strings to 37 canonical display names.
+# Concepts not present in this dict are silently dropped as noise.
+_CONCEPT_CANONICAL: dict[str, str] = {
+    # ── Refugee / Protection ──────────────────────────────────────────────
+    "refugee status": "Refugee Status",
+    "refugee": "Refugee Status",
+    "refugees": "Refugee Status",
+    "asylum": "Refugee Status",
+    "asylee": "Refugee Status",
+    "protection visa": "Protection Visa",
+    "protection obligations": "Protection Visa",
+    "s.36": "Protection Visa",
+    "s.36 protection criteria": "Protection Visa",
+    "subclass 866": "Protection Visa",
+    "complementary protection": "Complementary Protection",
+    "well-founded fear": "Well-Founded Fear",
+    "well-founded fear of persecution": "Well-Founded Fear",
+    "well founded fear of persecution": "Well-Founded Fear",
+    "well founded fear": "Well-Founded Fear",
+    "refugee convention": "Refugee Convention",
+    "refugees convention": "Refugee Convention",
+    "convention obligations": "Refugee Convention",
+    "un convention": "Refugee Convention",
+    "1951 convention": "Refugee Convention",
+    "persecution": "Persecution",
+    "serious harm": "Persecution",
+    "significant harm": "Persecution",
+    "particular social group": "Particular Social Group",
+    "psg": "Particular Social Group",
+    "social group": "Particular Social Group",
+    "political opinion": "Political Opinion",
+    "imputed political opinion": "Political Opinion",
+    "political beliefs": "Political Opinion",
+    "country information": "Country Information",
+    "country evidence": "Country Information",
+    "country conditions": "Country Information",
+    "independent country information": "Country Information",
+    # ── Visa Categories ───────────────────────────────────────────────────
+    "student visa": "Student Visa",
+    "genuine student": "Student Visa",
+    "genuine temporary entrant": "Student Visa",
+    "condition 8202": "Student Visa",
+    "student visa condition": "Student Visa",
+    "english language proficiency": "Student Visa",
+    "english language": "Student Visa",
+    "english language requirements": "Student Visa",
+    "subclass 500": "Student Visa",
+    "subclass 573": "Student Visa",
+    "subclass 572": "Student Visa",
+    "overseas student": "Student Visa",
+    "partner visa": "Partner/Spouse Visa",
+    "partner/family visa": "Partner/Spouse Visa",
+    "spouse visa": "Partner/Spouse Visa",
+    "genuine relationship": "Partner/Spouse Visa",
+    "de facto relationship": "Partner/Spouse Visa",
+    "subclass 309": "Partner/Spouse Visa",
+    "subclass 820": "Partner/Spouse Visa",
+    "subclass 801": "Partner/Spouse Visa",
+    "prospective marriage visa": "Partner/Spouse Visa",
+    "family relationship": "Partner/Spouse Visa",
+    "skilled visa": "Skilled/Work Visa",
+    "skilled migration": "Skilled/Work Visa",
+    "subclass 457 visa": "Skilled/Work Visa",
+    "subclass 457": "Skilled/Work Visa",
+    "work visa": "Skilled/Work Visa",
+    "employer sponsorship": "Skilled/Work Visa",
+    "business sponsorship": "Skilled/Work Visa",
+    "employer nomination": "Skilled/Work Visa",
+    "employer nomination scheme": "Skilled/Work Visa",
+    "skills assessment": "Skilled/Work Visa",
+    "temporary business entry visa": "Skilled/Work Visa",
+    "sponsorship": "Skilled/Work Visa",
+    "approved nomination": "Skilled/Work Visa",
+    "direct entry stream": "Skilled/Work Visa",
+    "employer sponsored": "Skilled/Work Visa",
+    "business visa": "Skilled/Work Visa",
+    "business skills visa": "Skilled/Work Visa",
+    "points test": "Skilled/Work Visa",
+    "nomination approval": "Skilled/Work Visa",
+    "temporary residence transition stream": "Skilled/Work Visa",
+    "visitor visa": "Visitor Visa",
+    "genuine visit": "Visitor Visa",
+    "genuine intention": "Visitor Visa",
+    "adequate funds": "Visitor Visa",
+    "tourist visa": "Visitor Visa",
+    "family visa": "Family/Parent Visa",
+    "parent visa": "Family/Parent Visa",
+    "special need relative": "Family/Parent Visa",
+    "remaining relative": "Family/Parent Visa",
+    "aged dependent relative": "Family/Parent Visa",
+    "dependent child": "Family/Parent Visa",
+    "child visa": "Family/Parent Visa",
+    "carer visa": "Family/Parent Visa",
+    "remaining relative visa": "Family/Parent Visa",
+    "bridging visa": "Bridging Visa",
+    # ── Judicial / Procedural ─────────────────────────────────────────────
+    "jurisdictional error": "Jurisdictional Error",
+    "error of law": "Jurisdictional Error",
+    "legal error": "Jurisdictional Error",
+    "jurisdictional limits": "Jurisdictional Error",
+    "judicial review": "Judicial Review",
+    "judicial review principles": "Judicial Review",
+    "judicial review application": "Judicial Review",
+    "review": "Judicial Review",
+    "merits review": "Judicial Review",
+    "visa review": "Judicial Review",
+    "procedural fairness": "Procedural Fairness",
+    "natural justice": "Procedural Fairness",
+    "bias": "Procedural Fairness",
+    "apprehended bias": "Procedural Fairness",
+    "hearing rule": "Procedural Fairness",
+    "unreasonableness": "Unreasonableness",
+    "wednesbury unreasonableness": "Unreasonableness",
+    "irrationality": "Unreasonableness",
+    "manifest unreasonableness": "Unreasonableness",
+    "jurisdiction": "Jurisdiction",
+    "privative clause": "Jurisdiction",
+    "standing": "Jurisdiction",
+    "tribunal jurisdiction": "Jurisdiction",
+    "time limitation": "Time Limitation",
+    "time limits": "Time Limitation",
+    "limitation period": "Time Limitation",
+    "time bar": "Time Limitation",
+    "timeliness": "Time Limitation",
+    "tribunal procedure": "Tribunal Procedure",
+    "hearing": "Tribunal Procedure",
+    "s.359a": "Tribunal Procedure",
+    "s.424a": "Tribunal Procedure",
+    "inquisitorial process": "Tribunal Procedure",
+    # ── Character / Criminal ──────────────────────────────────────────────
+    "character test": "Character Test",
+    "s.501 character test": "Character Test",
+    "character test (s.501)": "Character Test",
+    "character test s.501": "Character Test",
+    "criminal history": "Character Test",
+    "substantial criminal record": "Character Test",
+    # ── Visa Decision ─────────────────────────────────────────────────────
+    "visa cancellation": "Visa Cancellation",
+    "cancellation": "Visa Cancellation",
+    "s.116": "Visa Cancellation",
+    "s.109": "Visa Cancellation",
+    "cancellation of visa": "Visa Cancellation",
+    "mandatory cancellation": "Visa Cancellation",
+    "visa refusal": "Visa Refusal",
+    "refusal of visa": "Visa Refusal",
+    "refusal": "Visa Refusal",
+    "visa rejection": "Visa Refusal",
+    "ministerial intervention": "Ministerial Intervention",
+    "ministerial discretion": "Ministerial Intervention",
+    "s.351": "Ministerial Intervention",
+    "s.417": "Ministerial Intervention",
+    # ── Evidence / Facts ──────────────────────────────────────────────────
+    "credibility": "Credibility Assessment",
+    "credibility assessment": "Credibility Assessment",
+    "adverse credibility": "Credibility Assessment",
+    "witness credibility": "Credibility Assessment",
+    "truthfulness": "Credibility Assessment",
+    "evidence": "Evidence",
+    "corroboration": "Evidence",
+    "medical evidence": "Evidence",
+    "expert evidence": "Evidence",
+    "evidentiary matters": "Evidence",
+    # ── Procedural Misc ───────────────────────────────────────────────────
+    "costs": "Costs",
+    "legal costs": "Costs",
+    "cost order": "Costs",
+    "legal representation": "Legal Representation",
+    "right to be heard": "Legal Representation",
+    "unrepresented applicant": "Legal Representation",
+    "appeal": "Appeal",
+    "appellate jurisdiction": "Appeal",
+    "remittal": "Appeal",
+    "fraud": "Fraud",
+    "misrepresentation": "Fraud",
+    "bogus document": "Fraud",
+    # ── Migration Law (generic) ───────────────────────────────────────────
+    "migration act": "Migration Act",
+    "migration law": "Migration Act",
+    "migration": "Migration Act",
+    "migration regulations": "Migration Act",
+    "visa criteria": "Migration Act",
+    "visa conditions": "Migration Act",
+    "visa requirements": "Migration Act",
+    "regulations": "Migration Act",
+    "health criteria": "Health Criteria",
+    "health requirement": "Health Criteria",
+    "medical criteria": "Health Criteria",
+}
+
+
+def _normalise_concept(raw: str) -> str:
+    """Map a raw concept string to its canonical display name.
+
+    Returns '' if the concept is unknown (noise filtering).
+    """
+    term = raw.strip().rstrip(".,;:").lower()
+    return _CONCEPT_CANONICAL.get(term, "")
+
+
 def _split_concepts(raw: str) -> list[str]:
+    """Split raw legal_concepts string into canonical concept names.
+
+    Applies _CONCEPT_CANONICAL to normalise synonyms and merge variants.
+    Unmapped strings are silently dropped (LLM noise filtering).
+    Deduplicates within a single case (e.g. "protection visa; s.36" → ["Protection Visa"]).
+    """
     if not raw:
         return []
-    parts = re.split(r"[;,]", raw)
-    out: list[str] = []
     seen: set[str] = set()
-    for part in parts:
-        concept = part.strip().lower()
-        if not concept or len(concept) < 2 or concept in seen:
-            continue
-        seen.add(concept)
-        out.append(concept)
+    out: list[str] = []
+    for part in re.split(r"[;,]", raw):
+        canonical = _normalise_concept(part)
+        if canonical and canonical not in seen:
+            seen.add(canonical)
+            out.append(canonical)
     return out
 
 
@@ -494,17 +704,23 @@ def _invalidate_cases_cache() -> None:
     _all_cases_ts = 0.0
 
 
+def _clean_visa(raw: object) -> str:
+    """Wrapper around clean_subclass for None/NaN-safe API usage."""
+    return clean_subclass(raw)
+
+
 def _apply_filters(cases: list[ImmigrationCase]) -> list[ImmigrationCase]:
     """Apply query params to a case list.
 
     Supported params: court, year_from, year_to, case_natures (comma-sep),
-    visa_subclasses (comma-sep), outcome_types (comma-sep).
+    visa_subclasses (comma-sep), visa_families (comma-sep), outcome_types (comma-sep).
     """
     court = request.args.get("court", "").strip()
     year_from = safe_int(request.args.get("year_from"), default=0, min_val=0, max_val=2100)
     year_to = safe_int(request.args.get("year_to"), default=0, min_val=0, max_val=2100)
     case_natures_raw = request.args.get("case_natures", "").strip()
     visa_subclasses_raw = request.args.get("visa_subclasses", "").strip()
+    visa_families_raw = request.args.get("visa_families", "").strip()
     outcome_types_raw = request.args.get("outcome_types", "").strip()
 
     if court:
@@ -518,7 +734,10 @@ def _apply_filters(cases: list[ImmigrationCase]) -> list[ImmigrationCase]:
         cases = [c for c in cases if (c.case_nature or "").strip().lower() in natures]
     if visa_subclasses_raw:
         subclasses = {s.strip() for s in visa_subclasses_raw.split(",") if s.strip()}
-        cases = [c for c in cases if (c.visa_subclass or "").strip() in subclasses]
+        cases = [c for c in cases if _clean_visa(c.visa_subclass) in subclasses]
+    if visa_families_raw:
+        families = {f.strip() for f in visa_families_raw.split(",") if f.strip()}
+        cases = [c for c in cases if get_family(c.visa_subclass or "") in families]
     if outcome_types_raw:
         outcomes = {o.strip().lower() for o in outcome_types_raw.split(",") if o.strip()}
         cases = [c for c in cases if _normalise_outcome(c.outcome).lower() in outcomes]
@@ -584,7 +803,8 @@ def stats():
         by_court: dict[str, int] = Counter(c.court_code for c in cases if c.court_code)
         by_year: dict[int, int] = Counter(c.year for c in cases if c.year)
         by_nature: dict[str, int] = Counter(c.case_nature for c in cases if c.case_nature)
-        by_visa: dict[str, int] = Counter(c.visa_subclass for c in cases if c.visa_subclass)
+        by_visa_raw: dict[str, int] = Counter(c.visa_subclass for c in cases if c.visa_subclass)
+        by_visa = {_clean_visa(k): v for k, v in by_visa_raw.items() if _clean_visa(k)}
         with_text = sum(1 for c in cases if c.full_text_path)
         sources: dict[str, int] = Counter(c.source for c in cases if c.source)
 
@@ -607,7 +827,8 @@ def stats():
             "courts": dict(by_court),
             "years": {str(k): v for k, v in sorted(by_year.items())},
             "natures": dict(by_nature),
-            "visa_subclasses": dict(by_visa),
+            "visa_subclasses": by_visa,
+            "visa_families": group_by_family(by_visa_raw),
             "sources": dict(sources),
             "recent_cases": recent,
         })
@@ -633,13 +854,17 @@ def stats():
     except Exception:
         logger.warning("Failed to fetch recent cases for stats", exc_info=True)
 
+    raw_visa = s.get("by_visa_subclass", {})
+    cleaned_visa = {_clean_visa(k): v for k, v in raw_visa.items() if _clean_visa(k)}
+
     return jsonify({
         "total_cases": s.get("total", 0),
         "with_full_text": s.get("with_full_text", 0),
         "courts": s.get("by_court", {}),
         "years": s.get("by_year", {}),
         "natures": s.get("by_nature", {}),
-        "visa_subclasses": s.get("by_visa_subclass", {}),
+        "visa_subclasses": cleaned_visa,
+        "visa_families": group_by_family(raw_visa),
         "sources": sources_dict,
         "recent_cases": recent,
     })
@@ -1013,6 +1238,7 @@ def analytics_outcomes():
     by_court: dict[str, dict[str, int]] = defaultdict(Counter)
     by_year: dict[int, dict[str, int]] = defaultdict(Counter)
     by_subclass: dict[str, dict[str, int]] = defaultdict(Counter)
+    by_family: dict[str, dict[str, int]] = defaultdict(Counter)
 
     for c in cases:
         norm = _normalise_outcome(c.outcome)
@@ -1021,12 +1247,16 @@ def analytics_outcomes():
         if c.year:
             by_year[c.year][norm] += 1
         if c.visa_subclass:
-            by_subclass[c.visa_subclass][norm] += 1
+            cleaned = _clean_visa(c.visa_subclass)
+            if cleaned:
+                by_subclass[cleaned][norm] += 1
+                by_family[get_family(cleaned)][norm] += 1
 
     return jsonify({
         "by_court": {k: dict(v) for k, v in sorted(by_court.items())},
         "by_year": {str(k): dict(v) for k, v in sorted(by_year.items())},
         "by_subclass": {k: dict(v) for k, v in sorted(by_subclass.items(), key=lambda x: sum(x[1].values()), reverse=True)},
+        "by_family": {k: dict(v) for k, v in sorted(by_family.items(), key=lambda x: sum(x[1].values()), reverse=True)},
     })
 
 
@@ -1061,12 +1291,8 @@ def analytics_legal_concepts():
 
     concept_counter: Counter = Counter()
     for c in cases:
-        if not c.legal_concepts:
-            continue
-        for concept in re.split(r"[;,]", c.legal_concepts):
-            term = concept.strip().lower()
-            if term and len(term) > 2:
-                concept_counter[term] += 1
+        for concept in _split_concepts(c.legal_concepts):
+            concept_counter[concept] += 1
 
     concepts = [
         {"name": name, "count": count}
@@ -1712,6 +1938,46 @@ def analytics_judge_bio():
     if not bio:
         return jsonify({"found": False})
     return jsonify({"found": True, **bio})
+
+
+# ── Visa Registry ──────────────────────────────────────────────────────
+
+@api_bp.route("/visa-registry")
+def visa_registry():
+    """Return the full visa registry (entries + families) for frontend caching."""
+    return jsonify(get_registry_for_api())
+
+
+@api_bp.route("/analytics/visa-families")
+def analytics_visa_families():
+    """Case counts and win rates aggregated by visa family."""
+    cases = _apply_filters(_get_all_cases())
+
+    family_totals: dict[str, int] = Counter()
+    family_wins: dict[str, int] = Counter()
+
+    for c in cases:
+        cleaned = _clean_visa(c.visa_subclass)
+        if not cleaned:
+            continue
+        family = get_family(cleaned)
+        family_totals[family] += 1
+        norm = _normalise_outcome(c.outcome)
+        if _is_win(norm, c.court_code or ""):
+            family_wins[family] += 1
+
+    families = []
+    for name in sorted(family_totals, key=lambda k: family_totals[k], reverse=True):
+        total = family_totals[name]
+        wins = family_wins.get(name, 0)
+        families.append({
+            "family": name,
+            "total": total,
+            "win_count": wins,
+            "win_rate": round(wins / total * 100, 1) if total else 0,
+        })
+
+    return jsonify({"families": families, "total_cases": len(cases)})
 
 
 # ── Data Dictionary ─────────────────────────────────────────────────────
