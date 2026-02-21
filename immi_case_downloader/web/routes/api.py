@@ -63,24 +63,80 @@ _COURT_WIN_OUTCOMES = ("Allowed", "Set Aside")
 _MIXED_WIN_OUTCOMES = ("Allowed", "Remitted", "Set Aside")
 _JUDGE_BLOCKLIST = frozenset(
     {
-        "date",
-        "the",
-        "and",
-        "court",
-        "tribunal",
-        "member",
-        "judge",
-        "justice",
-        "honour",
-        "federal",
-        "migration",
-        "review",
-        "applicant",
-        "respondent",
-        "minister",
-        "decision",
+        # Common noise words from HTML/text parsing artefacts
+        "date", "the", "and", "or", "of", "in", "for", "at", "by",
+        # Legal roles/titles (single-word entries that aren't names)
+        "court", "tribunal", "member", "judge", "justice", "honour",
+        "federal", "migration", "review", "applicant", "respondent",
+        "minister", "decision", "department", "government", "australia",
+        "registry", "registrar", "president", "deputy", "senior",
+        "appellant", "appeal", "application", "matter",
     }
 )
+
+# Leading title prefixes to strip (applied repeatedly until no match)
+_JUDGE_TITLE_RE = re.compile(
+    r"^(?:The\s+Hon(?:ourable)?\.?\s+|Hon(?:ourable)?\.?\s+|"
+    r"Chief\s+Justice\s+|Justice\s+|Senior\s+Member\s+|"
+    r"Deputy\s+President\s+|Deputy\s+Member\s+|Deputy\s+|"
+    r"Principal\s+Member\s+|Member\s+|Magistrate\s+|"
+    r"President\s+|Registrar\s+|"
+    r"Mr\.?\s+|Mrs\.?\s+|Ms\.?\s+|Miss\s+|Dr\.?\s+|Prof\.?\s+)",
+    re.IGNORECASE,
+)
+
+# Trailing legal abbreviations (e.g. "Smith J", "Brown CJ", "White FM")
+_JUDGE_SUFFIX_RE = re.compile(
+    r"\s+(?:J|CJ|ACJ|FM|AM|DCJ|JA|RFM|SM|DP|P)\b\.?$",
+    re.IGNORECASE,
+)
+
+# Words that disqualify an entry as a real person's name
+_NAME_DISQUALIFIERS = frozenset({
+    "the", "of", "in", "for", "at", "on", "by", "to", "with", "and", "or",
+    "tribunal", "court", "department", "minister", "registry", "review",
+    "applicant", "respondent", "appellant", "migration", "australia",
+})
+
+
+def _is_real_judge_name(name: str) -> bool:
+    """Return True only if name looks like an actual person's name."""
+    words = name.split()
+    if not words or len(words) > 4:
+        return False
+    # All words must not be disqualifiers
+    if all(w.lower() in _NAME_DISQUALIFIERS for w in words):
+        return False
+    # Must contain at least one word that starts with a capital letter
+    if not any(w[0].isupper() for w in words if w):
+        return False
+    return True
+
+
+def _normalise_judge_name(raw: str) -> str:
+    """Strip titles/suffixes and title-case; return clean display name."""
+    name = raw.strip()
+    # Strip leading titles (loop: "The Honourable Justice" needs 3 passes)
+    for _ in range(4):
+        m = _JUDGE_TITLE_RE.match(name)
+        if m:
+            name = name[m.end():].strip()
+        else:
+            break
+    # Strip trailing legal abbreviations (J, CJ, FM, etc.)
+    m = _JUDGE_SUFFIX_RE.search(name)
+    if m:
+        name = name[:m.start()].strip()
+    # Normalise whitespace
+    name = re.sub(r"\s+", " ", name).strip()
+    if not name:
+        return ""
+    # Title-case with Mac/Mc/O' special handling
+    name = name.title()
+    name = re.sub(r"\bMac([a-z])", lambda x: "Mac" + x.group(1).upper(), name)
+    name = re.sub(r"\bMc([a-z])", lambda x: "Mc" + x.group(1).upper(), name)
+    name = re.sub(r"\bO'([a-z])", lambda x: "O'" + x.group(1).upper(), name)
+    return name
 
 
 def _normalise_outcome(raw: str) -> str:
@@ -110,19 +166,25 @@ def _split_concepts(raw: str) -> list[str]:
 
 
 def _split_judges(raw: str) -> list[str]:
+    """Split raw judges string into clean, normalised display names.
+
+    Strips titles (Justice/Member/Mr/Ms), trailing abbreviations (J/CJ/FM),
+    applies is_real_name filtering to remove parsing noise, and deduplicates.
+    """
     if not raw:
         return []
     names: list[str] = []
     seen: set[str] = set()
     for piece in re.split(r"[;,]", raw):
-        name = piece.strip()
+        name = _normalise_judge_name(piece)
         lowered = name.lower()
         if (
             not name
-            or len(name) < 3
+            or len(name) < 2
             or lowered in _JUDGE_BLOCKLIST
-            or name.isdigit()
+            or name.replace(" ", "").isdigit()
             or lowered in seen
+            or not _is_real_judge_name(name)
         ):
             continue
         seen.add(lowered)
@@ -1249,11 +1311,14 @@ def analytics_judge_profile():
         return _error("name query parameter is required")
 
     cases = _apply_filters(_get_all_cases())
-    lowered_name = name.lower()
+    # Normalize the query name (strips titles like "Justice", "Member") for matching,
+    # but keep the original name for display in the response.
+    normalized_query = _normalise_judge_name(name).lower()
+    match_names = {name.lower(), normalized_query} - {""}
     judge_cases = [
         c
         for c in cases
-        if lowered_name in {j.lower() for j in _split_judges(c.judges)}
+        if match_names & {j.lower() for j in _split_judges(c.judges)}
     ]
 
     # Compute court-wide approval rates for comparison
@@ -1293,11 +1358,12 @@ def analytics_judge_compare():
 
     profiles = []
     for name in names:
-        lowered_name = name.lower()
+        normalized_query = _normalise_judge_name(name).lower()
+        match_names = {name.lower(), normalized_query} - {""}
         judge_cases = [
             c
             for c in cases
-            if lowered_name in {j.lower() for j in _split_judges(c.judges)}
+            if match_names & {j.lower() for j in _split_judges(c.judges)}
         ]
         profiles.append(
             _judge_profile_payload(name, judge_cases, include_recent_cases=False)
