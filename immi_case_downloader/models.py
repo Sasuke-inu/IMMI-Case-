@@ -38,6 +38,8 @@ class ImmigrationCase:
     hearing_date: str = ""
     is_represented: str = ""
     representative: str = ""
+    visa_outcome_reason: str = ""
+    legal_test_applied: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)

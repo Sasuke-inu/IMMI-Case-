@@ -45,6 +45,8 @@ CASE_FIELDS = [
     "hearing_date",
     "is_represented",
     "representative",
+    "visa_outcome_reason",
+    "legal_test_applied",
 ]
 
 
