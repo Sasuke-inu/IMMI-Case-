@@ -143,9 +143,10 @@ function TimelineChartInner({ data }: TimelineChartProps) {
             stackId="stack"
             fill={courtColors[court] ?? "#8b8680"}
             cursor="pointer"
-            onClick={(data) => {
-              if (data && typeof data.year === "number") {
-                handleBarClick(court, data.year);
+            onClick={(data: unknown) => {
+              const d = data as Record<string, unknown>;
+              if (d && typeof d.year === "number") {
+                handleBarClick(court, d.year);
               }
             }}
           >
