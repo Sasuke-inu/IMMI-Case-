@@ -2206,6 +2206,149 @@ def taxonomy_countries():
         return jsonify({"success": False, "error": "Failed to retrieve countries"}), 500
 
 
+@api_bp.route("/taxonomy/guided-search", methods=["POST"])
+def taxonomy_guided_search():
+    """Multi-step guided search flow for common research tasks.
+
+    Accepts POST body with flow type and filter parameters.
+
+    Supported flows:
+      - "find-precedents": Filter cases by visa_subclass, country, legal_concepts
+      - "assess-judge": Return judge profile link and basic stats
+
+    Request body (find-precedents):
+      {
+        "flow": "find-precedents",
+        "visa_subclass": "866",
+        "country": "Afghanistan",
+        "legal_concepts": ["Refugee Status", "Well-Founded Fear"],
+        "limit": 50
+      }
+
+    Request body (assess-judge):
+      {
+        "flow": "assess-judge",
+        "judge_name": "Smith"
+      }
+
+    Returns (find-precedents):
+      {
+        "success": true,
+        "flow": "find-precedents",
+        "results": [...],
+        "meta": {
+          "total_results": 123,
+          "returned_results": 50,
+          "filters_applied": {...},
+          "limit": 50
+        }
+      }
+
+    Returns (assess-judge):
+      {
+        "success": true,
+        "flow": "assess-judge",
+        "judge_name": "Smith",
+        "profile_url": "/judges/Smith",
+        "meta": {
+          "total_cases": 543
+        }
+      }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        flow = data.get("flow", "")
+
+        if not flow:
+            return jsonify({"success": False, "error": "Flow type is required"}), 400
+
+        if flow not in ["find-precedents", "assess-judge"]:
+            return jsonify({"success": False, "error": "Invalid flow type"}), 400
+
+        if flow == "find-precedents":
+            # Get all cases and apply taxonomy-specific filters
+            cases = _get_all_cases()
+            filters_applied = {}
+
+            # Filter by visa subclass
+            visa_subclass = data.get("visa_subclass", "").strip()
+            if visa_subclass:
+                cases = [c for c in cases if c.visa_subclass and visa_subclass in c.visa_subclass]
+                filters_applied["visa_subclass"] = visa_subclass
+
+            # Filter by country of origin
+            country = data.get("country", "").strip()
+            if country:
+                cases = [c for c in cases if c.country_of_origin and country.lower() in c.country_of_origin.lower()]
+                filters_applied["country"] = country
+
+            # Filter by legal concepts (can be string or list)
+            legal_concepts = data.get("legal_concepts")
+            if legal_concepts:
+                if isinstance(legal_concepts, str):
+                    legal_concepts = [legal_concepts]
+                if isinstance(legal_concepts, list) and legal_concepts:
+                    # Filter cases that contain ANY of the specified concepts
+                    filtered = []
+                    for c in cases:
+                        case_concepts = _split_concepts(c.legal_concepts)
+                        if any(concept in case_concepts for concept in legal_concepts):
+                            filtered.append(c)
+                    cases = filtered
+                    filters_applied["legal_concepts"] = legal_concepts
+
+            # Limit results to avoid overwhelming response
+            limit = safe_int(data.get("limit"), default=DEFAULT_SEARCH_LIMIT, min_val=1, max_val=MAX_SEARCH_LIMIT)
+            total_results = len(cases)
+            cases = cases[:limit]
+
+            return jsonify({
+                "success": True,
+                "flow": "find-precedents",
+                "results": [c.to_dict() for c in cases],
+                "meta": {
+                    "total_results": total_results,
+                    "returned_results": len(cases),
+                    "filters_applied": filters_applied,
+                    "limit": limit,
+                },
+            })
+
+        elif flow == "assess-judge":
+            judge_name = data.get("judge_name", "").strip()
+            if not judge_name:
+                return jsonify({"success": False, "error": "Judge name is required for assess-judge flow"}), 400
+
+            # Normalise judge name
+            normalised_name = _normalise_judge_name(judge_name)
+            if not normalised_name:
+                return jsonify({"success": False, "error": "Invalid judge name"}), 400
+
+            # Get basic judge stats
+            cases = _get_all_cases()
+            judge_cases = []
+
+            for c in cases:
+                judge_names = _split_judges(c.judges)
+                # Case-insensitive partial match
+                if any(normalised_name.lower() in jname.lower() for jname in judge_names):
+                    judge_cases.append(c)
+
+            return jsonify({
+                "success": True,
+                "flow": "assess-judge",
+                "judge_name": normalised_name,
+                "profile_url": f"/judges/{normalised_name}",
+                "meta": {
+                    "total_cases": len(judge_cases),
+                },
+            })
+
+    except Exception as e:
+        logger.error(f"Error in taxonomy/guided-search: {e}")
+        return jsonify({"success": False, "error": "Failed to process guided search"}), 500
+
+
 @api_bp.route("/analytics/visa-families")
 def analytics_visa_families():
     """Case counts and win rates aggregated by visa family."""
