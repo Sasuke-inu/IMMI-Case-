@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { VisaQuickLookup } from "@/components/taxonomy/VisaQuickLookup";
+import { LegalConceptBrowser } from "@/components/taxonomy/LegalConceptBrowser";
 
 export function TaxonomyPage() {
   const { t } = useTranslation();
@@ -31,6 +32,11 @@ export function TaxonomyPage() {
       {/* Visa Quick Lookup Section */}
       <div className="rounded-lg border border-border bg-card p-5">
         <VisaQuickLookup />
+      </div>
+
+      {/* Legal Concepts Browser Section */}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <LegalConceptBrowser />
       </div>
     </div>
   );
