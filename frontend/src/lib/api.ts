@@ -21,6 +21,7 @@ import type {
   FlowMatrixData,
   MonthlyTrendsData,
 } from "@/types/case";
+import type { LineageData } from "@/lib/lineage-data";
 
 let csrfToken: string | null = null;
 const API_TIMEOUT_MS = 20_000;
@@ -127,6 +128,11 @@ export function fetchTrends(
   filters?: AnalyticsFilterParams,
 ): Promise<{ trends: TrendEntry[] }> {
   return apiFetch(`/api/v1/stats/trends${buildFilterParams(filters)}`);
+}
+
+// ─── Court Lineage ─────────────────────────────────────────────
+export function fetchLineageData(): Promise<LineageData> {
+  return apiFetch("/api/v1/court-lineage");
 }
 
 // ─── Analytics ─────────────────────────────────────────────────
