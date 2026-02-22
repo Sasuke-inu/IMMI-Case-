@@ -157,20 +157,23 @@ def _normalise_outcome(raw: str) -> str:
 
 
 # ── Legal concept normalisation ────────────────────────────────────────────
-# Maps ~200 raw LLM-extracted variant strings to 37 canonical display names.
-# Concepts not present in this dict are silently dropped as noise.
+# Maps raw LLM-extracted strings to 30 canonical LEGAL concepts.
+# Deliberately excludes visa type names (Protection Visa, Student Visa, etc.)
+# because users already filter by visa subclass. Only legal principles,
+# tests, doctrines, and procedural rules are included here.
+# Strings not in this dict are silently dropped as noise.
 _CONCEPT_CANONICAL: dict[str, str] = {
-    # ── Refugee / Protection ──────────────────────────────────────────────
+    # ── Refugee law — substantive ─────────────────────────────────────────
     "refugee status": "Refugee Status",
     "refugee": "Refugee Status",
     "refugees": "Refugee Status",
     "asylum": "Refugee Status",
     "asylee": "Refugee Status",
-    "protection visa": "Protection Visa",
-    "protection obligations": "Protection Visa",
-    "s.36": "Protection Visa",
-    "s.36 protection criteria": "Protection Visa",
-    "subclass 866": "Protection Visa",
+    # Protection Obligations = the legal duty under s.36; distinct from the
+    # visa subclass (866) which belongs to the visa subclass filter instead.
+    "protection obligations": "Protection Obligations",
+    "s.36": "Protection Obligations",
+    "s.36 protection criteria": "Protection Obligations",
     "complementary protection": "Complementary Protection",
     "well-founded fear": "Well-Founded Fear",
     "well-founded fear of persecution": "Well-Founded Fear",
@@ -194,65 +197,17 @@ _CONCEPT_CANONICAL: dict[str, str] = {
     "country evidence": "Country Information",
     "country conditions": "Country Information",
     "independent country information": "Country Information",
-    # ── Visa Categories ───────────────────────────────────────────────────
-    "student visa": "Student Visa",
-    "genuine student": "Student Visa",
-    "genuine temporary entrant": "Student Visa",
-    "condition 8202": "Student Visa",
-    "student visa condition": "Student Visa",
-    "english language proficiency": "Student Visa",
-    "english language": "Student Visa",
-    "english language requirements": "Student Visa",
-    "subclass 500": "Student Visa",
-    "subclass 573": "Student Visa",
-    "subclass 572": "Student Visa",
-    "overseas student": "Student Visa",
-    "partner visa": "Partner/Spouse Visa",
-    "partner/family visa": "Partner/Spouse Visa",
-    "spouse visa": "Partner/Spouse Visa",
-    "genuine relationship": "Partner/Spouse Visa",
-    "de facto relationship": "Partner/Spouse Visa",
-    "subclass 309": "Partner/Spouse Visa",
-    "subclass 820": "Partner/Spouse Visa",
-    "subclass 801": "Partner/Spouse Visa",
-    "prospective marriage visa": "Partner/Spouse Visa",
-    "family relationship": "Partner/Spouse Visa",
-    "skilled visa": "Skilled/Work Visa",
-    "skilled migration": "Skilled/Work Visa",
-    "subclass 457 visa": "Skilled/Work Visa",
-    "subclass 457": "Skilled/Work Visa",
-    "work visa": "Skilled/Work Visa",
-    "employer sponsorship": "Skilled/Work Visa",
-    "business sponsorship": "Skilled/Work Visa",
-    "employer nomination": "Skilled/Work Visa",
-    "employer nomination scheme": "Skilled/Work Visa",
-    "skills assessment": "Skilled/Work Visa",
-    "temporary business entry visa": "Skilled/Work Visa",
-    "sponsorship": "Skilled/Work Visa",
-    "approved nomination": "Skilled/Work Visa",
-    "direct entry stream": "Skilled/Work Visa",
-    "employer sponsored": "Skilled/Work Visa",
-    "business visa": "Skilled/Work Visa",
-    "business skills visa": "Skilled/Work Visa",
-    "points test": "Skilled/Work Visa",
-    "nomination approval": "Skilled/Work Visa",
-    "temporary residence transition stream": "Skilled/Work Visa",
-    "visitor visa": "Visitor Visa",
-    "genuine visit": "Visitor Visa",
-    "genuine intention": "Visitor Visa",
-    "adequate funds": "Visitor Visa",
-    "tourist visa": "Visitor Visa",
-    "family visa": "Family/Parent Visa",
-    "parent visa": "Family/Parent Visa",
-    "special need relative": "Family/Parent Visa",
-    "remaining relative": "Family/Parent Visa",
-    "aged dependent relative": "Family/Parent Visa",
-    "dependent child": "Family/Parent Visa",
-    "child visa": "Family/Parent Visa",
-    "carer visa": "Family/Parent Visa",
-    "remaining relative visa": "Family/Parent Visa",
-    "bridging visa": "Bridging Visa",
-    # ── Judicial / Procedural ─────────────────────────────────────────────
+    # ── Visa eligibility legal tests ──────────────────────────────────────
+    # These are substantive legal tests adjudicated by tribunals — distinct
+    # from the visa type itself which belongs in the visa subclass filter.
+    "genuine relationship": "Genuine Relationship",
+    "de facto relationship": "Genuine Relationship",
+    "family relationship": "Genuine Relationship",
+    "genuine temporary entrant": "Genuine Temporary Entrant",
+    "genuine student": "Genuine Temporary Entrant",
+    "genuine visit": "Genuine Temporary Entrant",
+    "genuine intention": "Genuine Temporary Entrant",
+    # ── Judicial review / procedural ─────────────────────────────────────
     "jurisdictional error": "Jurisdictional Error",
     "error of law": "Jurisdictional Error",
     "legal error": "Jurisdictional Error",
@@ -293,7 +248,7 @@ _CONCEPT_CANONICAL: dict[str, str] = {
     "character test s.501": "Character Test",
     "criminal history": "Character Test",
     "substantial criminal record": "Character Test",
-    # ── Visa Decision ─────────────────────────────────────────────────────
+    # ── Visa decision types ───────────────────────────────────────────────
     "visa cancellation": "Visa Cancellation",
     "cancellation": "Visa Cancellation",
     "s.116": "Visa Cancellation",
@@ -308,7 +263,7 @@ _CONCEPT_CANONICAL: dict[str, str] = {
     "ministerial discretion": "Ministerial Intervention",
     "s.351": "Ministerial Intervention",
     "s.417": "Ministerial Intervention",
-    # ── Evidence / Facts ──────────────────────────────────────────────────
+    # ── Evidence & fact-finding ───────────────────────────────────────────
     "credibility": "Credibility Assessment",
     "credibility assessment": "Credibility Assessment",
     "adverse credibility": "Credibility Assessment",
@@ -319,7 +274,7 @@ _CONCEPT_CANONICAL: dict[str, str] = {
     "medical evidence": "Evidence",
     "expert evidence": "Evidence",
     "evidentiary matters": "Evidence",
-    # ── Procedural Misc ───────────────────────────────────────────────────
+    # ── Procedural / administrative ───────────────────────────────────────
     "costs": "Costs",
     "legal costs": "Costs",
     "cost order": "Costs",
@@ -332,15 +287,10 @@ _CONCEPT_CANONICAL: dict[str, str] = {
     "fraud": "Fraud",
     "misrepresentation": "Fraud",
     "bogus document": "Fraud",
-    # ── Migration Law (generic) ───────────────────────────────────────────
+    # ── Legislation / statutory framework ────────────────────────────────
     "migration act": "Migration Act",
     "migration law": "Migration Act",
-    "migration": "Migration Act",
     "migration regulations": "Migration Act",
-    "visa criteria": "Migration Act",
-    "visa conditions": "Migration Act",
-    "visa requirements": "Migration Act",
-    "regulations": "Migration Act",
     "health criteria": "Health Criteria",
     "health requirement": "Health Criteria",
     "medical criteria": "Health Criteria",
