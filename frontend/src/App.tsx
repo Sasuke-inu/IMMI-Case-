@@ -79,6 +79,11 @@ const SearchTaxonomyPage = lazy(() =>
     default: m.SearchTaxonomyPage,
   }))
 );
+const GuidedSearchPage = lazy(() =>
+  import("@/pages/GuidedSearchPage").then((m) => ({
+    default: m.GuidedSearchPage,
+  }))
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -164,6 +169,14 @@ export default function App() {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <SearchTaxonomyPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="guided-search"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <GuidedSearchPage />
                 </Suspense>
               }
             />
