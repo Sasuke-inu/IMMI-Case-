@@ -27,6 +27,7 @@ from ...visa_registry import (
     get_family,
     get_registry_for_api,
     group_by_family,
+    VISA_REGISTRY,
 )
 from ..helpers import get_repo, get_output_dir, safe_int, _filter_cases, EDITABLE_FIELDS
 from ..jobs import _job_lock, _job_status, _run_download_job
@@ -2023,6 +2024,456 @@ def analytics_judge_bio():
 def visa_registry():
     """Return the full visa registry (entries + families) for frontend caching."""
     return jsonify(get_registry_for_api())
+
+
+# ── Taxonomy Endpoints ─────────────────────────────────────────────────────
+
+@api_bp.route("/taxonomy/visa-lookup")
+def taxonomy_visa_lookup():
+    """Quick-lookup visa subclasses by code or name with case counts.
+
+    Query parameters:
+      q     (str, required, min 1 char) — searches subclass code or visa name
+      limit (int, default 20, max 50)   — max results to return
+
+    Returns:
+      {
+        "success": true,
+        "data": [
+          {
+            "subclass": "866",
+            "name": "Protection",
+            "family": "Protection",
+            "case_count": 12543
+          },
+          ...
+        ],
+        "meta": {
+          "query": "866",
+          "total_results": 1,
+          "limit": 20
+        }
+      }
+    """
+    try:
+        query = request.args.get("q", "").strip()
+        limit = min(request.args.get("limit", 20, type=int), 50)
+
+        if not query:
+            return jsonify({"success": False, "error": "q parameter is required"}), 400
+        if limit < 1:
+            return jsonify({"success": False, "error": "limit must be >= 1"}), 400
+
+        # Get all cases and count by visa subclass
+        cases = _get_all_cases()
+        visa_counts: dict[str, int] = Counter()
+        for c in cases:
+            cleaned = _clean_visa(c.visa_subclass)
+            if cleaned:
+                visa_counts[cleaned] += 1
+
+        # Search registry
+        q_lower = query.lower()
+        q_is_numeric = query.isdigit()
+
+        results = []
+        total_matched = 0
+
+        for subclass in sorted(VISA_REGISTRY.keys(), key=lambda x: x.zfill(4)):
+            name, family = VISA_REGISTRY[subclass]
+
+            # Match logic:
+            # 1. If query is numeric: match subclass prefix (e.g., "86" matches "866")
+            # 2. If query is text: match visa name (case-insensitive partial)
+            matched = False
+            is_exact = False
+
+            if q_is_numeric:
+                if subclass == query:
+                    matched = True
+                    is_exact = True
+                elif subclass.startswith(query):
+                    matched = True
+            else:
+                if q_lower in name.lower():
+                    matched = True
+                    if q_lower == name.lower():
+                        is_exact = True
+
+            if matched:
+                total_matched += 1
+                if len(results) < limit:
+                    results.append({
+                        "subclass": subclass,
+                        "name": name,
+                        "family": family,
+                        "case_count": visa_counts.get(subclass, 0),
+                        "_exact": is_exact,  # For sorting, will be removed
+                    })
+
+        # Sort: exact matches first, then by case count descending
+        results.sort(key=lambda x: (not x["_exact"], -x["case_count"]))
+
+        # Remove internal sorting flag
+        for r in results:
+            r.pop("_exact", None)
+
+        return jsonify({
+            "success": True,
+            "data": results,
+            "meta": {
+                "query": query,
+                "total_results": total_matched,
+                "limit": limit,
+            },
+        })
+
+    except Exception as e:
+        logger.error(f"Error in visa-lookup: {e}")
+        return jsonify({"success": False, "error": "Failed to lookup visa subclasses"}), 500
+
+
+@api_bp.route("/taxonomy/legal-concepts")
+def taxonomy_legal_concepts():
+    """Get all 34 canonical legal concepts with case counts.
+
+    Returns all legal concepts defined in the registry, annotated with
+    case counts for each. Used by frontend taxonomy browser for filtering.
+
+    Returns:
+      {
+        "success": true,
+        "concepts": [
+          {
+            "id": "procedural-fairness",
+            "name": "Procedural Fairness",
+            "description": "Natural justice, right to be heard, bias",
+            "keywords": ["natural justice", "procedural fairness", ...],
+            "case_count": 12543
+          },
+          ...
+        ],
+        "meta": {
+          "total_concepts": 34
+        }
+      }
+    """
+    try:
+        # Import legal concepts registry
+        from ...legal_concepts_registry import get_concepts_for_api
+
+        # Get all cases and count by concept
+        cases = _get_all_cases()
+        concept_counts: dict[str, int] = Counter()
+
+        for c in cases:
+            for concept in _split_concepts(c.legal_concepts):
+                concept_counts[concept] += 1
+
+        # Get all canonical concepts and annotate with counts
+        concepts = get_concepts_for_api()
+        results = []
+
+        for concept in concepts:
+            results.append({
+                "id": concept["id"],
+                "name": concept["name"],
+                "description": concept["description"],
+                "keywords": concept["keywords"],
+                "case_count": concept_counts.get(concept["name"], 0),
+            })
+
+        # Sort by case count descending (most popular first)
+        results.sort(key=lambda x: -x["case_count"])
+
+        return jsonify({
+            "success": True,
+            "concepts": results,
+            "meta": {
+                "total_concepts": len(results),
+            },
+        })
+
+    except Exception as e:
+        logger.error(f"Error in legal-concepts: {e}")
+        return jsonify({"success": False, "error": "Failed to retrieve legal concepts"}), 500
+
+
+@api_bp.route("/taxonomy/judges/autocomplete")
+def taxonomy_judges_autocomplete():
+    """Autocomplete judge names with case counts.
+
+    Query parameters:
+      q     (str, required, min 2 chars) — searches judge name (case-insensitive)
+      limit (int, default 20, max 50)    — max results to return
+
+    Returns:
+      {
+        "success": true,
+        "data": [
+          {
+            "name": "Smith",
+            "case_count": 543
+          },
+          ...
+        ],
+        "meta": {
+          "query": "sm",
+          "total_results": 12,
+          "limit": 20
+        }
+      }
+    """
+    try:
+        query = request.args.get("q", "").strip()
+        limit = min(request.args.get("limit", 20, type=int), 50)
+
+        if not query:
+            return jsonify({"success": False, "error": "q parameter is required"}), 400
+        if len(query) < 2:
+            return jsonify({"success": False, "error": "query must be at least 2 characters"}), 400
+        if limit < 1:
+            return jsonify({"success": False, "error": "limit must be >= 1"}), 400
+
+        # Get all cases and count by judge name
+        cases = _get_all_cases()
+        judge_counts: dict[str, int] = Counter()
+
+        for c in cases:
+            for judge in _split_judges(c.judges or ""):
+                judge_counts[judge] += 1
+
+        # Filter judges matching query (case-insensitive partial match)
+        q_lower = query.lower()
+        results = []
+        total_matched = 0
+
+        for judge_name in sorted(judge_counts.keys()):
+            if q_lower in judge_name.lower():
+                total_matched += 1
+                if len(results) < limit:
+                    results.append({
+                        "name": judge_name,
+                        "case_count": judge_counts[judge_name],
+                    })
+
+        # Sort by case count descending (most active judges first)
+        results.sort(key=lambda x: -x["case_count"])
+
+        return jsonify({
+            "success": True,
+            "data": results,
+            "meta": {
+                "query": query,
+                "total_results": total_matched,
+                "limit": limit,
+            },
+        })
+
+    except Exception as e:
+        logger.error(f"Error in judges-autocomplete: {e}")
+        return jsonify({"success": False, "error": "Failed to autocomplete judge names"}), 500
+
+
+@api_bp.route("/taxonomy/countries")
+def taxonomy_countries():
+    """Get all countries of origin with case counts.
+
+    Returns all countries found in case records, sorted by case count descending.
+    Used by frontend for country filter dropdown.
+
+    Returns:
+      {
+        "success": true,
+        "countries": [
+          {
+            "name": "China",
+            "case_count": 12543
+          },
+          ...
+        ],
+        "meta": {
+          "total_countries": 89
+        }
+      }
+    """
+    try:
+        # Get all cases and count by country
+        cases = _get_all_cases()
+        country_counts: dict[str, int] = Counter()
+
+        for c in cases:
+            country = (c.country_of_origin or "").strip()
+            if country:
+                country_counts[country] += 1
+
+        # Build results sorted by case count descending
+        results = [
+            {
+                "name": country,
+                "case_count": count,
+            }
+            for country, count in sorted(
+                country_counts.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )
+        ]
+
+        return jsonify({
+            "success": True,
+            "countries": results,
+            "meta": {
+                "total_countries": len(results),
+            },
+        })
+
+    except Exception as e:
+        logger.error(f"Error in taxonomy/countries: {e}")
+        return jsonify({"success": False, "error": "Failed to retrieve countries"}), 500
+
+
+@api_bp.route("/taxonomy/guided-search", methods=["POST"])
+def taxonomy_guided_search():
+    """Multi-step guided search flow for common research tasks.
+
+    Accepts POST body with flow type and filter parameters.
+
+    Supported flows:
+      - "find-precedents": Filter cases by visa_subclass, country, legal_concepts
+      - "assess-judge": Return judge profile link and basic stats
+
+    Request body (find-precedents):
+      {
+        "flow": "find-precedents",
+        "visa_subclass": "866",
+        "country": "Afghanistan",
+        "legal_concepts": ["Refugee Status", "Well-Founded Fear"],
+        "limit": 50
+      }
+
+    Request body (assess-judge):
+      {
+        "flow": "assess-judge",
+        "judge_name": "Smith"
+      }
+
+    Returns (find-precedents):
+      {
+        "success": true,
+        "flow": "find-precedents",
+        "results": [...],
+        "meta": {
+          "total_results": 123,
+          "returned_results": 50,
+          "filters_applied": {...},
+          "limit": 50
+        }
+      }
+
+    Returns (assess-judge):
+      {
+        "success": true,
+        "flow": "assess-judge",
+        "judge_name": "Smith",
+        "profile_url": "/judges/Smith",
+        "meta": {
+          "total_cases": 543
+        }
+      }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        flow = data.get("flow", "")
+
+        if not flow:
+            return jsonify({"success": False, "error": "Flow type is required"}), 400
+
+        if flow not in ["find-precedents", "assess-judge"]:
+            return jsonify({"success": False, "error": "Invalid flow type"}), 400
+
+        if flow == "find-precedents":
+            # Get all cases and apply taxonomy-specific filters
+            cases = _get_all_cases()
+            filters_applied = {}
+
+            # Filter by visa subclass
+            visa_subclass = data.get("visa_subclass", "").strip()
+            if visa_subclass:
+                cases = [c for c in cases if c.visa_subclass and visa_subclass in c.visa_subclass]
+                filters_applied["visa_subclass"] = visa_subclass
+
+            # Filter by country of origin
+            country = data.get("country", "").strip()
+            if country:
+                cases = [c for c in cases if c.country_of_origin and country.lower() in c.country_of_origin.lower()]
+                filters_applied["country"] = country
+
+            # Filter by legal concepts (can be string or list)
+            legal_concepts = data.get("legal_concepts")
+            if legal_concepts:
+                if isinstance(legal_concepts, str):
+                    legal_concepts = [legal_concepts]
+                if isinstance(legal_concepts, list) and legal_concepts:
+                    # Filter cases that contain ANY of the specified concepts
+                    filtered = []
+                    for c in cases:
+                        case_concepts = _split_concepts(c.legal_concepts)
+                        if any(concept in case_concepts for concept in legal_concepts):
+                            filtered.append(c)
+                    cases = filtered
+                    filters_applied["legal_concepts"] = legal_concepts
+
+            # Limit results to avoid overwhelming response
+            limit = safe_int(data.get("limit"), default=DEFAULT_SEARCH_LIMIT, min_val=1, max_val=MAX_SEARCH_LIMIT)
+            total_results = len(cases)
+            cases = cases[:limit]
+
+            return jsonify({
+                "success": True,
+                "flow": "find-precedents",
+                "results": [c.to_dict() for c in cases],
+                "meta": {
+                    "total_results": total_results,
+                    "returned_results": len(cases),
+                    "filters_applied": filters_applied,
+                    "limit": limit,
+                },
+            })
+
+        elif flow == "assess-judge":
+            judge_name = data.get("judge_name", "").strip()
+            if not judge_name:
+                return jsonify({"success": False, "error": "Judge name is required for assess-judge flow"}), 400
+
+            # Normalise judge name
+            normalised_name = _normalise_judge_name(judge_name)
+            if not normalised_name:
+                return jsonify({"success": False, "error": "Invalid judge name"}), 400
+
+            # Get basic judge stats
+            cases = _get_all_cases()
+            judge_cases = []
+
+            for c in cases:
+                judge_names = _split_judges(c.judges)
+                # Case-insensitive partial match
+                if any(normalised_name.lower() in jname.lower() for jname in judge_names):
+                    judge_cases.append(c)
+
+            return jsonify({
+                "success": True,
+                "flow": "assess-judge",
+                "judge_name": normalised_name,
+                "profile_url": f"/judges/{normalised_name}",
+                "meta": {
+                    "total_cases": len(judge_cases),
+                },
+            })
+
+    except Exception as e:
+        logger.error(f"Error in taxonomy/guided-search: {e}")
+        return jsonify({"success": False, "error": "Failed to process guided search"}), 500
 
 
 @api_bp.route("/analytics/visa-families")

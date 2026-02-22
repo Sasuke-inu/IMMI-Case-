@@ -15,6 +15,8 @@ import {
   Network,
   Bookmark,
   BookmarkCheck,
+  Tags,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefetchRoute } from "@/lib/prefetch";
@@ -86,6 +88,21 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
           to: "/collections",
           icon: BookmarkCheck,
           label: t("nav.collections", "Collections"),
+        },
+      ],
+    },
+    {
+      title: t("nav.search"),
+      items: [
+        {
+          to: "/taxonomy",
+          icon: Tags,
+          label: t("nav.search_taxonomy"),
+        },
+        {
+          to: "/guided-search",
+          icon: Search,
+          label: t("nav.guided_search"),
         },
       ],
     },

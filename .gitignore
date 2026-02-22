@@ -63,3 +63,5 @@ dashboard.png
 .worktrees/
 .security-key
 logs/security/
+web-server.log
+web-server.pid
