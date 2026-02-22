@@ -857,6 +857,133 @@ def stats_trends():
     return jsonify({"trends": trends})
 
 
+@api_bp.route("/court-lineage")
+def court_lineage():
+    """Return court lineage metadata showing tribunal and court succession over time.
+
+    Returns lineages for:
+    - Lower court: FMCA (2000-2013) → FCCA (2013-2021) → FedCFamC2G (2021+)
+    - Tribunal: MRTA+RRTA (2000-2015) → AATA (2015-2024) → ARTA (2024+)
+
+    Includes case counts per court per year and transition information.
+    """
+    from ...config import AUSTLII_DATABASES
+
+    # Get all cases and aggregate by court and year
+    all_cases = _get_all_cases()
+
+    # Build court_year_counts: {court_code: {year: count}}
+    court_year_counts = defaultdict(lambda: defaultdict(int))
+    all_years = set()
+
+    for case in all_cases:
+        if case.court_code and case.year:
+            court_year_counts[case.court_code][case.year] += 1
+            all_years.add(case.year)
+
+    # Define lineages with metadata
+    lineages = [
+        {
+            "id": "lower-court",
+            "name": "Lower Court Lineage",
+            "courts": [
+                {
+                    "code": "FMCA",
+                    "name": AUSTLII_DATABASES.get("FMCA", {}).get("name", "Federal Magistrates Court of Australia"),
+                    "years": [2000, 2013],
+                    "case_count_by_year": dict(court_year_counts.get("FMCA", {})),
+                },
+                {
+                    "code": "FCCA",
+                    "name": AUSTLII_DATABASES.get("FCCA", {}).get("name", "Federal Circuit Court of Australia"),
+                    "years": [2013, 2021],
+                    "case_count_by_year": dict(court_year_counts.get("FCCA", {})),
+                },
+                {
+                    "code": "FedCFamC2G",
+                    "name": AUSTLII_DATABASES.get("FedCFamC2G", {}).get("name", "Federal Circuit and Family Court of Australia (Division 2)"),
+                    "years": [2021, END_YEAR],
+                    "case_count_by_year": dict(court_year_counts.get("FedCFamC2G", {})),
+                },
+            ],
+            "transitions": [
+                {
+                    "from": "FMCA",
+                    "to": "FCCA",
+                    "year": 2013,
+                    "description": "Federal Magistrates Court renamed to Federal Circuit Court of Australia",
+                },
+                {
+                    "from": "FCCA",
+                    "to": "FedCFamC2G",
+                    "year": 2021,
+                    "description": "Federal Circuit Court merged into Federal Circuit and Family Court (Division 2)",
+                },
+            ],
+        },
+        {
+            "id": "tribunal",
+            "name": "Tribunal Lineage",
+            "courts": [
+                {
+                    "code": "MRTA",
+                    "name": AUSTLII_DATABASES.get("MRTA", {}).get("name", "Migration Review Tribunal"),
+                    "years": [2000, 2015],
+                    "case_count_by_year": dict(court_year_counts.get("MRTA", {})),
+                },
+                {
+                    "code": "RRTA",
+                    "name": AUSTLII_DATABASES.get("RRTA", {}).get("name", "Refugee Review Tribunal"),
+                    "years": [2000, 2015],
+                    "case_count_by_year": dict(court_year_counts.get("RRTA", {})),
+                },
+                {
+                    "code": "AATA",
+                    "name": AUSTLII_DATABASES.get("AATA", {}).get("name", "Administrative Appeals Tribunal"),
+                    "years": [2015, 2024],
+                    "case_count_by_year": dict(court_year_counts.get("AATA", {})),
+                },
+                {
+                    "code": "ARTA",
+                    "name": AUSTLII_DATABASES.get("ARTA", {}).get("name", "Administrative Review Tribunal"),
+                    "years": [2024, END_YEAR],
+                    "case_count_by_year": dict(court_year_counts.get("ARTA", {})),
+                },
+            ],
+            "transitions": [
+                {
+                    "from": "MRTA",
+                    "to": "AATA",
+                    "year": 2015,
+                    "description": "Migration Review Tribunal merged into Administrative Appeals Tribunal",
+                },
+                {
+                    "from": "RRTA",
+                    "to": "AATA",
+                    "year": 2015,
+                    "description": "Refugee Review Tribunal merged into Administrative Appeals Tribunal",
+                },
+                {
+                    "from": "AATA",
+                    "to": "ARTA",
+                    "year": 2024,
+                    "description": "Administrative Appeals Tribunal replaced by Administrative Review Tribunal",
+                },
+            ],
+        },
+    ]
+
+    # Calculate total cases and year range
+    total_cases = len(all_cases)
+    year_range = [min(all_years), max(all_years)] if all_years else [2000, END_YEAR]
+
+    return jsonify({
+        "lineages": lineages,
+        "total_cases": total_cases,
+        "year_range": year_range,
+    })
+
+
 # ── Cases CRUD ──────────────────────────────────────────────────────────
 
 @api_bp.route("/cases")
