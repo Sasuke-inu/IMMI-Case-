@@ -2148,6 +2148,64 @@ def taxonomy_judges_autocomplete():
         return jsonify({"success": False, "error": "Failed to autocomplete judge names"}), 500
 
 
+@api_bp.route("/taxonomy/countries")
+def taxonomy_countries():
+    """Get all countries of origin with case counts.
+
+    Returns all countries found in case records, sorted by case count descending.
+    Used by frontend for country filter dropdown.
+
+    Returns:
+      {
+        "success": true,
+        "countries": [
+          {
+            "name": "China",
+            "case_count": 12543
+          },
+          ...
+        ],
+        "meta": {
+          "total_countries": 89
+        }
+      }
+    """
+    try:
+        # Get all cases and count by country
+        cases = _get_all_cases()
+        country_counts: dict[str, int] = Counter()
+
+        for c in cases:
+            country = (c.country_of_origin or "").strip()
+            if country:
+                country_counts[country] += 1
+
+        # Build results sorted by case count descending
+        results = [
+            {
+                "name": country,
+                "case_count": count,
+            }
+            for country, count in sorted(
+                country_counts.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )
+        ]
+
+        return jsonify({
+            "success": True,
+            "countries": results,
+            "meta": {
+                "total_countries": len(results),
+            },
+        })
+
+    except Exception as e:
+        logger.error(f"Error in taxonomy/countries: {e}")
+        return jsonify({"success": False, "error": "Failed to retrieve countries"}), 500
+
+
 @api_bp.route("/analytics/visa-families")
 def analytics_visa_families():
     """Case counts and win rates aggregated by visa family."""
