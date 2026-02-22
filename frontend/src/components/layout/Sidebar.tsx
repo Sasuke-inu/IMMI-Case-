@@ -12,6 +12,7 @@ import {
   Palette,
   TrendingUp,
   Users,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefetchRoute } from "@/lib/prefetch";
@@ -42,6 +43,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         { to: "/", icon: LayoutDashboard, label: t("nav.dashboard") },
         { to: "/analytics", icon: TrendingUp, label: t("nav.analytics") },
         { to: "/judge-profiles", icon: Users, label: t("nav.judge_profiles") },
+        { to: "/court-lineage", icon: Network, label: t("nav.court_lineage") },
         { to: "/cases", icon: FileText, label: t("nav.cases") },
       ],
     },

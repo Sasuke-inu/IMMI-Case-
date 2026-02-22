@@ -74,6 +74,11 @@ const LegislationDetailPage = lazy(() =>
     default: m.LegislationDetailPage,
   }))
 );
+const CourtLineagePage = lazy(() =>
+  import("@/pages/CourtLineagePage").then((m) => ({
+    default: m.CourtLineagePage,
+  }))
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -183,6 +188,14 @@ export default function App() {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <AnalyticsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="court-lineage"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CourtLineagePage />
                 </Suspense>
               }
             />
