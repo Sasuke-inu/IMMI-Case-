@@ -1,103 +1,137 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, Component, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageLoader } from "@/components/shared/PageLoader";
 
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      const err = this.state.error as Error;
+      return (
+        <div
+          style={{
+            padding: 32,
+            fontFamily: "monospace",
+            color: "#ff6b6b",
+            background: "#1a1a1a",
+            minHeight: "100vh",
+          }}
+        >
+          <h2 style={{ color: "#ff4444" }}>⚠ React Error</h2>
+          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+            {err.message}
+            {"\n\n"}
+            {err.stack}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const DashboardPage = lazy(() =>
-  import("@/pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
+  import("@/pages/DashboardPage").then((m) => ({ default: m.DashboardPage })),
 );
 const CasesPage = lazy(() =>
-  import("@/pages/CasesPage").then((m) => ({ default: m.CasesPage }))
+  import("@/pages/CasesPage").then((m) => ({ default: m.CasesPage })),
 );
 const CaseDetailPage = lazy(() =>
   import("@/pages/CaseDetailPage").then((m) => ({
     default: m.CaseDetailPage,
-  }))
+  })),
 );
 const CaseEditPage = lazy(() =>
-  import("@/pages/CaseEditPage").then((m) => ({ default: m.CaseEditPage }))
+  import("@/pages/CaseEditPage").then((m) => ({ default: m.CaseEditPage })),
 );
 const CaseAddPage = lazy(() =>
-  import("@/pages/CaseAddPage").then((m) => ({ default: m.CaseAddPage }))
+  import("@/pages/CaseAddPage").then((m) => ({ default: m.CaseAddPage })),
 );
 const CaseComparePage = lazy(() =>
   import("@/pages/CaseComparePage").then((m) => ({
     default: m.CaseComparePage,
-  }))
+  })),
 );
 const DownloadPage = lazy(() =>
-  import("@/pages/DownloadPage").then((m) => ({ default: m.DownloadPage }))
+  import("@/pages/DownloadPage").then((m) => ({ default: m.DownloadPage })),
 );
 const JobStatusPage = lazy(() =>
-  import("@/pages/JobStatusPage").then((m) => ({ default: m.JobStatusPage }))
+  import("@/pages/JobStatusPage").then((m) => ({ default: m.JobStatusPage })),
 );
 const PipelinePage = lazy(() =>
-  import("@/pages/PipelinePage").then((m) => ({ default: m.PipelinePage }))
+  import("@/pages/PipelinePage").then((m) => ({ default: m.PipelinePage })),
 );
 const DataDictionaryPage = lazy(() =>
   import("@/pages/DataDictionaryPage").then((m) => ({
     default: m.DataDictionaryPage,
-  }))
+  })),
 );
 const DesignTokensPage = lazy(() =>
   import("@/pages/DesignTokensPage").then((m) => ({
     default: m.DesignTokensPage,
-  }))
+  })),
 );
 const AnalyticsPage = lazy(() =>
-  import("@/pages/AnalyticsPage").then((m) => ({ default: m.AnalyticsPage }))
+  import("@/pages/AnalyticsPage").then((m) => ({ default: m.AnalyticsPage })),
 );
 const JudgeProfilesPage = lazy(() =>
   import("@/pages/JudgeProfilesPage").then((m) => ({
     default: m.JudgeProfilesPage,
-  }))
+  })),
 );
 const JudgeDetailPage = lazy(() =>
   import("@/pages/JudgeDetailPage").then((m) => ({
     default: m.JudgeDetailPage,
-  }))
+  })),
 );
 const JudgeComparePage = lazy(() =>
   import("@/pages/JudgeComparePage").then((m) => ({
     default: m.JudgeComparePage,
-  }))
+  })),
 );
 const LegislationsPage = lazy(() =>
   import("@/pages/LegislationsPage").then((m) => ({
     default: m.LegislationsPage,
-  }))
+  })),
 );
 const LegislationDetailPage = lazy(() =>
   import("@/pages/LegislationDetailPage").then((m) => ({
     default: m.LegislationDetailPage,
-  }))
+  })),
 );
 const CourtLineagePage = lazy(() =>
   import("@/pages/CourtLineagePage").then((m) => ({
     default: m.CourtLineagePage,
-  }))
+  })),
 );
 const CollectionsPage = lazy(() =>
   import("@/pages/CollectionsPage").then((m) => ({
     default: m.CollectionsPage,
-  }))
+  })),
 );
 const CollectionDetailPage = lazy(() =>
   import("@/pages/CollectionDetailPage").then((m) => ({
     default: m.CollectionDetailPage,
-  }))
+  })),
 );
 const SearchTaxonomyPage = lazy(() =>
   import("@/pages/SearchTaxonomyPage").then((m) => ({
     default: m.SearchTaxonomyPage,
-  }))
+  })),
 );
 const GuidedSearchPage = lazy(() =>
   import("@/pages/GuidedSearchPage").then((m) => ({
     default: m.GuidedSearchPage,
-  }))
+  })),
 );
 
 const queryClient = new QueryClient({
@@ -111,190 +145,192 @@ const queryClient = new QueryClient({
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/app">
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route
-              index
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <DashboardPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="cases"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <CasesPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="cases/add"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <CaseAddPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="cases/compare"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <CaseComparePage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="cases/:id"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <CaseDetailPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="cases/:id/edit"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <CaseEditPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="collections"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <CollectionsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="collections/:collectionId"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <CollectionDetailPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="legislations"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <LegislationsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="legislations/:legislationId"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <LegislationDetailPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="taxonomy"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <SearchTaxonomyPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="guided-search"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <GuidedSearchPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="download"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <DownloadPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="jobs"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <JobStatusPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="pipeline"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <PipelinePage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="analytics"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <AnalyticsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="court-lineage"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <CourtLineagePage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="judge-profiles"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <JudgeProfilesPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="judge-profiles/compare"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <JudgeComparePage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="judge-profiles/:name"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <JudgeDetailPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="data-dictionary"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <DataDictionaryPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="design-tokens"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <DesignTokensPage />
-                </Suspense>
-              }
-            />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-      <Toaster position="bottom-right" richColors />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter basename="/app">
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route
+                index
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <DashboardPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="cases"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <CasesPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="cases/add"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <CaseAddPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="cases/compare"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <CaseComparePage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="cases/:id"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <CaseDetailPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="cases/:id/edit"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <CaseEditPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="collections"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <CollectionsPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="collections/:collectionId"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <CollectionDetailPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="legislations"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <LegislationsPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="legislations/:legislationId"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <LegislationDetailPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="taxonomy"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <SearchTaxonomyPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="guided-search"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <GuidedSearchPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="download"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <DownloadPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="jobs"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <JobStatusPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="pipeline"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <PipelinePage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="analytics"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <AnalyticsPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="court-lineage"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <CourtLineagePage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="judge-profiles"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <JudgeProfilesPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="judge-profiles/compare"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <JudgeComparePage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="judge-profiles/:name"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <JudgeDetailPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="data-dictionary"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <DataDictionaryPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="design-tokens"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <DesignTokensPage />
+                  </Suspense>
+                }
+              />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+        <Toaster position="bottom-right" richColors />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

@@ -38,7 +38,18 @@ CREATE TABLE IF NOT EXISTS cases (
     user_notes TEXT NOT NULL DEFAULT '',
     tags TEXT NOT NULL DEFAULT '',
     case_nature TEXT NOT NULL DEFAULT '',
-    legal_concepts TEXT NOT NULL DEFAULT ''
+    legal_concepts TEXT NOT NULL DEFAULT '',
+    visa_subclass TEXT NOT NULL DEFAULT '',
+    visa_class_code TEXT NOT NULL DEFAULT '',
+    applicant_name TEXT NOT NULL DEFAULT '',
+    respondent TEXT NOT NULL DEFAULT '',
+    country_of_origin TEXT NOT NULL DEFAULT '',
+    visa_subclass_number TEXT NOT NULL DEFAULT '',
+    hearing_date TEXT NOT NULL DEFAULT '',
+    is_represented TEXT NOT NULL DEFAULT '',
+    representative TEXT NOT NULL DEFAULT '',
+    visa_outcome_reason TEXT NOT NULL DEFAULT '',
+    legal_test_applied TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_court_code ON cases(court_code);

@@ -13,10 +13,17 @@ import {
 // Custom event for cross-tab synchronization
 const SAVED_SEARCHES_CHANGE_EVENT = "saved-searches-change";
 
-// Notify all subscribers of changes
+// Notify all subscribers of changes (and refresh the cache first)
 function notifySubscribers() {
+  _cachedSnapshot = loadSavedSearches();
   window.dispatchEvent(new Event(SAVED_SEARCHES_CHANGE_EVENT));
 }
+
+// Cached snapshot — useSyncExternalStore requires getSnapshot to return the same
+// reference when nothing has changed (React uses Object.is for comparison).
+// Without this cache, every call to loadSavedSearches() returns a new array,
+// causing an infinite render loop.
+let _cachedSnapshot: SavedSearch[] = loadSavedSearches();
 
 // Subscribe to localStorage changes (both same-tab and cross-tab)
 function subscribe(callback: () => void) {
@@ -33,7 +40,7 @@ function subscribe(callback: () => void) {
 
 // Get current snapshot of saved searches
 function getSnapshot(): SavedSearch[] {
-  return loadSavedSearches();
+  return _cachedSnapshot;
 }
 
 // Server snapshot (for SSR compatibility)
@@ -70,18 +77,21 @@ export function useSavedSearches() {
   const savedSearches = useSyncExternalStore(
     subscribe,
     getSnapshot,
-    getServerSnapshot
+    getServerSnapshot,
   );
 
   /**
    * Save a new search with the given name and filters
    * @throws Error if name is empty, duplicate, limit reached, or no filters applied
    */
-  const saveSearch = useCallback((name: string, filters: CaseFilters): SavedSearch => {
-    const search = addSearchToStorage(name, filters);
-    notifySubscribers();
-    return search;
-  }, []);
+  const saveSearch = useCallback(
+    (name: string, filters: CaseFilters): SavedSearch => {
+      const search = addSearchToStorage(name, filters);
+      notifySubscribers();
+      return search;
+    },
+    [],
+  );
 
   /**
    * Update an existing saved search
@@ -90,7 +100,7 @@ export function useSavedSearches() {
   const updateSearch = useCallback(
     (
       id: string,
-      updates: Partial<Omit<SavedSearch, "id" | "createdAt">>
+      updates: Partial<Omit<SavedSearch, "id" | "createdAt">>,
     ): SavedSearch | null => {
       const updated = updateSearchInStorage(id, updates);
       if (updated) {
@@ -98,7 +108,7 @@ export function useSavedSearches() {
       }
       return updated;
     },
-    []
+    [],
   );
 
   /**
@@ -122,7 +132,7 @@ export function useSavedSearches() {
     (
       id: string,
       onExecute: (filters: CaseFilters) => void,
-      resultCount?: number
+      resultCount?: number,
     ): void => {
       const search = getSavedSearchById(id);
       if (!search) return;
@@ -136,7 +146,7 @@ export function useSavedSearches() {
         notifySubscribers();
       }
     },
-    []
+    [],
   );
 
   /**
@@ -150,9 +160,12 @@ export function useSavedSearches() {
    * Rename a saved search
    * @throws Error if name is empty or duplicate
    */
-  const renameSearch = useCallback((id: string, newName: string): SavedSearch | null => {
-    return updateSearch(id, { name: newName.trim() });
-  }, [updateSearch]);
+  const renameSearch = useCallback(
+    (id: string, newName: string): SavedSearch | null => {
+      return updateSearch(id, { name: newName.trim() });
+    },
+    [updateSearch],
+  );
 
   /**
    * Check if a search name already exists
@@ -161,10 +174,10 @@ export function useSavedSearches() {
     (name: string, excludeId?: string): boolean => {
       const trimmedName = name.trim().toLowerCase();
       return savedSearches.some(
-        (s) => s.name.toLowerCase() === trimmedName && s.id !== excludeId
+        (s) => s.name.toLowerCase() === trimmedName && s.id !== excludeId,
       );
     },
-    [savedSearches]
+    [savedSearches],
   );
 
   /**
@@ -213,6 +226,6 @@ export function useSavedSearches() {
       count,
       limitReached,
       clearAll,
-    ]
+    ],
   );
 }

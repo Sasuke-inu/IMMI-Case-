@@ -97,12 +97,37 @@ python run.py list-databases    # List available databases
 python run.py --help            # Full help
 ```
 
+## Storage Backends
+
+The web interface automatically selects the fastest available backend:
+
+| Backend | Speed | Setup | Use case |
+|---------|-------|-------|----------|
+| **SQLite** (auto, recommended) | ~0.1s per query | Run migration once | Local development |
+| **CSV** (fallback) | ~5s per query | No setup | First run / no migration |
+| **Supabase** (cloud) | ~0.3s per query | `--backend supabase` | Multi-user / cloud deploy |
+
+### First-time SQLite setup (one-time, ~15 seconds)
+
+```bash
+python migrate_csv_to_sqlite.py    # CSV → SQLite (322 MB, FTS5+WAL)
+```
+
+After this, `python web.py` auto-detects `cases.db` and uses SQLite. API response times drop from ~5s to ~0.1–0.5s.
+
+### To use Supabase instead
+
+```bash
+python web.py --backend supabase
+```
+
 ## Output Files
 
 ```
 downloaded_cases/
-  immigration_cases.csv       # All 149,016 cases — 29 columns
+  immigration_cases.csv       # All 149,016 cases — 31 columns
   immigration_cases.json      # Same data in JSON format
+  cases.db                    # SQLite database (FTS5+WAL) — auto-created by migration
   summary_report.txt          # Summary statistics
   case_texts/                 # Full text files (~142,916 files, ~1.9 GB)
     [2024] AATA 1234.txt
