@@ -12,8 +12,10 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
+  Bookmark,
 } from "lucide-react";
 import { useCases, useFilterOptions, useBatchCases } from "@/hooks/use-cases";
+import { useSavedSearches } from "@/hooks/use-saved-searches";
 import { CourtBadge } from "@/components/shared/CourtBadge";
 import { OutcomeBadge } from "@/components/shared/OutcomeBadge";
 import { NatureBadge } from "@/components/shared/NatureBadge";
@@ -22,6 +24,8 @@ import { FilterPill } from "@/components/shared/FilterPill";
 import { Pagination } from "@/components/shared/Pagination";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
+import { SaveSearchModal } from "@/components/saved-searches/SaveSearchModal";
+import { SavedSearchPanel } from "@/components/saved-searches/SavedSearchPanel";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { CaseFilters, ImmigrationCase } from "@/types/case";
@@ -49,6 +53,8 @@ export function CasesPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [focusedIdx, setFocusedIdx] = useState(-1);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
 
   const filters: CaseFilters = {
@@ -70,6 +76,8 @@ export function CasesPage() {
   const { data, isLoading } = useCases(filters);
   const { data: filterOpts } = useFilterOptions();
   const batchMutation = useBatchCases();
+  const { savedSearches, saveSearch, updateSearch, getSearchById } =
+    useSavedSearches();
 
   const updateFilter = useCallback(
     (key: string, value: string) => {
@@ -162,6 +170,60 @@ export function CasesPage() {
     URL.revokeObjectURL(url);
     toast.success(t("cases.exported", { count: data.cases.length }));
   }, [data]);
+
+  const handleSaveSearch = useCallback(
+    (name: string, searchFilters: CaseFilters) => {
+      try {
+        if (editingSearchId) {
+          // Update existing search
+          const updated = updateSearch(editingSearchId, {
+            name,
+            filters: searchFilters,
+          });
+          if (updated) {
+            toast.success(t("saved_searches.toast_updated", { name }));
+          }
+          setEditingSearchId(null);
+        } else {
+          // Create new search
+          saveSearch(name, searchFilters);
+          toast.success(t("saved_searches.toast_saved", { name }));
+        }
+        setShowSaveModal(false);
+      } catch (error) {
+        // Show validation error to user
+        toast.error(error instanceof Error ? error.message : "Failed to save search");
+      }
+    },
+    [editingSearchId, saveSearch, updateSearch, t],
+  );
+
+  const handleExecuteSavedSearch = useCallback(
+    (savedFilters: CaseFilters) => {
+      const params = new URLSearchParams();
+      if (savedFilters.court) params.set("court", savedFilters.court);
+      if (savedFilters.year) params.set("year", String(savedFilters.year));
+      if (savedFilters.visa_type) params.set("visa_type", savedFilters.visa_type);
+      if (savedFilters.nature) params.set("nature", savedFilters.nature);
+      if (savedFilters.source) params.set("source", savedFilters.source);
+      if (savedFilters.tag) params.set("tag", savedFilters.tag);
+      if (savedFilters.keyword) params.set("keyword", savedFilters.keyword);
+      if (savedFilters.sort_by) params.set("sort_by", savedFilters.sort_by);
+      if (savedFilters.sort_dir) params.set("sort_dir", savedFilters.sort_dir);
+      params.set("page", "1");
+      setSearchParams(params);
+      toast.success(t("saved_searches.toast_applied"));
+    },
+    [setSearchParams],
+  );
+
+  const handleEditSearch = useCallback(
+    (searchId: string) => {
+      setEditingSearchId(searchId);
+      setShowSaveModal(true);
+    },
+    [],
+  );
 
   // Keyboard navigation
   useEffect(() => {
@@ -374,6 +436,14 @@ export function CasesPage() {
             <ChevronDown className="h-3.5 w-3.5" />
           )}
         </button>
+        <button
+          onClick={() => setShowSaveModal(true)}
+          className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-muted-text hover:text-foreground"
+          title="Save current search for quick access later"
+        >
+          <Bookmark className="h-3.5 w-3.5" />
+          {t("saved_searches.save_button")}
+        </button>
 
         {/* Sort */}
         <div className="ml-auto flex items-center gap-1.5">
@@ -470,6 +540,12 @@ export function CasesPage() {
           </button>
         </div>
       )}
+
+      {/* Saved Searches Panel */}
+      <SavedSearchPanel
+        onExecute={handleExecuteSavedSearch}
+        onEdit={handleEditSearch}
+      />
 
       {/* Batch bar */}
       {selected.size > 0 && (
@@ -695,6 +771,19 @@ export function CasesPage() {
         variant="danger"
         onConfirm={() => handleBatch("delete")}
         onCancel={() => setDeleteConfirm(false)}
+      />
+
+      {/* Save Search modal */}
+      <SaveSearchModal
+        open={showSaveModal}
+        filters={editingSearchId ? getSearchById(editingSearchId)?.filters ?? filters : filters}
+        existingNames={savedSearches.map((s) => s.name)}
+        editingSearch={editingSearchId ? getSearchById(editingSearchId) : null}
+        onSave={handleSaveSearch}
+        onCancel={() => {
+          setShowSaveModal(false);
+          setEditingSearchId(null);
+        }}
       />
     </div>
   );

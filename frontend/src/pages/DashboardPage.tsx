@@ -10,13 +10,16 @@ import {
   Table,
   Download,
   GitBranch,
+  Bookmark,
 } from "lucide-react";
 import { useStats, useTrends } from "@/hooks/use-stats";
+import { useSavedSearches } from "@/hooks/use-saved-searches";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { CourtChart } from "@/components/dashboard/CourtChart";
 import { NatureChart } from "@/components/dashboard/NatureChart";
 import { TrendChart } from "@/components/dashboard/TrendChart";
 import { SubclassChart } from "@/components/dashboard/SubclassChart";
+import { SavedSearchCard } from "@/components/saved-searches/SavedSearchCard";
 import { CourtBadge } from "@/components/shared/CourtBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { AnalyticsFilters } from "@/components/shared/AnalyticsFilters";
@@ -46,6 +49,7 @@ export function DashboardPage() {
     refetch,
   } = useStats(filters);
   const { data: trendsData } = useTrends(filters);
+  const { savedSearches, executeSearch, deleteSearch } = useSavedSearches();
   const navigate = useNavigate();
   const [courtView, setCourtView] = useState<"chart" | "table">("chart");
 
@@ -329,6 +333,61 @@ export function DashboardPage() {
           </span>
         </button>
       </div>
+
+      {/* Saved Searches */}
+      {savedSearches.length > 0 && (
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-heading text-base font-semibold flex items-center gap-2">
+              <Bookmark className="h-4 w-4" />
+              {t("saved_searches.title")}
+            </h2>
+            <Link
+              to="/cases"
+              className="text-sm text-accent hover:text-accent-dark transition-colors"
+            >
+              {t("buttons.view_all")} ({savedSearches.length})
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {savedSearches.slice(0, 5).map((search) => (
+              <SavedSearchCard
+                key={search.id}
+                search={search}
+                onExecute={(currentCount) => {
+                  executeSearch(
+                    search.id,
+                    () => {
+                      navigate(
+                        `/cases?${new URLSearchParams(
+                          Object.entries(search.filters)
+                            .filter(([, v]) => v !== undefined && v !== "")
+                            .map(([k, v]) => [k, String(v)])
+                        ).toString()}`
+                      );
+                    },
+                    currentCount,
+                  );
+                }}
+                onEdit={() => {
+                  navigate(
+                    `/cases?edit_search=${encodeURIComponent(search.id)}`,
+                  );
+                }}
+                onDelete={() => {
+                  if (
+                    window.confirm(
+                      t("saved_searches.confirm_delete", { name: search.name }),
+                    )
+                  ) {
+                    deleteSearch(search.id);
+                  }
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent cases */}
       {stats.recent_cases && stats.recent_cases.length > 0 && (
