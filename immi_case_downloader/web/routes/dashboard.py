@@ -1,15 +1,9 @@
-"""Dashboard route."""
+"""Dashboard route — redirects to React SPA."""
 
-from flask import render_template
-
-from ...config import AUSTLII_DATABASES
-from ..helpers import get_repo
+from flask import redirect
 
 
 def init_routes(app):
     @app.route("/")
     def dashboard():
-        """Dashboard with statistics and quick actions."""
-        repo = get_repo()
-        stats = repo.get_statistics()
-        return render_template("dashboard.html", stats=stats, databases=AUSTLII_DATABASES)
+        return redirect("/app/", 301)

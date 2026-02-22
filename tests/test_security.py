@@ -8,8 +8,6 @@ Covers:
 """
 
 import os
-import re
-import secrets
 from unittest.mock import patch
 
 import pytest
@@ -35,88 +33,41 @@ def csrf_client(csrf_app):
     return csrf_app.test_client()
 
 
-def _get_csrf_token(client, path="/cases/add"):
-    """Helper: fetch a page and extract the CSRF token from the form."""
-    resp = client.get(path)
-    html = resp.data.decode()
-    match = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', html)
-    if not match:
-        match = re.search(r'value="([^"]+)"[^>]*name="csrf_token"', html)
-    return match.group(1) if match else None
-
 
 # ── Issue 0.1: CSRF Protection ─────────────────────────────────────────────
 
 
 class TestCSRFProtection:
-    """Verify CSRF tokens are present and enforced on POST routes."""
+    """Verify CSRF is configured for the application.
 
-    @pytest.mark.parametrize("path", [
-        "/cases/add",
-        "/search",
-        "/download",
-        "/pipeline",
-        "/update-db",
-    ])
-    def test_csrf_token_present_in_forms(self, csrf_client, path):
-        """All POST form pages must include a csrf_token hidden field."""
-        # Reset pipeline status so /pipeline shows the config form (not the monitor)
-        from immi_case_downloader.pipeline import _pipeline_lock, _pipeline_status
-        with _pipeline_lock:
-            _pipeline_status["phases_completed"] = []
-            _pipeline_status["running"] = False
+    Legacy form routes have been replaced by 301 redirects to the React SPA.
+    CSRF protection now applies to the JSON API layer (used by the React SPA).
+    """
 
-        resp = csrf_client.get(path)
-        assert resp.status_code == 200
-        html = resp.data.decode()
-        assert 'name="csrf_token"' in html, (
-            f"CSRF token hidden field missing from {path}"
-        )
-
-    def test_post_without_csrf_rejected(self, csrf_client):
-        """POST without CSRF token should be rejected (400)."""
-        resp = csrf_client.post("/cases/add", data={
-            "citation": "[2024] TEST 999",
-            "title": "Test case",
-            "court_code": "AATA",
-        })
-        assert resp.status_code == 400, (
-            f"POST without CSRF token should return 400, got {resp.status_code}"
-        )
-
-    def test_post_with_valid_csrf_accepted(self, csrf_client):
-        """POST with a valid CSRF token should be processed normally."""
-        token = _get_csrf_token(csrf_client, "/cases/add")
-        assert token is not None, "Could not extract CSRF token from form"
-
-        resp = csrf_client.post("/cases/add", data={
-            "csrf_token": token,
-            "citation": "[2024] TEST 888",
-            "title": "CSRF test case",
-            "court_code": "AATA",
-            "year": "2024",
-            "source": "AustLII",
-        }, follow_redirects=True)
-        # Should redirect to case detail (302 → 200) or return 200 directly
-        assert resp.status_code == 200
-
-    def test_api_endpoint_csrf_exempt(self, csrf_client):
-        """JSON API endpoint should not require CSRF token."""
+    def test_api_pipeline_action_csrf_exempt(self, csrf_client):
+        """JSON API endpoint is CSRF-exempt (uses custom header pattern)."""
         resp = csrf_client.post(
             "/api/pipeline-action",
-            json={"action": "status"},
+            json={"action": "stop"},
             content_type="application/json",
         )
-        # Should not return 400 for missing CSRF
+        # Should not return 400 for missing CSRF — API is exempt
         assert resp.status_code != 400 or b"CSRF" not in resp.data
 
-    def test_delete_requires_csrf(self, csrf_client, sample_cases):
-        """DELETE via POST requires CSRF token."""
-        case_id = sample_cases[0].case_id
-        resp = csrf_client.post(f"/cases/{case_id}/delete")
-        assert resp.status_code == 400, (
-            "DELETE without CSRF should be rejected"
-        )
+    def test_legacy_routes_redirect_not_form(self, csrf_client):
+        """Legacy POST form routes 301/302 redirect instead of processing forms."""
+        for path in ["/cases/add", "/search", "/download", "/pipeline", "/update-db"]:
+            resp = csrf_client.get(path)
+            assert resp.status_code in (301, 302), (
+                f"{path} should redirect (not render a form), got {resp.status_code}"
+            )
+
+    def test_csrf_token_endpoint_accessible(self, csrf_client):
+        """React SPA CSRF token endpoint returns a token."""
+        resp = csrf_client.get("/api/v1/csrf-token")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "csrf_token" in data
 
 
 # ── Issue 0.2: Secret Key ──────────────────────────────────────────────────

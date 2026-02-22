@@ -40,28 +40,28 @@ class TestThreadSafety:
         assert isinstance(webapp._job_lock, type(threading.Lock()))
 
     def test_concurrent_job_start_prevented(self, client):
-        """Two rapid POST requests to /search should not start two jobs."""
-        # Start a mock job that takes some time
+        """Legacy POST /search no longer starts jobs — redirects to React SPA.
+
+        Job management is now handled via the React SPA + JSON API layer.
+        The redirect ensures no accidental double-submit from old form URLs.
+        """
         from immi_case_downloader import webapp
 
-        original_status = webapp._job_status.copy()
-        try:
-            with webapp._job_lock:
-                webapp._job_status["running"] = True
-                webapp._job_status["type"] = "test"
+        with webapp._job_lock:
+            webapp._job_status["running"] = True
 
-            # Try to start another job
+        try:
             resp = client.post("/search", data={
                 "databases": ["AATA"],
                 "start_year": "2024",
                 "end_year": "2024",
                 "max_results": "10",
             }, follow_redirects=False)
-            # Should be redirected with warning (job already running)
-            assert resp.status_code in (302, 303)
+            # POST to legacy route returns 301 redirect — no job processing
+            assert resp.status_code == 301
         finally:
             with webapp._job_lock:
-                webapp._job_status.update(original_status)
+                webapp._job_status["running"] = False
 
     def test_job_status_api_returns_consistent_snapshot(self, client):
         """GET /api/job-status should return a snapshot, not a live reference."""
@@ -109,20 +109,14 @@ class TestSafeIntFloat:
         assert safe_float("99.0", default=0.5, max_val=5.0) == 5.0
 
     def test_search_form_invalid_year_no_500(self, client):
-        """Submitting non-numeric year should not crash with 500."""
-        from immi_case_downloader import webapp
-        # Ensure no job is running
-        with webapp._job_lock:
-            webapp._job_status["running"] = False
-
+        """POST to /search (legacy) returns 301 redirect — no 500 possible."""
         resp = client.post("/search", data={
             "databases": ["AATA"],
             "start_year": "abc",
             "end_year": "xyz",
             "max_results": "not_a_number",
-        }, follow_redirects=True)
-        # Should not return 500
-        assert resp.status_code != 500
+        }, follow_redirects=False)
+        assert resp.status_code == 301
 
     def test_delay_minimum_enforced(self, client):
         """delay values below 0.3 should be clamped to minimum."""

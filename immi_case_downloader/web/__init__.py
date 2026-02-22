@@ -14,14 +14,12 @@ import logging
 
 from dotenv import load_dotenv
 from flask import Flask
-from flask_wtf.csrf import CSRFProtect
 
 from ..config import OUTPUT_DIR
 from ..storage import ensure_output_dirs
 
 load_dotenv()
 from .security import csrf, add_security_headers
-from .jobs import _job_lock, _job_status
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +34,6 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
     pkg_dir = os.path.dirname(os.path.dirname(__file__))
     app = Flask(
         __name__,
-        template_folder=os.path.join(pkg_dir, "templates"),
         static_folder=os.path.join(pkg_dir, "static"),
     )
 
@@ -75,18 +72,6 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
         from ..csv_repository import CsvRepository
         app.config["REPO"] = CsvRepository(output_dir)
         app.config["BACKEND"] = "csv"
-
-    # Context processor — inject global template variables
-    @app.context_processor
-    def inject_globals():
-        from ..pipeline import get_pipeline_status
-        ps = get_pipeline_status()
-        with _job_lock:
-            job_running = _job_status.get("running", False)
-        return {
-            "job_running": job_running,
-            "pipeline_running": ps.get("running", False),
-        }
 
     # Security headers on every response
     @app.after_request
