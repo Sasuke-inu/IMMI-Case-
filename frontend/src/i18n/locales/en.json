@@ -13,7 +13,8 @@
     "reference": "Reference",
     "data_dictionary": "Data Dictionary",
     "design_tokens": "Design Tokens",
-    "legislations": "Legislations"
+    "legislations": "Legislations",
+    "collections": "Collections"
   },
   "common": {
     "search": "Search",
@@ -672,5 +673,42 @@
       "save_button": "Create Case",
       "creating": "Creating..."
     }
+  },
+  "bookmarks": {
+    "add": "Bookmark case",
+    "remove": "Remove bookmark",
+    "added": "Case bookmarked",
+    "removed": "Bookmark removed",
+    "recent": "Recent Bookmarks",
+    "view_all_collections": "All Collections",
+    "collections": "Collections",
+    "collections_subtitle": "Organise cases into named collections",
+    "new_collection": "New Collection",
+    "collection_name": "Collection Name",
+    "collection_description": "Description (optional)",
+    "collection_tags": "Tags",
+    "collection_color": "Colour",
+    "add_tag": "Add tag",
+    "no_bookmarks": "No bookmarked cases",
+    "no_bookmarks_description": "Bookmark cases from the case list or detail view.",
+    "no_collections": "No collections yet",
+    "no_collections_description": "Create a collection to organise your bookmarked cases.",
+    "cases_count_one": "1 case",
+    "cases_count_other": "{{count}} cases",
+    "add_to_collection": "Add to Collection",
+    "remove_from_collection": "Remove from Collection",
+    "add_note": "Add a note...",
+    "note_placeholder": "Notes about this case...",
+    "export_html": "Export as HTML",
+    "export_success": "Report downloaded",
+    "export_failed": "Export failed",
+    "drag_to_reorder": "Drag to reorder",
+    "collection_deleted": "Collection deleted",
+    "collection_updated": "Collection updated",
+    "collection_created": "Collection created",
+    "confirm_delete_collection": "Delete this collection?",
+    "confirm_delete_collection_message": "This will delete \"{{name}}\". Bookmarked cases will not be affected.",
+    "collection_detail_empty": "No cases in this collection yet.",
+    "collection_detail_empty_desc": "Add cases from the case list or detail view."
   }
 }

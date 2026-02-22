@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -13,9 +13,46 @@ import {
   TrendingUp,
   Users,
   Network,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefetchRoute } from "@/lib/prefetch";
+import { useBookmarks } from "@/hooks/use-bookmarks";
+
+function RecentBookmarksPanel() {
+  const { t } = useTranslation();
+  const { recentBookmarks } = useBookmarks();
+  const navigate = useNavigate();
+
+  if (recentBookmarks.length === 0) return null;
+
+  return (
+    <div className="mt-4">
+      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-text">
+        {t("bookmarks.recent", "Recent Bookmarks")}
+      </p>
+      {recentBookmarks.map((b) => (
+        <button
+          key={b.case_id}
+          onClick={() => navigate(`/cases/${b.case_id}`)}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs text-secondary-text hover:bg-surface hover:text-foreground transition-colors"
+          title={b.case_citation || b.case_title}
+        >
+          <Bookmark className="h-3 w-3 shrink-0 text-accent" />
+          <span className="truncate">{b.case_citation || b.case_title}</span>
+        </button>
+      ))}
+      <NavLink
+        to="/collections"
+        className="mt-1 flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-muted-text hover:bg-surface hover:text-foreground transition-colors"
+      >
+        <BookmarkCheck className="h-3 w-3 shrink-0" />
+        {t("bookmarks.view_all_collections", "All Collections")}
+      </NavLink>
+    </div>
+  );
+}
 
 interface NavItem {
   readonly to: string;
@@ -45,6 +82,11 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         { to: "/judge-profiles", icon: Users, label: t("nav.judge_profiles") },
         { to: "/court-lineage", icon: Network, label: t("nav.court_lineage") },
         { to: "/cases", icon: FileText, label: t("nav.cases") },
+        {
+          to: "/collections",
+          icon: BookmarkCheck,
+          label: t("nav.collections", "Collections"),
+        },
       ],
     },
     {
@@ -139,6 +181,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             ))}
           </div>
         ))}
+        {!collapsed && <RecentBookmarksPanel />}
       </nav>
 
       {/* Footer */}

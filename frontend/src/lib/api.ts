@@ -515,6 +515,34 @@ export function fetchLegislationUpdateStatus(): Promise<{
   return apiFetch("/api/v1/legislations/update/status");
 }
 
+// ─── Collections export (server-side HTML report) ──────────────
+export interface CollectionExportPayload {
+  collection_id: string;
+  collection_name: string;
+  case_ids: string[];
+  case_notes: Record<string, string>;
+}
+
+export async function exportCollection(
+  payload: CollectionExportPayload,
+): Promise<string> {
+  const token = await fetchCsrfToken();
+  const res = await fetch("/api/v1/collections/export", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": token,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error ?? `Export failed: ${res.status}`);
+  }
+  return res.text();
+}
+
 // ─── Export (file downloads) ───────────────────────────────────
 export function downloadExportFile(format: "csv" | "json"): void {
   window.location.href = `/api/v1/export/${format}`;

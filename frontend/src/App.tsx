@@ -79,6 +79,16 @@ const CourtLineagePage = lazy(() =>
     default: m.CourtLineagePage,
   }))
 );
+const CollectionsPage = lazy(() =>
+  import("@/pages/CollectionsPage").then((m) => ({
+    default: m.CollectionsPage,
+  }))
+);
+const CollectionDetailPage = lazy(() =>
+  import("@/pages/CollectionDetailPage").then((m) => ({
+    default: m.CollectionDetailPage,
+  }))
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -140,6 +150,22 @@ export default function App() {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <CaseEditPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="collections"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CollectionsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="collections/:collectionId"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CollectionDetailPage />
                 </Suspense>
               }
             />

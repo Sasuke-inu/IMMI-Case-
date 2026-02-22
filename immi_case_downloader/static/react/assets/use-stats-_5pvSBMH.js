@@ -1,0 +1,1 @@
+import{u as a,k as r}from"./query-DQVcjD57.js";import{b as t,e as u}from"./api-DED7AR2C.js";function n(e){return a({queryKey:["stats",e?.court,e?.yearFrom,e?.yearTo],queryFn:()=>t(e),staleTime:3e4,placeholderData:r})}function y(e){return a({queryKey:["trends",e?.court,e?.yearFrom,e?.yearTo],queryFn:()=>u(e),staleTime:6e4,placeholderData:r})}export{y as a,n as u};

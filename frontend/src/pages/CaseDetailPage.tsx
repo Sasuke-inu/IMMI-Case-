@@ -1,7 +1,7 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Edit, Trash2, ExternalLink, Copy, Check } from "lucide-react";
-import { useState, useCallback, useEffect } from "react";
+import { Edit, Trash2, ExternalLink, Copy, Check, BookmarkPlus, Plus } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useCase, useRelatedCases, useDeleteCase } from "@/hooks/use-cases";
 import { CourtBadge } from "@/components/shared/CourtBadge";
 import { OutcomeBadge } from "@/components/shared/OutcomeBadge";
@@ -9,8 +9,14 @@ import { NatureBadge } from "@/components/shared/NatureBadge";
 import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { CaseTextViewer } from "@/components/cases/CaseTextViewer";
+import { BookmarkButton } from "@/components/shared/BookmarkButton";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  useBookmarks,
+  addCaseToCollection,
+  createCollection,
+} from "@/hooks/use-bookmarks";
 
 export function CaseDetailPage() {
   const { t } = useTranslation();
@@ -84,6 +90,13 @@ export function CaseDetailPage() {
               <ExternalLink className="h-3.5 w-3.5" /> {t("cases.url")}
             </a>
           )}
+          <AddToCollectionMenu
+            caseId={c.case_id}
+            caseTitle={c.title || ""}
+            caseCitation={c.citation || ""}
+            courtCode={c.court_code}
+            date={c.date || ""}
+          />
           <Link
             to={`/cases/${c.case_id}/edit`}
             className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface"
@@ -121,6 +134,14 @@ export function CaseDetailPage() {
               <Copy className="h-4 w-4" />
             )}
           </button>
+          <BookmarkButton
+            caseId={c.case_id}
+            caseTitle={c.title || c.citation || ""}
+            caseCitation={c.citation || ""}
+            courtCode={c.court_code}
+            date={c.date || ""}
+            size="md"
+          />
         </div>
         {c.title && c.citation && c.title !== c.citation && (
           <p className="mt-1 text-sm text-secondary-text">{c.title}</p>
@@ -308,6 +329,109 @@ export function CaseDetailPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteOpen(false)}
       />
+    </div>
+  );
+}
+
+interface AddToCollectionMenuProps {
+  caseId: string;
+  caseTitle: string;
+  caseCitation: string;
+  courtCode: string;
+  date: string;
+}
+
+function AddToCollectionMenu({
+  caseId,
+  caseTitle,
+  caseCitation,
+  courtCode,
+  date,
+}: AddToCollectionMenuProps) {
+  const { t } = useTranslation();
+  const { collections } = useBookmarks();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  function handleAddToCollection(collectionId: string) {
+    addCaseToCollection(collectionId, caseId);
+    toast.success(t("bookmarks.add_to_collection", "Add to Collection"));
+    setOpen(false);
+  }
+
+  function handleNewCollection() {
+    const name = prompt(t("bookmarks.collection_name", "Collection Name"));
+    if (!name?.trim()) return;
+    const col = createCollection(name.trim());
+    addCaseToCollection(col.id, caseId);
+    // Also add bookmark so it appears in the collection
+    import("@/hooks/use-bookmarks").then(({ addBookmark }) => {
+      addBookmark({
+        case_id: caseId,
+        case_title: caseTitle,
+        case_citation: caseCitation,
+        court_code: courtCode,
+        date,
+      });
+    });
+    toast.success(t("bookmarks.collection_created", "Collection created"));
+    setOpen(false);
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface"
+      >
+        <BookmarkPlus className="h-3.5 w-3.5" />
+        {t("bookmarks.add_to_collection", "Add to Collection")}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-20 mt-1 min-w-[180px] rounded-lg border border-border bg-card shadow-lg">
+          {collections.length === 0 ? (
+            <button
+              onClick={handleNewCollection}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-surface"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t("bookmarks.new_collection", "New Collection")}
+            </button>
+          ) : (
+            <>
+              {collections.map((col) => (
+                <button
+                  key={col.id}
+                  onClick={() => handleAddToCollection(col.id)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-surface"
+                >
+                  {col.name}
+                </button>
+              ))}
+              <div className="border-t border-border">
+                <button
+                  onClick={handleNewCollection}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted-text hover:bg-surface hover:text-foreground"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {t("bookmarks.new_collection", "New Collection")}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

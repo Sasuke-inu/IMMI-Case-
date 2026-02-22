@@ -12,6 +12,7 @@ const prefetchMap: Record<string, () => Promise<unknown>> = {
   "/pipeline": () => import("@/pages/PipelinePage"),
   "/jobs": () => import("@/pages/JobStatusPage"),
   "/legislations": () => import("@/pages/LegislationsPage"),
+  "/collections": () => import("@/pages/CollectionsPage"),
   "/data-dictionary": () => import("@/pages/DataDictionaryPage"),
   "/design-tokens": () => import("@/pages/DesignTokensPage"),
 };

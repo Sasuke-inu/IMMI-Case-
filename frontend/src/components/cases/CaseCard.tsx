@@ -3,6 +3,7 @@ import { Calendar, User, Briefcase } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CourtBadge } from "@/components/shared/CourtBadge";
 import { OutcomeBadge } from "@/components/shared/OutcomeBadge";
+import { BookmarkButton } from "@/components/shared/BookmarkButton";
 import { courtColors } from "@/tokens/tokens";
 import type { ImmigrationCase } from "@/types/case";
 
@@ -17,17 +18,18 @@ function CaseCardInner({ case_: c, onClick }: CaseCardProps) {
   const accentColor = courtColors[c.court_code] ?? "#6b7585";
 
   return (
-    <button
-      onClick={onClick}
-      className="group flex min-h-[180px] flex-col rounded-lg border border-border bg-card text-left shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
-      style={{ borderLeftWidth: "3px", borderLeftColor: accentColor }}
-    >
-      <div className="flex flex-1 flex-col p-4">
-        {/* Top row: court badge + outcome */}
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <CourtBadge court={c.court_code} />
-          {c.outcome && <OutcomeBadge outcome={c.outcome} />}
-        </div>
+    <div className="relative">
+      <button
+        onClick={onClick}
+        className="group flex min-h-[180px] w-full flex-col rounded-lg border border-border bg-card text-left shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
+        style={{ borderLeftWidth: "3px", borderLeftColor: accentColor }}
+      >
+        <div className="flex flex-1 flex-col p-4">
+          {/* Top row: court badge + outcome */}
+          <div className="mb-2 flex items-center justify-between gap-2 pr-6">
+            <CourtBadge court={c.court_code} />
+            {c.outcome && <OutcomeBadge outcome={c.outcome} />}
+          </div>
 
         {/* Title */}
         <h3
@@ -83,6 +85,16 @@ function CaseCardInner({ case_: c, onClick }: CaseCardProps) {
         )}
       </div>
     </button>
+    <BookmarkButton
+      caseId={c.case_id}
+      caseTitle={c.title || c.citation || ""}
+      caseCitation={c.citation || ""}
+      courtCode={c.court_code}
+      date={c.date || ""}
+      size="sm"
+      className="absolute right-2 top-2 z-10"
+    />
+  </div>
   );
 }
 

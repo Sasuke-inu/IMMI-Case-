@@ -13,7 +13,8 @@
     "reference": "參考資料",
     "data_dictionary": "資料字典",
     "design_tokens": "設計變數",
-    "legislations": "法律法規"
+    "legislations": "法律法規",
+    "collections": "收藏"
   },
   "common": {
     "search": "搜尋",
@@ -672,5 +673,42 @@
       "save_button": "建立案件",
       "creating": "建立中..."
     }
+  },
+  "bookmarks": {
+    "add": "書籤此案件",
+    "remove": "移除書籤",
+    "added": "已加入書籤",
+    "removed": "書籤已移除",
+    "recent": "最近書籤",
+    "view_all_collections": "所有收藏",
+    "collections": "收藏",
+    "collections_subtitle": "將案件整理為命名收藏",
+    "new_collection": "新建收藏",
+    "collection_name": "收藏名稱",
+    "collection_description": "說明（選填）",
+    "collection_tags": "標籤",
+    "collection_color": "顏色",
+    "add_tag": "新增標籤",
+    "no_bookmarks": "無書籤案件",
+    "no_bookmarks_description": "從案件列表或詳情頁面書籤案件。",
+    "no_collections": "尚無收藏",
+    "no_collections_description": "建立收藏以整理您的書籤案件。",
+    "cases_count_one": "1 個案件",
+    "cases_count_other": "{{count}} 個案件",
+    "add_to_collection": "加入收藏",
+    "remove_from_collection": "從收藏移除",
+    "add_note": "新增備註...",
+    "note_placeholder": "關於此案件的備註...",
+    "export_html": "匯出為 HTML",
+    "export_success": "報告已下載",
+    "export_failed": "匯出失敗",
+    "drag_to_reorder": "拖曳以重新排序",
+    "collection_deleted": "收藏已刪除",
+    "collection_updated": "收藏已更新",
+    "collection_created": "收藏已建立",
+    "confirm_delete_collection": "刪除此收藏？",
+    "confirm_delete_collection_message": "此操作將刪除「{{name}}」。書籤案件不受影響。",
+    "collection_detail_empty": "此收藏尚無案件。",
+    "collection_detail_empty_desc": "從案件列表或詳情頁面新增案件。"
   }
 }

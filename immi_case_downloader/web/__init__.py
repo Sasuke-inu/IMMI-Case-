@@ -95,6 +95,10 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
     from .routes.legislations import legislations_bp
     app.register_blueprint(legislations_bp)
 
+    # Register Bookmarks/Collections API blueprint
+    from .routes.bookmarks import bookmarks_bp
+    app.register_blueprint(bookmarks_bp)
+
     # SPA catch-all: serve React build for non-API, non-legacy routes
     react_dir = os.path.join(pkg_dir, "static", "react")
 
