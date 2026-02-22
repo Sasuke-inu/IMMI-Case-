@@ -12,8 +12,10 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
+  Bookmark,
 } from "lucide-react";
 import { useCases, useFilterOptions, useBatchCases } from "@/hooks/use-cases";
+import { useSavedSearches } from "@/hooks/use-saved-searches";
 import { CourtBadge } from "@/components/shared/CourtBadge";
 import { OutcomeBadge } from "@/components/shared/OutcomeBadge";
 import { NatureBadge } from "@/components/shared/NatureBadge";
@@ -22,6 +24,7 @@ import { FilterPill } from "@/components/shared/FilterPill";
 import { Pagination } from "@/components/shared/Pagination";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
+import { SaveSearchModal } from "@/components/saved-searches/SaveSearchModal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { CaseFilters, ImmigrationCase } from "@/types/case";
@@ -49,6 +52,7 @@ export function CasesPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [focusedIdx, setFocusedIdx] = useState(-1);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const tableRef = useRef<HTMLTableSectionElement>(null);
 
   const filters: CaseFilters = {
@@ -70,6 +74,7 @@ export function CasesPage() {
   const { data, isLoading } = useCases(filters);
   const { data: filterOpts } = useFilterOptions();
   const batchMutation = useBatchCases();
+  const { savedSearches, saveSearch } = useSavedSearches();
 
   const updateFilter = useCallback(
     (key: string, value: string) => {
@@ -162,6 +167,15 @@ export function CasesPage() {
     URL.revokeObjectURL(url);
     toast.success(t("cases.exported", { count: data.cases.length }));
   }, [data]);
+
+  const handleSaveSearch = useCallback(
+    (name: string) => {
+      saveSearch(name, filters);
+      setShowSaveModal(false);
+      toast.success(`Saved search "${name}" successfully`);
+    },
+    [saveSearch, filters],
+  );
 
   // Keyboard navigation
   useEffect(() => {
@@ -373,6 +387,14 @@ export function CasesPage() {
           ) : (
             <ChevronDown className="h-3.5 w-3.5" />
           )}
+        </button>
+        <button
+          onClick={() => setShowSaveModal(true)}
+          className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-muted-text hover:text-foreground"
+          title="Save current search for quick access later"
+        >
+          <Bookmark className="h-3.5 w-3.5" />
+          Save Search
         </button>
 
         {/* Sort */}
@@ -695,6 +717,15 @@ export function CasesPage() {
         variant="danger"
         onConfirm={() => handleBatch("delete")}
         onCancel={() => setDeleteConfirm(false)}
+      />
+
+      {/* Save Search modal */}
+      <SaveSearchModal
+        open={showSaveModal}
+        filters={filters}
+        existingNames={savedSearches.map((s) => s.name)}
+        onSave={handleSaveSearch}
+        onCancel={() => setShowSaveModal(false)}
       />
     </div>
   );
