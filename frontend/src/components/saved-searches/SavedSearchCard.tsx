@@ -1,13 +1,14 @@
 import { memo, useMemo, useCallback } from "react";
-import { Play, Edit2, Trash2, Calendar, Filter, Share2 } from "lucide-react";
+import { Play, Edit2, Trash2, Calendar, Filter, Share2, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { generateShareableUrl } from "@/lib/saved-searches";
+import { useCases } from "@/hooks/use-cases";
 import type { SavedSearch } from "@/types/case";
 
 interface SavedSearchCardProps {
   search: SavedSearch;
-  onExecute: () => void;
+  onExecute: (currentCount: number) => void;
   onEdit: () => void;
   onDelete: () => void;
 }
@@ -19,6 +20,21 @@ function SavedSearchCardInner({
   onDelete,
 }: SavedSearchCardProps) {
   const { t } = useTranslation();
+
+  // Fetch current count for this search's filters
+  const { data } = useCases({ ...search.filters, page: 1, page_size: 1 });
+  const currentCount = data?.total ?? 0;
+
+  // Calculate if there are new results since last execution
+  const hasNewResults = useMemo(() => {
+    if (search.resultCount === undefined) return false;
+    return currentCount > search.resultCount;
+  }, [currentCount, search.resultCount]);
+
+  const newResultsCount = useMemo(() => {
+    if (!hasNewResults) return 0;
+    return currentCount - (search.resultCount ?? 0);
+  }, [hasNewResults, currentCount, search.resultCount]);
 
   // Generate filter summary from CaseFilters
   const filterSummary = useMemo(() => {
@@ -58,6 +74,11 @@ function SavedSearchCardInner({
     }
   }, [search.filters]);
 
+  // Handle execute - pass current count to parent
+  const handleExecute = useCallback(() => {
+    onExecute(currentCount);
+  }, [onExecute, currentCount]);
+
   return (
     <div className="group flex min-h-[140px] flex-col rounded-lg border border-border bg-card shadow-xs transition-all duration-150 hover:shadow-md">
       <div className="flex flex-1 flex-col p-4">
@@ -69,11 +90,23 @@ function SavedSearchCardInner({
           >
             {search.name}
           </h3>
-          {search.resultCount !== undefined && (
-            <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-              {search.resultCount}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span
+              className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent"
+              title={`Current results: ${currentCount}`}
+            >
+              {currentCount.toLocaleString()}
             </span>
-          )}
+            {hasNewResults && (
+              <span
+                className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950/30 dark:text-green-400"
+                title={`${newResultsCount} new result${newResultsCount !== 1 ? "s" : ""} since last execution`}
+              >
+                <TrendingUp className="h-3 w-3" />
+                +{newResultsCount}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Filter summary */}
@@ -100,7 +133,7 @@ function SavedSearchCardInner({
         {/* Action buttons */}
         <div className="flex items-center gap-2">
           <button
-            onClick={onExecute}
+            onClick={handleExecute}
             className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-accent-dark"
             title={t("saved_searches.execute_button", "Execute Search")}
           >

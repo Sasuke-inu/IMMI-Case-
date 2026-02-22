@@ -26,8 +26,8 @@ export function SavedSearchPanel({ onExecute, onEdit }: SavedSearchPanelProps) {
     );
   }, [savedSearches, searchQuery]);
 
-  const handleExecute = (id: string) => {
-    executeSearch(id, onExecute);
+  const handleExecute = (id: string, currentCount: number) => {
+    executeSearch(id, onExecute, currentCount);
   };
 
   const handleEdit = (id: string) => {
@@ -127,7 +127,7 @@ export function SavedSearchPanel({ onExecute, onEdit }: SavedSearchPanelProps) {
             <SavedSearchCard
               key={search.id}
               search={search}
-              onExecute={() => handleExecute(search.id)}
+              onExecute={(currentCount) => handleExecute(search.id, currentCount)}
               onEdit={() => handleEdit(search.id)}
               onDelete={() => handleDelete(search.id)}
             />
