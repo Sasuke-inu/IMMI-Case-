@@ -54,6 +54,7 @@ export function CasesPage() {
   const [focusedIdx, setFocusedIdx] = useState(-1);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
 
   const filters: CaseFilters = {
@@ -75,7 +76,8 @@ export function CasesPage() {
   const { data, isLoading } = useCases(filters);
   const { data: filterOpts } = useFilterOptions();
   const batchMutation = useBatchCases();
-  const { savedSearches, saveSearch } = useSavedSearches();
+  const { savedSearches, saveSearch, updateSearch, getSearchById } =
+    useSavedSearches();
 
   const updateFilter = useCallback(
     (key: string, value: string) => {
@@ -170,12 +172,25 @@ export function CasesPage() {
   }, [data]);
 
   const handleSaveSearch = useCallback(
-    (name: string) => {
-      saveSearch(name, filters);
+    (name: string, searchFilters: CaseFilters) => {
+      if (editingSearchId) {
+        // Update existing search
+        const updated = updateSearch(editingSearchId, {
+          name,
+          filters: searchFilters,
+        });
+        if (updated) {
+          toast.success(`Updated search "${name}" successfully`);
+        }
+        setEditingSearchId(null);
+      } else {
+        // Create new search
+        saveSearch(name, searchFilters);
+        toast.success(`Saved search "${name}" successfully`);
+      }
       setShowSaveModal(false);
-      toast.success(`Saved search "${name}" successfully`);
     },
-    [saveSearch, filters],
+    [editingSearchId, saveSearch, updateSearch],
   );
 
   const handleExecuteSavedSearch = useCallback(
@@ -195,6 +210,14 @@ export function CasesPage() {
       toast.success("Applied saved search");
     },
     [setSearchParams],
+  );
+
+  const handleEditSearch = useCallback(
+    (searchId: string) => {
+      setEditingSearchId(searchId);
+      setShowSaveModal(true);
+    },
+    [],
   );
 
   // Keyboard navigation
@@ -514,7 +537,10 @@ export function CasesPage() {
       )}
 
       {/* Saved Searches Panel */}
-      <SavedSearchPanel onExecute={handleExecuteSavedSearch} />
+      <SavedSearchPanel
+        onExecute={handleExecuteSavedSearch}
+        onEdit={handleEditSearch}
+      />
 
       {/* Batch bar */}
       {selected.size > 0 && (
@@ -745,10 +771,14 @@ export function CasesPage() {
       {/* Save Search modal */}
       <SaveSearchModal
         open={showSaveModal}
-        filters={filters}
+        filters={editingSearchId ? getSearchById(editingSearchId)?.filters ?? filters : filters}
         existingNames={savedSearches.map((s) => s.name)}
+        editingSearch={editingSearchId ? getSearchById(editingSearchId) : null}
         onSave={handleSaveSearch}
-        onCancel={() => setShowSaveModal(false)}
+        onCancel={() => {
+          setShowSaveModal(false);
+          setEditingSearchId(null);
+        }}
       />
     </div>
   );

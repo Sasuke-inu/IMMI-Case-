@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark } from "lucide-react";
-import type { CaseFilters } from "@/types/case";
+import { Bookmark, Edit2 } from "lucide-react";
+import type { CaseFilters, SavedSearch } from "@/types/case";
 
 interface SaveSearchModalProps {
   open: boolean;
   filters: CaseFilters;
   existingNames?: string[];
-  onSave: (name: string) => void;
+  editingSearch?: SavedSearch | null;
+  onSave: (name: string, filters: CaseFilters) => void;
   onCancel: () => void;
 }
 
@@ -15,6 +16,7 @@ export function SaveSearchModal({
   open,
   filters,
   existingNames = [],
+  editingSearch = null,
   onSave,
   onCancel,
 }: SaveSearchModalProps) {
@@ -23,14 +25,16 @@ export function SaveSearchModal({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const isEditMode = !!editingSearch;
+
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setName("");
+      setName(editingSearch?.name ?? "");
       setError(null);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [open]);
+  }, [open, editingSearch]);
 
   // Handle escape key
   useEffect(() => {
@@ -58,12 +62,16 @@ export function SaveSearchModal({
       return;
     }
 
-    if (existingNames.includes(trimmedName)) {
+    // Check for duplicate names (excluding current search if editing)
+    if (
+      existingNames.includes(trimmedName) &&
+      trimmedName !== editingSearch?.name
+    ) {
       setError("A search with this name already exists");
       return;
     }
 
-    onSave(trimmedName);
+    onSave(trimmedName, filters);
   };
 
   if (!open) return null;
@@ -78,14 +86,22 @@ export function SaveSearchModal({
         <form onSubmit={handleSubmit}>
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-accent/10 p-2">
-              <Bookmark className="h-5 w-5 text-accent" />
+              {isEditMode ? (
+                <Edit2 className="h-5 w-5 text-accent" />
+              ) : (
+                <Bookmark className="h-5 w-5 text-accent" />
+              )}
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-foreground">
-                {t("common.save")} Search
+                {isEditMode
+                  ? t("saved_searches.edit_title", { defaultValue: "Edit Search" })
+                  : t("common.save") + " Search"}
               </h3>
               <p className="mt-1 text-sm text-muted-text">
-                Save current search configuration for quick access later
+                {isEditMode
+                  ? "Update the name or filters for this saved search"
+                  : "Save current search configuration for quick access later"}
               </p>
             </div>
           </div>
@@ -135,7 +151,9 @@ export function SaveSearchModal({
               type="submit"
               className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
             >
-              {t("common.save")} Search
+              {isEditMode
+                ? t("common.update", { defaultValue: "Update" })
+                : t("common.save") + " Search"}
             </button>
           </div>
         </form>
