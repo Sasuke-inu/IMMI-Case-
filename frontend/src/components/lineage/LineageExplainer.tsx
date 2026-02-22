@@ -101,7 +101,7 @@ function LineagePath({ lineage, icon: Icon }: LineagePathProps) {
             <h4 className="text-xs font-medium uppercase tracking-wide text-muted-text">
               {t("lineage.transitions", "Transitions")}
             </h4>
-            {lineage.transitions.map((transition, index) => (
+            {lineage.transitions.map((transition) => (
               <div
                 key={`${transition.from}-${transition.to}`}
                 className="flex gap-3 rounded-md bg-surface p-3"
