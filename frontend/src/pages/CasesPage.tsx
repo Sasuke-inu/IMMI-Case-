@@ -25,6 +25,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { SaveSearchModal } from "@/components/saved-searches/SaveSearchModal";
+import { SavedSearchPanel } from "@/components/saved-searches/SavedSearchPanel";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { CaseFilters, ImmigrationCase } from "@/types/case";
@@ -175,6 +176,25 @@ export function CasesPage() {
       toast.success(`Saved search "${name}" successfully`);
     },
     [saveSearch, filters],
+  );
+
+  const handleExecuteSavedSearch = useCallback(
+    (savedFilters: CaseFilters) => {
+      const params = new URLSearchParams();
+      if (savedFilters.court) params.set("court", savedFilters.court);
+      if (savedFilters.year) params.set("year", String(savedFilters.year));
+      if (savedFilters.visa_type) params.set("visa_type", savedFilters.visa_type);
+      if (savedFilters.nature) params.set("nature", savedFilters.nature);
+      if (savedFilters.source) params.set("source", savedFilters.source);
+      if (savedFilters.tag) params.set("tag", savedFilters.tag);
+      if (savedFilters.keyword) params.set("keyword", savedFilters.keyword);
+      if (savedFilters.sort_by) params.set("sort_by", savedFilters.sort_by);
+      if (savedFilters.sort_dir) params.set("sort_dir", savedFilters.sort_dir);
+      params.set("page", "1");
+      setSearchParams(params);
+      toast.success("Applied saved search");
+    },
+    [setSearchParams],
   );
 
   // Keyboard navigation
@@ -492,6 +512,9 @@ export function CasesPage() {
           </button>
         </div>
       )}
+
+      {/* Saved Searches Panel */}
+      <SavedSearchPanel onExecute={handleExecuteSavedSearch} />
 
       {/* Batch bar */}
       {selected.size > 0 && (
