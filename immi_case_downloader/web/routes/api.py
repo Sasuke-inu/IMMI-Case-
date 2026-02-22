@@ -2072,6 +2072,82 @@ def taxonomy_legal_concepts():
         return jsonify({"success": False, "error": "Failed to retrieve legal concepts"}), 500
 
 
+@api_bp.route("/taxonomy/judges/autocomplete")
+def taxonomy_judges_autocomplete():
+    """Autocomplete judge names with case counts.
+
+    Query parameters:
+      q     (str, required, min 2 chars) — searches judge name (case-insensitive)
+      limit (int, default 20, max 50)    — max results to return
+
+    Returns:
+      {
+        "success": true,
+        "data": [
+          {
+            "name": "Smith",
+            "case_count": 543
+          },
+          ...
+        ],
+        "meta": {
+          "query": "sm",
+          "total_results": 12,
+          "limit": 20
+        }
+      }
+    """
+    try:
+        query = request.args.get("q", "").strip()
+        limit = min(request.args.get("limit", 20, type=int), 50)
+
+        if not query:
+            return jsonify({"success": False, "error": "q parameter is required"}), 400
+        if len(query) < 2:
+            return jsonify({"success": False, "error": "query must be at least 2 characters"}), 400
+        if limit < 1:
+            return jsonify({"success": False, "error": "limit must be >= 1"}), 400
+
+        # Get all cases and count by judge name
+        cases = _get_all_cases()
+        judge_counts: dict[str, int] = Counter()
+
+        for c in cases:
+            for judge in _split_judges(c.judge_name or ""):
+                judge_counts[judge] += 1
+
+        # Filter judges matching query (case-insensitive partial match)
+        q_lower = query.lower()
+        results = []
+        total_matched = 0
+
+        for judge_name in sorted(judge_counts.keys()):
+            if q_lower in judge_name.lower():
+                total_matched += 1
+                if len(results) < limit:
+                    results.append({
+                        "name": judge_name,
+                        "case_count": judge_counts[judge_name],
+                    })
+
+        # Sort by case count descending (most active judges first)
+        results.sort(key=lambda x: -x["case_count"])
+
+        return jsonify({
+            "success": True,
+            "data": results,
+            "meta": {
+                "query": query,
+                "total_results": total_matched,
+                "limit": limit,
+            },
+        })
+
+    except Exception as e:
+        logger.error(f"Error in judges-autocomplete: {e}")
+        return jsonify({"success": False, "error": "Failed to autocomplete judge names"}), 500
+
+
 @api_bp.route("/analytics/visa-families")
 def analytics_visa_families():
     """Case counts and win rates aggregated by visa family."""
