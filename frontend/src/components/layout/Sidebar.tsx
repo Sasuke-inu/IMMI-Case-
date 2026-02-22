@@ -12,15 +12,18 @@ import {
   Palette,
   TrendingUp,
   Users,
+  Bookmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefetchRoute } from "@/lib/prefetch";
+import { useSavedSearches } from "@/hooks/use-saved-searches";
 
 interface NavItem {
   readonly to: string;
   readonly icon: LucideIcon;
   readonly label: string;
   readonly description?: string;
+  readonly showBadge?: boolean;
 }
 
 interface NavGroup {
@@ -34,6 +37,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const { t } = useTranslation();
+  const { savedSearches } = useSavedSearches();
 
   const navGroups: readonly NavGroup[] = [
     {
@@ -43,6 +47,13 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         { to: "/analytics", icon: TrendingUp, label: t("nav.analytics") },
         { to: "/judge-profiles", icon: Users, label: t("nav.judge_profiles") },
         { to: "/cases", icon: FileText, label: t("nav.cases") },
+        {
+          to: "/cases",
+          icon: Bookmark,
+          label: t("nav.saved_searches"),
+          description: t("nav.saved_searches"),
+          showBadge: true,
+        },
       ],
     },
     {
@@ -114,9 +125,9 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             {collapsed && gi > 0 && (
               <div className="mx-3 mb-2 border-t border-border-light" />
             )}
-            {group.items.map(({ to, icon: Icon, label, description }) => (
+            {group.items.map(({ to, icon: Icon, label, description, showBadge }) => (
               <NavLink
-                key={to}
+                key={`${to}-${label}`}
                 to={to}
                 end={to === "/"}
                 title={description ?? label}
@@ -132,7 +143,16 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 }
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>{label}</span>}
+                {!collapsed && (
+                  <>
+                    <span className="flex-1">{label}</span>
+                    {showBadge && (
+                      <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[10px] font-semibold text-accent">
+                        {savedSearches.length}/50
+                      </span>
+                    )}
+                  </>
+                )}
               </NavLink>
             ))}
           </div>
