@@ -96,3 +96,55 @@ export function markSearchExecuted(
 function generateSearchId(): string {
   return `search_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
+
+/**
+ * Encode filters to URL search params
+ */
+export function encodeFiltersToUrl(filters: CaseFilters): string {
+  const params = new URLSearchParams();
+
+  if (filters.court) params.set("court", filters.court);
+  if (filters.year) params.set("year", String(filters.year));
+  if (filters.visa_type) params.set("visa_type", filters.visa_type);
+  if (filters.nature) params.set("nature", filters.nature);
+  if (filters.source) params.set("source", filters.source);
+  if (filters.tag) params.set("tag", filters.tag);
+  if (filters.keyword) params.set("keyword", filters.keyword);
+  if (filters.sort_by) params.set("sort_by", filters.sort_by);
+  if (filters.sort_dir) params.set("sort_dir", filters.sort_dir);
+
+  // Always start at page 1 for shared searches
+  params.set("page", "1");
+
+  return params.toString();
+}
+
+/**
+ * Decode URL search params to filters
+ */
+export function decodeUrlToFilters(searchParams: URLSearchParams): CaseFilters {
+  const filters: CaseFilters = {
+    court: searchParams.get("court") ?? "",
+    year: searchParams.get("year") ? Number(searchParams.get("year")) : undefined,
+    visa_type: searchParams.get("visa_type") ?? "",
+    nature: searchParams.get("nature") ?? "",
+    source: searchParams.get("source") ?? "",
+    tag: searchParams.get("tag") ?? "",
+    keyword: searchParams.get("keyword") ?? "",
+    sort_by: searchParams.get("sort_by") ?? "date",
+    sort_dir: (searchParams.get("sort_dir") as "asc" | "desc") ?? "desc",
+    page: Number(searchParams.get("page") ?? 1),
+    page_size: 100,
+  };
+
+  return filters;
+}
+
+/**
+ * Generate a shareable URL for a saved search
+ */
+export function generateShareableUrl(filters: CaseFilters): string {
+  const params = encodeFiltersToUrl(filters);
+  const baseUrl = `${window.location.origin}/cases`;
+  return params ? `${baseUrl}?${params}` : baseUrl;
+}

@@ -1,6 +1,8 @@
-import { memo, useMemo } from "react";
-import { Play, Edit2, Trash2, Calendar, Filter } from "lucide-react";
+import { memo, useMemo, useCallback } from "react";
+import { Play, Edit2, Trash2, Calendar, Filter, Share2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { generateShareableUrl } from "@/lib/saved-searches";
 import type { SavedSearch } from "@/types/case";
 
 interface SavedSearchCardProps {
@@ -44,6 +46,17 @@ function SavedSearchCardInner({
       year: "numeric",
     });
   }, [search.lastExecutedAt]);
+
+  // Handle share - copy URL to clipboard
+  const handleShare = useCallback(async () => {
+    try {
+      const url = generateShareableUrl(search.filters);
+      await navigator.clipboard.writeText(url);
+      toast.success("Search URL copied to clipboard");
+    } catch (err) {
+      toast.error("Failed to copy URL to clipboard");
+    }
+  }, [search.filters]);
 
   return (
     <div className="group flex min-h-[140px] flex-col rounded-lg border border-border bg-card shadow-xs transition-all duration-150 hover:shadow-md">
@@ -93,6 +106,13 @@ function SavedSearchCardInner({
           >
             <Play className="h-3 w-3" />
             Execute
+          </button>
+          <button
+            onClick={handleShare}
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent/5"
+            title={t("saved_searches.share_button", "Share Search")}
+          >
+            <Share2 className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={onEdit}
