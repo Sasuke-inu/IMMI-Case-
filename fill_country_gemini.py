@@ -96,7 +96,7 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
-def load_pending(court: str | None, sample: int | None) -> list[dict]:
+def load_pending(court: str | None, sample: int | None, protection_only: bool = False) -> list[dict]:
     conn = get_connection()
     try:
         where = "(country_of_origin IS NULL OR country_of_origin = '')"
@@ -104,6 +104,9 @@ def load_pending(court: str | None, sample: int | None) -> list[dict]:
         if court:
             where += " AND court_code = ?"
             params.append(court)
+        if protection_only:
+            where += (" AND (catchwords LIKE '%protection%' OR catchwords LIKE '%refugee%'"
+                      " OR catchwords LIKE '%citizen of%')")
         limit = f"LIMIT {sample}" if sample else ""
         rows = conn.execute(
             f"SELECT case_id, title, court_code, catchwords, text_snippet "
@@ -217,10 +220,12 @@ def classify_batch(model, cases: list[dict]) -> list[tuple[str, str]]:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sample",  type=int)
-    parser.add_argument("--court",   type=str)
-    parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--workers", type=int, default=MAX_WORKERS)
+    parser.add_argument("--sample",           type=int)
+    parser.add_argument("--court",            type=str)
+    parser.add_argument("--dry-run",          action="store_true")
+    parser.add_argument("--workers",          type=int, default=MAX_WORKERS)
+    parser.add_argument("--protection-only",  action="store_true",
+                        help="Only process cases with protection/refugee keywords (higher fill rate)")
     args = parser.parse_args()
 
     if not DB_PATH.exists():
@@ -228,7 +233,8 @@ def main():
         sys.exit(1)
 
     logger.info("Loading pending cases…")
-    cases = load_pending(court=args.court, sample=args.sample)
+    cases = load_pending(court=args.court, sample=args.sample,
+                         protection_only=args.protection_only)
     total = len(cases)
 
     if total == 0:

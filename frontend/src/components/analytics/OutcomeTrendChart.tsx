@@ -24,7 +24,9 @@ function OutcomeTrendChartInner({ data }: OutcomeTrendChartProps) {
       const setAside = outcomes["Set Aside"] ?? 0;
       const remitted = outcomes["Remitted"] ?? 0;
       const allowed = outcomes["Allowed"] ?? 0;
-      const applicantWin = setAside + remitted + allowed;
+      const granted = outcomes["Granted"] ?? 0;
+      const quashed = outcomes["Quashed"] ?? 0;
+      const applicantWin = setAside + remitted + allowed + granted + quashed;
       return {
         year: Number(yearStr),
         affirmedRate:

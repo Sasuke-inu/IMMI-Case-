@@ -53,21 +53,26 @@ MAX_RELATED_LIMIT = 20
 # ── Outcome normalisation ──────────────────────────────────────────────
 
 _OUTCOME_MAP = {
-    "affirm": "Affirmed",
-    "dismiss": "Dismissed",
-    "remit": "Remitted",
-    "set aside": "Set Aside",
-    "allow": "Allowed",
-    "refus": "Refused",
-    "withdrawn": "Withdrawn",
-    "discontinu": "Withdrawn",
+    "affirm":          "Affirmed",
+    "dismiss":         "Dismissed",
+    "remit":           "Remitted",
+    "set aside":       "Set Aside",
+    "allow":           "Allowed",
+    "grant":           "Granted",
+    "quash":           "Quashed",
+    "refus":           "Refused",
+    "cancel":          "Cancelled",
+    "no jurisdiction": "No Jurisdiction",
+    "withdrawn":       "Withdrawn",
+    "discontinu":      "Withdrawn",
+    "varied":          "Varied",
 }
 
 TRIBUNAL_CODES = {"AATA", "ARTA", "MRTA", "RRTA"}
 COURT_CODES = {"FCA", "FCCA", "FMCA", "FedCFamC2G", "HCA"}
-_TRIBUNAL_WIN_OUTCOMES = ("Remitted", "Set Aside")
-_COURT_WIN_OUTCOMES = ("Allowed", "Set Aside")
-_MIXED_WIN_OUTCOMES = ("Allowed", "Remitted", "Set Aside")
+_TRIBUNAL_WIN_OUTCOMES = ("Remitted", "Set Aside", "Granted", "Quashed")
+_COURT_WIN_OUTCOMES = ("Allowed", "Set Aside", "Granted", "Quashed")
+_MIXED_WIN_OUTCOMES = ("Allowed", "Remitted", "Set Aside", "Granted", "Quashed")
 _JUDGE_BLOCKLIST = frozenset(
     {
         # Common noise words from HTML/text parsing artefacts
