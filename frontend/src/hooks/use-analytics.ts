@@ -10,6 +10,7 @@ import {
   fetchConceptTrends,
   fetchFlowMatrix,
   fetchMonthlyTrends,
+  fetchVisaFamilies,
 } from "@/lib/api";
 import type { AnalyticsFilterParams } from "@/types/case";
 
@@ -149,6 +150,15 @@ export function useMonthlyTrends(params?: AnalyticsFilterParams) {
   return useQuery({
     queryKey: ["analytics", "monthly-trends", ...filterKey(params)],
     queryFn: () => fetchMonthlyTrends(params),
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useVisaFamilies(params?: AnalyticsFilterParams) {
+  return useQuery({
+    queryKey: ["analytics", "visa-families", ...filterKey(params)],
+    queryFn: () => fetchVisaFamilies(params),
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });

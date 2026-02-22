@@ -288,6 +288,42 @@ class SqliteRepository:
             sort_by = "year"
         direction = "DESC" if sort_dir == "desc" else "ASC"
 
+        # Build ORDER BY clause.  The "date" column is stored as free-text
+        # ("DD Month YYYY") so alphabetical sorting is wrong (Sep > Jan).
+        # For date sort we decompose into year (int), month (1-12), day (int).
+        if sort_by == "date":
+            # "date" is stored as free-text ("DD Month YYYY").  Plain text sort
+            # is alphabetical on the month name which gives wrong order.
+            # We decompose into three numeric keys:
+            #   1. Year  — extracted from the last 4 chars of the date string
+            #              (more reliable than the citation-derived `year` column,
+            #               which can differ for ARTA/late-published cases)
+            #   2. Month — month name mapped to 1-12 via CASE
+            #   3. Day   — CAST(date AS INTEGER) reads the leading digits
+            month_num = (
+                "CASE "
+                "WHEN date LIKE '%January%' THEN 1 "
+                "WHEN date LIKE '%February%' THEN 2 "
+                "WHEN date LIKE '%March%' THEN 3 "
+                "WHEN date LIKE '%April%' THEN 4 "
+                "WHEN date LIKE '%May%' THEN 5 "
+                "WHEN date LIKE '%June%' THEN 6 "
+                "WHEN date LIKE '%July%' THEN 7 "
+                "WHEN date LIKE '%August%' THEN 8 "
+                "WHEN date LIKE '%September%' THEN 9 "
+                "WHEN date LIKE '%October%' THEN 10 "
+                "WHEN date LIKE '%November%' THEN 11 "
+                "WHEN date LIKE '%December%' THEN 12 "
+                "ELSE 0 END"
+            )
+            order_clause = (
+                f"ORDER BY CAST(SUBSTR(date, -4) AS INTEGER) {direction}, "
+                f"({month_num}) {direction}, "
+                f"CAST(date AS INTEGER) {direction}"
+            )
+        else:
+            order_clause = f"ORDER BY {sort_by} {direction}"
+
         # Count total matching
         count_sql = f"SELECT COUNT(*) FROM cases WHERE {where_clause}"
         total = conn.execute(count_sql, params).fetchone()[0]
@@ -296,7 +332,7 @@ class SqliteRepository:
         offset = (max(1, page) - 1) * page_size
         data_sql = (
             f"SELECT * FROM cases WHERE {where_clause} "
-            f"ORDER BY {sort_by} {direction} "
+            f"{order_clause} "
             f"LIMIT ? OFFSET ?"
         )
         rows = conn.execute(data_sql, params + [page_size, offset]).fetchall()

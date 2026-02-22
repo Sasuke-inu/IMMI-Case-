@@ -61,7 +61,6 @@ interface NavItem {
   readonly to: string;
   readonly icon: LucideIcon;
   readonly label: string;
-  readonly description?: string;
   readonly showBadge?: boolean;
 }
 
@@ -90,13 +89,12 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         {
           to: "/collections",
           icon: BookmarkCheck,
-          label: t("nav.collections", "Collections"),
+          label: t("nav.collections"),
         },
         {
           to: "/cases",
           icon: Bookmark,
-          label: t("nav.saved_searches", "Saved Searches"),
-          description: t("nav.saved_searches", "Saved Searches"),
+          label: t("nav.saved_searches"),
           showBadge: true,
         },
       ],
@@ -104,48 +102,22 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
     {
       title: t("nav.search"),
       items: [
-        {
-          to: "/taxonomy",
-          icon: Tags,
-          label: t("nav.search_taxonomy"),
-        },
-        {
-          to: "/guided-search",
-          icon: Search,
-          label: t("nav.guided_search"),
-        },
+        { to: "/taxonomy", icon: Tags, label: t("nav.search_taxonomy") },
+        { to: "/guided-search", icon: Search, label: t("nav.guided_search") },
       ],
     },
     {
       title: t("nav.data_tools"),
       items: [
-        {
-          to: "/download",
-          icon: CloudDownload,
-          label: t("pipeline.download_title"),
-          description: t("pipeline.download_description"),
-        },
-        {
-          to: "/pipeline",
-          icon: Workflow,
-          label: t("pipeline.crawl_title"),
-          description: t("pipeline.crawl_description"),
-        },
-        {
-          to: "/jobs",
-          icon: Activity,
-          label: t("nav.jobs"),
-        },
+        { to: "/download", icon: CloudDownload, label: t("nav.download") },
+        { to: "/pipeline", icon: Workflow, label: t("nav.pipeline") },
+        { to: "/jobs", icon: Activity, label: t("nav.jobs") },
       ],
     },
     {
       title: t("nav.reference"),
       items: [
-        {
-          to: "/legislations",
-          icon: BookMarked,
-          label: t("nav.legislations", "Legislations"),
-        },
+        { to: "/legislations", icon: BookMarked, label: t("nav.legislations") },
         {
           to: "/data-dictionary",
           icon: BookOpen,
@@ -185,17 +157,17 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             {collapsed && gi > 0 && (
               <div className="mx-3 mb-2 border-t border-border-light" />
             )}
-            {group.items.map(({ to, icon: Icon, label, description, showBadge }) => (
+            {group.items.map(({ to, icon: Icon, label, showBadge }) => (
               <NavLink
                 key={`${to}-${label}`}
                 to={to}
                 end={to === "/"}
-                title={description ?? label}
+                title={label}
                 onMouseEnter={() => prefetchRoute(to)}
                 onFocus={() => prefetchRoute(to)}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                     isActive
                       ? "bg-accent-muted text-accent"
                       : "text-secondary-text hover:bg-surface hover:text-foreground",
@@ -205,9 +177,9 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && (
                   <>
-                    <span className="flex-1">{label}</span>
+                    <span className="min-w-0 flex-1 truncate">{label}</span>
                     {showBadge && savedSearches.length > 0 && (
-                      <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[10px] font-semibold text-accent">
+                      <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[10px] font-semibold text-accent shrink-0">
                         {savedSearches.length}
                       </span>
                     )}

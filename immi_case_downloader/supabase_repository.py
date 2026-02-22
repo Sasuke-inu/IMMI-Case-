@@ -223,10 +223,16 @@ class SupabaseRepository:
             query, court, year, visa_type, source, tag, nature
         )
 
-        # Sort
-        col = sort_by if sort_by in ALLOWED_SORT_COLUMNS else "year"
+        # Sort — for "date" use the computed date_sort INTEGER column
+        # (YYYYMMDD) so ordering is chronological rather than alphabetical.
+        # date_sort is NULL for ~500 rows with empty/unparseable dates;
+        # nulls_first=False pushes them to the end regardless of direction.
+        if sort_by == "date":
+            col = "date_sort"
+        else:
+            col = sort_by if sort_by in ALLOWED_SORT_COLUMNS else "year"
         desc = sort_dir == "desc"
-        query = query.order(col, desc=desc)
+        query = query.order(col, desc=desc, nullsfirst=False)
 
         # Paginate
         offset = (max(1, page) - 1) * page_size

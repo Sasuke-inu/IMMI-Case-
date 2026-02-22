@@ -9,6 +9,10 @@ import {
   Linkedin,
   Twitter,
   User,
+  MapPin,
+  Scale,
+  BookMarked,
+  AlertTriangle,
 } from "lucide-react";
 import type { JudgeProfile, JudgeBio } from "@/types/case";
 
@@ -123,6 +127,18 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
               {bio.found && bio.court && (
                 <p className="text-sm text-muted-text">{bio.court}</p>
               )}
+              {bio.found && bio.registry && (
+                <p className="flex items-center gap-1 text-xs text-muted-text">
+                  <MapPin className="h-3 w-3" />
+                  {bio.registry}
+                </p>
+              )}
+              {bio.found && bio.specialization && (
+                <p className="flex items-center gap-1 text-xs font-medium text-accent">
+                  <Scale className="h-3 w-3" />
+                  {bio.specialization}
+                </p>
+              )}
               <div className="flex flex-wrap gap-3 pt-1 text-xs text-muted-text">
                 {bio.found && bio.appointed_year && (
                   <span className="flex items-center gap-1">
@@ -205,6 +221,49 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {/* Current Role Description */}
+      {bio.found && bio.current_role_desc && (
+        <div className="mt-4">
+          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-text">
+            <Scale className="h-3.5 w-3.5" />
+            Current Role
+          </div>
+          <p className="mt-1.5 text-sm leading-relaxed text-foreground">
+            {bio.current_role_desc}
+          </p>
+        </div>
+      )}
+
+      {/* Notable Cases */}
+      {bio.found && bio.notable_cases && bio.notable_cases.length > 0 && (
+        <div className="mt-4">
+          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-text">
+            <BookMarked className="h-3.5 w-3.5" />
+            Notable Cases
+          </div>
+          <div className="mt-2 space-y-3">
+            {bio.notable_cases.map((nc) => (
+              <div
+                key={nc.citation}
+                className="rounded-md border border-border-light/60 bg-surface/50 px-3 py-2.5"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent/70" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-accent">
+                      {nc.citation}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-secondary-text">
+                      {nc.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

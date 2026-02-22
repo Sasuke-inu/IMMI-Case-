@@ -192,7 +192,9 @@ export function CasesPage() {
         setShowSaveModal(false);
       } catch (error) {
         // Show validation error to user
-        toast.error(error instanceof Error ? error.message : "Failed to save search");
+        toast.error(
+          error instanceof Error ? error.message : "Failed to save search",
+        );
       }
     },
     [editingSearchId, saveSearch, updateSearch, t],
@@ -203,7 +205,8 @@ export function CasesPage() {
       const params = new URLSearchParams();
       if (savedFilters.court) params.set("court", savedFilters.court);
       if (savedFilters.year) params.set("year", String(savedFilters.year));
-      if (savedFilters.visa_type) params.set("visa_type", savedFilters.visa_type);
+      if (savedFilters.visa_type)
+        params.set("visa_type", savedFilters.visa_type);
       if (savedFilters.nature) params.set("nature", savedFilters.nature);
       if (savedFilters.source) params.set("source", savedFilters.source);
       if (savedFilters.tag) params.set("tag", savedFilters.tag);
@@ -217,13 +220,10 @@ export function CasesPage() {
     [setSearchParams],
   );
 
-  const handleEditSearch = useCallback(
-    (searchId: string) => {
-      setEditingSearchId(searchId);
-      setShowSaveModal(true);
-    },
-    [],
-  );
+  const handleEditSearch = useCallback((searchId: string) => {
+    setEditingSearchId(searchId);
+    setShowSaveModal(true);
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
@@ -654,7 +654,10 @@ export function CasesPage() {
                   Court
                 </th>
                 <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
-                  Date
+                  <span className="block leading-tight">Date</span>
+                  <span className="block text-[9px] font-normal text-muted-text leading-tight">
+                    decision / hearing
+                  </span>
                 </th>
                 <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
                   Country
@@ -720,9 +723,20 @@ export function CasesPage() {
                   </td>
                   <td
                     className="whitespace-nowrap px-2 py-2 text-xs text-muted-text"
-                    title={c.date}
+                    title={
+                      c.hearing_date && c.hearing_date !== c.date
+                        ? `Decision: ${c.date}\nHearing: ${c.hearing_date}`
+                        : c.date
+                    }
                   >
-                    {formatDateCompact(c.date)}
+                    <span className="block leading-tight">
+                      {formatDateCompact(c.date)}
+                    </span>
+                    {c.hearing_date && c.hearing_date !== c.date && (
+                      <span className="block text-[9px] leading-tight text-muted-text/70">
+                        ↳ {formatDateCompact(c.hearing_date)}
+                      </span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text">
                     {c.country_of_origin || ""}
@@ -776,7 +790,11 @@ export function CasesPage() {
       {/* Save Search modal */}
       <SaveSearchModal
         open={showSaveModal}
-        filters={editingSearchId ? getSearchById(editingSearchId)?.filters ?? filters : filters}
+        filters={
+          editingSearchId
+            ? (getSearchById(editingSearchId)?.filters ?? filters)
+            : filters
+        }
         existingNames={savedSearches.map((s) => s.name)}
         editingSearch={editingSearchId ? getSearchById(editingSearchId) : null}
         onSave={handleSaveSearch}

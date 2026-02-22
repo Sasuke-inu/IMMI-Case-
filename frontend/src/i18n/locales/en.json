@@ -1,4 +1,10 @@
 {
+  "disclaimer": {
+    "title": "Research Tool Disclaimer",
+    "body": "IMMI-Case is an independent research tool providing access to publicly available Australian immigration tribunal and court decisions sourced from AustLII (Australasian Legal Information Institute). All information presented is for academic research and reference purposes only and does not constitute legal advice, nor does it represent the position of any government authority. Case data may be incomplete or contain extraction errors. For legal advice regarding immigration matters, consult a registered migration agent or qualified legal practitioner.",
+    "data_source": "Data sourced from AustLII (Australasian Legal Information Institute)",
+    "not_legal_advice": "Not legal advice — for research and reference purposes only"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "browse": "Browse",
@@ -19,6 +25,23 @@
     "design_tokens": "Design Tokens",
     "legislations": "Legislations",
     "collections": "Collections"
+  },
+  "nav_descriptions": {
+    "dashboard": "Stats, charts & recent cases",
+    "analytics": "Win rates, trends & insights",
+    "judge_profiles": "Approval rates by judge",
+    "court_lineage": "Court succession since 2000",
+    "cases": "Browse all 149,000+ decisions",
+    "collections": "Organise bookmarked cases",
+    "saved_searches": "Re-run saved filter sets",
+    "search_taxonomy": "Browse by concept tags",
+    "guided_search": "Step-by-step filter wizard",
+    "download": "Fetch case texts from AustLII",
+    "pipeline": "Automated crawl & download",
+    "jobs": "Monitor background tasks",
+    "legislations": "Australian immigration law",
+    "data_dictionary": "Field definitions & schema",
+    "design_tokens": "Visual design variables"
   },
   "common": {
     "search": "Search",
@@ -380,7 +403,11 @@
     "confidence_medium": "Medium Confidence",
     "confidence_low": "Low Confidence",
     "confidence_tooltip": "Based on the number of matching cases (N). High: N≥100, Medium: 50≤N<100, Low: N<50.",
-    "confidence_tooltip_label": "Confidence information"
+    "confidence_tooltip_label": "Confidence information",
+    "deep_dive": "Deep Dive",
+    "favourable": "Favourable",
+    "moderate": "Moderate",
+    "unfavourable": "Unfavourable"
   },
   "lineage": {
     "title": "Court Lineage Timeline",

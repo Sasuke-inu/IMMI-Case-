@@ -6,6 +6,7 @@ import { SuccessRateCalculator } from "@/components/analytics/SuccessRateCalcula
 import { OutcomeAnalysisSection } from "@/components/analytics/OutcomeAnalysisSection";
 import { FlowTrendsSection } from "@/components/analytics/FlowTrendsSection";
 import { ConceptIntelligenceSection } from "@/components/analytics/ConceptIntelligenceSection";
+import { VisaFamiliesSection } from "@/components/analytics/VisaFamiliesSection";
 import { useFilterOptions } from "@/hooks/use-cases";
 import type { AnalyticsFilterParams } from "@/types/case";
 
@@ -112,6 +113,8 @@ export function AnalyticsPage() {
       <FlowTrendsSection filters={filters} />
 
       <ConceptIntelligenceSection filters={filters} />
+
+      <VisaFamiliesSection filters={filters} />
     </div>
   );
 }

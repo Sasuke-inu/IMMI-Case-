@@ -11,6 +11,7 @@ import {
   Download,
   GitBranch,
   Bookmark,
+  Info,
 } from "lucide-react";
 import { useStats, useTrends } from "@/hooks/use-stats";
 import { useSavedSearches } from "@/hooks/use-saved-searches";
@@ -362,8 +363,8 @@ export function DashboardPage() {
                         `/cases?${new URLSearchParams(
                           Object.entries(search.filters)
                             .filter(([, v]) => v !== undefined && v !== "")
-                            .map(([k, v]) => [k, String(v)])
-                        ).toString()}`
+                            .map(([k, v]) => [k, String(v)]),
+                        ).toString()}`,
                       );
                     },
                     currentCount,
@@ -417,6 +418,29 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Disclaimer */}
+      <div className="rounded-lg border border-border/50 bg-surface/50 p-4">
+        <div className="flex items-start gap-3">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-text" />
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-text">
+              {t("disclaimer.title")}
+            </p>
+            <p className="text-xs leading-relaxed text-muted-text/80">
+              {t("disclaimer.body")}
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+              <span className="text-[10px] text-muted-text/60">
+                {t("disclaimer.data_source")}
+              </span>
+              <span className="text-[10px] italic text-muted-text/60">
+                {t("disclaimer.not_legal_advice")}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

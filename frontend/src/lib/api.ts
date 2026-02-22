@@ -20,6 +20,7 @@ import type {
   ConceptTrendData,
   FlowMatrixData,
   MonthlyTrendsData,
+  VisaFamiliesData,
 } from "@/types/case";
 import type { LineageData } from "@/lib/lineage-data";
 
@@ -286,6 +287,15 @@ export function fetchFlowMatrix(
   if (typeof params.top_n === "number") qs.set("top_n", String(params.top_n));
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   return apiFetch(`/api/v1/analytics/flow-matrix${suffix}`);
+}
+
+export function fetchVisaFamilies(
+  params: AnalyticsFilterParams = {},
+): Promise<VisaFamiliesData> {
+  const qs = new URLSearchParams();
+  appendAnalyticsFilters(qs, params);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch(`/api/v1/analytics/visa-families${suffix}`);
 }
 
 // ─── Cases ─────────────────────────────────────────────────────
@@ -565,30 +575,44 @@ export interface GuidedSearchResult {
 export function fetchVisaLookup(
   query: string,
   limit: number = 20,
-): Promise<{ success: boolean; data: VisaEntry[]; meta: { query: string; total_results: number; limit: number } }> {
+): Promise<{
+  success: boolean;
+  data: VisaEntry[];
+  meta: { query: string; total_results: number; limit: number };
+}> {
   const params = new URLSearchParams();
   params.set("q", query);
   params.set("limit", String(limit));
   return apiFetch(`/api/v1/taxonomy/visa-lookup?${params}`);
 }
 
-export function fetchTaxonomyLegalConcepts(): Promise<{ success: boolean; concepts: LegalConceptEntry[]; meta: { total_concepts: number } }> {
+export function fetchTaxonomyLegalConcepts(): Promise<{
+  success: boolean;
+  concepts: LegalConceptEntry[];
+  meta: { total_concepts: number };
+}> {
   return apiFetch("/api/v1/taxonomy/legal-concepts");
 }
 
 export function fetchJudgeAutocomplete(
   query: string,
   limit: number = 20,
-): Promise<{ success: boolean; judges: JudgeAutocompleteEntry[]; meta: { query: string; total_results: number; limit: number } }> {
+): Promise<{
+  success: boolean;
+  judges: JudgeAutocompleteEntry[];
+  meta: { query: string; total_results: number; limit: number };
+}> {
   const params = new URLSearchParams();
   params.set("q", query);
   params.set("limit", String(limit));
   return apiFetch(`/api/v1/taxonomy/judges/autocomplete?${params}`);
 }
 
-export function fetchCountries(
-  limit: number = 30,
-): Promise<{ success: boolean; countries: CountryEntry[]; meta: { total_countries: number; limit: number } }> {
+export function fetchCountries(limit: number = 30): Promise<{
+  success: boolean;
+  countries: CountryEntry[];
+  meta: { total_countries: number; limit: number };
+}> {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
   return apiFetch(`/api/v1/taxonomy/countries?${params}`);

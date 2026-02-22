@@ -181,11 +181,14 @@ export function PipelinePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <GitBranch className="h-6 w-6 text-accent" />
-        <h1 className="text-2xl font-semibold text-foreground">
-          {t("pipeline.title")}
-        </h1>
+      <div>
+        <div className="flex items-center gap-3">
+          <GitBranch className="h-6 w-6 text-accent" />
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("pipeline.title")}
+          </h1>
+        </div>
+        <p className="mt-1 text-sm text-muted-text">{t("pipeline.subtitle")}</p>
       </div>
 
       {/* Stats */}

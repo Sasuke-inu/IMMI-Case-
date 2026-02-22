@@ -178,15 +178,25 @@ export interface JudgeLeaderboardEntry {
   outcome_summary: Record<string, number>;
 }
 
+export interface NotableCase {
+  citation: string;
+  year: number;
+  description: string;
+}
+
 export interface JudgeBio {
   found: boolean;
   full_name?: string;
   role?: string;
   court?: string;
+  registry?: string;
   appointed_year?: string | number;
   birth_year?: number;
   education?: string[];
   previously?: string;
+  specialization?: string;
+  current_role_desc?: string;
+  notable_cases?: NotableCase[];
   photo_url?: string;
   social_media?: Record<string, string>;
   source_url?: string;
@@ -316,6 +326,20 @@ export interface FlowLink {
 export interface FlowMatrixData {
   nodes: FlowNode[];
   links: FlowLink[];
+}
+
+// ─── Visa Families ──────────────────────────────────────────────
+
+export interface VisaFamilyEntry {
+  family: string;
+  total: number;
+  win_count: number;
+  win_rate: number;
+}
+
+export interface VisaFamiliesData {
+  families: VisaFamilyEntry[];
+  total_cases: number;
 }
 
 // ─── Saved Searches ─────────────────────────────────────────────
