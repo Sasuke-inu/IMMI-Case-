@@ -210,14 +210,14 @@ def test_success_rate_has_required_fields(client, patch_analytics_cases):
 def test_success_rate_tribunal_win_definition(client, patch_analytics_cases):
     data = client.get("/api/v1/analytics/success-rate?court=AATA").get_json()
     assert data["success_rate"]["court_type"] == "tribunal"
-    assert data["success_rate"]["win_outcomes"] == ["Remitted", "Set Aside"]
+    assert data["success_rate"]["win_outcomes"] == ["Remitted", "Set Aside", "Granted", "Quashed"]
     assert data["success_rate"]["win_count"] == 2
 
 
 def test_success_rate_court_win_definition(client, patch_analytics_cases):
     data = client.get("/api/v1/analytics/success-rate?court=FCA").get_json()
     assert data["success_rate"]["court_type"] == "court"
-    assert data["success_rate"]["win_outcomes"] == ["Allowed", "Set Aside"]
+    assert data["success_rate"]["win_outcomes"] == ["Allowed", "Set Aside", "Granted", "Quashed"]
     assert data["success_rate"]["win_count"] == 3
 
 

@@ -31,6 +31,53 @@ import {
 import { cn } from "@/lib/utils";
 import type { LegislationSection } from "@/lib/api";
 
+// ── AustLII header stripping ───────────────────────────────────────────────
+
+/**
+ * AustLII section text arrives with its header duplicated:
+ *   Line 0: "MIGRATION ACT 1958 - SECT 1"   ← AustLII URL-page header
+ *   Line 1: "Short title"                    ← section title (1st copy)
+ *   Line 2: "MIGRATION ACT 1958 - SECT 1"   ← duplicate header
+ *   Line 3: "Short title"                    ← section title (2nd copy)
+ *   Line 4: "This Act may be cited as …"    ← actual body
+ *
+ * Both the header and title are already shown in the section card header,
+ * so we strip the leading duplicate block (lines 0-3 in the typical case)
+ * plus any trailing blank lines before the real content starts.
+ *
+ * Pattern also covers "REG 1.03" style regulation references.
+ */
+const AUSTLII_HDR_RE = /^.{4,}\s+-\s+(?:SECT|REG)\s+\S/i;
+
+function stripAustliiHeader(text: string): string {
+  const lines = text.split("\n");
+  let start = 0;
+
+  // First line must be an AustLII header to trigger stripping at all
+  if (!lines[0] || !AUSTLII_HDR_RE.test(lines[0].trim())) {
+    return text;
+  }
+
+  // Skip the first header line
+  start = 1;
+  // Skip optional title line (non-empty, non-header)
+  if (start < lines.length && lines[start].trim() && !AUSTLII_HDR_RE.test(lines[start].trim())) {
+    start++;
+  }
+  // Skip duplicate header line if present (the double-copy AustLII pattern)
+  if (start < lines.length && AUSTLII_HDR_RE.test(lines[start].trim())) {
+    start++;
+    // Skip duplicate title line
+    if (start < lines.length && lines[start].trim() && !AUSTLII_HDR_RE.test(lines[start].trim())) {
+      start++;
+    }
+  }
+  // Skip leading blank lines before the actual body
+  while (start < lines.length && !lines[start].trim()) start++;
+
+  return lines.slice(start).join("\n").trimStart();
+}
+
 // ── Line classification ────────────────────────────────────────────────────
 
 type LineType =
@@ -173,19 +220,18 @@ function renderStatuteLine(
     case "subsection": {
       const rest = line.replace(SUBSECTION_RE, "").trimStart();
       return (
-        <p
-          key={key}
-          className="mt-2 font-mono text-xs leading-relaxed text-foreground whitespace-pre-wrap"
-        >
+        <p key={key} className="mt-2 text-sm leading-relaxed text-foreground">
           {rest ? (
             <>
-              <span className="mr-1.5 font-bold text-accent">
+              <span className="mr-2 font-mono text-xs font-bold text-accent">
                 {line.match(SUBSECTION_RE)?.[0].trim()}
               </span>
               {linkifyText(rest, sectionMap, onJump)}
             </>
           ) : (
-            line
+            <span className="font-mono text-xs font-bold text-accent">
+              {line}
+            </span>
           )}
         </p>
       );
@@ -194,11 +240,8 @@ function renderStatuteLine(
     case "paragraph": {
       const rest = line.replace(PARAGRAPH_RE, "").trimStart();
       return (
-        <p
-          key={key}
-          className="ml-6 font-mono text-xs leading-relaxed text-foreground whitespace-pre-wrap"
-        >
-          <span className="mr-1 font-semibold text-secondary-text">
+        <p key={key} className="ml-6 text-sm leading-relaxed text-foreground">
+          <span className="mr-1.5 font-mono text-xs font-semibold text-secondary-text">
             {line.match(PARAGRAPH_RE)?.[0].trim()}
           </span>
           {linkifyText(rest, sectionMap, onJump)}
@@ -211,9 +254,9 @@ function renderStatuteLine(
       return (
         <p
           key={key}
-          className="ml-12 font-mono text-xs leading-relaxed text-secondary-text whitespace-pre-wrap"
+          className="ml-12 text-sm leading-relaxed text-secondary-text"
         >
-          <span className="mr-1 text-muted-text">
+          <span className="mr-1 font-mono text-xs text-muted-text">
             {line.match(SUBPARA_RE)?.[0].trim()}
           </span>
           {linkifyText(rest, sectionMap, onJump)}
@@ -225,7 +268,7 @@ function renderStatuteLine(
       return (
         <div
           key={key}
-          className="my-1.5 ml-4 rounded-r border-l-2 border-info/40 bg-info/5 px-3 py-1.5 font-mono text-xs text-secondary-text whitespace-pre-wrap"
+          className="my-2 ml-4 rounded-r border-l-2 border-info/40 bg-info/5 px-3 py-2 text-sm italic text-secondary-text"
         >
           {linkifyText(line, sectionMap, onJump)}
         </div>
@@ -235,7 +278,7 @@ function renderStatuteLine(
       return (
         <div
           key={key}
-          className="my-1.5 ml-4 rounded-r border-l-2 border-warning/50 bg-warning/5 px-3 py-1.5 font-mono text-xs font-semibold text-warning whitespace-pre-wrap"
+          className="my-2 ml-4 rounded-r border-l-2 border-warning/50 bg-warning/5 px-3 py-2 text-sm font-semibold text-warning"
         >
           {linkifyText(line, sectionMap, onJump)}
         </div>
@@ -245,7 +288,7 @@ function renderStatuteLine(
       return (
         <div
           key={key}
-          className="my-1.5 ml-4 rounded-r border-l-2 border-success/40 bg-success/5 px-3 py-1.5 font-mono text-xs text-secondary-text whitespace-pre-wrap"
+          className="my-2 ml-4 rounded-r border-l-2 border-success/40 bg-success/5 px-3 py-2 text-sm text-secondary-text"
         >
           {linkifyText(line, sectionMap, onJump)}
         </div>
@@ -253,10 +296,7 @@ function renderStatuteLine(
 
     default: // body
       return (
-        <p
-          key={key}
-          className="font-mono text-xs leading-relaxed text-foreground whitespace-pre-wrap"
-        >
+        <p key={key} className="text-sm leading-relaxed text-foreground">
           {linkifyText(line, sectionMap, onJump)}
         </p>
       );
@@ -285,7 +325,7 @@ function renderWithHighlight(
 ): React.ReactNode {
   if (!term || term.length < 2) {
     return (
-      <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground">
+      <pre className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
         {text}
       </pre>
     );
@@ -317,7 +357,7 @@ function renderWithHighlight(
   }
   if (pos < text.length) parts.push(text.slice(pos));
   return (
-    <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground">
+    <pre className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
       {parts}
     </pre>
   );
@@ -419,18 +459,20 @@ function TocSidebar({ sections, activeId, onJump, expanded }: TocSidebarProps) {
                           key={s.id}
                           onClick={() => onJump(s.id)}
                           className={cn(
-                            "w-full border-l-2 py-0.5 pr-2 pl-6 text-left text-[11px] leading-snug transition-colors",
+                            "w-full border-l-2 py-1 pr-2 pl-6 text-left text-[11px] leading-snug transition-colors",
                             isActive
                               ? "border-accent bg-accent/5 font-medium text-accent"
                               : "border-transparent text-muted-text hover:bg-surface hover:text-foreground",
                           )}
                         >
-                          <span className="font-mono text-[10px]">
+                          <span className="font-mono text-[10px] font-bold">
                             {s.number}
                           </span>
-                          {s.title && (
-                            <span className="ml-1 opacity-80">{s.title}</span>
-                          )}
+                          {s.title ? (
+                            <span className="ml-1.5 text-[10px] leading-tight opacity-80 line-clamp-2">
+                              {s.title}
+                            </span>
+                          ) : null}
                         </button>
                       );
                     })}
@@ -465,40 +507,55 @@ function SectionCard({
   sectionMap,
   onJump,
 }: SectionCardProps) {
+  // Strip the AustLII "ACT - SECT N" header line that duplicates our card header
+  const cleanText = useMemo(
+    () => stripAustliiHeader(section.text),
+    [section.text],
+  );
+
   return (
     <div
       id={section.id}
       className="scroll-mt-4 rounded-lg border border-border bg-card"
     >
       {/* Section header */}
-      <div className="flex items-baseline gap-2 border-b border-border px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-4 py-2.5">
         <span className="font-mono text-sm font-bold text-accent">
-          {section.number}
+          s {section.number}
         </span>
         {section.title && (
           <span className="font-heading text-sm font-semibold text-foreground">
             {section.title}
           </span>
         )}
-        {section.part && (
-          <span className="ml-auto shrink-0 rounded bg-surface px-1.5 py-0.5 text-[10px] text-muted-text">
-            {section.part.length > 30
-              ? `${section.part.slice(0, 30)}…`
-              : section.part}
-          </span>
-        )}
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          {section.division && (
+            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+              {section.division.length > 28
+                ? `${section.division.slice(0, 28)}…`
+                : section.division}
+            </span>
+          )}
+          {section.part && (
+            <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] text-muted-text">
+              {section.part.length > 20
+                ? `${section.part.slice(0, 20)}…`
+                : section.part}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Section body */}
       <div className="px-4 py-3">
         {searching && searchTerm.length >= 2
           ? renderWithHighlight(
-              section.text,
+              cleanText,
               searchTerm,
               activeMatchIdx,
               matchOffsetBefore,
             )
-          : renderStatuteText(section.text, sectionMap, onJump)}
+          : renderStatuteText(cleanText, sectionMap, onJump)}
       </div>
     </div>
   );

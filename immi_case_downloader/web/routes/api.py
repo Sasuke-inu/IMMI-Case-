@@ -53,16 +53,20 @@ MAX_RELATED_LIMIT = 20
 # ── Outcome normalisation ──────────────────────────────────────────────
 
 _OUTCOME_MAP = {
+    # Multi-word patterns FIRST — must precede single stems to avoid false matches
+    # e.g. "no jurisdiction" contains "grant" (no), but ordering still matters for
+    # any future compound values that might share a stem with a shorter key.
+    "no jurisdiction": "No Jurisdiction",
+    "set aside":       "Set Aside",
+    # Single-word stems
     "affirm":          "Affirmed",
     "dismiss":         "Dismissed",
     "remit":           "Remitted",
-    "set aside":       "Set Aside",
     "allow":           "Allowed",
     "grant":           "Granted",
     "quash":           "Quashed",
     "refus":           "Refused",
     "cancel":          "Cancelled",
-    "no jurisdiction": "No Jurisdiction",
     "withdrawn":       "Withdrawn",
     "discontinu":      "Withdrawn",
     "varied":          "Varied",

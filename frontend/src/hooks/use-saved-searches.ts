@@ -27,14 +27,23 @@ let _cachedSnapshot: SavedSearch[] = loadSavedSearches();
 
 // Subscribe to localStorage changes (both same-tab and cross-tab)
 function subscribe(callback: () => void) {
-  // Listen for same-tab changes
+  // Listen for same-tab changes (cache already refreshed by notifySubscribers)
   window.addEventListener(SAVED_SEARCHES_CHANGE_EVENT, callback);
-  // Listen for cross-tab storage changes
-  window.addEventListener("storage", callback);
+
+  // Listen for cross-tab storage changes.
+  // Must refresh _cachedSnapshot BEFORE calling callback so that the
+  // subsequent getSnapshot() call from React returns the updated data.
+  const handleStorageChange = (e: StorageEvent) => {
+    if (e.key === "saved-searches" || e.key === null) {
+      _cachedSnapshot = loadSavedSearches();
+      callback();
+    }
+  };
+  window.addEventListener("storage", handleStorageChange);
 
   return () => {
     window.removeEventListener(SAVED_SEARCHES_CHANGE_EVENT, callback);
-    window.removeEventListener("storage", callback);
+    window.removeEventListener("storage", handleStorageChange);
   };
 }
 

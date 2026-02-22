@@ -219,7 +219,7 @@ class TestGetStatistics:
 
 class TestCaseFieldsConsistency:
     def test_count(self):
-        assert len(CASE_FIELDS) == 29
+        assert len(CASE_FIELDS) == 31
 
     def test_matches_dataclass(self):
         dataclass_fields = {f.name for f in ImmigrationCase.__dataclass_fields__.values()}

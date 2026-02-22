@@ -358,7 +358,7 @@ class TestFilterCases:
         table.execute.return_value = _mock_response(data=[], count=0)
 
         repo.filter_cases(sort_by="DROP TABLE", sort_dir="asc")
-        table.order.assert_called_with("year", desc=False)
+        table.order.assert_called_with("year", desc=False, nullsfirst=False)
 
     def test_pagination_offset(self, repo, mock_client):
         table = MagicMock()

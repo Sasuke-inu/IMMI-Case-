@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { GitBranch } from "lucide-react";
+import { GitBranch, Info } from "lucide-react";
 import { useLineageData } from "@/hooks/use-lineage-data";
 import { TimelineChart } from "@/components/lineage/TimelineChart";
 import { LineageExplainer } from "@/components/lineage/LineageExplainer";
@@ -108,23 +108,31 @@ export function CourtLineagePage() {
         </p>
       </div>
 
-      {/* Stats summary */}
-      <div className="flex flex-wrap gap-4 text-sm">
-        <div>
-          <span className="text-muted-text">{t("lineage.total_cases", "Total Cases")}:</span>{" "}
-          <span className="font-medium text-foreground">
+      {/* Stat cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-text">
+            {t("lineage.total_cases", "Total Cases")}
+          </p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
             {lineageData.total_cases.toLocaleString()}
-          </span>
+          </p>
         </div>
-        <div>
-          <span className="text-muted-text">{t("lineage.year_range", "Years")}:</span>{" "}
-          <span className="font-medium text-foreground">
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-text">
+            {t("lineage.year_range", "Year Range")}
+          </p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
             {lineageData.year_range[0]}–{lineageData.year_range[1]}
-          </span>
+          </p>
         </div>
-        <div>
-          <span className="text-muted-text">{t("lineage.courts_count", "Courts/Tribunals")}:</span>{" "}
-          <span className="font-medium text-foreground">9</span>
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-text">
+            {t("lineage.courts_count", "Courts / Tribunals")}
+          </p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+            9
+          </p>
         </div>
       </div>
 
@@ -138,7 +146,10 @@ export function CourtLineagePage() {
         <div className="order-1 lg:order-2">
           <div className="rounded-lg border border-border bg-card p-4">
             <h3 className="mb-4 font-heading text-base font-semibold text-foreground">
-              {t("lineage.timeline_chart_title", "Case Volume by Court and Year")}
+              {t(
+                "lineage.timeline_chart_title",
+                "Case Volume by Court and Year",
+              )}
             </h3>
             <div className="overflow-x-auto">
               <div className="min-w-[600px]">
@@ -146,35 +157,33 @@ export function CourtLineagePage() {
               </div>
             </div>
 
-            {/* Legend with all 9 courts */}
-            <div className="mt-4 border-t border-border-light pt-4">
-              <h4 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-text">
-                {t("lineage.court_colors", "Court Colors")}
-              </h4>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
-                {allCourts.map((court) => (
-                  <div key={court.code} className="flex items-center gap-2">
-                    <div
-                      className="h-3 w-3 rounded-sm"
-                      style={{
-                        backgroundColor: courtColors[court.code] ?? "#8b8680",
-                      }}
-                    />
-                    <span className="font-mono text-foreground">{court.code}</span>
-                  </div>
-                ))}
-              </div>
+            {/* Compact colour legend */}
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border-light pt-3">
+              {allCourts.map((court) => (
+                <div key={court.code} className="flex items-center gap-1.5">
+                  <div
+                    className="h-2.5 w-2.5 rounded-sm"
+                    style={{
+                      backgroundColor: courtColors[court.code] ?? "#8b8680",
+                    }}
+                  />
+                  <span className="font-mono text-[11px] text-muted-text">
+                    {court.code}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Help text */}
-      <div className="rounded-md border border-border-light bg-surface p-4 text-sm text-muted-text">
+      {/* Help text – no emoji */}
+      <div className="flex items-start gap-3 rounded-md border border-border-light bg-surface p-4 text-sm text-muted-text">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
         <p>
           {t(
             "lineage.help_text",
-            "💡 Click any bar segment to view cases from that court and year. The chart shows the transition from older tribunals (MRTA, RRTA) to AATA and then ARTA, as well as the evolution of lower courts from FMCA through FCCA to FedCFamC2G.",
+            "Click any bar segment in the volume chart to view cases from that court and year. The succession timeline on the left shows proportional active periods — notice how MRTA and RRTA dominated 2000–2015, AATA took over until 2024, and ARTA continues from there.",
           )}
         </p>
       </div>

@@ -59,7 +59,7 @@ function NotScrapedState({ onUpdate }: { onUpdate: () => void }) {
 
 export function LegislationDetailPage() {
   const { t } = useTranslation();
-  const { id } = useParams<{ id: string }>();
+  const { legislationId: id } = useParams<{ legislationId: string }>();
   const navigate = useNavigate();
   const { data, isLoading, error } = useLegislationDetail(id ?? null);
 

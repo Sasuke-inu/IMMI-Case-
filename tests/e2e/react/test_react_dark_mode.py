@@ -14,7 +14,7 @@ from .react_helpers import (
 
 def _enable_dark_mode(page):
     """Toggle dark mode on and verify the class is applied."""
-    page.get_by_label("Toggle theme").click()
+    page.locator("button.celestial-toggle").click()
     page.wait_for_timeout(300)
     assert page.evaluate("document.documentElement.classList.contains('dark')")
 
@@ -103,7 +103,7 @@ class TestDarkModeNavigation:
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
 
-        for label in ["Analytics", "Cases", "Scrape AustLII", "Smart Pipeline",
+        for label in ["Analytics", "Cases", "Download", "Pipeline",
                        "Data Dictionary", "Design Tokens", "Dashboard"]:
             click_sidebar_link(react_page, label)
             wait_for_loading_gone(react_page)

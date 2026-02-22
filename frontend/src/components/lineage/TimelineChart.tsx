@@ -1,5 +1,4 @@
 import { memo, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   BarChart,
@@ -9,7 +8,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   Cell,
 } from "recharts";
 import type { LineageData } from "@/lib/lineage-data";
@@ -40,7 +38,9 @@ interface TimelineChartProps {
  *   ...
  * ]
  */
-function transformToChartData(data: LineageData): Array<Record<string, number>> {
+function transformToChartData(
+  data: LineageData,
+): Array<Record<string, number>> {
   const yearMap = new Map<number, Record<string, number>>();
 
   // Extract all case counts by year from all courts
@@ -62,7 +62,6 @@ function transformToChartData(data: LineageData): Array<Record<string, number>> 
 }
 
 function TimelineChartInner({ data }: TimelineChartProps) {
-  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const chartData = useMemo(() => transformToChartData(data), [data]);
@@ -105,6 +104,7 @@ function TimelineChartInner({ data }: TimelineChartProps) {
               (p) => typeof p.value === "number" && p.value > 0,
             );
             if (nonZero.length === 0) return null;
+            const total = nonZero.reduce((s, p) => s + Number(p.value), 0);
             return (
               <div
                 style={{
@@ -112,29 +112,67 @@ function TimelineChartInner({ data }: TimelineChartProps) {
                   border: "1px solid var(--color-border)",
                   borderRadius: "var(--radius)",
                   color: "var(--color-text)",
-                  padding: "8px 12px",
+                  padding: "10px 14px",
                   fontSize: 12,
+                  minWidth: 160,
                 }}
               >
-                <p style={{ fontWeight: 600, marginBottom: 4 }}>
-                  {t("filters.date")}: {label}
-                </p>
+                <p style={{ fontWeight: 700, marginBottom: 6 }}>{label}</p>
                 {nonZero.map((entry) => (
-                  <p
+                  <div
                     key={entry.dataKey as string}
-                    style={{ color: entry.color, margin: "2px 0" }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      margin: "2px 0",
+                    }}
                   >
-                    {entry.name}: {Number(entry.value).toLocaleString()}
-                  </p>
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 2,
+                        backgroundColor: entry.color as string,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: "monospace",
+                        color: entry.color as string,
+                      }}
+                    >
+                      {entry.name}
+                    </span>
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {Number(entry.value).toLocaleString()}
+                    </span>
+                  </div>
                 ))}
+                {nonZero.length > 1 && (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      paddingTop: 6,
+                      borderTop: "1px solid var(--color-border)",
+                      fontWeight: 600,
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span>Total</span>
+                    <span>{total.toLocaleString()}</span>
+                  </div>
+                )}
               </div>
             );
           }}
-        />
-        <Legend
-          verticalAlign="bottom"
-          height={36}
-          wrapperStyle={{ fontSize: 11, color: "var(--color-text-secondary)" }}
         />
         {courts.map((court) => (
           <Bar
