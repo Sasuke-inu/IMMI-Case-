@@ -213,18 +213,36 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 
 ## Structured Field Extraction (`extract_structured_fields.py`)
 
-- Run: `python3 extract_structured_fields.py --workers 8` (parallel, ~8min for 149K cases)
+- Run: `python3 extract_structured_fields.py --workers 8` (parallel, ~12min for 149K cases)
+- Re-extract all: `python3 extract_structured_fields.py --workers 8 --overwrite`
 - Dry-run test: `python3 extract_structured_fields.py --dry-run --sample 500 --workers 4`
-- **Fill rates (2026-02-21)**: applicant_name 90.0% | visa_subclass 91.6% | hearing_date 78.7% | country 65.2% | respondent 32.7% | is_represented 22.4% | representative 15.7%
+- **Fill rates (2026-02-22)**: applicant_name 90.0% | visa_subclass 91.6% | hearing_date 78.7% | country 67.8% | respondent 32.7% | is_represented **42.4%** | representative **25.1%** | visa_outcome_reason **58.7%** | legal_test_applied **36.2%**
+- **New fields**: `visa_outcome_reason` (from CATCHWORDS, ≤300 chars) + `legal_test_applied` (from section refs, ≤80 chars)
 - **respondent ceiling is ~33%** — MRTA/RRTA/AATA are one-party tribunal reviews; no legal respondent exists
+- **is_represented ceiling ~55% with regex** — many older MRTA cases lack explicit representation text
 - **After running**, re-sync: `python3 migrate_csv_to_supabase.py`
 - Uses `ProcessPoolExecutor.map(chunksize=500)` — do NOT use `executor.submit()` for 149K+ rows (OOM)
 - Do NOT run two instances simultaneously — both write to same CSV
 
+## LLM-Assisted Structured Extraction (`extract_structured_fields_llm.py`)
+
+- Requires `ANTHROPIC_API_KEY` in `.env` (Claude Code's built-in key does NOT work for user scripts)
+- Run: `python3 extract_structured_fields_llm.py --workers 8` (targets unfilled fields only)
+- Test: `python3 extract_structured_fields_llm.py --sample 500 --workers 4 --dry-run`
+- Batches 20 cases per API call, 8 parallel threads, checkpoint saves every 500 cases
+- After running, re-sync: `python3 migrate_csv_to_supabase.py`
+
+## Extraction Validation (`validate_extraction.py`)
+
+- Run: `python3 validate_extraction.py` — fill rates by field + court, garbage value check, samples
+- `python3 validate_extraction.py --court AATA` — filter by court
+- `python3 validate_extraction.py --field country_of_origin` — sample one field
+- `python3 validate_extraction.py --compare-to baseline.csv` — regression detection
+
 ## Important Notes
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
-- **149,016 case records** (2000-2026): **148,966 with full text** (99.96%), 7 structured fields extracted
+- **149,016 case records** (2000-2026): **148,966 with full text** (99.96%), 9 structured fields extracted (31 total fields)
 - 9 courts/tribunals: MRTA 52,970 | AATA 39,203 | FCA 14,987 | RRTA 13,765 | FCCA 11,157 | FMCA 10,395 | FedCFamC2G 4,109 | ARTA 2,260 | HCA 176
 - **Supabase Cloud**: 149,016 records fully synced (Project: Bsmart, `urntbuqczarkuoaosjxd`)
 - Rate limiting enforced at `BaseScraper` level; respect default 1-second delay

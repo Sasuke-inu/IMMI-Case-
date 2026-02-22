@@ -8,7 +8,7 @@ Includes a **React SPA** (Vite + TypeScript + Tailwind CSS v4) and a **Flask API
 
 - **149,016 cases** across 9 courts/tribunals (2000–2026)
 - **148,966 with full text** (99.96%) — ~1.9 GB on disk
-- **29 data fields** per case (metadata + structured extraction + annotations)
+- **31 data fields** per case (metadata + structured extraction + annotations)
 - Synced to Supabase Cloud (Project: Bsmart)
 
 | Court/Tribunal | Code | Cases | Years |
@@ -146,13 +146,15 @@ downloaded_cases/
 
 | Field | Description | Coverage | Example |
 |-------|-------------|----------|---------|
-| `applicant_name` | Applicant / appellant name | ~42% | `Khan`, `Sidhu` |
-| `respondent` | Respondent name | ~19% | `Minister for Immigration` |
-| `country_of_origin` | Country of origin | ~29% | `Pakistan`, `China`, `Iran` |
-| `visa_subclass_number` | Numeric visa subclass | ~40% | `866`, `572`, `500` |
-| `hearing_date` | Hearing date (may differ from decision date) | ~42% | `17 February 2025` |
-| `is_represented` | Was applicant legally represented? | ~11% | `Yes`, `No` |
-| `representative` | Representative name / firm | ~7% | `Mr Jones, Counsel` |
+| `applicant_name` | Applicant / appellant name | 90.0% | `Khan`, `Sidhu` |
+| `respondent` | Respondent name | 32.7% | `Minister for Immigration` |
+| `country_of_origin` | Country of origin | 67.8% | `Pakistan`, `China`, `Iran` |
+| `visa_subclass_number` | Numeric visa subclass | 91.6% | `866`, `572`, `500` |
+| `hearing_date` | Hearing date (may differ from decision date) | 78.7% | `17 February 2025` |
+| `is_represented` | Was applicant legally represented? | 42.4% | `Yes`, `No` |
+| `representative` | Representative name / firm | 25.1% | `Mr Jones, Counsel` |
+| `visa_outcome_reason` | Primary reason for visa outcome (≤300 chars) | 58.7% | `genuine temporary entrant not satisfied` |
+| `legal_test_applied` | Primary legal test or section (≤80 chars) | 36.2% | `s.36 refugee test`, `s.501 character test` |
 
 ### Stage 4: User annotations (editable via web interface)
 
@@ -170,12 +172,34 @@ python extract_llm_fields.py    # Process cases in batches via Claude Sonnet
 python merge_llm_results.py     # Merge batch JSON results back into main CSV
 ```
 
-### Structured field extraction (applicant, respondent, country, etc.)
+### Structured field extraction (applicant, respondent, country, outcome, etc.)
 
 ```bash
-python extract_structured_fields.py             # Process all cases (skips existing)
-python extract_structured_fields.py --court AATA  # Only AATA cases
-python extract_structured_fields.py --dry-run   # Preview without saving
+python extract_structured_fields.py                    # Process all cases (skips existing)
+python extract_structured_fields.py --overwrite        # Re-extract all fields
+python extract_structured_fields.py --court AATA       # Only AATA cases
+python extract_structured_fields.py --dry-run --sample 500  # Preview 500 cases
+python extract_structured_fields.py --workers 8        # 8 parallel workers (~12 min for 149K)
+```
+
+### LLM-assisted structured extraction (for cases where regex fails)
+
+Requires `ANTHROPIC_API_KEY` in `.env`:
+
+```bash
+python extract_structured_fields_llm.py                # All pending cases
+python extract_structured_fields_llm.py --sample 500 --workers 4  # Test run
+python extract_structured_fields_llm.py --court AATA   # Only AATA cases
+python extract_structured_fields_llm.py --dry-run      # Preview only
+```
+
+### Validate extraction quality
+
+```bash
+python validate_extraction.py                  # Fill rates + garbage check + samples
+python validate_extraction.py --court AATA     # Filter by court
+python validate_extraction.py --field country_of_origin  # Sample one field
+python validate_extraction.py --compare-to baseline.csv  # Regression check
 ```
 
 ### Cloudflare Workers scraper (bulk full-text)
@@ -218,8 +242,8 @@ python migrate_csv_to_supabase.py --dry-run # Count only
 ```
 
 - Project: Bsmart (`urntbuqczarkuoaosjxd`)
-- Schema: 5 migrations in `supabase/migrations/`
-- All 29 fields available, native full-text search via `to_tsvector`
+- Schema: 6 migrations in `supabase/migrations/`
+- All 31 fields available, native full-text search via `to_tsvector`
 
 ## Tech Stack
 
