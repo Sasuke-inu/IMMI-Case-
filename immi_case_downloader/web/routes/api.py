@@ -2113,7 +2113,7 @@ def taxonomy_judges_autocomplete():
         judge_counts: dict[str, int] = Counter()
 
         for c in cases:
-            for judge in _split_judges(c.judge_name or ""):
+            for judge in _split_judges(c.judges or ""):
                 judge_counts[judge] += 1
 
         # Filter judges matching query (case-insensitive partial match)
