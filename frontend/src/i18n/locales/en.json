@@ -334,6 +334,22 @@
     "confidence_tooltip": "Based on the number of matching cases (N). High: N≥100, Medium: 50≤N<100, Low: N<50.",
     "confidence_tooltip_label": "Confidence information"
   },
+  "lineage": {
+    "title": "Court Lineage Timeline",
+    "subtitle": "Interactive visualization of Australian immigration court and tribunal succession from 2000 to present",
+    "subtitle_empty": "No case data available for lineage visualization",
+    "no_data_title": "No Court Lineage Data",
+    "no_data_description": "Download cases first to visualize the court and tribunal succession timeline.",
+    "total_cases": "Total Cases",
+    "year_range": "Years",
+    "courts_count": "Courts/Tribunals",
+    "timeline_chart_title": "Case Volume by Court and Year",
+    "court_colors": "Court Colors",
+    "help_text": "💡 Click any bar segment to view cases from that court and year. The chart shows the transition from older tribunals (MRTA, RRTA) to AATA and then ARTA, as well as the evolution of lower courts from FMCA through FCCA to FedCFamC2G.",
+    "explainer_title": "Court Lineage Timeline",
+    "explainer_subtitle": "Understanding Australian immigration court and tribunal succession",
+    "transitions": "Transitions"
+  },
   "chart": {
     "loading": "Loading...",
     "no_data": "No data available",

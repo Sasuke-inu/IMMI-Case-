@@ -334,6 +334,22 @@
     "confidence_tooltip": "依據符合條件的案件數 (N) 計算。高：N≥100、中：50≤N<100、低：N<50。",
     "confidence_tooltip_label": "可信度說明"
   },
+  "lineage": {
+    "title": "法院沿革時間軸",
+    "subtitle": "澳洲移民法院及法庭演進互動式視覺化（2000 年至今）",
+    "subtitle_empty": "暫無案件資料可供沿革視覺化",
+    "no_data_title": "無法院沿革資料",
+    "no_data_description": "請先下載案例，以視覺化呈現法院及法庭演進時間軸。",
+    "total_cases": "案件總數",
+    "year_range": "年份範圍",
+    "courts_count": "法院／法庭數量",
+    "timeline_chart_title": "各法院年度案件量",
+    "court_colors": "法院配色",
+    "help_text": "💡 點擊任一長條圖區段，即可查看該法院該年度的案件。圖表呈現舊法庭（MRTA、RRTA）轉型為 AATA 再至 ARTA，以及下級法院從 FMCA 經 FCCA 演進至 FedCFamC2G 的歷程。",
+    "explainer_title": "法院沿革時間軸",
+    "explainer_subtitle": "認識澳洲移民法院及法庭演進歷程",
+    "transitions": "轉型過程"
+  },
   "chart": {
     "loading": "載入中...",
     "no_data": "暫無資料",
