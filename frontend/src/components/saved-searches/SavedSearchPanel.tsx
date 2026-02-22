@@ -4,6 +4,7 @@ import { Bookmark, Search, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSavedSearches } from "@/hooks/use-saved-searches";
 import { SavedSearchCard } from "./SavedSearchCard";
+import { EmptyState } from "@/components/shared/EmptyState";
 import type { CaseFilters } from "@/types/case";
 
 interface SavedSearchPanelProps {
@@ -92,32 +93,28 @@ export function SavedSearchPanel({ onExecute, onEdit }: SavedSearchPanelProps) {
 
       {/* Empty state */}
       {count === 0 && (
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-          <Bookmark className="mb-2 h-8 w-8 text-muted-text/50" />
-          <p className="mb-1 text-sm font-medium text-foreground">
-            {t("saved_searches.empty_title", {
-              defaultValue: "No saved searches yet",
-            })}
-          </p>
-          <p className="text-xs text-muted-text">
-            {t("saved_searches.empty_description", {
-              defaultValue:
-                "Apply filters and click Save Search to create your first saved search.",
-            })}
-          </p>
-        </div>
+        <EmptyState
+          icon={<Bookmark className="h-8 w-8" />}
+          title={t("saved_searches.empty_title", {
+            defaultValue: "No saved searches yet",
+          })}
+          description={t("saved_searches.empty_description", {
+            defaultValue:
+              "Apply filters and click Save Search to create your first saved search.",
+          })}
+          className="py-8"
+        />
       )}
 
       {/* No results from search */}
       {count > 0 && filteredSearches.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-6 text-center">
-          <Search className="mb-2 h-6 w-6 text-muted-text/50" />
-          <p className="text-xs text-muted-text">
-            {t("saved_searches.no_results", {
-              defaultValue: "No searches match your query",
-            })}
-          </p>
-        </div>
+        <EmptyState
+          icon={<Search className="h-6 w-6" />}
+          title={t("saved_searches.no_results", {
+            defaultValue: "No searches match your query",
+          })}
+          className="py-6"
+        />
       )}
 
       {/* Saved search list */}
