@@ -59,50 +59,52 @@ function ConceptTrendChartInner({ data }: ConceptTrendChartProps) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <LineChart
-        data={rows}
-        margin={{ top: 5, right: 10, left: -20, bottom: 10 }}
-      >
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="var(--color-border)"
-          opacity={0.35}
-        />
-        <XAxis
-          dataKey="year"
-          tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
-        />
-        <YAxis
-          domain={[0, 100]}
-          tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
-          tickFormatter={(v: number) => `${v}%`}
-        />
-        <Tooltip
-          formatter={(value: number | string | undefined) => [
-            `${Number(value ?? 0).toFixed(1)}%`,
-            t("analytics.win_rate"),
-          ]}
-          contentStyle={{
-            backgroundColor: "var(--color-background-card)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius)",
-            color: "var(--color-text)",
-          }}
-        />
-        <Legend wrapperStyle={{ fontSize: 11 }} />
-        {concepts.map((concept, idx) => (
-          <Line
-            key={concept}
-            type="monotone"
-            dataKey={concept}
-            stroke={COLORS[idx % COLORS.length]}
-            dot={{ r: 2 }}
-            strokeWidth={2}
+    <div className="min-h-[280px] flex-1">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={rows}
+          margin={{ top: 5, right: 10, left: -20, bottom: 10 }}
+        >
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="var(--color-border)"
+            opacity={0.35}
           />
-        ))}
-      </LineChart>
-    </ResponsiveContainer>
+          <XAxis
+            dataKey="year"
+            tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+          />
+          <YAxis
+            domain={[0, 100]}
+            tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
+            tickFormatter={(v: number) => `${v}%`}
+          />
+          <Tooltip
+            formatter={(value: number | string | undefined) => [
+              `${Number(value ?? 0).toFixed(1)}%`,
+              t("analytics.win_rate"),
+            ]}
+            contentStyle={{
+              backgroundColor: "var(--color-background-card)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius)",
+              color: "var(--color-text)",
+            }}
+          />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          {concepts.map((concept, idx) => (
+            <Line
+              key={concept}
+              type="monotone"
+              dataKey={concept}
+              stroke={COLORS[idx % COLORS.length]}
+              dot={{ r: 2 }}
+              strokeWidth={2}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 

@@ -219,48 +219,56 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
               </div>
             </div>
 
-            <div className="rounded-md border border-border p-3">
+            <div className="flex flex-col rounded-md border border-border p-3">
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-text">
                 {t("analytics.win_trend")}
               </p>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart
-                  data={data.trend}
-                  margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--color-border)"
-                    opacity={0.35}
-                  />
-                  <XAxis
-                    dataKey="year"
-                    tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
-                  />
-                  <Tooltip
-                    formatter={(value: number | string | undefined) => [
-                      `${Number(value ?? 0).toFixed(1)}%`,
-                      t("analytics.success_rate"),
-                    ]}
-                    contentStyle={{
-                      backgroundColor: "var(--color-background-card)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius)",
-                      color: "var(--color-text)",
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="rate"
-                    stroke="var(--color-primary)"
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="min-h-[180px] flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={data.trend}
+                    margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="var(--color-border)"
+                      opacity={0.35}
+                    />
+                    <XAxis
+                      dataKey="year"
+                      tick={{
+                        fontSize: 11,
+                        fill: "var(--color-text-secondary)",
+                      }}
+                    />
+                    <YAxis
+                      tick={{
+                        fontSize: 11,
+                        fill: "var(--color-text-secondary)",
+                      }}
+                    />
+                    <Tooltip
+                      formatter={(value: number | string | undefined) => [
+                        `${Number(value ?? 0).toFixed(1)}%`,
+                        t("analytics.success_rate"),
+                      ]}
+                      contentStyle={{
+                        backgroundColor: "var(--color-background-card)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: "var(--radius)",
+                        color: "var(--color-text)",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="rate"
+                      stroke="var(--color-primary)"
+                      strokeWidth={2}
+                      dot={{ r: 2 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 

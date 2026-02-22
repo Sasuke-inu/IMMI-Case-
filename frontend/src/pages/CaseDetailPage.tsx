@@ -1,6 +1,14 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Edit, Trash2, ExternalLink, Copy, Check, BookmarkPlus, Plus } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  ExternalLink,
+  Copy,
+  Check,
+  BookmarkPlus,
+  Plus,
+} from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useCase, useRelatedCases, useDeleteCase } from "@/hooks/use-cases";
 import { CourtBadge } from "@/components/shared/CourtBadge";
@@ -399,7 +407,7 @@ function AddToCollectionMenu({
         {t("bookmarks.add_to_collection", "Add to Collection")}
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-1 min-w-[180px] rounded-lg border border-border bg-card shadow-lg">
+        <div className="absolute right-0 top-full z-20 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-border bg-card shadow-lg">
           {collections.length === 0 ? (
             <button
               onClick={handleNewCollection}

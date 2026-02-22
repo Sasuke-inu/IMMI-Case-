@@ -251,7 +251,7 @@ export function DashboardPage() {
         </div>
 
         {/* Year trend area chart */}
-        <div className="rounded-lg border border-border bg-card p-4">
+        <div className="flex flex-col rounded-lg border border-border bg-card p-4">
           <h2 className="mb-3 font-heading text-base font-semibold">
             {t("dashboard.year_trend")}
           </h2>

@@ -8,7 +8,7 @@ import {
   decodeUrlToFilters,
   VALIDATION_ERRORS,
 } from "../saved-searches";
-import type { CaseFilters, SavedSearch } from "@/types/case";
+import type { CaseFilters } from "@/types/case";
 
 // Mock localStorage
 const localStorageMock = (() => {
