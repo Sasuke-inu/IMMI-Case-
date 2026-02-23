@@ -9,7 +9,7 @@ describe("Variable shadowing prevention", () => {
   it("CasesPage does not shadow t in tags map callback", () => {
     const source = fs.readFileSync(
       path.join(ROOT, "src/pages/CasesPage.tsx"),
-      "utf-8"
+      "utf-8",
     );
     const shadowPattern = /\.map\(\(t\)\s*=>/g;
     const matches = source.match(shadowPattern);
@@ -19,7 +19,17 @@ describe("Variable shadowing prevention", () => {
   it("LineageExplainer does not shadow t in transitions map callback", () => {
     const source = fs.readFileSync(
       path.join(ROOT, "src/components/lineage/LineageExplainer.tsx"),
-      "utf-8"
+      "utf-8",
+    );
+    const shadowPattern = /\.map\(\(t\)\s*=>/g;
+    const matches = source.match(shadowPattern);
+    expect(matches).toBeNull();
+  });
+
+  it("TimelineChart does not shadow t in TRANSITION_YEARS map callback", () => {
+    const source = fs.readFileSync(
+      path.join(ROOT, "src/components/lineage/TimelineChart.tsx"),
+      "utf-8",
     );
     const shadowPattern = /\.map\(\(t\)\s*=>/g;
     const matches = source.match(shadowPattern);
