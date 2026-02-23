@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { BookmarkCheck, Bookmark, Plus } from "lucide-react";
 import { Breadcrumb } from "@/components/shared/Breadcrumb";
@@ -34,7 +35,9 @@ export function CollectionsPage() {
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <Breadcrumb items={[{ label: t("bookmarks.collections", "Collections") }]} />
+      <Breadcrumb
+        items={[{ label: t("bookmarks.collections", "Collections") }]}
+      />
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -64,9 +67,7 @@ export function CollectionsPage() {
           <Bookmark className="h-4 w-4 text-accent" />
           <span className="text-sm text-foreground">
             <span className="font-semibold">{bookmarks.length}</span>{" "}
-            {t("bookmarks.add_note", "").length > 0
-              ? t("units.cases", "cases")
-              : "bookmarks"}
+            {t("units.cases", "cases")}
           </span>
         </div>
         <div className="flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2">
@@ -115,17 +116,14 @@ export function CollectionsPage() {
           </h2>
           <div className="space-y-2">
             {bookmarks.slice(0, 10).map((b) => (
-              <div
-                key={b.case_id}
-                className="flex items-center gap-2 text-sm"
-              >
+              <div key={b.case_id} className="flex items-center gap-2 text-sm">
                 <Bookmark className="h-3 w-3 shrink-0 text-accent" />
-                <a
-                  href={`/app/cases/${b.case_id}`}
+                <Link
+                  to={`/cases/${b.case_id}`}
                   className="truncate text-foreground hover:text-accent"
                 >
                   {b.case_citation || b.case_title}
-                </a>
+                </Link>
                 {b.date && (
                   <span className="shrink-0 text-xs text-muted-text">
                     {b.date}

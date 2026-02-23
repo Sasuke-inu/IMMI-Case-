@@ -19,7 +19,18 @@ const NATURE_OPTIONS = [
   "Bridging Visa",
 ];
 
-const COURT_OPTIONS = ["", "AATA", "ARTA", "FCA", "FCCA", "FedCFamC2G", "HCA"];
+const COURT_OPTIONS = [
+  "",
+  "AATA",
+  "ARTA",
+  "FCA",
+  "FCCA",
+  "FedCFamC2G",
+  "FMCA",
+  "HCA",
+  "MRTA",
+  "RRTA",
+];
 
 const EDITABLE_FIELDS = [
   "title",
@@ -27,6 +38,7 @@ const EDITABLE_FIELDS = [
   "court",
   "court_code",
   "date",
+  "year",
   "judges",
   "outcome",
   "visa_type",

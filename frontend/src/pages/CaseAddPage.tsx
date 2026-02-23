@@ -6,7 +6,18 @@ import { useCreateCase } from "@/hooks/use-cases";
 import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { toast } from "sonner";
 
-const COURT_OPTIONS = ["", "AATA", "ARTA", "FCA", "FCCA", "FedCFamC2G", "HCA"];
+const COURT_OPTIONS = [
+  "",
+  "AATA",
+  "ARTA",
+  "FCA",
+  "FCCA",
+  "FedCFamC2G",
+  "FMCA",
+  "HCA",
+  "MRTA",
+  "RRTA",
+];
 
 const NATURE_OPTIONS = [
   "",
@@ -234,6 +245,7 @@ function SelectField({
   options: string[];
   onChange: (v: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div>
       <label className="mb-1 block text-xs font-medium text-secondary-text">
@@ -246,7 +258,7 @@ function SelectField({
       >
         {options.map((o) => (
           <option key={o} value={o}>
-            {o || `Select ${label}...`}
+            {o || t("common.all", { defaultValue: `— ${label} —` })}
           </option>
         ))}
       </select>
