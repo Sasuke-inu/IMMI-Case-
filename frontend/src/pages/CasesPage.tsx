@@ -169,7 +169,7 @@ export function CasesPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success(t("cases.exported", { count: data.cases.length }));
-  }, [data]);
+  }, [data, t]);
 
   const handleSaveSearch = useCallback(
     (name: string, searchFilters: CaseFilters) => {
@@ -217,7 +217,7 @@ export function CasesPage() {
       setSearchParams(params);
       toast.success(t("saved_searches.toast_applied"));
     },
-    [setSearchParams],
+    [setSearchParams, t],
   );
 
   const handleEditSearch = useCallback((searchId: string) => {

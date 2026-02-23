@@ -24,9 +24,26 @@ describe('i18n hardcoded string checks', () => {
       join(__dirname, '../src/pages/CasesPage.tsx'),
       'utf8'
     );
-    // The handleBatch should have t in its deps
-    // Check that there's a useCallback that mentions both batchMutation and t in deps
-    expect(content).toMatch(/handleBatch.*useCallback[\s\S]*?\[.*batchMutation.*t.*\]|handleBatch.*useCallback[\s\S]*?\[.*t.*batchMutation.*\]/);
+    // Direct string match for the exact deps array
+    expect(content).toContain('[selected, batchMutation, t]');
+  });
+
+  it('CasesPage exportCsv should include t in useCallback deps', () => {
+    const content = readFileSync(
+      join(__dirname, '../src/pages/CasesPage.tsx'),
+      'utf8'
+    );
+    // Direct string match for the exact deps array
+    expect(content).toContain('[data, t]');
+  });
+
+  it('CasesPage handleExecuteSavedSearch should include t in useCallback deps', () => {
+    const content = readFileSync(
+      join(__dirname, '../src/pages/CasesPage.tsx'),
+      'utf8'
+    );
+    // Direct string match for the exact deps array
+    expect(content).toContain('[setSearchParams, t]');
   });
 
   it('analytics.total key should exist in en.json', () => {
