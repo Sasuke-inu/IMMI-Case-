@@ -39,6 +39,7 @@ export function CaseDetailPage() {
   // Keyboard shortcut: e → edit
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (!id) return;
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
       if (e.key === "e" && !e.metaKey && !e.ctrlKey) {
@@ -50,8 +51,9 @@ export function CaseDetailPage() {
   }, [id, navigate]);
 
   const handleDelete = useCallback(async () => {
+    if (!id) return;
     try {
-      await deleteMutation.mutateAsync(id ?? "");
+      await deleteMutation.mutateAsync(id);
       toast.success(t("states.completed"));
       navigate("/cases");
     } catch (e) {

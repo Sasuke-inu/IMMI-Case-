@@ -22,4 +22,22 @@ describe("Route parameter guards", () => {
     );
     expect(source).not.toMatch(/useCase\(id!\)/);
   });
+
+  it("CaseDetailPage contains Navigate guard for missing id", () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, "../src/pages/CaseDetailPage.tsx"),
+      "utf-8",
+    );
+    expect(source).toMatch(/if \(!id\)/);
+    expect(source).toMatch(/Navigate to="\/cases"/);
+  });
+
+  it("CaseEditPage contains Navigate guard for missing id", () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, "../src/pages/CaseEditPage.tsx"),
+      "utf-8",
+    );
+    expect(source).toMatch(/if \(!id\)/);
+    expect(source).toMatch(/Navigate to="\/cases"/);
+  });
 });
