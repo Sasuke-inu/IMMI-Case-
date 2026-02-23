@@ -1,7 +1,16 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { RefreshCw, Search, ChevronRight } from "lucide-react";
+import {
+  RefreshCw,
+  Search,
+  ChevronRight,
+  Scale,
+  Globe,
+  Calendar,
+  BookOpen,
+  Hash,
+} from "lucide-react";
 import {
   useLegislations,
   useLegislationSearch,
@@ -13,17 +22,6 @@ import { Pagination } from "@/components/shared/Pagination";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
 import type { Legislation } from "@/lib/api";
-
-function formatDateCompact(date: string): string {
-  if (!date) return "";
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return date;
-  return d.toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 export function LegislationsPage() {
   const { t } = useTranslation();
@@ -68,24 +66,21 @@ export function LegislationsPage() {
   const data = searchQuery ? searchData : paginatedData;
   const isLoading = searchQuery ? searchLoading : paginatedLoading;
 
-  const legislations = useMemo(() => {
+  const legislations = useMemo((): Legislation[] => {
     if (!data) return [];
-    if (searchQuery) {
-      return (data as any).data || [];
-    }
-    return (data as any).data || [];
-  }, [data, searchQuery]);
+    return data.data ?? [];
+  }, [data]);
 
   const totalItems = useMemo(() => {
     if (searchQuery) {
-      return (searchData as any)?.meta?.total_results ?? 0;
+      return searchData?.meta.total_results ?? 0;
     }
-    return (paginatedData as any)?.meta?.total ?? 0;
+    return paginatedData?.meta.total ?? 0;
   }, [paginatedData, searchData, searchQuery]);
 
   const totalPages = useMemo(() => {
     if (searchQuery) return 1;
-    return (paginatedData as any)?.meta?.pages ?? 1;
+    return paginatedData?.meta.pages ?? 1;
   }, [paginatedData, searchQuery]);
 
   // Handle search input change with debounce
@@ -144,35 +139,56 @@ export function LegislationsPage() {
         ]}
       />
 
-      {/* Header */}
+      {/* Header + Search (combined) */}
       <div className="rounded-lg border border-border bg-card p-5">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-heading text-2xl font-semibold text-foreground">
-              {t("legislations.title", { defaultValue: "Legislations" })}
-            </h1>
-            <p className="mt-1 text-sm text-secondary-text">
-              {t("legislations.description", {
-                defaultValue:
-                  "Browse and search legislation relevant to immigration law",
-              })}
-            </p>
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-md bg-accent/10 p-2">
+              <Scale className="h-5 w-5 text-accent" />
+            </div>
+            <div>
+              <h1 className="font-heading text-xl font-semibold text-foreground">
+                {t("legislations.title", { defaultValue: "Legislations" })}
+              </h1>
+              <p className="mt-0.5 text-sm text-secondary-text">
+                {t("legislations.description", {
+                  defaultValue:
+                    "Browse and search legislation relevant to immigration law",
+                })}
+              </p>
+            </div>
           </div>
           <button
             onClick={() => startUpdate.mutate(undefined)}
             disabled={job?.running || startUpdate.isPending}
             className={cn(
-              "flex shrink-0 items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium",
+              "flex shrink-0 items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium",
               "text-foreground transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50",
             )}
           >
             <RefreshCw
-              className={cn("h-4 w-4", job?.running && "animate-spin")}
+              className={cn("h-3.5 w-3.5", job?.running && "animate-spin")}
             />
             {job?.running
               ? t("legislations.updating", { defaultValue: "Updating..." })
               : t("legislations.update_laws", { defaultValue: "Update Laws" })}
           </button>
+        </div>
+
+        {/* Integrated search bar */}
+        <div className="relative mt-4">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-text" />
+          <input
+            type="text"
+            placeholder={t("legislations.search_placeholder")}
+            value={inputValue}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className={cn(
+              "w-full rounded-md border border-border bg-surface px-3 py-2 pl-10 text-sm",
+              "text-foreground placeholder:text-muted-text",
+              "focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/50",
+            )}
+          />
         </div>
 
         {/* Scrape progress bar */}
@@ -202,7 +218,6 @@ export function LegislationsPage() {
         {/* Completion summary */}
         {!job?.running && (job?.completed_laws?.length ?? 0) > 0 && (
           <p className="mt-3 text-xs text-success">
-            ✓{" "}
             {t("legislations.update_complete", {
               defaultValue: "Updated {{count}} law(s)",
               count: job!.completed_laws.length,
@@ -216,69 +231,44 @@ export function LegislationsPage() {
         )}
       </div>
 
-      {/* Search Bar */}
-      <div className="rounded-lg border border-border bg-card p-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-text" />
-          <input
-            type="text"
-            placeholder={t("common.search", {
-              defaultValue: "Search legislations...",
-            })}
-            value={inputValue}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className={cn(
-              "w-full rounded-md border border-border bg-surface px-3 py-2 pl-10 text-sm",
-              "text-foreground placeholder:text-muted-text",
-              "focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/50",
-            )}
-          />
-        </div>
-      </div>
-
       {/* Legislations List */}
       {isLoading ? (
-        <div className="flex h-64 items-center justify-center text-muted-text">
-          {t("common.loading_ellipsis")}
+        <div className="flex h-64 items-center justify-center gap-2 text-muted-text">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          <span className="text-sm">{t("common.loading_ellipsis")}</span>
         </div>
       ) : legislations.length === 0 ? (
         <EmptyState
-          icon="BookOpen"
-          title={
-            searchQuery
-              ? t("common.no_results", { defaultValue: "No results found" })
-              : t("common.no_data", { defaultValue: "No legislations" })
-          }
-          description={
-            searchQuery
-              ? t("common.try_different_search", {
-                  defaultValue: "Try adjusting your search terms",
-                })
-              : t("legislations.no_data_description", {
-                  defaultValue: "No legislations available yet",
-                })
-          }
+          icon={<BookOpen className="h-8 w-8" />}
+          title={t("legislations.empty_title")}
+          description={t("legislations.empty_description")}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {legislations.map((leg: Legislation) => (
             <button
               key={leg.id}
               onClick={() => handleLegislationClick(leg.id)}
               className={cn(
-                "w-full rounded-lg border border-border bg-card p-4 text-left",
-                "transition-colors hover:border-accent hover:bg-surface",
+                "group w-full rounded-lg border border-border bg-card p-4 text-left",
+                "cursor-pointer transition-all hover:border-accent/50 hover:bg-surface hover:shadow-sm",
               )}
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                {/* Icon anchor */}
+                <div className="mt-0.5 shrink-0 rounded bg-surface p-1.5 transition-colors group-hover:bg-accent/10">
+                  <BookOpen className="h-4 w-4 text-muted-text transition-colors group-hover:text-accent" />
+                </div>
+
                 <div className="min-w-0 flex-1">
-                  {/* Title and Shortcode */}
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-heading text-base font-semibold text-foreground">
+                  {/* Title row */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-heading text-sm font-semibold text-foreground">
                       {leg.title}
                     </h3>
                     {leg.shortcode && (
-                      <span className="inline-flex items-center rounded-md bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
+                      <span className="inline-flex items-center gap-1 rounded border border-accent/30 bg-accent/8 px-1.5 py-0.5 font-mono text-[10px] font-bold text-accent">
+                        <Hash className="h-2.5 w-2.5" />
                         {leg.shortcode}
                       </span>
                     )}
@@ -286,70 +276,47 @@ export function LegislationsPage() {
 
                   {/* Description */}
                   {leg.description && (
-                    <p className="mt-1.5 line-clamp-2 text-sm text-secondary-text">
+                    <p className="mt-1 line-clamp-1 text-xs text-secondary-text">
                       {leg.description}
                     </p>
                   )}
 
-                  {/* Metadata */}
-                  <div className="mt-2.5 flex flex-wrap gap-3 text-xs text-muted-text">
-                    {leg.jurisdiction && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">
-                          {t("legislations.jurisdiction", {
-                            defaultValue: "Jurisdiction",
-                          })}
-                          :
-                        </span>
-                        <span>{leg.jurisdiction}</span>
-                      </div>
-                    )}
+                  {/* Badge row */}
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     {leg.type && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">
-                          {t("legislations.type", { defaultValue: "Type" })}:
-                        </span>
-                        <span>{leg.type}</span>
-                      </div>
+                      <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] font-medium text-secondary-text">
+                        {leg.type}
+                      </span>
+                    )}
+                    {leg.jurisdiction && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] text-muted-text">
+                        <Globe className="h-2.5 w-2.5" />
+                        {leg.jurisdiction}
+                      </span>
                     )}
                     {leg.sections_count > 0 && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">
-                          {t("legislations.sections", {
-                            defaultValue: "Sections",
-                          })}
-                          :
-                        </span>
-                        <span>{leg.sections_count}</span>
-                      </div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-accent/8 px-2 py-0.5 text-[10px] font-medium text-accent">
+                        <BookOpen className="h-2.5 w-2.5" />
+                        {leg.sections_count}{" "}
+                        {t("legislations.sections", {
+                          defaultValue: "sections",
+                        })}
+                      </span>
                     )}
                     {leg.last_amended && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">
-                          {t("legislations.last_amended", {
-                            defaultValue: "Amended",
-                          })}
-                          :
-                        </span>
-                        <span>{leg.last_amended}</span>
-                      </div>
-                    )}
-                    {leg.last_scraped && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">
-                          {t("legislations.last_scraped", {
-                            defaultValue: "Scraped",
-                          })}
-                          :
-                        </span>
-                        <span>{formatDateCompact(leg.last_scraped)}</span>
-                      </div>
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-text">
+                        <Calendar className="h-2.5 w-2.5" />
+                        {t("legislations.last_amended", {
+                          defaultValue: "Amended",
+                        })}{" "}
+                        {leg.last_amended}
+                      </span>
                     )}
                   </div>
                 </div>
 
-                {/* Chevron */}
-                <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-muted-text transition-transform group-hover:translate-x-0.5" />
+                {/* Chevron — fixed: added group class to parent */}
+                <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-text transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
               </div>
             </button>
           ))}
