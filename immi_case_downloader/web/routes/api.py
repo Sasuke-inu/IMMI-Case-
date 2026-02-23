@@ -124,6 +124,22 @@ _NAME_DISQUALIFIERS = frozenset({
 })
 
 
+def _parse_case_date(date_str: "str | None") -> "datetime | None":
+    """Parse 'DD Month YYYY' date string to datetime. Returns None for invalid input."""
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str.strip(), "%d %B %Y")
+    except (ValueError, TypeError):
+        return None
+
+
+def _extract_month_key(date_str: "str | None") -> "str | None":
+    """Extract 'YYYY-MM' from 'DD Month YYYY' date string. Returns None if unparseable."""
+    parsed = _parse_case_date(date_str)
+    return parsed.strftime("%Y-%m") if parsed else None
+
+
 def _is_real_judge_name(name: str) -> bool:
     """Return True only if name looks like an actual person's name."""
     words = name.split()
@@ -779,7 +795,7 @@ def stats():
 
         recent_sorted = sorted(
             [c for c in cases if c.date],
-            key=lambda c: c.date,
+            key=lambda c: _parse_case_date(c.date) or datetime.min,
             reverse=True,
         )[:5]
         recent = [
@@ -2139,19 +2155,14 @@ def analytics_monthly_trends():
         if not c.date:
             continue
         # Extract YYYY-MM from date string
-        month_key = c.date[:7] if len(c.date) >= 7 else None
-        if not month_key or len(month_key) != 7:
+        month_key = _extract_month_key(c.date)
+        if not month_key:
             continue
         bucket = monthly[month_key]
         bucket["total"] += 1
         norm = _normalise_outcome(c.outcome)
-        court_type = "tribunal" if (c.court_code or "") in TRIBUNAL_CODES else "court"
-        if court_type == "tribunal":
-            if norm in ("Remitted", "Set Aside"):
-                bucket["wins"] += 1
-        else:
-            if norm in ("Allowed", "Set Aside"):
-                bucket["wins"] += 1
+        if _is_win(norm, c.court_code or ""):
+            bucket["wins"] += 1
 
     series = []
     for month_key in sorted(monthly.keys()):
