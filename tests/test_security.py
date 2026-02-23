@@ -40,27 +40,18 @@ def csrf_client(csrf_app):
 class TestCSRFProtection:
     """Verify CSRF is configured for the application.
 
-    Legacy form routes have been replaced by 301 redirects to the React SPA.
-    CSRF protection now applies to the JSON API layer (used by the React SPA).
+    CSRF protection applies to the JSON API layer (used by the React SPA).
     """
 
     def test_api_pipeline_action_csrf_exempt(self, csrf_client):
         """JSON API endpoint is CSRF-exempt (uses custom header pattern)."""
         resp = csrf_client.post(
-            "/api/pipeline-action",
+            "/api/v1/pipeline-action",
             json={"action": "stop"},
             content_type="application/json",
         )
         # Should not return 400 for missing CSRF — API is exempt
         assert resp.status_code != 400 or b"CSRF" not in resp.data
-
-    def test_legacy_routes_redirect_not_form(self, csrf_client):
-        """Legacy POST form routes 301/302 redirect instead of processing forms."""
-        for path in ["/cases/add", "/search", "/download", "/pipeline", "/update-db"]:
-            resp = csrf_client.get(path)
-            assert resp.status_code in (301, 302), (
-                f"{path} should redirect (not render a form), got {resp.status_code}"
-            )
 
     def test_csrf_token_endpoint_accessible(self, csrf_client):
         """React SPA CSRF token endpoint returns a token."""
@@ -195,13 +186,14 @@ class TestSecurityHeaders:
 
     def test_security_headers_on_all_pages(self, client):
         """Security headers should appear on various page types."""
-        for path in ["/", "/cases", "/search", "/export/json"]:
+        for path in ["/", "/cases", "/analytics", "/api/v1/export/json"]:
             resp = client.get(path)
             assert resp.headers.get("X-Content-Type-Options") == "nosniff", (
                 f"X-Content-Type-Options missing from {path}"
             )
 
-    def test_security_headers_on_error_pages(self, client):
-        """Security headers should appear even on 404 pages."""
-        resp = client.get("/nonexistent-page-12345")
+    def test_security_headers_on_spa_fallback(self, client):
+        """Security headers should appear even on SPA fallback routes."""
+        resp = client.get("/nonexistent-deep/route/123")
+        # SPA catch-all returns 200 with index.html
         assert resp.headers.get("X-Content-Type-Options") == "nosniff"

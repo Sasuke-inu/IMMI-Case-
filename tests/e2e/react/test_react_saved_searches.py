@@ -13,16 +13,16 @@ class TestSaveSearch:
 
     def test_save_search_button_visible(self, react_page):
         """Save Search button appears in the filter area."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
-        save_btn = react_page.get_by_text("Save Search")
+        save_btn = react_page.get_by_role("button", name="Save Search")
         assert save_btn.is_visible()
 
     def test_save_search_opens_modal(self, react_page):
         """Clicking Save Search button opens the modal."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         # Modal should appear with name input
         modal = react_page.locator("[role='dialog']")
         expect(modal).to_be_visible()
@@ -31,7 +31,7 @@ class TestSaveSearch:
 
     def test_save_search_with_valid_name(self, react_page):
         """Successfully save a search with filters."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Apply some filters first
@@ -40,7 +40,7 @@ class TestSaveSearch:
         react_page.wait_for_timeout(500)
 
         # Open save modal
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
 
         # Enter search name
@@ -62,10 +62,10 @@ class TestSaveSearch:
 
     def test_save_search_empty_name_validation(self, react_page):
         """Empty name is rejected with error message."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
 
         # Try to save with empty name
@@ -77,11 +77,11 @@ class TestSaveSearch:
 
     def test_save_search_duplicate_name_validation(self, react_page):
         """Duplicate search names are rejected."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Save first search
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         name_input = modal.locator("input[type='text']")
         name_input.fill("Duplicate Test")
@@ -89,7 +89,7 @@ class TestSaveSearch:
         react_page.wait_for_timeout(1000)
 
         # Try to save second search with same name
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         name_input = modal.locator("input[type='text']")
         name_input.fill("Duplicate Test")
@@ -104,7 +104,7 @@ class TestExecuteSearch:
 
     def test_execute_search_applies_filters(self, react_page):
         """Clicking execute button applies the saved search filters."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Save a search with specific filters
@@ -112,7 +112,7 @@ class TestExecuteSearch:
         court_select.select_option("AATA")
         react_page.wait_for_timeout(500)
 
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("AATA Cases")
         modal.get_by_text("Save", exact=True).click()
@@ -142,17 +142,17 @@ class TestExecuteSearch:
     def test_execute_from_dashboard(self, react_page):
         """Execute a saved search from the Dashboard page."""
         # First save a search
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Dashboard Test Search")
         modal.get_by_text("Save", exact=True).click()
         react_page.wait_for_timeout(1000)
 
         # Go to dashboard
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         # Look for saved searches section on dashboard
@@ -172,11 +172,11 @@ class TestEditSearch:
 
     def test_edit_search_opens_modal(self, react_page):
         """Clicking edit button opens modal with current name."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Save a search first
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Edit Test Search")
         modal.get_by_text("Save", exact=True).click()
@@ -200,11 +200,11 @@ class TestEditSearch:
 
     def test_rename_search(self, react_page):
         """Successfully rename a saved search."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Save a search
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Original Name")
         modal.get_by_text("Save", exact=True).click()
@@ -237,11 +237,11 @@ class TestDeleteSearch:
 
     def test_delete_search_button_visible(self, react_page):
         """Delete button appears on saved search cards."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Save a search first
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Delete Test Search")
         modal.get_by_text("Save", exact=True).click()
@@ -257,11 +257,11 @@ class TestDeleteSearch:
 
     def test_delete_search_removes_from_list(self, react_page):
         """Deleting a search removes it from the panel."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Save a search
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Will Be Deleted")
         modal.get_by_text("Save", exact=True).click()
@@ -286,11 +286,11 @@ class TestShareSearch:
 
     def test_share_button_visible(self, react_page):
         """Share button appears on saved search cards."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Save a search
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Share Test Search")
         modal.get_by_text("Save", exact=True).click()
@@ -304,7 +304,7 @@ class TestShareSearch:
 
     def test_share_url_includes_filters(self, react_page):
         """Shared URL contains the search filters as query params."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Apply filters and save
@@ -312,7 +312,7 @@ class TestShareSearch:
         court_select.select_option("FCA")
         react_page.wait_for_timeout(500)
 
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("FCA Share Test")
         modal.get_by_text("Save", exact=True).click()
@@ -329,11 +329,11 @@ class TestResultCountBadge:
 
     def test_result_count_badge_visible(self, react_page):
         """Saved search cards show result count badge."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Save a search
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Count Badge Test")
         modal.get_by_text("Save", exact=True).click()
@@ -350,17 +350,17 @@ class TestResultCountBadge:
     def test_dashboard_shows_result_counts(self, react_page):
         """Dashboard saved searches section shows result counts."""
         # Save a search first
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Dashboard Count Test")
         modal.get_by_text("Save", exact=True).click()
         react_page.wait_for_timeout(1000)
 
         # Go to dashboard
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         # If saved searches section exists, it should show count
@@ -377,11 +377,11 @@ class TestSearchLimit:
 
     def test_save_search_panel_shows_count(self, react_page):
         """SavedSearchPanel displays X/50 count."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Save a search to make panel visible
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Limit Test")
         modal.get_by_text("Save", exact=True).click()
@@ -398,7 +398,7 @@ class TestSidebarIntegration:
 
     def test_sidebar_shows_saved_searches_link(self, react_page):
         """Sidebar contains Saved Searches navigation item."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         # Look for Saved Searches link in sidebar
@@ -411,17 +411,17 @@ class TestSidebarIntegration:
     def test_sidebar_shows_count_badge(self, react_page):
         """Sidebar Saved Searches link shows count badge."""
         # Save a search first
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Sidebar Badge Test")
         modal.get_by_text("Save", exact=True).click()
         react_page.wait_for_timeout(1000)
 
         # Go back to dashboard to see sidebar
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         # Sidebar should show count badge
@@ -433,7 +433,7 @@ class TestSidebarIntegration:
 
     def test_sidebar_link_navigates_to_cases(self, react_page):
         """Clicking Saved Searches in sidebar navigates to Cases page."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         sidebar = react_page.locator("aside")
@@ -451,7 +451,7 @@ class TestEmptyStates:
 
     def test_panel_empty_state(self, react_page):
         """SavedSearchPanel shows empty state when no searches saved."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # If no searches exist, panel might show empty state
@@ -471,12 +471,12 @@ class TestEmptyStates:
 
     def test_dashboard_hides_section_when_no_searches(self, react_page):
         """Dashboard doesn't show Saved Searches section when empty."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         # If user has no saved searches, the section might be hidden
         # This test just verifies the dashboard loads
-        assert react_page.get_by_text("Dashboard").is_visible() or react_page.get_by_text("Total Cases").is_visible()
+        assert react_page.get_by_role("heading", name="Dashboard").is_visible() or react_page.get_by_text("Total Cases").is_visible()
 
 
 class TestPersistence:
@@ -484,11 +484,11 @@ class TestPersistence:
 
     def test_saved_searches_persist_after_reload(self, react_page):
         """Saved searches remain after page reload."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
 
         # Save a search
-        react_page.get_by_text("Save Search").click()
+        react_page.get_by_role("button", name="Save Search").click()
         modal = react_page.locator("[role='dialog']")
         modal.locator("input[type='text']").fill("Persistence Test")
         modal.get_by_text("Save", exact=True).click()

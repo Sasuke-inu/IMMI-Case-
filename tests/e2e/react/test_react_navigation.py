@@ -16,13 +16,13 @@ class TestDesktopSidebar:
     """Desktop sidebar navigation (visible at lg breakpoint: 1280px)."""
 
     def test_sidebar_visible(self, react_page):
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         sidebar = react_page.locator("aside")
         assert sidebar.is_visible()
 
     def test_sidebar_has_logo(self, react_page):
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         assert react_page.locator("aside").get_by_text("IMMI-Case").is_visible()
 
@@ -33,7 +33,7 @@ class TestDesktopSidebar:
     )
     def test_sidebar_link_navigates(self, react_page, label, expected_path):
         """Clicking each sidebar link navigates to the correct route."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         click_sidebar_link(react_page, label)
         wait_for_loading_gone(react_page)
@@ -44,7 +44,7 @@ class TestDesktopSidebar:
 
     def test_active_link_highlighted(self, react_page):
         """The current page link should have the active style."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         # NavLink classes are on the <a> element, not the inner <span>
         cases_link = react_page.locator("aside a").filter(has_text="Cases").first
@@ -52,7 +52,7 @@ class TestDesktopSidebar:
         assert "text-accent" in classes or "bg-accent" in classes
 
     def test_sidebar_footer_text(self, react_page):
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         footer = react_page.locator("aside").get_by_text("Australian Immigration Case Database")
         assert footer.is_visible()
@@ -62,20 +62,20 @@ class TestMobileDrawer:
     """Mobile navigation drawer (visible below lg breakpoint: 390px)."""
 
     def test_sidebar_hidden_on_mobile(self, react_mobile):
-        react_navigate(react_mobile, "/app/")
+        react_navigate(react_mobile, "/")
         wait_for_loading_gone(react_mobile)
         # Desktop aside should be hidden (lg:block means hidden below lg)
         sidebar = react_mobile.locator("aside")
         assert sidebar.count() == 0 or not sidebar.is_visible()
 
     def test_hamburger_visible(self, react_mobile):
-        react_navigate(react_mobile, "/app/")
+        react_navigate(react_mobile, "/")
         wait_for_loading_gone(react_mobile)
         hamburger = react_mobile.get_by_label("Toggle menu")
         assert hamburger.is_visible()
 
     def test_open_mobile_drawer(self, react_mobile):
-        react_navigate(react_mobile, "/app/")
+        react_navigate(react_mobile, "/")
         wait_for_loading_gone(react_mobile)
         click_mobile_menu(react_mobile)
         # Scope to the mobile drawer to avoid matching desktop sidebar
@@ -83,7 +83,7 @@ class TestMobileDrawer:
         assert drawer.get_by_text("IMMI-Case").is_visible()
 
     def test_close_mobile_drawer(self, react_mobile):
-        react_navigate(react_mobile, "/app/")
+        react_navigate(react_mobile, "/")
         wait_for_loading_gone(react_mobile)
         click_mobile_menu(react_mobile)
         close_mobile_menu(react_mobile)
@@ -93,7 +93,7 @@ class TestMobileDrawer:
 
     def test_mobile_drawer_navigate(self, react_mobile):
         """Clicking a mobile nav link navigates and closes the drawer."""
-        react_navigate(react_mobile, "/app/")
+        react_navigate(react_mobile, "/")
         wait_for_loading_gone(react_mobile)
         click_mobile_menu(react_mobile)
         # Click Cases link in mobile drawer
@@ -109,7 +109,7 @@ class TestBackNavigation:
 
     def test_breadcrumb_from_add(self, react_page):
         """CaseAddPage shows a Breadcrumb with a 'Cases' link to go back."""
-        react_navigate(react_page, "/app/cases/add")
+        react_navigate(react_page, "/cases/add")
         wait_for_loading_gone(react_page)
         breadcrumb = react_page.locator("main nav").filter(has_text="Cases")
         assert breadcrumb.is_visible()

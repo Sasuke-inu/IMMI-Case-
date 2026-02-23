@@ -3,41 +3,41 @@
 from playwright.sync_api import Page
 
 # ---------------------------------------------------------------------------
-# React SPA routes (relative to /app/ base)
+# React SPA routes (served at root /)
 # ---------------------------------------------------------------------------
 
-REACT_BASE = "/app/"
+REACT_BASE = "/"
 
 REACT_ROUTES = {
-    "dashboard": "/app/",
-    "analytics": "/app/analytics",
-    "judge_profiles": "/app/judge-profiles",
-    "judge_detail": "/app/judge-profiles/Senior%20Member%20Jones",
-    "judge_compare": "/app/judge-profiles/compare?names=Senior%20Member%20Jones,Deputy%20President%20Smith",
-    "cases": "/app/cases",
-    "case_add": "/app/cases/add",
-    "case_compare": "/app/cases/compare",
-    "download": "/app/download",
-    "jobs": "/app/jobs",
-    "pipeline": "/app/pipeline",
-    "legislations": "/app/legislations",
-    "data_dictionary": "/app/data-dictionary",
-    "design_tokens": "/app/design-tokens",
+    "dashboard": "/",
+    "analytics": "/analytics",
+    "judge_profiles": "/judge-profiles",
+    "judge_detail": "/judge-profiles/Senior%20Member%20Jones",
+    "judge_compare": "/judge-profiles/compare?names=Senior%20Member%20Jones,Deputy%20President%20Smith",
+    "cases": "/cases",
+    "case_add": "/cases/add",
+    "case_compare": "/cases/compare",
+    "download": "/download",
+    "jobs": "/jobs",
+    "pipeline": "/pipeline",
+    "legislations": "/legislations",
+    "data_dictionary": "/data-dictionary",
+    "design_tokens": "/design-tokens",
 }
 
 # Pages that are parametrised smoke targets (all should return 200 + render #root)
 SMOKE_PAGES = [
-    ("dashboard", "/app/"),
-    ("analytics", "/app/analytics"),
-    ("judge_profiles", "/app/judge-profiles"),
-    ("cases", "/app/cases"),
-    ("cases_add", "/app/cases/add"),
-    ("download", "/app/download"),
-    ("jobs", "/app/jobs"),
-    ("pipeline", "/app/pipeline"),
-    ("legislations", "/app/legislations"),
-    ("data_dictionary", "/app/data-dictionary"),
-    ("design_tokens", "/app/design-tokens"),
+    ("dashboard", "/"),
+    ("analytics", "/analytics"),
+    ("judge_profiles", "/judge-profiles"),
+    ("cases", "/cases"),
+    ("cases_add", "/cases/add"),
+    ("download", "/download"),
+    ("jobs", "/jobs"),
+    ("pipeline", "/pipeline"),
+    ("legislations", "/legislations"),
+    ("data_dictionary", "/data-dictionary"),
+    ("design_tokens", "/design-tokens"),
 ]
 
 # API endpoints to smoke-test (GET only)
@@ -67,15 +67,15 @@ API_ENDPOINTS = [
 # ---------------------------------------------------------------------------
 
 SIDEBAR_NAV_ITEMS = [
-    ("Dashboard", "/app/"),
-    ("Analytics", "/app/analytics"),
-    ("Judge Profiles", "/app/judge-profiles"),
-    ("Cases", "/app/cases"),
-    ("Scrape AustLII", "/app/download"),  # Matches pipeline.download_title i18n key
-    ("Smart Pipeline", "/app/pipeline"),  # Matches pipeline.crawl_title i18n key
-    ("Legislations", "/app/legislations"),  # Added in 2026-02-20
-    ("Data Dictionary", "/app/data-dictionary"),
-    ("Design Tokens", "/app/design-tokens"),
+    ("Dashboard", "/"),
+    ("Analytics", "/analytics"),
+    ("Judge Profiles", "/judge-profiles"),
+    ("Cases", "/cases"),
+    ("Download", "/download"),  # Matches en.json nav.download
+    ("Pipeline", "/pipeline"),  # Matches en.json nav.pipeline
+    ("Legislations", "/legislations"),  # Added in 2026-02-20
+    ("Data Dictionary", "/data-dictionary"),
+    ("Design Tokens", "/design-tokens"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -83,9 +83,9 @@ SIDEBAR_NAV_ITEMS = [
 # ---------------------------------------------------------------------------
 
 KEYBOARD_SHORTCUTS = {
-    "d": "/app/",
-    "c": "/app/cases",
-    "p": "/app/pipeline",
+    "d": "/",
+    "c": "/cases",
+    "p": "/pipeline",
 }
 
 # ---------------------------------------------------------------------------
@@ -146,7 +146,8 @@ def count_elements(page: Page, selector: str) -> int:
 def click_sidebar_link(page: Page, label: str):
     """Click a navigation link in the desktop sidebar by its label."""
     sidebar = page.locator("aside")
-    link = sidebar.get_by_text(label, exact=True)
+    # Use role="link" to avoid matching headings or other text
+    link = sidebar.get_by_role("link", name=label, exact=True)
     link.click()
     page.wait_for_load_state("networkidle")
     wait_for_react(page)

@@ -1,26 +1,28 @@
-"""Reusable route constants and navigation utilities for legacy E2E tests."""
+"""Reusable route constants and navigation utilities for E2E tests."""
 
 # ---------------------------------------------------------------------------
-# Route paths — legacy URLs and their React SPA targets
+# Route paths — React SPA routes (served at /)
 # ---------------------------------------------------------------------------
 
-LEGACY_REDIRECT_MAP = {
-    "/": "/app/",
-    "/cases": "/app/cases",
-    "/cases/add": "/app/cases/add",
-    "/cases/compare": "/app/cases/compare",
-    "/search": "/app/download",
-    "/download": "/app/download",
-    "/update-db": "/app/pipeline",
-    "/pipeline": "/app/pipeline",
-    "/job-status": "/app/jobs",
-    "/data-dictionary": "/app/data-dictionary",
-}
+SPA_ROUTES = [
+    "/",
+    "/cases",
+    "/cases/add",
+    "/cases/compare",
+    "/analytics",
+    "/judge-profiles",
+    "/legislations",
+    "/download",
+    "/pipeline",
+    "/jobs",
+    "/data-dictionary",
+    "/court-lineage",
+]
 
-# Routes that are functional (non-redirect) and should still return 200
+# Routes that are functional API routes (return JSON)
 FUNCTIONAL_API_ROUTES = [
-    "/api/job-status",
-    "/api/pipeline-status",
+    "/api/v1/job-status",
+    "/api/v1/pipeline-status",
 ]
 
 # Security headers expected on every response

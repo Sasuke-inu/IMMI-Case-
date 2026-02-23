@@ -39,33 +39,25 @@ class TestThreadSafety:
         assert hasattr(webapp, "_job_lock"), "_job_lock not defined in webapp"
         assert isinstance(webapp._job_lock, type(threading.Lock()))
 
-    def test_concurrent_job_start_prevented(self, client):
-        """Legacy POST /search no longer starts jobs — redirects to React SPA.
-
-        Job management is now handled via the React SPA + JSON API layer.
-        The redirect ensures no accidental double-submit from old form URLs.
-        """
+    def test_concurrent_job_start_reflected_in_api(self, client):
+        """While a job holds the lock, /api/v1/job-status reflects running=True."""
         from immi_case_downloader import webapp
 
         with webapp._job_lock:
             webapp._job_status["running"] = True
 
         try:
-            resp = client.post("/search", data={
-                "databases": ["AATA"],
-                "start_year": "2024",
-                "end_year": "2024",
-                "max_results": "10",
-            }, follow_redirects=False)
-            # POST to legacy route returns 301 redirect — no job processing
-            assert resp.status_code == 301
+            resp = client.get("/api/v1/job-status")
+            assert resp.status_code == 200
+            data = resp.get_json()
+            assert data["running"] is True
         finally:
             with webapp._job_lock:
                 webapp._job_status["running"] = False
 
     def test_job_status_api_returns_consistent_snapshot(self, client):
-        """GET /api/job-status should return a snapshot, not a live reference."""
-        resp = client.get("/api/job-status")
+        """GET /api/v1/job-status should return a snapshot, not a live reference."""
+        resp = client.get("/api/v1/job-status")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "running" in data
@@ -108,15 +100,12 @@ class TestSafeIntFloat:
         assert safe_float("0.01", default=0.5, min_val=0.3) == 0.3
         assert safe_float("99.0", default=0.5, max_val=5.0) == 5.0
 
-    def test_search_form_invalid_year_no_500(self, client):
-        """POST to /search (legacy) returns 301 redirect — no 500 possible."""
-        resp = client.post("/search", data={
-            "databases": ["AATA"],
-            "start_year": "abc",
-            "end_year": "xyz",
-            "max_results": "not_a_number",
-        }, follow_redirects=False)
-        assert resp.status_code == 301
+    def test_api_search_invalid_year_no_500(self, client):
+        """GET /api/v1/search with invalid year params returns 200 or 400, never 500."""
+        resp = client.get(
+            "/api/v1/search?databases=AATA&start_year=abc&end_year=xyz&max_results=not_a_number"
+        )
+        assert resp.status_code in (200, 400)
 
     def test_delay_minimum_enforced(self, client):
         """delay values below 0.3 should be clamped to minimum."""

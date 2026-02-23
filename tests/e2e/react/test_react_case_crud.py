@@ -9,7 +9,7 @@ from .react_helpers import (
 
 def _navigate_to_first_case(page):
     """Navigate to the first case detail page, waiting for the API response."""
-    react_navigate(page, "/app/cases")
+    react_navigate(page, "/cases")
     wait_for_loading_gone(page)
     first_row = page.locator("tbody tr").first
     with page.expect_response(
@@ -23,7 +23,7 @@ def _navigate_to_first_case(page):
 
 def _navigate_to_last_case(page):
     """Navigate to the last case detail page, waiting for the API response."""
-    react_navigate(page, "/app/cases")
+    react_navigate(page, "/cases")
     wait_for_loading_gone(page)
     last_row = page.locator("tbody tr").last
     with page.expect_response(
@@ -52,14 +52,14 @@ class TestCreateCase:
     """Create a new case via the Add Case form."""
 
     def test_add_page_has_form(self, react_page, skip_if_live):
-        react_navigate(react_page, "/app/cases/add")
+        react_navigate(react_page, "/cases/add")
         wait_for_loading_gone(react_page)
         assert react_page.locator("main").get_by_text("Add Case").first.is_visible()
         assert react_page.locator("label").get_by_text("Title").is_visible()
 
     def test_create_case_success(self, react_page, skip_if_live):
         """Fill form and create a case, verify toast and redirect."""
-        react_navigate(react_page, "/app/cases/add")
+        react_navigate(react_page, "/cases/add")
         wait_for_loading_gone(react_page)
 
         title_input = react_page.locator("input").first
@@ -80,16 +80,16 @@ class TestCreateCase:
 
     def test_create_without_title_shows_error(self, react_page, skip_if_live):
         """Submitting without title shows error toast."""
-        react_navigate(react_page, "/app/cases/add")
+        react_navigate(react_page, "/cases/add")
         wait_for_loading_gone(react_page)
         react_page.locator("main").get_by_text("Create").click()
         toast = get_toast_text(react_page)
         assert "required" in toast.lower() or "Title" in toast
 
     def test_cancel_returns_to_previous(self, react_page, skip_if_live):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
-        react_navigate(react_page, "/app/cases/add")
+        react_navigate(react_page, "/cases/add")
         wait_for_loading_gone(react_page)
         react_page.get_by_role("button", name="Cancel").click()
         react_page.wait_for_load_state("networkidle")

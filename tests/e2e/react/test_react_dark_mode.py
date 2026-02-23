@@ -23,14 +23,14 @@ class TestDarkModeDashboard:
     """Dashboard should render correctly in dark mode."""
 
     def test_dashboard_loads_in_dark_mode(self, react_page):
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
         assert react_page.get_by_text("Total Cases").is_visible()
         assert_no_js_errors(react_page)
 
     def test_stat_cards_visible_dark(self, react_page):
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
         for card_title in ["Total Cases", "With Full Text", "Courts"]:
@@ -38,7 +38,7 @@ class TestDarkModeDashboard:
 
     def test_charts_render_svg_dark(self, react_page):
         """Recharts SVGs should still render in dark mode."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
         svgs = react_page.locator("svg.recharts-surface")
@@ -46,14 +46,14 @@ class TestDarkModeDashboard:
 
     def test_sidebar_readable_dark(self, react_page):
         """Sidebar text should be visible in dark mode."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
         assert react_page.locator("aside").get_by_text("IMMI-Case").is_visible()
         assert react_page.locator("aside").get_by_text("Dashboard").is_visible()
 
     def test_quick_actions_visible_dark(self, react_page):
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
         main = react_page.locator("main")
@@ -66,14 +66,14 @@ class TestDarkModeAnalytics:
     """Analytics page charts in dark mode."""
 
     def test_analytics_loads_dark(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
         assert react_page.get_by_text("Analytics").first.is_visible()
         assert_no_js_errors(react_page)
 
     def test_analytics_chart_cards_dark(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
         assert react_page.get_by_text("Outcome Rate by Court").is_visible()
@@ -85,7 +85,7 @@ class TestDarkModeNavigation:
 
     def test_dark_mode_persists_across_nav(self, react_page):
         """Toggling dark on Dashboard, navigating to Cases, dark should persist."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
 
@@ -99,7 +99,7 @@ class TestDarkModeNavigation:
 
     def test_dark_cycle_all_pages_no_errors(self, react_page):
         """Cycle through all pages in dark mode without JS errors."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
 
@@ -115,7 +115,7 @@ class TestDarkModeCases:
     """Cases list and detail in dark mode."""
 
     def test_cases_list_dark(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
         assert react_page.get_by_text("Cases").first.is_visible()
@@ -124,7 +124,7 @@ class TestDarkModeCases:
     def test_case_detail_dark(self, react_page, seed_cases):
         """Case detail page loads in dark mode."""
         case_id = seed_cases[0].case_id
-        react_navigate(react_page, f"/app/cases/{case_id}")
+        react_navigate(react_page, f"/cases/{case_id}")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
         assert react_page.locator("main").is_visible()

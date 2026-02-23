@@ -16,7 +16,7 @@ class TestNavigationShortcuts:
     """Keys d, c, p navigate to Dashboard, Cases, Pipeline."""
 
     def test_d_goes_to_dashboard(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         _focus_body(react_page)
         react_page.keyboard.press("d")
@@ -25,7 +25,7 @@ class TestNavigationShortcuts:
         assert url.endswith("/app")
 
     def test_c_goes_to_cases(self, react_page):
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _focus_body(react_page)
         react_page.keyboard.press("c")
@@ -33,7 +33,7 @@ class TestNavigationShortcuts:
         assert "/cases" in react_page.url
 
     def test_p_goes_to_pipeline(self, react_page):
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _focus_body(react_page)
         react_page.keyboard.press("p")
@@ -42,7 +42,7 @@ class TestNavigationShortcuts:
 
     def test_question_mark_goes_to_design_tokens(self, react_page):
         """? key navigates to Design Tokens page."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _focus_body(react_page)
         # Dispatch '?' keydown via JavaScript for reliable cross-platform behavior
@@ -61,7 +61,7 @@ class TestSearchFocusShortcut:
 
     def test_slash_key_handled(self, react_page):
         """/ key should be intercepted (preventDefault) on any page."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _focus_body(react_page)
         # Press / — it should not type into the page
@@ -77,7 +77,7 @@ class TestInputExclusion:
 
     def test_shortcut_disabled_in_input(self, react_page):
         """Pressing 'd' while focused on an input should NOT navigate."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         # Use the keyword filter input on the cases page
         keyword_input = react_page.locator("input[placeholder*='earch']")
@@ -90,7 +90,7 @@ class TestInputExclusion:
     def test_shortcut_disabled_in_textarea(self, react_page):
         """Pressing 'c' while focused on a textarea should NOT navigate."""
         # Navigate to edit page which has textarea fields
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         react_page.locator("tbody tr").first.click()
         react_page.wait_for_load_state("networkidle")
@@ -109,7 +109,7 @@ class TestInputExclusion:
 
     def test_shortcut_works_after_blur(self, react_page):
         """After blurring an input, shortcuts work again."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         keyword_input = react_page.locator("input[placeholder*='earch']")
         keyword_input.click()

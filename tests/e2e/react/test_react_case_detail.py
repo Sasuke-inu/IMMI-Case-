@@ -12,7 +12,7 @@ def _navigate_to_seed_case(page):
     CRUD tests may create artifact cases without court_code that sort first.
     Filter by AATA court to ensure we land on a real seed case.
     """
-    react_navigate(page, "/app/cases")
+    react_navigate(page, "/cases")
     wait_for_loading_gone(page)
     # Click a row with a known court code — seed data has AATA cases
     row = page.locator("tbody tr").filter(has_text="AATA").first

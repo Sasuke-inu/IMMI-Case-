@@ -35,38 +35,38 @@ class TestPageSmoke:
         assert_no_js_errors(react_page)
 
     def test_dashboard_has_heading(self, react_page):
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         assert "Dashboard" in get_heading(react_page)
 
     def test_cases_has_heading(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         assert "Cases" in get_heading(react_page)
 
     def test_download_has_heading(self, react_page):
-        react_navigate(react_page, "/app/download")
+        react_navigate(react_page, "/download")
         wait_for_loading_gone(react_page)
         assert "Download" in get_heading(react_page)
 
     def test_pipeline_has_heading(self, react_page):
-        react_navigate(react_page, "/app/pipeline")
+        react_navigate(react_page, "/pipeline")
         wait_for_loading_gone(react_page)
         heading = get_heading(react_page)
         assert "Pipeline" in heading
 
     def test_data_dictionary_has_heading(self, react_page):
-        react_navigate(react_page, "/app/data-dictionary")
+        react_navigate(react_page, "/data-dictionary")
         wait_for_loading_gone(react_page)
         assert "Data Dictionary" in get_heading(react_page)
 
     def test_design_tokens_has_heading(self, react_page):
-        react_navigate(react_page, "/app/design-tokens")
+        react_navigate(react_page, "/design-tokens")
         wait_for_loading_gone(react_page)
         assert "Design Tokens" in get_heading(react_page)
 
     def test_job_status_has_heading(self, react_page):
-        react_navigate(react_page, "/app/jobs")
+        react_navigate(react_page, "/jobs")
         wait_for_loading_gone(react_page)
         assert "Job Status" in get_heading(react_page)
 

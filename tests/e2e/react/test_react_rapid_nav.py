@@ -23,7 +23,7 @@ class TestRapidNavigation:
 
     def test_rapid_cycle_all_pages(self, react_page):
         """Click through every sidebar link rapidly, then verify final page is stable."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         for label, _ in SIDEBAR_NAV_ITEMS:
@@ -36,7 +36,7 @@ class TestRapidNavigation:
 
     def test_rapid_back_to_dashboard(self, react_page):
         """Navigate away from Dashboard and back quickly — should show data, not empty state."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         # Verify data is loaded initially
@@ -55,7 +55,7 @@ class TestRapidNavigation:
 
     def test_rapid_cycle_no_welcome_flash(self, react_page):
         """Rapidly navigate all pages and return to Dashboard — no empty state."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         # Quick cycle through all pages
@@ -79,7 +79,7 @@ class TestRapidNavigation:
     )
     def test_navigate_twice_to_same_page(self, react_page, label, expected_path):  # noqa: ARG002  # pyright: ignore[reportUnusedParameter]
         """Clicking the same sidebar link twice should not cause errors."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         click_sidebar_link(react_page, label)
         click_sidebar_link(react_page, label)
@@ -93,7 +93,7 @@ class TestDashboardFilterStability:
 
     def test_court_filter_keeps_data(self, react_page):
         """Clicking a court filter pill should show filtered data, not empty state."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         assert react_page.get_by_text("Total Cases").is_visible()
 
@@ -109,7 +109,7 @@ class TestDashboardFilterStability:
 
     def test_time_preset_keeps_data(self, react_page):
         """Clicking time presets should update charts without showing empty state."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         last5 = react_page.get_by_text("Last 5y", exact=True)
@@ -120,7 +120,7 @@ class TestDashboardFilterStability:
 
     def test_all_time_preset_shows_all_data(self, react_page):
         """All Time preset should show the full dataset."""
-        react_navigate(react_page, "/app/")
+        react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
 
         all_time = react_page.get_by_text("All Time", exact=True)

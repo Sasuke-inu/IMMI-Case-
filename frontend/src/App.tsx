@@ -147,7 +147,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter basename="/app">
+        <BrowserRouter basename="/">
           <Routes>
             <Route element={<AppLayout />}>
               <Route

@@ -1,77 +1,67 @@
-"""Extended tests for immi_case_downloader.web — Phase 8 coverage (redirect architecture)."""
+"""Extended tests for immi_case_downloader.web — SPA + API v1 architecture."""
 
 import json
 
-# ── Route status codes ────────────────────────────────────────────────────
+
+# ── Route status codes ─────────────────────────────────────────────────────
 
 
 class TestRouteStatusCodes:
-    """Verify routes return expected status codes under the redirect architecture."""
+    """Verify routes return expected status codes under the SPA-at-root architecture."""
 
-    # UI routes → 301 redirects
-    def test_dashboard_redirects(self, client):
-        assert client.get("/").status_code == 301
+    # UI routes → 200 (served by React SPA catch-all)
+    def test_dashboard_serves_spa(self, client):
+        assert client.get("/").status_code == 200
 
-    def test_cases_redirects(self, client):
-        assert client.get("/cases").status_code == 301
+    def test_cases_serves_spa(self, client):
+        assert client.get("/cases").status_code == 200
 
-    def test_case_detail_redirects(self, client, sample_cases):
-        resp = client.get(f"/cases/{sample_cases[0].case_id}")
-        assert resp.status_code == 301
+    def test_case_add_serves_spa(self, client):
+        assert client.get("/cases/add").status_code == 200
 
-    def test_case_edit_get_redirects(self, client, sample_cases):
-        resp = client.get(f"/cases/{sample_cases[0].case_id}/edit")
-        assert resp.status_code == 301
+    def test_search_serves_spa(self, client):
+        assert client.get("/search").status_code == 200
 
-    def test_case_add_get_redirects(self, client):
-        assert client.get("/cases/add").status_code == 301
+    def test_download_serves_spa(self, client):
+        assert client.get("/download").status_code == 200
 
-    def test_search_redirects(self, client):
-        assert client.get("/search").status_code == 301
+    def test_pipeline_serves_spa(self, client):
+        assert client.get("/pipeline").status_code == 200
 
-    def test_download_redirects(self, client):
-        assert client.get("/download").status_code == 301
+    def test_data_dictionary_serves_spa(self, client):
+        assert client.get("/data-dictionary").status_code == 200
 
-    def test_job_status_ui_redirects(self, client):
-        assert client.get("/job-status").status_code == 301
+    def test_unknown_deep_path_serves_spa(self, client):
+        """Any unknown path falls through to React router (200, not 404)."""
+        assert client.get("/some/nonexistent/route").status_code == 200
 
-    def test_data_dictionary_redirects(self, client):
-        assert client.get("/data-dictionary").status_code == 301
-
-    def test_update_db_redirects(self, client):
-        assert client.get("/update-db").status_code == 301
-
-    def test_pipeline_redirects(self, client):
-        assert client.get("/pipeline").status_code == 301
-
-    # JSON API routes → 200
+    # JSON API routes → 200 (at /api/v1/*)
     def test_job_status_api_ok(self, client):
-        resp = client.get("/api/job-status")
+        resp = client.get("/api/v1/job-status")
         assert resp.status_code == 200
         assert "running" in resp.get_json()
 
     def test_pipeline_status_api_ok(self, client):
-        resp = client.get("/api/pipeline-status")
+        resp = client.get("/api/v1/pipeline-status")
         assert resp.status_code == 200
         assert "running" in resp.get_json()
 
-    def test_pipeline_log_api_ok(self, client):
-        assert client.get("/api/pipeline-log").status_code == 200
-
     def test_export_csv_ok(self, client):
-        assert client.get("/export/csv").status_code == 200
+        assert client.get("/api/v1/export/csv").status_code == 200
 
     def test_export_json_ok(self, client):
-        assert client.get("/export/json").status_code == 200
+        assert client.get("/api/v1/export/json").status_code == 200
 
-    def test_export_unknown_format_redirects(self, client):
-        resp = client.get("/export/xml", follow_redirects=True)
+    def test_api_path_not_caught_by_spa(self, client):
+        """API paths are NOT served as SPA — they return JSON or 404."""
+        resp = client.get("/api/v1/stats")
         assert resp.status_code == 200
+        assert "application/json" in resp.content_type
 
-    def test_nonexistent_case_id_redirects(self, client):
-        """Invalid case ID still returns a redirect (not 404/500)."""
-        resp = client.get("/cases/nonexistent_id")
-        assert resp.status_code in (301, 302)
+    def test_api_trailing_slash_returns_404_not_spa(self, client):
+        """Trailing slash on an API path → 404, never SPA index.html."""
+        resp = client.get("/api/v1/legislations/")
+        assert resp.status_code in (400, 404)
 
 
 # ── Pipeline JSON API ──────────────────────────────────────────────────────
@@ -80,7 +70,7 @@ class TestRouteStatusCodes:
 class TestPipelineApi:
     def test_pipeline_action_stop(self, client):
         resp = client.post(
-            "/api/pipeline-action",
+            "/api/v1/pipeline-action",
             data=json.dumps({"action": "stop"}),
             content_type="application/json",
         )
@@ -89,12 +79,8 @@ class TestPipelineApi:
 
     def test_pipeline_action_unknown(self, client):
         resp = client.post(
-            "/api/pipeline-action",
+            "/api/v1/pipeline-action",
             data=json.dumps({"action": "unknown"}),
             content_type="application/json",
         )
         assert resp.status_code == 400
-
-    def test_pipeline_log_filter(self, client):
-        resp = client.get("/api/pipeline-log?phase=crawl&level=error&limit=10")
-        assert resp.status_code == 200

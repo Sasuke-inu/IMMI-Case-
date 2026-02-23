@@ -1,10 +1,12 @@
 """Flask web application factory.
 
-Splits the monolithic webapp.py into modular components:
+Serves the React SPA at / with the JSON API at /api/v1/*.
 - helpers.py   — utility functions (safe_int, safe_float, _filter_cases, etc.)
 - security.py  — CSRF setup and security headers
 - jobs.py      — background job state and runner functions
-- routes/      — route modules registered via init_routes(app)
+- routes/api.py          — /api/v1/* JSON endpoints (React SPA)
+- routes/legislations.py — /api/v1/legislations/* endpoints
+- routes/bookmarks.py    — /api/v1/bookmarks and /api/v1/collections endpoints
 """
 
 import os
@@ -78,15 +80,6 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
     def security_headers(response):
         return add_security_headers(response)
 
-    # Register all route modules (flat endpoint names — no Blueprint prefix)
-    from .routes import dashboard, cases, search, export, pipeline_routes, update_db
-    dashboard.init_routes(app)
-    cases.init_routes(app)
-    search.init_routes(app)
-    export.init_routes(app)
-    pipeline_routes.init_routes(app)
-    update_db.init_routes(app)
-
     # Register JSON API blueprint for React SPA
     from .routes.api import api_bp
     app.register_blueprint(api_bp)
@@ -99,16 +92,25 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
     from .routes.bookmarks import bookmarks_bp
     app.register_blueprint(bookmarks_bp)
 
-    # SPA catch-all: serve React build for non-API, non-legacy routes
+    # React SPA catch-all: serve all non-API requests from the React build.
+    # /api/* is handled by the blueprints above; everything else gets index.html.
     react_dir = os.path.join(pkg_dir, "static", "react")
 
-    @app.route("/app/", defaults={"path": ""})
-    @app.route("/app/<path:path>")
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
     def serve_spa(path):
-        """Serve the React SPA from static/react/."""
-        from flask import send_from_directory
+        """Serve the React SPA at the root path."""
+        from flask import send_from_directory, abort
+        # API paths must never be intercepted by the SPA catch-all.
+        # Blueprint routes handle /api/*, but trailing-slash variants can
+        # fall through to this catch-all. Return 404 so Flask propagates
+        # the "not found" correctly instead of serving index.html.
+        if path.startswith("api/"):
+            abort(404)
+        # Static assets (JS, CSS, images) — serve the actual file
         if path and os.path.exists(os.path.join(react_dir, path)):
             return send_from_directory(react_dir, path)
+        # All other routes → React index.html (client-side routing handles the rest)
         return send_from_directory(react_dir, "index.html")
 
     return app

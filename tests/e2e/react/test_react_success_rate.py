@@ -5,24 +5,24 @@ from .react_helpers import react_navigate, wait_for_loading_gone, assert_no_js_e
 
 class TestSuccessRateCalculator:
     def test_calculator_section_visible_on_analytics(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         assert react_page.get_by_text("Success Rate Calculator").is_visible()
 
     def test_calculator_shows_success_rate_number(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         rate = react_page.locator('[data-testid="success-rate-number"]').first
         assert rate.is_visible()
         assert "%" in rate.inner_text()
 
     def test_calculator_no_js_errors(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         assert_no_js_errors(react_page)
 
     def test_calculator_filter_changes_results(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
 
         root = react_page.locator('[data-testid="success-rate-calculator"]')

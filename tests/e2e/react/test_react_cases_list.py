@@ -10,27 +10,27 @@ class TestCasesTable:
     """Default table view of the cases list."""
 
     def test_heading_shows_total(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         assert react_page.get_by_text("Cases").first.is_visible()
         # Should show "10 cases" from seed data (i18n: units.cases = "cases")
         assert react_page.get_by_text("cases").first.is_visible()
 
     def test_table_has_header_columns(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         for col in ["Title", "Court", "Date", "Outcome", "Nature"]:
             assert react_page.locator("th").get_by_text(col).is_visible()
 
     def test_table_renders_seed_cases(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         rows = react_page.locator("tbody tr")
         assert rows.count() >= 10  # seed data (may grow from CRUD tests)
 
     def test_table_row_click_navigates(self, react_page):
         """Clicking a row navigates to the case detail page."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         first_row = react_page.locator("tbody tr").first
         first_row.click()
@@ -39,7 +39,7 @@ class TestCasesTable:
 
     def test_select_all_checkbox(self, react_page):
         """The header checkbox selects all cases."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         select_all = react_page.locator("thead input[type='checkbox']")
         select_all.click()
@@ -48,7 +48,7 @@ class TestCasesTable:
 
     def test_individual_checkbox(self, react_page):
         """Individual row checkbox selects a single case."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         first_checkbox = react_page.locator("tbody input[type='checkbox']").first
         first_checkbox.click()
@@ -70,7 +70,7 @@ class TestCardsView:
         page.locator("main .grid.gap-4").wait_for(state="visible", timeout=5000)
 
     def test_switch_to_cards_view(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         self._click_cards_toggle(react_page)
         # Table should be gone, card grid should appear
@@ -79,7 +79,7 @@ class TestCardsView:
         assert cards_grid.is_visible()
 
     def test_card_shows_court_badge(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         self._click_cards_toggle(react_page)
         # Cards render inside the grid container
@@ -94,7 +94,7 @@ class TestFilters:
     """Filter dropdowns and keyword input."""
 
     def test_court_filter_present(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         court_select = react_page.locator("select").first
         assert court_select.is_visible()
@@ -102,7 +102,7 @@ class TestFilters:
         assert "All Courts" in court_select.inner_text()
 
     def test_court_filter_changes_results(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         # Select FCA court
         react_page.locator("select").first.select_option("FCA")
@@ -113,7 +113,7 @@ class TestFilters:
         assert rows.count() < 10
 
     def test_year_filter_present(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         selects = react_page.locator("select")
         # Year filter uses "Year From" label (i18n: filters.year_from)
@@ -122,7 +122,7 @@ class TestFilters:
         assert "Year From" in year_text or "Year" in year_text
 
     def test_keyword_filter(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         keyword_input = react_page.locator("input[placeholder*='earch']")
         keyword_input.fill("Singh")
@@ -140,7 +140,7 @@ class TestFilters:
         assert "Singh" in rows.first.inner_text()
 
     def test_nature_filter_present(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         selects = react_page.locator("select")
         assert selects.count() >= 3
@@ -153,13 +153,13 @@ class TestAddButton:
     """Add Case button on the cases list page."""
 
     def test_add_case_button_visible(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         add_btn = react_page.get_by_text("Add Case")
         assert add_btn.is_visible()
 
     def test_add_case_button_navigates(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         react_page.get_by_text("Add Case").click()
         react_page.wait_for_load_state("networkidle")
@@ -174,7 +174,7 @@ class TestPagination:
 
     def test_pagination_hidden_with_few_cases(self, react_page):
         """Pagination should not show when all cases fit on one page."""
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         # With 10 seed cases and page_size=50, no pagination
         page_indicator = react_page.get_by_text("Page 1 of")
@@ -185,13 +185,13 @@ class TestViewModeToggle:
     """Toggle between table and card views."""
 
     def test_default_is_table(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         table = react_page.locator("table")
         assert table.is_visible()
 
     def test_toggle_to_cards_and_back(self, react_page):
-        react_navigate(react_page, "/app/cases")
+        react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         main = react_page.locator("main")
         add_btn = main.get_by_text("Add Case")

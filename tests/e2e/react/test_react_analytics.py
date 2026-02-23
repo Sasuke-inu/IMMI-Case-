@@ -12,39 +12,39 @@ class TestAnalyticsPage:
     """Analytics page loads and renders chart sections."""
 
     def test_analytics_heading(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         heading = get_heading(react_page)
         assert "Analytics" in heading
 
     def test_no_js_errors(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         assert_no_js_errors(react_page)
 
     def test_outcome_by_court_section(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         assert react_page.get_by_text("Outcome Rate by Court").is_visible()
 
     def test_affirmed_rate_trend_section(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         assert react_page.get_by_text("Affirmed Rate Trend").is_visible()
 
     def test_top_judges_section(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         assert react_page.get_by_text("Most Active Judges").is_visible()
 
     def test_legal_concepts_section(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         assert react_page.get_by_text("Legal Concepts Frequency").is_visible()
 
     def test_chart_cards_render(self, react_page):
         """ChartCard components should render with loading or content state."""
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         cards = react_page.locator(".rounded-lg.border")
         assert cards.count() >= 4
@@ -54,7 +54,7 @@ class TestAnalyticsFilters:
     """Filter bar on Analytics page: court pills and year range."""
 
     def test_all_courts_button_active_by_default(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         all_btn = react_page.get_by_text("All Courts", exact=True)
         assert all_btn.is_visible()
@@ -62,14 +62,14 @@ class TestAnalyticsFilters:
         assert "bg-accent" in classes
 
     def test_court_filter_buttons_visible(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         for court in ["AATA", "FCA", "FCCA", "HCA"]:
             assert react_page.get_by_text(court, exact=True).first.is_visible()
 
     def test_click_court_filter(self, react_page):
         """Clicking a court pill activates it and deactivates 'All Courts'."""
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         fca_btn = react_page.get_by_text("FCA", exact=True).first
         fca_btn.click()
@@ -78,7 +78,7 @@ class TestAnalyticsFilters:
         assert "bg-accent" in classes
 
     def test_time_preset_buttons(self, react_page):
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         assert react_page.get_by_text("All Time", exact=True).is_visible()
         assert react_page.get_by_text("Last 5y", exact=True).is_visible()
@@ -86,7 +86,7 @@ class TestAnalyticsFilters:
 
     def test_click_time_preset(self, react_page):
         """Clicking a time preset activates it."""
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         btn = react_page.get_by_text("Last 5y", exact=True)
         btn.click()
@@ -96,7 +96,7 @@ class TestAnalyticsFilters:
 
     def test_year_select_dropdowns(self, react_page):
         """Year range selectors are visible and functional."""
-        react_navigate(react_page, "/app/analytics")
+        react_navigate(react_page, "/analytics")
         wait_for_loading_gone(react_page)
         selects = react_page.locator("select")
         assert selects.count() >= 2
