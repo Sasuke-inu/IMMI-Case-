@@ -16,11 +16,17 @@ from itertools import combinations
 from collections import Counter, defaultdict
 from datetime import datetime
 
+import numpy as np
 from flask import Blueprint, request, jsonify, send_file
 from flask_wtf.csrf import generate_csrf
 
 from ...config import START_YEAR, END_YEAR
 from ...models import ImmigrationCase
+from ...semantic_search_eval import (
+    GeminiEmbeddingClient,
+    OpenAIEmbeddingClient,
+    reciprocal_rank_fusion,
+)
 from ...storage import CASE_FIELDS
 from ...visa_registry import (
     clean_subclass,
@@ -47,6 +53,11 @@ DEFAULT_PAGE_SIZE = 100
 MAX_PAGE_SIZE = 200
 DEFAULT_SEARCH_LIMIT = 50
 MAX_SEARCH_LIMIT = 200
+DEFAULT_SEARCH_MODE = "lexical"
+ALLOWED_SEARCH_MODES = frozenset({"lexical", "semantic", "hybrid"})
+ALLOWED_SEARCH_PROVIDERS = frozenset({"openai", "gemini"})
+DEFAULT_SEMANTIC_CANDIDATE_LIMIT = 150
+MAX_SEMANTIC_CANDIDATE_LIMIT = 500
 DEFAULT_RELATED_LIMIT = 5
 MAX_RELATED_LIMIT = 20
 
@@ -1184,15 +1195,163 @@ def related_cases(case_id):
 
 # ── Full-Text Search ────────────────────────────────────────────────────
 
+def _case_semantic_text(case: ImmigrationCase) -> str:
+    """Build semantic text payload for a case."""
+    return " | ".join(
+        part.strip()
+        for part in [
+            case.title,
+            case.citation,
+            case.catchwords,
+            case.case_nature,
+            case.legal_concepts,
+            case.outcome,
+            case.text_snippet,
+        ]
+        if part and part.strip()
+    )
+
+
+def _normalize_vectors(vectors: np.ndarray) -> np.ndarray:
+    """L2-normalize vectors for cosine similarity."""
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    norms = np.where(norms == 0.0, 1.0, norms)
+    return vectors / norms
+
+
+def _get_embedding_client(provider: str, model: str = ""):
+    """Create embedding client for a provider and validate API key."""
+    provider = (provider or "").strip().lower()
+    if provider not in ALLOWED_SEARCH_PROVIDERS:
+        raise ValueError(f"provider must be one of: {sorted(ALLOWED_SEARCH_PROVIDERS)}")
+
+    model_name = model.strip()
+    if provider == "openai":
+        api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY is required for provider=openai")
+        if not model_name:
+            model_name = "text-embedding-3-small"
+        return OpenAIEmbeddingClient(api_key=api_key, model=model_name), provider, model_name
+
+    api_key = (
+        os.environ.get("GEMINI_API_KEY", "").strip()
+        or os.environ.get("GOOGLE_API_KEY", "").strip()
+    )
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY is required for provider=gemini")
+    if not model_name:
+        model_name = "models/gemini-embedding-001"
+    return GeminiEmbeddingClient(api_key=api_key, model=model_name), provider, model_name
+
+
+def _semantic_rerank_cases(
+    query: str,
+    candidates: list[ImmigrationCase],
+    mode: str,
+    limit: int,
+    provider: str,
+    model: str = "",
+) -> tuple[list[ImmigrationCase], str, str]:
+    """Rerank lexical candidates using embeddings (semantic or hybrid)."""
+    if not candidates:
+        return [], provider, model
+
+    client, provider_used, model_used = _get_embedding_client(provider, model)
+    case_texts = [_case_semantic_text(case) for case in candidates]
+    doc_vectors = _normalize_vectors(
+        client.embed_texts(case_texts, task_type="RETRIEVAL_DOCUMENT")
+    )
+    query_vector = _normalize_vectors(
+        client.embed_texts([query], task_type="RETRIEVAL_QUERY")
+    )[0]
+
+    scores = doc_vectors @ query_vector
+    semantic_order = np.argsort(-scores).tolist()
+    semantic_ranked = [candidates[idx] for idx in semantic_order]
+
+    if mode == "semantic":
+        return semantic_ranked[:limit], provider_used, model_used
+
+    # Hybrid mode: semantic ranking fused with lexical ranking order.
+    lexical_ids = [case.case_id for case in candidates]
+    semantic_ids = [case.case_id for case in semantic_ranked]
+    fused_ids = reciprocal_rank_fusion(
+        ranked_lists=[semantic_ids, lexical_ids],
+        weights=[0.65, 0.35],
+        limit=limit,
+    )
+    by_id = {case.case_id: case for case in candidates}
+    hybrid_ranked = [by_id[case_id] for case_id in fused_ids if case_id in by_id]
+    return hybrid_ranked[:limit], provider_used, model_used
+
 @api_bp.route("/search")
 def search():
     query = request.args.get("q", "").strip()
     limit = safe_int(request.args.get("limit"), default=DEFAULT_SEARCH_LIMIT, min_val=1, max_val=MAX_SEARCH_LIMIT)
+    mode = request.args.get("mode", DEFAULT_SEARCH_MODE).strip().lower()
+    provider = request.args.get(
+        "provider",
+        os.environ.get("SEMANTIC_SEARCH_PROVIDER", "openai"),
+    ).strip().lower()
+    model = request.args.get("model", "").strip()
+    candidate_limit = safe_int(
+        request.args.get("candidate_limit"),
+        default=max(DEFAULT_SEMANTIC_CANDIDATE_LIMIT, limit * 3),
+        min_val=limit,
+        max_val=MAX_SEMANTIC_CANDIDATE_LIMIT,
+    )
+
     if not query:
-        return jsonify({"cases": []})
+        return jsonify({"cases": [], "mode": mode if mode in ALLOWED_SEARCH_MODES else DEFAULT_SEARCH_MODE})
+    if mode not in ALLOWED_SEARCH_MODES:
+        return _error(f"mode must be one of: {sorted(ALLOWED_SEARCH_MODES)}")
+
     repo = get_repo()
-    results = repo.search_text(query, limit=limit)
-    return jsonify({"cases": [c.to_dict() for c in results]})
+    lexical_results = repo.search_text(
+        query,
+        limit=limit if mode == "lexical" else candidate_limit,
+    )
+
+    if mode == "lexical":
+        return jsonify({"cases": [c.to_dict() for c in lexical_results], "mode": "lexical"})
+
+    try:
+        reranked, provider_used, model_used = _semantic_rerank_cases(
+            query=query,
+            candidates=lexical_results,
+            mode=mode,
+            limit=limit,
+            provider=provider,
+            model=model,
+        )
+        return jsonify({
+            "cases": [c.to_dict() for c in reranked],
+            "mode": mode,
+            "provider": provider_used,
+            "model": model_used,
+            "candidate_limit": candidate_limit,
+        })
+    except ValueError as exc:
+        msg = str(exc)
+        if mode == "hybrid" and "required for provider" in msg:
+            logger.info("Hybrid semantic search fallback (missing provider key): %s", msg)
+            return jsonify({
+                "cases": [c.to_dict() for c in lexical_results[:limit]],
+                "mode": "lexical_fallback",
+                "warning": "Semantic provider key missing; returned lexical results.",
+            })
+        return _error(msg)
+    except Exception as exc:  # pragma: no cover - network/provider failures
+        logger.warning("Semantic search failed (mode=%s, provider=%s): %s", mode, provider, exc)
+        if mode == "hybrid":
+            # Degrade gracefully for hybrid requests.
+            return jsonify({
+                "cases": [c.to_dict() for c in lexical_results[:limit]],
+                "mode": "lexical_fallback",
+                "warning": "Semantic rerank unavailable; returned lexical results.",
+            })
+        return _error("Semantic search backend unavailable", 503)
 
 
 # ── Filter Options ──────────────────────────────────────────────────────
@@ -1282,7 +1441,6 @@ def pipeline_status():
 
 
 @api_bp.route("/pipeline-action", methods=["POST"])
-@csrf.exempt
 def pipeline_action():
     from ...pipeline import request_pipeline_stop, get_pipeline_status
     from ...pipeline import PipelineConfig, start_pipeline

@@ -43,15 +43,18 @@ class TestCSRFProtection:
     CSRF protection applies to the JSON API layer (used by the React SPA).
     """
 
-    def test_api_pipeline_action_csrf_exempt(self, csrf_client):
-        """JSON API endpoint is CSRF-exempt (uses custom header pattern)."""
+    def test_api_pipeline_action_requires_csrf_token(self, csrf_client):
+        """Pipeline action endpoint must reject requests without a CSRF token."""
         resp = csrf_client.post(
             "/api/v1/pipeline-action",
             json={"action": "stop"},
             content_type="application/json",
         )
-        # Should not return 400 for missing CSRF — API is exempt
-        assert resp.status_code != 400 or b"CSRF" not in resp.data
+        # Must return 400 for missing CSRF token (destructive operation)
+        assert resp.status_code in (400, 403), (
+            f"Expected CSRF rejection (400/403), got {resp.status_code}. "
+            "@csrf.exempt must not be present on this endpoint."
+        )
 
     def test_csrf_token_endpoint_accessible(self, csrf_client):
         """React SPA CSRF token endpoint returns a token."""
