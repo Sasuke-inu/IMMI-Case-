@@ -393,6 +393,7 @@ export function CasesPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => {
               setViewMode("table");
               try {
@@ -414,6 +415,7 @@ export function CasesPage() {
             <List className="h-4 w-4" />
           </button>
           <button
+            type="button"
             onClick={() => {
               setViewMode("cards");
               try {
@@ -435,6 +437,7 @@ export function CasesPage() {
             <LayoutGrid className="h-4 w-4" />
           </button>
           <button
+            type="button"
             onClick={() => navigate("/cases/add")}
             aria-keyshortcuts="A"
             className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-light"
@@ -450,6 +453,7 @@ export function CasesPage() {
           value={filters.court ?? ""}
           onChange={(e) => updateFilter("court", e.target.value)}
           className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+          aria-label={t("filters.court")}
         >
           <option value="">{t("filters.all_courts")}</option>
           {filterOpts?.courts?.map((c) => (
@@ -462,6 +466,7 @@ export function CasesPage() {
           value={filters.year?.toString() ?? ""}
           onChange={(e) => updateFilter("year", e.target.value)}
           className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+          aria-label={t("units.year")}
         >
           <option value="">{t("filters.year_from")}</option>
           {filterOpts?.years?.map((y) => (
@@ -474,6 +479,7 @@ export function CasesPage() {
           value={filters.nature ?? ""}
           onChange={(e) => updateFilter("nature", e.target.value)}
           className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+          aria-label={t("cases.nature")}
         >
           <option value="">{t("filters.all_natures")}</option>
           {filterOpts?.natures?.map((n) => (
@@ -507,8 +513,11 @@ export function CasesPage() {
           />
         </div>
         <button
+          type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-muted-text hover:text-foreground"
+          aria-expanded={showAdvanced}
+          aria-controls="cases-advanced-filters"
         >
           {t("filters.filter")}
           {showAdvanced ? (
@@ -518,6 +527,7 @@ export function CasesPage() {
           )}
         </button>
         <button
+          type="button"
           onClick={() => setShowSaveModal(true)}
           className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-muted-text hover:text-foreground"
           title={t("saved_searches.save_description")}
@@ -535,6 +545,7 @@ export function CasesPage() {
             value={filters.sort_by ?? "date"}
             onChange={(e) => updateFilter("sort_by", e.target.value)}
             className="rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground"
+            aria-label={t("judges.sort_label")}
           >
             <option value="date">{t("cases.date")}</option>
             <option value="year">{t("units.year")}</option>
@@ -542,6 +553,7 @@ export function CasesPage() {
             <option value="court">{t("filters.court")}</option>
           </select>
           <button
+            type="button"
             onClick={() =>
               updateFilter(
                 "sort_dir",
@@ -585,11 +597,15 @@ export function CasesPage() {
 
       {/* Advanced Filters */}
       {showAdvanced && (
-        <div className="flex flex-wrap gap-2 rounded-md border border-border-light bg-surface p-3">
+        <div
+          id="cases-advanced-filters"
+          className="flex flex-wrap gap-2 rounded-md border border-border-light bg-surface p-3"
+        >
           <select
             value={filters.visa_type ?? ""}
             onChange={(e) => updateFilter("visa_type", e.target.value)}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+            aria-label={t("cases.visa_subclass")}
           >
             <option value="">{t("filters.all_visa_types")}</option>
             {filterOpts?.visa_types?.map((v) => (
@@ -602,6 +618,7 @@ export function CasesPage() {
             value={filters.source ?? ""}
             onChange={(e) => updateFilter("source", e.target.value)}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+            aria-label={t("cases.source", { defaultValue: "Source" })}
           >
             <option value="">{t("filters.all_sources")}</option>
             {filterOpts?.sources?.map((s) => (
@@ -614,6 +631,7 @@ export function CasesPage() {
             value={filters.tag ?? ""}
             onChange={(e) => updateFilter("tag", e.target.value)}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+            aria-label={t("common.tags", { defaultValue: "Tags" })}
           >
             <option value="">{t("filters.all_tags")}</option>
             {filterOpts?.tags?.map((tag) => (
@@ -637,6 +655,7 @@ export function CasesPage() {
             />
           ))}
           <button
+            type="button"
             onClick={clearAllFilters}
             className="ml-1 text-xs text-muted-text hover:text-foreground"
           >
@@ -658,12 +677,14 @@ export function CasesPage() {
             {selected.size} {t("cases.selected") || "selected"}
           </span>
           <button
+            type="button"
             onClick={() => handleBatch("tag")}
             className="flex items-center gap-1 text-accent hover:text-accent-light"
           >
             <Tag className="h-3.5 w-3.5" /> {t("case_detail.tags")}
           </button>
           <button
+            type="button"
             onClick={exportCsv}
             className="flex items-center gap-1 text-accent hover:text-accent-light"
           >
@@ -671,6 +692,7 @@ export function CasesPage() {
           </button>
           {selected.size >= 2 && selected.size <= 5 && (
             <button
+              type="button"
               onClick={() => {
                 const ids = Array.from(selected);
                 const params = new URLSearchParams();
@@ -684,12 +706,14 @@ export function CasesPage() {
             </button>
           )}
           <button
+            type="button"
             onClick={() => setDeleteConfirm(true)}
             className="flex items-center gap-1 text-danger hover:text-danger/80"
           >
             <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
           </button>
           <button
+            type="button"
             onClick={() => setSelected(new Set())}
             className="ml-auto text-muted-text hover:text-foreground"
           >
@@ -734,12 +758,14 @@ export function CasesPage() {
             hasActiveFilterSet ? (
               <div className="flex flex-wrap justify-center gap-2">
                 <button
+                  type="button"
                   onClick={clearAllFilters}
                   className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
                 >
                   {t("filters.clear_filters")}
                 </button>
                 <button
+                  type="button"
                   onClick={() => navigate("/saved-searches")}
                   className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-surface"
                 >
@@ -748,6 +774,7 @@ export function CasesPage() {
               </div>
             ) : (
               <button
+                type="button"
                 onClick={() => navigate("/pipeline")}
                 className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
               >
@@ -786,6 +813,9 @@ export function CasesPage() {
                       checked={selected.size === cases.length && cases.length > 0}
                       onChange={toggleAll}
                       className="rounded"
+                      aria-label={t("cases.select_all", {
+                        defaultValue: "Select all visible cases",
+                      })}
                     />
                   </th>
                   <th className="px-2 py-2.5 text-left font-medium text-secondary-text">
@@ -846,6 +876,10 @@ export function CasesPage() {
                         checked={selected.has(c.case_id)}
                         onChange={() => toggleSelect(c.case_id)}
                         className="rounded"
+                        aria-label={t("cases.select_case", {
+                          defaultValue: "Select case {{citation}}",
+                          citation: c.citation || c.case_id,
+                        })}
                       />
                     </td>
                     <td className="max-w-xs px-2 py-2">

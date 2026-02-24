@@ -29,10 +29,22 @@ export function JudgeCard({
       : null;
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onOpen(judge.name)}
-      className="group flex min-h-[180px] flex-col rounded-lg border border-border bg-card text-left shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(judge.name);
+        }
+        if (event.key.toLowerCase() === "x") {
+          event.preventDefault();
+          onToggleCompare(judge.name);
+        }
+      }}
+      aria-label={`${judge.name} ${t("judges.judge_member")}`}
+      className="group flex min-h-[180px] flex-col rounded-lg border border-border bg-card text-left shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ borderLeftWidth: "3px", borderLeftColor: accentColor }}
     >
       <div className="flex flex-1 flex-col p-4">
@@ -87,11 +99,14 @@ export function JudgeCard({
             <label
               className="inline-flex shrink-0 cursor-pointer items-center gap-1"
               onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
             >
               <input
                 type="checkbox"
                 aria-label={`Compare ${judge.name}`}
                 checked={isSelected}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
                 onChange={() => onToggleCompare(judge.name)}
               />
               <span className="select-none text-[11px]">
@@ -101,6 +116,6 @@ export function JudgeCard({
           </div>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

@@ -126,8 +126,22 @@ export function CourtLineagePage() {
   // ── Loading / Error states ────────────────────────────────────
   if (isLoading && !lineageData) {
     return (
-      <div className="flex h-64 items-center justify-center text-muted-text">
-        {t("common.loading_ellipsis")}
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("lineage.title")}
+          </h1>
+          <p className="text-sm text-muted-text">{t("lineage.subtitle")}</p>
+        </div>
+        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card text-muted-text">
+          {t("common.loading_ellipsis")}
+        </div>
+        <p className="text-xs text-muted-text">
+          {t("lineage.loading_hint", {
+            defaultValue:
+              "Court lineage aggregates can take a few seconds on large datasets.",
+          })}
+        </p>
       </div>
     );
   }
@@ -138,21 +152,37 @@ export function CourtLineagePage() {
         ? error.message
         : t("errors.api_request_failed", { name: t("nav.court_lineage") });
     return (
-      <ApiErrorState
-        title={t("errors.failed_to_load", { name: t("nav.court_lineage") })}
-        message={message}
-        onRetry={() => { void refetch(); }}
-      />
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("lineage.title")}
+          </h1>
+          <p className="text-sm text-muted-text">{t("lineage.subtitle")}</p>
+        </div>
+        <ApiErrorState
+          title={t("errors.failed_to_load", { name: t("nav.court_lineage") })}
+          message={message}
+          onRetry={() => { void refetch(); }}
+        />
+      </div>
     );
   }
 
   if (!lineageData) {
     return (
-      <ApiErrorState
-        title={t("errors.data_unavailable", { name: t("nav.court_lineage") })}
-        message={t("errors.payload_error", { name: t("nav.court_lineage") })}
-        onRetry={() => { void refetch(); }}
-      />
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("lineage.title")}
+          </h1>
+          <p className="text-sm text-muted-text">{t("lineage.subtitle")}</p>
+        </div>
+        <ApiErrorState
+          title={t("errors.data_unavailable", { name: t("nav.court_lineage") })}
+          message={t("errors.payload_error", { name: t("nav.court_lineage") })}
+          onRetry={() => { void refetch(); }}
+        />
+      </div>
     );
   }
 

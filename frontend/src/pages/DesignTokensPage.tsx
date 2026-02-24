@@ -843,6 +843,7 @@ function RadiusSection() {
           className="border border-border bg-card px-3 py-2 text-sm text-foreground"
           style={{ borderRadius: activeRadius || tokens.radius.DEFAULT }}
           placeholder="Input field"
+          aria-label="Input field preview"
           readOnly
         />
         <div
@@ -977,7 +978,11 @@ function ButtonGallery() {
         >
           Disabled
         </button>
-        <button className="rounded-md border border-border bg-card p-2 text-foreground transition-colors hover:bg-surface">
+        <button
+          className="rounded-md border border-border bg-card p-2 text-foreground transition-colors hover:bg-surface"
+          aria-label="Icon button example"
+          title="Icon button example"
+        >
           <Search className="h-4 w-4" />
         </button>
         <button
@@ -1210,7 +1215,11 @@ function MiscGallery() {
           <span>Help</span>
         </div>
         <div className="flex items-center gap-1">
-          <button className="rounded border border-border bg-card p-1.5 text-muted-text hover:bg-surface">
+          <button
+            className="rounded border border-border bg-card p-1.5 text-muted-text hover:bg-surface"
+            aria-label="Previous page"
+            title="Previous page"
+          >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button className="rounded border border-accent bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
@@ -1222,7 +1231,11 @@ function MiscGallery() {
           <button className="rounded border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:bg-surface">
             3
           </button>
-          <button className="rounded border border-border bg-card p-1.5 text-muted-text hover:bg-surface">
+          <button
+            className="rounded border border-border bg-card p-1.5 text-muted-text hover:bg-surface"
+            aria-label="Next page"
+            title="Next page"
+          >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

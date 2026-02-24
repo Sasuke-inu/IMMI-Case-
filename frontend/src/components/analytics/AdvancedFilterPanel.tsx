@@ -236,6 +236,9 @@ export function AdvancedFilterPanel({
             placeholder={t("analytics.preset_name_placeholder", {
               defaultValue: "Preset name...",
             })}
+            aria-label={t("analytics.preset_name_placeholder", {
+              defaultValue: "Preset name",
+            })}
             className="w-28 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-text"
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSavePreset();

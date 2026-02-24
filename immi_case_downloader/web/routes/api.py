@@ -102,6 +102,10 @@ _filter_options_cache_lock = threading.Lock()
 _filter_options_cache_payload: dict | None = None
 _filter_options_cache_ts: float = 0.0
 _FILTER_OPTIONS_CACHE_TTL_SECONDS = 300.0
+_lineage_cache_lock = threading.Lock()
+_lineage_cache_payload: dict | None = None
+_lineage_cache_ts: float = 0.0
+_LINEAGE_CACHE_TTL_SECONDS = 300.0
 
 # ── Outcome normalisation ──────────────────────────────────────────────
 
@@ -806,6 +810,38 @@ def _error(msg: str, status: int = 400):
     return jsonify({"error": msg}), status
 
 
+def _parse_court_year_trends_rows(trends_rows) -> tuple[dict[str, dict[int, int]], set[int], int]:
+    """Normalise Supabase get_court_year_trends() rows to court/year aggregates."""
+    court_year_counts: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    all_years: set[int] = set()
+    total_cases = 0
+
+    if not isinstance(trends_rows, list):
+        return court_year_counts, all_years, total_cases
+
+    for row in trends_rows:
+        if not isinstance(row, dict):
+            continue
+        year = safe_int(row.get("year"), default=0, min_val=1900, max_val=END_YEAR + 5)
+        if not year:
+            continue
+        all_years.add(year)
+        for court_code, raw_count in row.items():
+            if court_code == "year" or raw_count in (None, ""):
+                continue
+            try:
+                count = int(raw_count)
+            except (TypeError, ValueError):
+                continue
+            if count <= 0:
+                continue
+            code = str(court_code)
+            court_year_counts[code][year] += count
+            total_cases += count
+
+    return court_year_counts, all_years, total_cases
+
+
 def _call_with_timeout(
     func,
     timeout_seconds: float = SUPABASE_RPC_TIMEOUT_SECONDS,
@@ -1266,17 +1302,53 @@ def court_lineage():
     """
     from ...config import AUSTLII_DATABASES
 
-    # Get all cases and aggregate by court and year
-    all_cases = _get_all_cases()
+    repo = get_repo()
 
-    # Build court_year_counts: {court_code: {year: count}}
-    court_year_counts = defaultdict(lambda: defaultdict(int))
-    all_years = set()
+    global _lineage_cache_payload, _lineage_cache_ts
+    now = time.time()
 
-    for case in all_cases:
-        if case.court_code and case.year:
-            court_year_counts[case.court_code][case.year] += 1
-            all_years.add(case.year)
+    # Supabase path: use pre-aggregated RPC instead of loading entire table.
+    if hasattr(repo, "_client"):
+        with _lineage_cache_lock:
+            if (
+                _lineage_cache_payload is not None
+                and (now - _lineage_cache_ts) < _LINEAGE_CACHE_TTL_SECONDS
+            ):
+                return jsonify(_lineage_cache_payload)
+
+        try:
+            timeout_seconds = max(SUPABASE_RPC_TIMEOUT_SECONDS, 2.5)
+            resp = _call_with_timeout(
+                lambda: repo._client.rpc("get_court_year_trends").execute(),
+                timeout_seconds=timeout_seconds,
+            )
+            court_year_counts, all_years, total_cases = _parse_court_year_trends_rows(resp.data)
+            if not all_years:
+                raise ValueError("RPC returned no yearly data")
+        except FuturesTimeoutError:
+            logger.warning("Supabase RPC get_court_year_trends timed out for /court-lineage")
+            with _lineage_cache_lock:
+                if _lineage_cache_payload is not None:
+                    return jsonify(_lineage_cache_payload)
+            return _error("Court lineage data timed out. Please retry.", 504)
+        except Exception:
+            logger.warning("Supabase RPC get_court_year_trends failed for /court-lineage", exc_info=True)
+            with _lineage_cache_lock:
+                if _lineage_cache_payload is not None:
+                    return jsonify(_lineage_cache_payload)
+            return _error("Court lineage data is temporarily unavailable.", 503)
+    else:
+        # Local (CSV/SQLite) path: aggregate in-process.
+        all_cases = _get_all_cases()
+        court_year_counts = defaultdict(lambda: defaultdict(int))
+        all_years = set()
+
+        for case in all_cases:
+            if case.court_code and case.year:
+                court_year_counts[case.court_code][case.year] += 1
+                all_years.add(case.year)
+
+        total_cases = len(all_cases)
 
     # Define lineages with metadata
     lineages = [
@@ -1370,15 +1442,21 @@ def court_lineage():
         },
     ]
 
-    # Calculate total cases and year range
-    total_cases = len(all_cases)
+    # Calculate year range
     year_range = [min(all_years), max(all_years)] if all_years else [2000, END_YEAR]
 
-    return jsonify({
+    payload = {
         "lineages": lineages,
         "total_cases": total_cases,
         "year_range": year_range,
-    })
+    }
+
+    if hasattr(repo, "_client"):
+        with _lineage_cache_lock:
+            _lineage_cache_payload = payload
+            _lineage_cache_ts = time.time()
+
+    return jsonify(payload)
 
 
 # ── Cases CRUD ──────────────────────────────────────────────────────────

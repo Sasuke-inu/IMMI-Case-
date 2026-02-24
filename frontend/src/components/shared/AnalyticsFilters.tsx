@@ -53,6 +53,7 @@ export function AnalyticsFilters({
       <div className="flex flex-wrap items-center gap-1.5">
         {TIME_PRESETS.map((preset) => (
           <button
+            type="button"
             key={preset.label}
             onClick={() => onYearRangeChange(preset.from, preset.to)}
             className={cn(
@@ -75,6 +76,7 @@ export function AnalyticsFilters({
             "rounded-md border border-border bg-card px-1.5 py-1 text-xs text-foreground",
             isCustom && "border-accent",
           )}
+          aria-label={t("filters.year_from")}
         >
           {Array.from({ length: CURRENT_YEAR - 1999 }, (_, i) => 2000 + i).map(
             (y) => (
@@ -92,6 +94,7 @@ export function AnalyticsFilters({
             "rounded-md border border-border bg-card px-1.5 py-1 text-xs text-foreground",
             isCustom && "border-accent",
           )}
+          aria-label={t("filters.year_to")}
         >
           {Array.from({ length: CURRENT_YEAR - 1999 }, (_, i) => 2000 + i).map(
             (y) => (
@@ -106,6 +109,7 @@ export function AnalyticsFilters({
       {/* Court pills */}
       <div className="flex flex-wrap items-center gap-1.5">
         <button
+          type="button"
           onClick={() => onCourtChange("")}
           className={cn(
             "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
@@ -119,6 +123,7 @@ export function AnalyticsFilters({
         </button>
         {COURTS.map((c) => (
           <button
+            type="button"
             key={c}
             onClick={() => onCourtChange(court === c ? "" : c)}
             className={cn(

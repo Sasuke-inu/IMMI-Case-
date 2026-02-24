@@ -191,6 +191,7 @@ export function JudgeProfilesPage() {
               placeholder={t("judges.search_placeholder")}
               value={nameFilter}
               onChange={(e) => setNameFilter(e.target.value)}
+              aria-label={t("judges.search_placeholder")}
               aria-keyshortcuts="/"
               title={t("judges.search_shortcut_hint")}
               className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-text"
@@ -206,6 +207,7 @@ export function JudgeProfilesPage() {
                 )
               }
               className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+              aria-label={t("judges.sort_label")}
             >
               <option value="cases">{t("judges.sort_cases")}</option>
               <option value="approval_rate">{t("judges.sort_approval")}</option>
@@ -230,6 +232,7 @@ export function JudgeProfilesPage() {
               type="button"
               onClick={openCompare}
               disabled={effectiveSelectedNames.length < 2}
+              aria-keyshortcuts="C"
               className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t("judges.compare_selected", {
