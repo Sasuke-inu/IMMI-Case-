@@ -257,6 +257,7 @@ export function GuidedSearchPage() {
             </p>
           </div>
           <button
+            type="button"
             onClick={() => {
               setResults(null);
               setSelectedFlow(null);
@@ -334,6 +335,7 @@ export function GuidedSearchPage() {
               return (
                 <button
                   key={flowKey}
+                  type="button"
                   onClick={() => handleFlowSelect(flowKey)}
                   className="group relative overflow-hidden rounded-xl border border-border-default bg-bg-surface p-6 text-left transition-all hover:border-accent-primary hover:shadow-lg"
                 >
@@ -342,9 +344,9 @@ export function GuidedSearchPage() {
                       <Icon className="h-6 w-6 text-accent-primary" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-text-primary group-hover:text-accent-primary">
+                      <p className="text-xl font-semibold text-text-primary group-hover:text-accent-primary">
                         {flow.title}
-                      </h3>
+                      </p>
                       <p className="mt-2 text-sm text-text-secondary">
                         {flow.description}
                       </p>

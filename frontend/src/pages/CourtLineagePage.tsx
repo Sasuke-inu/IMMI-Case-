@@ -268,11 +268,12 @@ export function CourtLineagePage() {
       {/* Volume Chart card */}
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-heading text-base font-semibold text-foreground">
+          <h2 className="font-heading text-base font-semibold text-foreground">
             {t("lineage.timeline_chart_title")}
-          </h3>
+          </h2>
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
               onClick={() => setChartMode("bar")}
               className={cn(
                 "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
@@ -285,6 +286,7 @@ export function CourtLineagePage() {
               {t("lineage.chart_mode_bar")}
             </button>
             <button
+              type="button"
               onClick={() => setChartMode("area")}
               className={cn(
                 "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
@@ -297,6 +299,7 @@ export function CourtLineagePage() {
               {t("lineage.chart_mode_area")}
             </button>
             <button
+              type="button"
               onClick={() => setNormalized((p) => !p)}
               className={cn(
                 "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
@@ -354,9 +357,9 @@ export function CourtLineagePage() {
       {/* Transition Impact */}
       {transitionImpacts.length > 0 && (
         <div>
-          <h3 className="mb-3 font-heading text-base font-semibold text-foreground">
+          <h2 className="mb-3 font-heading text-base font-semibold text-foreground">
             {t("lineage.transition_impact_title")}
-          </h3>
+          </h2>
           <p className="mb-3 text-xs text-muted-text">
             {t("lineage.transition_impact_subtitle")}
           </p>
@@ -423,9 +426,9 @@ export function CourtLineagePage() {
       {/* Court Statistics Table */}
       {courtStats.length > 0 && (
         <div>
-          <h3 className="mb-3 font-heading text-base font-semibold text-foreground">
+          <h2 className="mb-3 font-heading text-base font-semibold text-foreground">
             {t("lineage.court_table_title")}
-          </h3>
+          </h2>
           <CourtVolumeTable stats={courtStats} />
         </div>
       )}

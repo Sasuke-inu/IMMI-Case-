@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { X, FileText } from "lucide-react";
@@ -14,21 +15,39 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
   const { t } = useTranslation();
   const { savedSearches } = useSavedSearches();
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
     <>
       {/* Backdrop */}
-      <div
+      <button
+        type="button"
         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
         onClick={onClose}
+        aria-label={t("common.close", { defaultValue: "Close menu" })}
       />
       {/* Drawer */}
-      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-sidebar shadow-lg lg:hidden">
+      <div
+        className="fixed inset-y-0 left-0 z-50 w-64 bg-sidebar shadow-lg lg:hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mobile-nav-title"
+      >
         <div className="flex h-14 items-center justify-between border-b border-border px-4">
           <div className="flex items-center gap-2">
             <FileText className="h-6 w-6 text-accent" />
-            <span className="font-heading text-lg font-semibold">
+            <span id="mobile-nav-title" className="font-heading text-lg font-semibold">
               IMMI-Case
             </span>
           </div>

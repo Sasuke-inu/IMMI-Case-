@@ -47,9 +47,9 @@ export function SavedSearchPanel({ onExecute, onEdit }: SavedSearchPanelProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Bookmark className="h-4 w-4 text-muted-text" />
-          <h3 className="text-sm font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             {t("saved_searches.title", { defaultValue: "Saved Searches" })}
-          </h3>
+          </h2>
         </div>
         <span
           data-testid="saved-search-count"
@@ -87,6 +87,9 @@ export function SavedSearchPanel({ onExecute, onEdit }: SavedSearchPanelProps) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            aria-label={t("saved_searches.search_placeholder", {
+              defaultValue: "Search saved searches...",
+            })}
           />
         </div>
       )}

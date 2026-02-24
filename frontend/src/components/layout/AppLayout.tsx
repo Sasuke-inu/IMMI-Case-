@@ -20,6 +20,12 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-accent focus:px-3 focus:py-1.5 focus:text-sm focus:font-medium focus:text-white"
+      >
+        Skip to main content
+      </a>
       {/* Desktop sidebar */}
       <div className="hidden lg:block">
         <Sidebar />
@@ -35,7 +41,7 @@ export function AppLayout() {
           onMenuClick={() => setMobileOpen(true)}
           onSearchClick={handleSearchClick}
         />
-        <main className="mx-auto max-w-7xl p-4 sm:p-6">
+        <main id="main-content" className="mx-auto max-w-7xl p-4 sm:p-6">
           <Outlet />
         </main>
       </div>

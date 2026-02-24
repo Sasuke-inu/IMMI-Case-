@@ -56,8 +56,16 @@ export function DashboardPage() {
 
   if (isLoading && !stats) {
     return (
-      <div className="flex h-64 items-center justify-center text-muted-text">
-        {t("common.loading_ellipsis")}
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("dashboard.title")}
+          </h1>
+          <p className="text-sm text-muted-text">{t("dashboard.subtitle")}</p>
+        </div>
+        <div className="flex h-64 items-center justify-center text-muted-text">
+          {t("common.loading_ellipsis")}
+        </div>
       </div>
     );
   }
@@ -68,25 +76,41 @@ export function DashboardPage() {
         ? error.message
         : t("errors.api_request_failed", { name: "Dashboard" });
     return (
-      <ApiErrorState
-        title={t("errors.failed_to_load", { name: "Dashboard" })}
-        message={message}
-        onRetry={() => {
-          void refetch();
-        }}
-      />
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("dashboard.title")}
+          </h1>
+          <p className="text-sm text-muted-text">{t("dashboard.subtitle")}</p>
+        </div>
+        <ApiErrorState
+          title={t("errors.failed_to_load", { name: "Dashboard" })}
+          message={message}
+          onRetry={() => {
+            void refetch();
+          }}
+        />
+      </div>
     );
   }
 
   if (!stats) {
     return (
-      <ApiErrorState
-        title={t("errors.data_unavailable", { name: "Dashboard" })}
-        message={t("errors.payload_error", { name: "Dashboard" })}
-        onRetry={() => {
-          void refetch();
-        }}
-      />
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("dashboard.title")}
+          </h1>
+          <p className="text-sm text-muted-text">{t("dashboard.subtitle")}</p>
+        </div>
+        <ApiErrorState
+          title={t("errors.data_unavailable", { name: "Dashboard" })}
+          message={t("errors.payload_error", { name: "Dashboard" })}
+          onRetry={() => {
+            void refetch();
+          }}
+        />
+      </div>
     );
   }
 
@@ -210,22 +234,38 @@ export function DashboardPage() {
             </h2>
             <div className="flex gap-1">
               <button
+                type="button"
                 onClick={() => setCourtView("chart")}
                 className={
                   courtView === "chart"
                     ? "rounded p-1 bg-accent-muted text-accent"
                     : "rounded p-1 text-muted-text hover:text-foreground"
                 }
+                aria-label={t("dashboard.chart_view", {
+                  defaultValue: "Show chart view",
+                })}
+                title={t("dashboard.chart_view", {
+                  defaultValue: "Show chart view",
+                })}
+                aria-pressed={courtView === "chart"}
               >
                 <BarChart3 className="h-4 w-4" />
               </button>
               <button
+                type="button"
                 onClick={() => setCourtView("table")}
                 className={
                   courtView === "table"
                     ? "rounded p-1 bg-accent-muted text-accent"
                     : "rounded p-1 text-muted-text hover:text-foreground"
                 }
+                aria-label={t("dashboard.table_view", {
+                  defaultValue: "Show table view",
+                })}
+                title={t("dashboard.table_view", {
+                  defaultValue: "Show table view",
+                })}
+                aria-pressed={courtView === "table"}
               >
                 <Table className="h-4 w-4" />
               </button>

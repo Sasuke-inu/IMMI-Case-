@@ -33,9 +33,16 @@ export function Pagination({
       </p>
       <div className="flex items-center gap-1">
         <button
+          type="button"
           disabled={currentPage <= 1}
           onClick={() => onPageChange(currentPage - 1)}
           className="rounded-md border border-border p-1.5 text-muted-text hover:bg-surface disabled:opacity-40"
+          aria-label={t("pagination.previous_page", {
+            defaultValue: "Go to previous page",
+          })}
+          title={t("pagination.previous_page", {
+            defaultValue: "Go to previous page",
+          })}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -50,6 +57,7 @@ export function Pagination({
           ) : (
             <button
               key={p}
+              type="button"
               onClick={() => onPageChange(p as number)}
               className={cn(
                 "min-w-[32px] rounded-md px-2 py-1.5 text-sm",
@@ -57,15 +65,27 @@ export function Pagination({
                   ? "bg-accent text-white font-medium"
                   : "text-muted-text hover:bg-surface",
               )}
+              aria-label={t("pagination.page_number", {
+                defaultValue: "Go to page {{page}}",
+                page: p,
+              })}
+              aria-current={p === currentPage ? "page" : undefined}
             >
               {p}
             </button>
           ),
         )}
         <button
+          type="button"
           disabled={currentPage >= totalPages}
           onClick={() => onPageChange(currentPage + 1)}
           className="rounded-md border border-border p-1.5 text-muted-text hover:bg-surface disabled:opacity-40"
+          aria-label={t("pagination.next_page", {
+            defaultValue: "Go to next page",
+          })}
+          title={t("pagination.next_page", {
+            defaultValue: "Go to next page",
+          })}
         >
           <ChevronRight className="h-4 w-4" />
         </button>

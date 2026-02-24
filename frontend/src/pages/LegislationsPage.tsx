@@ -159,6 +159,7 @@ export function LegislationsPage() {
             </div>
           </div>
           <button
+            type="button"
             onClick={() => startUpdate.mutate(undefined)}
             disabled={job?.running || startUpdate.isPending}
             className={cn(
@@ -188,6 +189,7 @@ export function LegislationsPage() {
               "text-foreground placeholder:text-muted-text",
               "focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/50",
             )}
+            aria-label={t("legislations.search_placeholder")}
           />
         </div>
 
@@ -251,9 +253,15 @@ export function LegislationsPage() {
         />
       ) : (
         <div className="space-y-2">
+          <h2 className="sr-only">
+            {t("legislations.results_heading", {
+              defaultValue: "Legislation search results",
+            })}
+          </h2>
           {legislations.map((leg: Legislation) => (
             <button
               key={leg.id}
+              type="button"
               onClick={() => handleLegislationClick(leg.id)}
               className={cn(
                 "group w-full rounded-lg border border-border bg-card p-4 text-left",
@@ -269,9 +277,9 @@ export function LegislationsPage() {
                 <div className="min-w-0 flex-1">
                   {/* Title row */}
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-heading text-sm font-semibold text-foreground">
+                    <p className="font-heading text-sm font-semibold text-foreground">
                       {leg.title}
-                    </h3>
+                    </p>
                     {leg.shortcode && (
                       <span className="inline-flex items-center gap-1 rounded border border-accent/30 bg-accent/8 px-1.5 py-0.5 font-mono text-[10px] font-bold text-accent">
                         <Hash className="h-2.5 w-2.5" />
