@@ -12,6 +12,7 @@ import json
 import logging
 import time
 import threading
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from itertools import combinations
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -65,6 +66,14 @@ ALLOWED_SORT_FIELDS = frozenset({
 ALLOWED_SORT_DIRS = frozenset({"asc", "desc"})
 ALLOWED_COUNT_MODES = frozenset({"exact", "planned", "estimated"})
 MAX_EXPORT_ROWS = 50_000
+# Keep RPC timeout aggressive so UI can fail fast instead of hanging.
+SUPABASE_RPC_TIMEOUT_SECONDS = 1.2
+
+_rpc_executor = ThreadPoolExecutor(max_workers=2)
+_stats_cache_lock = threading.Lock()
+_stats_cache_payload: dict | None = None
+_stats_cache_ts: float = 0.0
+_STATS_CACHE_TTL_SECONDS = 60.0
 
 # ── Outcome normalisation ──────────────────────────────────────────────
 
@@ -769,6 +778,12 @@ def _error(msg: str, status: int = 400):
     return jsonify({"error": msg}), status
 
 
+def _call_with_timeout(func, timeout_seconds: float = SUPABASE_RPC_TIMEOUT_SECONDS):
+    """Execute a callable with timeout protection."""
+    future = _rpc_executor.submit(func)
+    return future.result(timeout=timeout_seconds)
+
+
 def _parse_case_list_filters() -> tuple[str, int | None, str, str, str, str, str]:
     """Parse shared case-list query filters from request args."""
     court = request.args.get("court", "").strip()
@@ -787,6 +802,69 @@ def _parse_case_list_filters() -> tuple[str, int | None, str, str, str, str, str
     return court, year, visa_type, keyword, source, tag, nature
 
 
+def _empty_stats_payload(total_cases: int = 0, recent_cases: list | None = None) -> dict:
+    """Create a safe minimal stats payload."""
+    return {
+        "total_cases": int(total_cases),
+        "with_full_text": 0,
+        "courts": {},
+        "years": {},
+        "natures": {},
+        "visa_subclasses": {},
+        "visa_families": {},
+        "sources": {},
+        "recent_cases": recent_cases or [],
+    }
+
+
+def _lightweight_stats_fallback(repo):
+    """Return a lightweight stats payload that avoids expensive RPCs."""
+    global _stats_cache_payload, _stats_cache_ts
+    total_cases = 0
+    if hasattr(repo, "count_cases"):
+        try:
+            total_cases = int(repo.count_cases(count_mode="planned"))
+        except Exception:
+            logger.warning("Fallback count_cases also failed", exc_info=True)
+
+    recent = []
+    try:
+        if hasattr(repo, "list_cases_fast"):
+            recent_cases = repo.list_cases_fast(
+                sort_by="year",
+                sort_dir="desc",
+                page=1,
+                page_size=5,
+                columns=["case_id", "title", "citation", "court_code", "date", "outcome"],
+            )
+        else:
+            recent_cases, _ = repo.filter_cases(
+                sort_by="year",
+                sort_dir="desc",
+                page=1,
+                page_size=5,
+            )
+        recent = [
+            {
+                "case_id": c.case_id,
+                "title": c.title,
+                "citation": c.citation,
+                "court_code": c.court_code,
+                "date": c.date,
+                "outcome": c.outcome,
+            }
+            for c in recent_cases
+        ]
+    except Exception:
+        logger.warning("Fallback recent cases query failed", exc_info=True)
+
+    payload = _empty_stats_payload(total_cases=total_cases, recent_cases=recent)
+    with _stats_cache_lock:
+        _stats_cache_payload = payload
+        _stats_cache_ts = time.time()
+    return jsonify(payload)
+
+
 # ── CSRF ────────────────────────────────────────────────────────────────
 
 @api_bp.route("/csrf-token")
@@ -798,6 +876,7 @@ def get_csrf_token():
 
 @api_bp.route("/stats")
 def stats():
+    global _stats_cache_payload, _stats_cache_ts
     court = request.args.get("court", "").strip()
     year_from = safe_int(request.args.get("year_from"), default=0, min_val=0, max_val=2100)
     year_to = safe_int(request.args.get("year_to"), default=0, min_val=0, max_val=2100)
@@ -845,7 +924,30 @@ def stats():
 
     # Unfiltered: use repository's optimised get_statistics
     repo = get_repo()
-    s = repo.get_statistics()
+    with _stats_cache_lock:
+        if _stats_cache_payload is not None and (time.time() - _stats_cache_ts) < _STATS_CACHE_TTL_SECONDS:
+            return jsonify(_stats_cache_payload)
+
+    try:
+        if hasattr(repo, "count_cases"):
+            # Supabase RPCs can hang on overloaded projects; fail fast.
+            s = _call_with_timeout(repo.get_statistics)
+        else:
+            s = repo.get_statistics()
+    except FuturesTimeoutError:
+        logger.warning("get_statistics timed out; returning lightweight fallback")
+        with _stats_cache_lock:
+            cached = _stats_cache_payload
+        if cached is not None:
+            return jsonify(cached)
+        payload = _empty_stats_payload()
+        with _stats_cache_lock:
+            _stats_cache_payload = payload
+            _stats_cache_ts = time.time()
+        return jsonify(payload)
+    except Exception:
+        logger.warning("get_statistics failed; returning lightweight fallback", exc_info=True)
+        return _lightweight_stats_fallback(repo)
 
     sources_dict = s.get("by_source", {})
     if not sources_dict:
@@ -881,7 +983,7 @@ def stats():
     raw_visa = s.get("by_visa_subclass", {})
     cleaned_visa = {_clean_visa(k): v for k, v in raw_visa.items() if _clean_visa(k)}
 
-    return jsonify({
+    payload = {
         "total_cases": s.get("total", 0),
         "with_full_text": s.get("with_full_text", 0),
         "courts": s.get("by_court", {}),
@@ -891,7 +993,11 @@ def stats():
         "visa_families": group_by_family(raw_visa),
         "sources": sources_dict,
         "recent_cases": recent,
-    })
+    }
+    with _stats_cache_lock:
+        _stats_cache_payload = payload
+        _stats_cache_ts = time.time()
+    return jsonify(payload)
 
 
 @api_bp.route("/stats/trends")
@@ -911,10 +1017,16 @@ def stats_trends():
         repo = get_repo()
         if hasattr(repo, "_client"):
             try:
-                resp = repo._client.rpc("get_court_year_trends").execute()
+                resp = _call_with_timeout(
+                    lambda: repo._client.rpc("get_court_year_trends").execute()
+                )
                 return jsonify({"trends": resp.data or []})
+            except FuturesTimeoutError:
+                logger.warning("Supabase RPC get_court_year_trends timed out; returning empty trends")
+                return jsonify({"trends": []})
             except Exception:
                 logger.warning("Supabase RPC get_court_year_trends failed, falling back to local", exc_info=True)
+                return jsonify({"trends": []})
 
     all_cases = _apply_filters(_get_all_cases())
 
@@ -1072,19 +1184,50 @@ def list_cases():
         return jsonify({"error": f"Invalid sort_dir '{sort_dir}'. Allowed: asc, desc"}), 400
     page = safe_int(request.args.get("page"), default=1, min_val=1)
     page_size = safe_int(request.args.get("page_size"), default=DEFAULT_PAGE_SIZE, min_val=1, max_val=MAX_PAGE_SIZE)
+    use_fast_supabase_path = hasattr(repo, "list_cases_fast") and hasattr(repo, "count_cases")
+    count_mode = request.args.get("count_mode", "planned").strip().lower()
 
-    page_cases, total = repo.filter_cases(
-        court=court, year=year, visa_type=visa_type,
-        source=source, tag=tag, nature=nature, keyword=keyword,
-        sort_by=sort_by, sort_dir=sort_dir,
-        page=page, page_size=page_size,
-    )
+    if use_fast_supabase_path:
+        if count_mode not in ALLOWED_COUNT_MODES:
+            return _error(f"Invalid count_mode '{count_mode}'. Allowed: {sorted(ALLOWED_COUNT_MODES)}")
+        page_cases = repo.list_cases_fast(
+            court=court,
+            year=year,
+            visa_type=visa_type,
+            source=source,
+            tag=tag,
+            nature=nature,
+            keyword=keyword,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+            page=page,
+            page_size=page_size,
+        )
+        total = repo.count_cases(
+            court=court,
+            year=year,
+            visa_type=visa_type,
+            source=source,
+            tag=tag,
+            nature=nature,
+            keyword=keyword,
+            count_mode=count_mode,
+        )
+    else:
+        page_cases, total = repo.filter_cases(
+            court=court, year=year, visa_type=visa_type,
+            source=source, tag=tag, nature=nature, keyword=keyword,
+            sort_by=sort_by, sort_dir=sort_dir,
+            page=page, page_size=page_size,
+        )
+        count_mode = "exact"
 
     total_pages = max(1, (total + page_size - 1) // page_size)
 
     return jsonify({
         "cases": [c.to_dict() for c in page_cases],
         "total": total,
+        "count_mode": count_mode,
         "page": page,
         "page_size": page_size,
         "total_pages": total_pages,

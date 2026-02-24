@@ -224,16 +224,16 @@ class SupabaseRepository:
             query, court, year, visa_type, source, tag, nature
         )
 
-        # Sort — for "date" use the computed date_sort INTEGER column
-        # (YYYYMMDD) so ordering is chronological rather than alphabetical.
-        # date_sort is NULL for ~500 rows with empty/unparseable dates;
-        # nulls_first=False pushes them to the end regardless of direction.
+        # Sort.
+        # NOTE: ordering by "date_sort" currently hits statement timeout on
+        # the hosted Supabase project. We degrade "date" sorting to "year"
+        # so list endpoints stay responsive instead of timing out.
         if sort_by == "date":
-            col = "date_sort"
+            col = "year"
         else:
             col = sort_by if sort_by in ALLOWED_SORT_COLUMNS else "year"
         desc = sort_dir == "desc"
-        query = query.order(col, desc=desc, nullsfirst=False)
+        query = query.order(col, desc=desc)
 
         # Paginate
         offset = (max(1, page) - 1) * page_size
@@ -285,11 +285,11 @@ class SupabaseRepository:
         )
 
         if sort_by == "date":
-            col = "date_sort"
+            col = "year"
         else:
             col = sort_by if sort_by in ALLOWED_SORT_COLUMNS else "year"
         desc = sort_dir == "desc"
-        query = query.order(col, desc=desc, nullsfirst=False)
+        query = query.order(col, desc=desc)
 
         offset = (max(1, page) - 1) * page_size
         query = query.range(offset, offset + page_size - 1)

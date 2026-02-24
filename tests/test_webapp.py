@@ -1,8 +1,11 @@
 """Tests for immi_case_downloader.web — SPA serving and API v1 endpoints."""
 
 import json
+import time
 
 import pytest
+
+import immi_case_downloader.web.routes.api as api_module
 
 
 # ── SPA serving ───────────────────────────────────────────────────────────
@@ -99,6 +102,123 @@ class TestApiRoutes:
             content_type="application/json",
         )
         assert resp.status_code == 400
+
+    def test_cases_fast_path_uses_planned_count(self, client, monkeypatch):
+        class _Case:
+            def to_dict(self):
+                return {"case_id": "abc"}
+
+        class _Repo:
+            last_mode = None
+
+            def list_cases_fast(self, **_kwargs):
+                return [_Case()]
+
+            def count_cases(self, **kwargs):
+                self.last_mode = kwargs["count_mode"]
+                return 7
+
+        repo = _Repo()
+        monkeypatch.setattr(api_module, "get_repo", lambda: repo)
+
+        resp = client.get("/api/v1/cases?page=1&page_size=1")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["total"] == 7
+        assert data["count_mode"] == "planned"
+        assert repo.last_mode == "planned"
+
+    def test_cases_fast_path_rejects_invalid_count_mode(self, client, monkeypatch):
+        class _Repo:
+            def list_cases_fast(self, **_kwargs):
+                return []
+
+            def count_cases(self, **_kwargs):
+                return 0
+
+        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+        resp = client.get("/api/v1/cases?count_mode=bad")
+        assert resp.status_code == 400
+        assert "Invalid count_mode" in resp.get_json()["error"]
+
+    def test_stats_timeout_returns_empty_payload(self, client, monkeypatch):
+        class _Repo:
+            def count_cases(self, count_mode="planned"):
+                return 0
+
+            def get_statistics(self):
+                return {"total": 123}
+
+        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+        monkeypatch.setattr(
+            api_module,
+            "_call_with_timeout",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(api_module.FuturesTimeoutError()),
+        )
+        monkeypatch.setattr(api_module, "_stats_cache_payload", None)
+        monkeypatch.setattr(api_module, "_stats_cache_ts", 0.0)
+
+        resp = client.get("/api/v1/stats")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["total_cases"] == 0
+        assert data["recent_cases"] == []
+
+    def test_stats_timeout_uses_recent_cache(self, client, monkeypatch):
+        class _Repo:
+            def count_cases(self, count_mode="planned"):
+                return 0
+
+            def get_statistics(self):
+                return {"total": 123}
+
+        cached = {"total_cases": 77, "recent_cases": [{"case_id": "x"}]}
+
+        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+        monkeypatch.setattr(
+            api_module,
+            "_call_with_timeout",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(api_module.FuturesTimeoutError()),
+        )
+        monkeypatch.setattr(api_module, "_stats_cache_payload", cached)
+        monkeypatch.setattr(api_module, "_stats_cache_ts", time.time())
+
+        resp = client.get("/api/v1/stats")
+        assert resp.status_code == 200
+        assert resp.get_json() == cached
+
+    def test_stats_trends_rpc_failure_returns_empty(self, client, monkeypatch):
+        class _RpcCall:
+            def execute(self):
+                raise RuntimeError("rpc failed")
+
+        class _Client:
+            def rpc(self, _name):
+                return _RpcCall()
+
+        class _Repo:
+            _client = _Client()
+
+        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+
+        resp = client.get("/api/v1/stats/trends")
+        assert resp.status_code == 200
+        assert resp.get_json() == {"trends": []}
+
+    def test_stats_trends_rpc_timeout_returns_empty(self, client, monkeypatch):
+        class _Repo:
+            _client = object()
+
+        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+        monkeypatch.setattr(
+            api_module,
+            "_call_with_timeout",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(api_module.FuturesTimeoutError()),
+        )
+
+        resp = client.get("/api/v1/stats/trends")
+        assert resp.status_code == 200
+        assert resp.get_json() == {"trends": []}
 
 
 # ── Security headers ───────────────────────────────────────────────────────
