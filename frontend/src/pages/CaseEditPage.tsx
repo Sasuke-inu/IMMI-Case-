@@ -61,24 +61,31 @@ const EDITABLE_FIELDS = [
   "representative",
 ] as const;
 
+function buildInitialForm(caseData: ImmigrationCase): Record<string, string> {
+  const initial: Record<string, string> = {};
+  for (const f of EDITABLE_FIELDS) {
+    initial[f] = String(caseData[f as keyof ImmigrationCase] ?? "");
+  }
+  return initial;
+}
+
+const EMPTY_EDITS: Record<string, string> = {};
+
 export function CaseEditPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
+  const caseId = id ?? "";
   const navigate = useNavigate();
-  const { data, isLoading } = useCase(id ?? "");
+  const { data, isLoading } = useCase(caseId);
   const updateMutation = useUpdateCase();
-  const [form, setForm] = useState<Record<string, string>>({});
-  const [dirty, setDirty] = useState(false);
+  const [formEditsByCaseId, setFormEditsByCaseId] = useState<
+    Record<string, Record<string, string>>
+  >({});
 
-  useEffect(() => {
-    if (data?.case) {
-      const initial: Record<string, string> = {};
-      for (const f of EDITABLE_FIELDS) {
-        initial[f] = String(data.case[f as keyof ImmigrationCase] ?? "");
-      }
-      setForm(initial);
-    }
-  }, [data]);
+  const baseForm = data?.case ? buildInitialForm(data.case) : EMPTY_EDITS;
+  const currentEdits = formEditsByCaseId[caseId] ?? EMPTY_EDITS;
+  const form = { ...baseForm, ...currentEdits };
+  const dirty = Object.keys(currentEdits).length > 0;
 
   // Unsaved changes warning
   useEffect(() => {
@@ -91,9 +98,26 @@ export function CaseEditPage() {
   }, [dirty]);
 
   const updateField = useCallback((key: string, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setDirty(true);
-  }, []);
+    setFormEditsByCaseId((prev) => {
+      const nextByCase = { ...prev };
+      const nextEdits = { ...(nextByCase[caseId] ?? {}) };
+      const originalValue = baseForm[key] ?? "";
+
+      if (value === originalValue) {
+        delete nextEdits[key];
+      } else {
+        nextEdits[key] = value;
+      }
+
+      if (Object.keys(nextEdits).length === 0) {
+        delete nextByCase[caseId];
+      } else {
+        nextByCase[caseId] = nextEdits;
+      }
+
+      return nextByCase;
+    });
+  }, [baseForm, caseId]);
 
   if (!id) {
     return <Navigate to="/cases" replace />;
@@ -116,7 +140,11 @@ export function CaseEditPage() {
     try {
       await updateMutation.mutateAsync({ id, data: form });
       toast.success(t("pages.case_edit.success"));
-      setDirty(false);
+      setFormEditsByCaseId((prev) => {
+        const next = { ...prev };
+        delete next[caseId];
+        return next;
+      });
       navigate(`/cases/${id}`);
     } catch (err) {
       toast.error((err as Error).message);

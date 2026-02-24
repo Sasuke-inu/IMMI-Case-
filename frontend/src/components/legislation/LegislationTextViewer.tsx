@@ -719,17 +719,17 @@ export function LegislationTextViewer({
     return offsets;
   }, [sectionMatchCounts]);
 
-  // Reset on search change
-  useEffect(() => {
-    setActiveMatchIdx(0);
-  }, [totalMatches]);
+  const activeMatch = useMemo(() => {
+    if (totalMatches === 0) return 0;
+    return Math.min(activeMatchIdx, totalMatches - 1);
+  }, [activeMatchIdx, totalMatches]);
 
   // Scroll active match into view
   useEffect(() => {
     if (totalMatches === 0) return;
     const el = contentRef.current?.querySelector(".active-match");
     el?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [activeMatchIdx, totalMatches]);
+  }, [activeMatch, totalMatches]);
 
   // IntersectionObserver for active section
   useEffect(() => {
@@ -763,6 +763,7 @@ export function LegislationTextViewer({
       if (e.key === "Escape" && showSearch) {
         setShowSearch(false);
         setSearchTerm("");
+        setActiveMatchIdx(0);
       }
     };
     document.addEventListener("keydown", handler);
@@ -805,7 +806,10 @@ export function LegislationTextViewer({
                 ref={searchInputRef}
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setActiveMatchIdx(0);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") goToMatch(e.shiftKey ? -1 : 1);
                 }}
@@ -816,7 +820,7 @@ export function LegislationTextViewer({
               />
               {searching && totalMatches > 0 && (
                 <span className="whitespace-nowrap text-xs text-muted-text">
-                  {activeMatchIdx + 1}/{totalMatches}
+                  {activeMatch + 1}/{totalMatches}
                 </span>
               )}
               {searching && totalMatches === 0 && searchTerm.length >= 2 && (
@@ -840,6 +844,7 @@ export function LegislationTextViewer({
                 onClick={() => {
                   setShowSearch(false);
                   setSearchTerm("");
+                  setActiveMatchIdx(0);
                 }}
                 className="p-0.5 text-muted-text hover:text-foreground"
               >
@@ -906,7 +911,7 @@ export function LegislationTextViewer({
                 key={section.id}
                 section={section}
                 searchTerm={searchTerm}
-                activeMatchIdx={activeMatchIdx}
+                activeMatchIdx={activeMatch}
                 matchOffsetBefore={matchOffsets[idx] ?? 0}
                 searching={searching}
                 sectionMap={sectionMap}

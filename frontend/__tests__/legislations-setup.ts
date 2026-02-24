@@ -21,7 +21,7 @@ globalThis.ResizeObserver = class ResizeObserver {
 
 // Mock IntersectionObserver (not available in jsdom)
 globalThis.IntersectionObserver = class IntersectionObserver {
-  constructor(_cb: IntersectionObserverCallback) {}
+  constructor() {}
   observe() {}
   unobserve() {}
   disconnect() {}
@@ -63,9 +63,14 @@ Object.defineProperty(window, "localStorage", {
 // Mock useTranslation
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, options?: any) => {
-      if (options?.defaultValue) {
-        return options.defaultValue;
+    t: (key: string, options?: unknown) => {
+      if (
+        options &&
+        typeof options === "object" &&
+        "defaultValue" in options &&
+        typeof (options as { defaultValue?: unknown }).defaultValue === "string"
+      ) {
+        return (options as { defaultValue: string }).defaultValue;
       }
       return key;
     },

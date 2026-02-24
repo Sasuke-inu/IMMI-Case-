@@ -40,36 +40,56 @@ export function CollectionEditor({
   onSave,
   onCancel,
 }: CollectionEditorProps) {
+  if (!open) return null;
+  return (
+    <CollectionEditorDialog
+      key={collection?.id ?? "__new_collection__"}
+      collection={collection}
+      onSave={onSave}
+      onCancel={onCancel}
+    />
+  );
+}
+
+interface CollectionEditorDialogProps {
+  collection?: Collection;
+  onSave: (
+    name: string,
+    description: string,
+    tags: string[],
+    color?: CollectionColor,
+  ) => void;
+  onCancel: () => void;
+}
+
+function CollectionEditorDialog({
+  collection,
+  onSave,
+  onCancel,
+}: CollectionEditorDialogProps) {
   const { t } = useTranslation();
   const nameRef = useRef<HTMLInputElement>(null);
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const [name, setName] = useState(collection?.name ?? "");
+  const [description, setDescription] = useState(collection?.description ?? "");
+  const [tags, setTags] = useState<string[]>(collection?.tags ?? []);
   const [tagInput, setTagInput] = useState("");
-  const [color, setColor] = useState<CollectionColor | undefined>(undefined);
+  const [color, setColor] = useState<CollectionColor | undefined>(
+    collection?.color,
+  );
 
   useEffect(() => {
-    if (open) {
-      setName(collection?.name ?? "");
-      setDescription(collection?.description ?? "");
-      setTags(collection?.tags ?? []);
-      setColor(collection?.color);
-      setTagInput("");
-      setTimeout(() => nameRef.current?.focus(), 50);
-    }
-  }, [open, collection]);
+    const timer = window.setTimeout(() => nameRef.current?.focus(), 50);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
-    if (!open) return;
     const handler = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") onCancel();
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [open, onCancel]);
-
-  if (!open) return null;
+  }, [onCancel]);
 
   function handleTagKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {

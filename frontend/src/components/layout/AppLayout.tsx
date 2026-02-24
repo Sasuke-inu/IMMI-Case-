@@ -3,17 +3,17 @@ import { Outlet } from "react-router-dom"
 import { Sidebar } from "./Sidebar"
 import { Topbar } from "./Topbar"
 import { MobileNav } from "./MobileNav"
+import { GlobalSearch } from "@/components/shared/GlobalSearch"
 import { useKeyboard } from "@/hooks/use-keyboard"
 import "@/hooks/use-theme-preset" // eagerly apply stored theme preset on load
 
 export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const handleSearchClick = useCallback(() => {
-    const searchInput = document.querySelector<HTMLInputElement>(
-      "[data-global-search]"
-    )
-    searchInput?.focus()
+    setSearchOpen(true)
+    setMobileOpen(false)
   }, [])
 
   useKeyboard({ onSearch: handleSearchClick })
@@ -27,6 +27,7 @@ export function AppLayout() {
 
       {/* Mobile nav drawer */}
       <MobileNav open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* Main content */}
       <div className="lg:pl-56">

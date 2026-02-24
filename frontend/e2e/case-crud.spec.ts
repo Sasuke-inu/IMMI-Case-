@@ -20,14 +20,14 @@ test.describe("Case CRUD", () => {
   test.describe("Create", () => {
     let createdId: string | null = null
 
-    test.afterEach(async ({ request }) => {
+    test.afterEach(async ({ request: _request }) => {
       if (createdId) {
-        await deleteTestCase(request, createdId).catch(() => {})
+        await deleteTestCase(_request, createdId).catch(() => {})
         createdId = null
       }
     })
 
-    test("creates a new case via form", async ({ page, request }) => {
+    test("creates a new case via form", async ({ page }) => {
       await navigateTo(page, ROUTES.caseAdd)
 
       const title = uniqueTitle("Create-Test")

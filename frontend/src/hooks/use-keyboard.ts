@@ -10,9 +10,11 @@ export function useKeyboard({ onSearch }: KeyboardShortcuts = {}) {
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
+      if (e.defaultPrevented) return
       // Skip if user is typing in an input/textarea
       const tag = (e.target as HTMLElement).tagName
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return
+      if ((e.target as HTMLElement).isContentEditable) return
       if (e.ctrlKey || e.metaKey || e.altKey) return
 
       switch (e.key) {

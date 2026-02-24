@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -96,7 +96,6 @@ export function CasesPage() {
   const { savedSearches, saveSearch, updateSearch, getSearchById } =
     useSavedSearches();
 
-  const [keywordInput, setKeywordInput] = useState(filters.keyword ?? "");
 
   const updateFilter = useCallback(
     (key: string, value: string) => {
@@ -115,10 +114,6 @@ export function CasesPage() {
   const clearAllFilters = useCallback(() => {
     setSearchParams(new URLSearchParams());
   }, [setSearchParams]);
-
-  useEffect(() => {
-    setKeywordInput(filters.keyword ?? "");
-  }, [filters.keyword]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -310,27 +305,22 @@ export function CasesPage() {
     return () => document.removeEventListener("keydown", handler);
   }, [viewMode, data, focusedIdx, navigate, toggleSelect]);
 
-  // Scroll focused row into view
-  useEffect(() => {
-    if (focusedIdx < 0 || !tableRef.current) return;
-    const row = tableRef.current.children[focusedIdx] as HTMLElement;
-    row?.scrollIntoView({ block: "nearest" });
-  }, [focusedIdx]);
-
   const cases = data?.cases ?? [];
   const total = data?.total ?? 0;
   const totalPages = data?.total_pages ?? 1;
   const currentPage = filters.page ?? 1;
 
-  useEffect(() => {
-    if (!cases.length) {
-      setFocusedIdx(-1);
-      return;
-    }
-    if (focusedIdx > cases.length - 1) {
-      setFocusedIdx(cases.length - 1);
-    }
+  const clampedFocusedIdx = useMemo(() => {
+    if (!cases.length) return -1;
+    return Math.min(focusedIdx, cases.length - 1);
   }, [cases.length, focusedIdx]);
+
+  // Scroll focused row into view
+  useEffect(() => {
+    if (clampedFocusedIdx < 0 || !tableRef.current) return;
+    const row = tableRef.current.children[clampedFocusedIdx] as HTMLElement;
+    row?.scrollIntoView({ block: "nearest" });
+  }, [clampedFocusedIdx]);
 
   // Active filter pills
   const activeFilters: Array<{ key: string; label: string; value: string }> =
@@ -417,6 +407,9 @@ export function CasesPage() {
                 ? "bg-accent-muted text-accent"
                 : "text-muted-text hover:text-foreground",
             )}
+            aria-label={t("cases.table_view", { defaultValue: "Table view" })}
+            title={t("cases.table_view", { defaultValue: "Table view" })}
+            aria-pressed={viewMode === "table"}
           >
             <List className="h-4 w-4" />
           </button>
@@ -435,6 +428,9 @@ export function CasesPage() {
                 ? "bg-accent-muted text-accent"
                 : "text-muted-text hover:text-foreground",
             )}
+            aria-label={t("cases.card_view", { defaultValue: "Card view" })}
+            title={t("cases.card_view", { defaultValue: "Card view" })}
+            aria-pressed={viewMode === "cards"}
           >
             <LayoutGrid className="h-4 w-4" />
           </button>
@@ -489,18 +485,18 @@ export function CasesPage() {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-text" />
           <input
+            key={filters.keyword ?? ""}
             ref={keywordInputRef}
             type="text"
             placeholder={t("common.search_placeholder")}
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
+            defaultValue={filters.keyword ?? ""}
             onBlur={(e) => updateFilter("keyword", e.target.value.trim())}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 updateFilter("keyword", e.currentTarget.value.trim());
               }
               if (e.key === "Escape") {
-                setKeywordInput(filters.keyword ?? "");
+                e.currentTarget.value = filters.keyword ?? "";
                 (e.target as HTMLInputElement).blur();
               }
             }}
@@ -554,6 +550,7 @@ export function CasesPage() {
             }
             className="rounded-md border border-border p-1.5 text-muted-text hover:text-foreground"
             title={`${t("cases.sorted")} ${sortLabel} ${filters.sort_dir === "asc" ? t("cases.ascending") : t("cases.descending")}`}
+            aria-label={`${t("cases.sorted")} ${sortLabel} ${filters.sort_dir === "asc" ? t("cases.ascending") : t("cases.descending")}`}
           >
             {filters.sort_dir === "asc" ? (
               <ChevronUp className="h-3.5 w-3.5" />
@@ -824,7 +821,7 @@ export function CasesPage() {
                     key={c.case_id}
                     className={cn(
                       "border-b border-border-light transition-colors cursor-pointer",
-                      focusedIdx === i
+                      clampedFocusedIdx === i
                         ? "bg-accent-muted"
                         : "hover:bg-surface/50",
                       selected.has(c.case_id) && "bg-accent-muted/50",

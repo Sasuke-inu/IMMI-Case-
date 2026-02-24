@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Search, X } from "lucide-react";
@@ -10,31 +10,37 @@ interface GlobalSearchProps {
   onClose: () => void;
 }
 
-export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
+interface GlobalSearchDialogProps {
+  onClose: () => void;
+}
+
+function GlobalSearchDialog({ onClose }: GlobalSearchDialogProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
+  const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { data } = useSearchCases(query, 8);
 
   useEffect(() => {
-    if (open) {
-      inputRef.current?.focus();
-      setQuery("");
-    }
-  }, [open]);
+    inputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
-    if (open) window.addEventListener("keydown", handler);
+    window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-
-  if (!open) return null;
+  }, [onClose]);
 
   const cases = data?.cases ?? [];
+  const hasResults = cases.length > 0;
+
+  const clampedActiveIdx = useMemo(() => {
+    if (!hasResults) return 0;
+    return Math.min(activeIdx, cases.length - 1);
+  }, [activeIdx, hasResults, cases.length]);
 
   return (
     <>
@@ -52,7 +58,30 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
               data-global-search
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setActiveIdx(0);
+              }}
+              onKeyDown={(e) => {
+                if (!hasResults) return;
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setActiveIdx((prev) => Math.min(prev + 1, cases.length - 1));
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setActiveIdx((prev) => Math.max(prev - 1, 0));
+                  return;
+                }
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const selectedCase = cases[clampedActiveIdx];
+                  if (!selectedCase) return;
+                  navigate(`/cases/${selectedCase.case_id}`);
+                  onClose();
+                }
+              }}
               placeholder={t("common.search_cases_placeholder")}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-text focus:outline-none"
             />
@@ -67,7 +96,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
           {/* Results */}
           {cases.length > 0 && (
             <ul className="max-h-80 overflow-y-auto p-2">
-              {cases.map((c) => (
+              {cases.map((c, idx) => (
                 <li key={c.case_id}>
                   <button
                     onClick={() => {
@@ -76,8 +105,11 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                     }}
                     className={cn(
                       "flex w-full flex-col gap-0.5 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                      "hover:bg-surface",
+                      idx === clampedActiveIdx
+                        ? "bg-accent/10 ring-1 ring-accent/30"
+                        : "hover:bg-surface",
                     )}
+                    aria-current={idx === clampedActiveIdx ? "true" : "false"}
                   >
                     <span
                       className="font-medium text-foreground line-clamp-1"
@@ -107,7 +139,11 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
 
           {/* Shortcuts hint */}
           <div className="flex items-center justify-between border-t border-border px-4 py-2 text-[10px] text-muted-text">
-            <span>{t("tooltips.navigate_up_down")}</span>
+            <span>
+              {hasResults
+                ? t("tooltips.navigate_up_down")
+                : t("tooltips.type_to_search", { defaultValue: "Type to search" })}
+            </span>
             <span>
               <kbd className="rounded bg-surface px-1 py-0.5 font-mono">
                 esc
@@ -119,4 +155,9 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
       </div>
     </>
   );
+}
+
+export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
+  if (!open) return null;
+  return <GlobalSearchDialog onClose={onClose} />;
 }

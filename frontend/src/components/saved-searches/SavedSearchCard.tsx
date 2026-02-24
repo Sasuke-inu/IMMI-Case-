@@ -45,7 +45,7 @@ function SavedSearchCardInner({
   }, [hasNewResults, currentCount, search.resultCount]);
 
   // Generate filter summary from CaseFilters
-  const filterSummary = useMemo(() => {
+  const filterSummary = (() => {
     const parts: string[] = [];
     const { filters } = search;
 
@@ -58,7 +58,7 @@ function SavedSearchCardInner({
     if (filters.tag) parts.push(filters.tag);
 
     return parts.length > 0 ? parts.join(" • ") : t("saved_searches.no_filters");
-  }, [search.filters]);
+  })();
 
   // Format last executed date
   const lastExecutedText = useMemo(() => {
@@ -77,7 +77,7 @@ function SavedSearchCardInner({
       const url = generateShareableUrl(search.filters);
       await navigator.clipboard.writeText(url);
       toast.success(t("saved_searches.toast_url_copied"));
-    } catch (err) {
+    } catch {
       toast.error(t("saved_searches.toast_url_copy_failed"));
     }
   }, [search.filters, t]);

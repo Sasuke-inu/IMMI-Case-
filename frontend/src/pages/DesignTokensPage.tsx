@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -1251,6 +1251,66 @@ function ComponentGallery() {
    Section 8: Dark Mode Comparison
    ═══════════════════════════════════════════════════════════════ */
 
+interface DarkModeMiniCardProps {
+  vars: Record<string, string>;
+  label: string;
+}
+
+function DarkModeMiniCard({ vars, label }: DarkModeMiniCardProps) {
+  return (
+    <div
+      className="flex-1 overflow-hidden rounded-lg border"
+      style={{ backgroundColor: vars.bg, borderColor: vars.border }}
+    >
+      <div
+        className="border-b px-4 py-2"
+        style={{ backgroundColor: vars.card, borderColor: vars.border }}
+      >
+        <span
+          className="text-xs font-semibold uppercase tracking-wider"
+          style={{ color: vars.muted }}
+        >
+          {label}
+        </span>
+      </div>
+      <div className="space-y-3 p-4" style={{ backgroundColor: vars.card }}>
+        <div>
+          <p className="text-sm font-semibold" style={{ color: vars.text }}>
+            Case Title Example
+          </p>
+          <p className="text-xs" style={{ color: vars.secondary }}>
+            [2025] ARTA 1234
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <span
+            className="rounded-sm px-2 py-0.5 text-xs font-medium text-white"
+            style={{ backgroundColor: courtColors.ARTA }}
+          >
+            ARTA
+          </span>
+          <span
+            className="rounded-sm border px-2 py-0.5 text-xs font-medium"
+            style={{
+              color: semanticColors.success,
+              borderColor: `${semanticColors.success}33`,
+              backgroundColor: `${semanticColors.success}1a`,
+            }}
+          >
+            Allowed
+          </span>
+        </div>
+        <button
+          className="rounded px-3 py-1.5 text-xs font-medium text-white"
+          style={{ backgroundColor: vars.accent }}
+        >
+          Action Button
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DarkModeComparison() {
   const { preset } = useThemePreset();
 
@@ -1269,73 +1329,12 @@ function DarkModeComparison() {
   const lightVars = buildVars(false);
   const darkVars = buildVars(true);
 
-  function MiniCard({
-    vars,
-    label,
-  }: {
-    vars: Record<string, string>;
-    label: string;
-  }) {
-    return (
-      <div
-        className="flex-1 overflow-hidden rounded-lg border"
-        style={{ backgroundColor: vars.bg, borderColor: vars.border }}
-      >
-        <div
-          className="border-b px-4 py-2"
-          style={{ backgroundColor: vars.card, borderColor: vars.border }}
-        >
-          <span
-            className="text-xs font-semibold uppercase tracking-wider"
-            style={{ color: vars.muted }}
-          >
-            {label}
-          </span>
-        </div>
-        <div className="space-y-3 p-4" style={{ backgroundColor: vars.card }}>
-          <div>
-            <p className="text-sm font-semibold" style={{ color: vars.text }}>
-              Case Title Example
-            </p>
-            <p className="text-xs" style={{ color: vars.secondary }}>
-              [2025] ARTA 1234
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <span
-              className="rounded-sm px-2 py-0.5 text-xs font-medium text-white"
-              style={{ backgroundColor: courtColors.ARTA }}
-            >
-              ARTA
-            </span>
-            <span
-              className="rounded-sm border px-2 py-0.5 text-xs font-medium"
-              style={{
-                color: semanticColors.success,
-                borderColor: `${semanticColors.success}33`,
-                backgroundColor: `${semanticColors.success}1a`,
-              }}
-            >
-              Allowed
-            </span>
-          </div>
-          <button
-            className="rounded px-3 py-1.5 text-xs font-medium text-white"
-            style={{ backgroundColor: vars.accent }}
-          >
-            Action Button
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <section>
       <SectionHeading id="dark-mode">Dark Mode Comparison</SectionHeading>
       <div className="flex gap-4">
-        <MiniCard vars={lightVars} label="Light" />
-        <MiniCard vars={darkVars} label="Dark" />
+        <DarkModeMiniCard vars={lightVars} label="Light" />
+        <DarkModeMiniCard vars={darkVars} label="Dark" />
       </div>
     </section>
   );
@@ -1401,17 +1400,16 @@ const ALL_VARS: VarRow[] = [
 ];
 
 function CssVariableReference() {
-  const { preset, isDark, customVars } = useThemePreset();
-  const [computedVals, setComputedVals] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const style = getComputedStyle(document.documentElement);
+  useThemePreset();
+  const computedVals = (() => {
     const vals: Record<string, string> = {};
+    if (typeof window === "undefined") return vals;
+    const style = getComputedStyle(document.documentElement);
     for (const v of ALL_VARS) {
       vals[v.name] = style.getPropertyValue(v.name).trim();
     }
-    setComputedVals(vals);
-  }, [preset, isDark, customVars]);
+    return vals;
+  })();
 
   function renderPreview(row: VarRow, value: string) {
     if (row.preview === "color")

@@ -74,7 +74,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     mockUseLegislationSearch.mockReturnValue({
       data: undefined,
@@ -90,7 +90,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationsPage />, "/legislations");
 
@@ -113,7 +113,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     mockUseLegislationSearch.mockReturnValue({
       data: undefined,
@@ -129,7 +129,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationsPage />, "/legislations");
 
@@ -155,7 +155,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     mockUseLegislationSearch.mockReturnValue({
       data: mockSearchLegislations,
@@ -171,7 +171,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationsPage />, "/legislations");
 
@@ -201,7 +201,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     mockUseLegislationSearch.mockReturnValue({
       data: mockEmptySearchLegislations,
@@ -217,7 +217,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationsPage />, "/legislations");
 
@@ -242,7 +242,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     mockUseLegislationSearch.mockReturnValue({
       data: undefined,
@@ -258,7 +258,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationsPage />, "/legislations");
 
@@ -282,7 +282,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     mockUseLegislationSearch.mockReturnValue({
       data: mockSearchLegislations,
@@ -298,7 +298,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     // Start with search query already set
     renderWithProviders(<LegislationsPage />, "/legislations?q=migration");
@@ -325,7 +325,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     mockUseLegislationSearch.mockReturnValue({
       data: undefined,
@@ -341,7 +341,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationsPage />, "/legislations");
 
@@ -369,7 +369,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     mockUseLegislationSearch.mockReturnValue({
       data: undefined,
@@ -385,7 +385,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationsPage />, "/legislations");
 
@@ -409,7 +409,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     mockUseLegislationSearch.mockReturnValue({
       data: undefined,
@@ -425,7 +425,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationsPage />, "/legislations");
 
@@ -449,7 +449,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     mockUseLegislationSearch.mockReturnValue({
       data: undefined,
@@ -465,7 +465,7 @@ describe("LegislationsPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationsPage />, "/legislations");
 

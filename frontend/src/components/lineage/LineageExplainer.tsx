@@ -243,13 +243,14 @@ export function LineageExplainer({
 }: LineageExplainerProps) {
   const { t } = useTranslation();
 
-  if (!data?.lineages?.length) return null;
-
   const visibleLineages = useMemo(() => {
-    if (!groupFilter || groupFilter === "all") return data.lineages;
+    const lineages = data?.lineages ?? [];
+    if (!groupFilter || groupFilter === "all") return lineages;
     if (groupFilter === "independent") return [];
-    return data.lineages.filter((l) => l.id === groupFilter);
-  }, [data.lineages, groupFilter]);
+    return lineages.filter((l) => l.id === groupFilter);
+  }, [data?.lineages, groupFilter]);
+
+  if (!data?.lineages?.length) return null;
 
   if (visibleLineages.length === 0 && groupFilter === "independent") {
     return null;

@@ -17,9 +17,13 @@ vi.mock("@/hooks/use-legislations", () => ({
 
 // Mock LegislationTextViewer component
 vi.mock("@/components/legislation/LegislationTextViewer", () => ({
-  LegislationTextViewer: ({ sections }: any) => (
+  LegislationTextViewer: ({
+    sections,
+  }: {
+    sections?: Array<{ id: string; title: string }>;
+  }) => (
     <div data-testid="case-text-viewer">
-      {sections?.map((s: any) => (
+      {sections?.map((s) => (
         <div key={s.id}>{s.title}</div>
       ))}
     </div>
@@ -72,7 +76,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     const { history } = window;
     history.pushState({}, "", "/legislations/migration-act-1958");
@@ -100,7 +104,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -126,7 +130,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -151,7 +155,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -177,7 +181,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -202,7 +206,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -227,7 +231,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -252,7 +256,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -277,7 +281,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -302,7 +306,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -332,7 +336,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -361,7 +365,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: 0,
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -387,7 +391,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -412,7 +416,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 
@@ -437,7 +441,7 @@ describe("LegislationDetailPage", () => {
       dataUpdatedAt: Date.now(),
       remove: vi.fn(),
       refetch: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(<LegislationDetailPage />);
 

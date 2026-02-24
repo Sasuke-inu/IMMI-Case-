@@ -20,31 +20,54 @@ export function SaveSearchModal({
   onSave,
   onCancel,
 }: SaveSearchModalProps) {
+  if (!open) return null;
+  return (
+    <SaveSearchModalContent
+      key={editingSearch?.id ?? "__new_saved_search__"}
+      filters={filters}
+      existingNames={existingNames}
+      editingSearch={editingSearch}
+      onSave={onSave}
+      onCancel={onCancel}
+    />
+  );
+}
+
+interface SaveSearchModalContentProps {
+  filters: CaseFilters;
+  existingNames: string[];
+  editingSearch: SavedSearch | null;
+  onSave: (name: string, filters: CaseFilters) => void;
+  onCancel: () => void;
+}
+
+function SaveSearchModalContent({
+  filters,
+  existingNames,
+  editingSearch,
+  onSave,
+  onCancel,
+}: SaveSearchModalContentProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(editingSearch?.name ?? "");
   const [error, setError] = useState<string | null>(null);
 
   const isEditMode = !!editingSearch;
 
-  // Reset state when modal opens
   useEffect(() => {
-    if (open) {
-      setName(editingSearch?.name ?? "");
-      setError(null);
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [open, editingSearch]);
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 100);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Handle escape key
   useEffect(() => {
-    if (!open) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCancel();
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [open, onCancel]);
+  }, [onCancel]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,8 +118,6 @@ export function SaveSearchModal({
 
     onSave(trimmedName, filters);
   };
-
-  if (!open) return null;
 
   // Generate filter summary
   const filterSummary = generateFilterSummary(filters, t);

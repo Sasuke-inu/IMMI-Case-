@@ -25,12 +25,22 @@ export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Mobile search trigger */}
+        <button
+          onClick={onSearchClick}
+          className="rounded-md p-1.5 text-secondary-text hover:bg-surface hover:text-foreground sm:hidden"
+          aria-label={t("common.search", { defaultValue: "Search" })}
+        >
+          <Search className="h-5 w-5" />
+        </button>
+
         {/* Search trigger */}
         <button
           onClick={onSearchClick}
           className={cn(
             "hidden w-64 items-center gap-2 rounded-full border border-border bg-surface px-4 py-1.5 text-sm text-muted-text transition-colors hover:border-accent sm:flex",
           )}
+          aria-label={t("common.search", { defaultValue: "Search" })}
         >
           <Search className="h-3.5 w-3.5" />
           <span>{t("common.search_placeholder")}</span>

@@ -48,7 +48,7 @@ export function JudgeProfilesPage() {
   const { data, isLoading, isError, error, refetch } =
     useJudgeLeaderboard(params);
 
-  const judges = data?.judges ?? [];
+  const judges = useMemo(() => data?.judges ?? [], [data?.judges]);
   const filteredJudges = useMemo(() => {
     const q = nameFilter.trim().toLowerCase();
     return q ? judges.filter((j) => j.name.toLowerCase().includes(q)) : judges;

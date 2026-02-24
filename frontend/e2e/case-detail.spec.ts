@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { navigateAndWaitForApi, navigateTo, ROUTES, waitForLoadingGone } from "./helpers"
+import { navigateAndWaitForApi, ROUTES } from "./helpers"
 
 test.describe("Case Detail Page", () => {
   let firstCaseId: string

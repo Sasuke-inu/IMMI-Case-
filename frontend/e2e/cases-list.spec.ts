@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { navigateAndWaitForApi, navigateTo, ROUTES, waitForApiResponse } from "./helpers"
+import { navigateAndWaitForApi, ROUTES, waitForApiResponse } from "./helpers"
 
 test.describe("Cases List Page", () => {
   test.beforeEach(async ({ page }) => {

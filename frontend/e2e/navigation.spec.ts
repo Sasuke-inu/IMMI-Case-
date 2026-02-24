@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test"
-import { navigateTo, navigateAndWaitForApi, ROUTES, waitForReact, SIDEBAR_ITEMS, clickSidebarLink } from "./helpers"
+import { navigateTo, navigateAndWaitForApi, ROUTES, SIDEBAR_ITEMS, clickSidebarLink } from "./helpers"
 
 test.describe("Navigation", () => {
   test.describe("Desktop sidebar", () => {
-    test.beforeEach(async ({}, testInfo) => {
+    test.beforeEach(async ({ page }, testInfo) => {
       test.skip(testInfo.project.name === "mobile", "Sidebar is hidden on mobile")
+      await page.waitForLoadState("domcontentloaded")
     })
 
     test("sidebar shows all nav items", async ({ page }) => {

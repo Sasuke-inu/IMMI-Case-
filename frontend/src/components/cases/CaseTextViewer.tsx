@@ -227,18 +227,16 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
     }
     return results;
   }, [text, searchTerm]);
-
-  // Reset active match when matches change
-  useEffect(() => {
-    setActiveMatchIdx(0);
-  }, [matches.length]);
+  const activeMatch = matches.length
+    ? Math.min(activeMatchIdx, matches.length - 1)
+    : 0;
 
   // Scroll active match into view
   useEffect(() => {
     if (matches.length === 0) return;
     const el = containerRef.current?.querySelector(".active-match");
     el?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [activeMatchIdx, matches.length]);
+  }, [activeMatch, matches.length]);
 
   // Track active section via IntersectionObserver
   useEffect(() => {
@@ -348,7 +346,7 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
           <mark
             key={i}
             className={
-              part.matchIdx === activeMatchIdx
+              part.matchIdx === activeMatch
                 ? "active-match bg-warning text-foreground rounded-sm px-0.5"
                 : "bg-warning/30 rounded-sm px-0.5"
             }
@@ -363,7 +361,7 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
 
     // Reading mode: use smart line classification rendering
     return renderSmartLines(text);
-  }, [text, searchTerm, matches, activeMatchIdx]);
+  }, [text, searchTerm, matches, activeMatch]);
 
   return (
     <div className="rounded-lg border border-border bg-card">
@@ -380,7 +378,10 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
                 ref={searchInputRef}
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setActiveMatchIdx(0);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") goToMatch(e.shiftKey ? -1 : 1);
                 }}
@@ -389,7 +390,7 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
               />
               {matches.length > 0 && (
                 <span className="text-xs text-muted-text whitespace-nowrap">
-                  {activeMatchIdx + 1}/{matches.length}
+                  {activeMatch + 1}/{matches.length}
                 </span>
               )}
               <button
@@ -408,6 +409,7 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
                 onClick={() => {
                   setShowSearch(false);
                   setSearchTerm("");
+                  setActiveMatchIdx(0);
                 }}
                 className="p-0.5 text-muted-text hover:text-foreground"
               >

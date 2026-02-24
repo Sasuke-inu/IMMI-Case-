@@ -141,6 +141,75 @@ class TestApiRoutes:
         assert resp.status_code == 400
         assert "Invalid count_mode" in resp.get_json()["error"]
 
+    def test_cases_fast_path_exact_count_falls_back_to_planned(self, client, monkeypatch):
+        class _Case:
+            def to_dict(self):
+                return {"case_id": "abc"}
+
+        class _Repo:
+            def list_cases_fast(self, **_kwargs):
+                return [_Case()]
+
+            def count_cases(self, **kwargs):
+                if kwargs.get("count_mode") == "exact":
+                    raise RuntimeError("statement timeout")
+                return 42
+
+        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+        monkeypatch.setattr(api_module, "_call_with_timeout", lambda fn, **_kwargs: fn())
+
+        resp = client.get("/api/v1/cases?count_mode=exact&page=1&page_size=1")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["total"] == 42
+        assert data["count_mode"] == "planned"
+
+    def test_case_count_endpoint_exact_falls_back_to_planned(self, client, monkeypatch):
+        class _Repo:
+            def count_cases(self, **kwargs):
+                if kwargs.get("count_mode") == "exact":
+                    raise RuntimeError("statement timeout")
+                return 13
+
+        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+        monkeypatch.setattr(api_module, "_call_with_timeout", lambda fn, **_kwargs: fn())
+
+        resp = client.get("/api/v1/cases/count?count_mode=exact")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["total"] == 13
+        assert data["count_mode"] == "planned"
+
+    def test_filter_options_failure_uses_sample_fallback(self, client, monkeypatch):
+        class _Case:
+            court_code = "AATA"
+            year = 2024
+            source = "AustLII"
+            case_nature = "Appeal"
+            visa_type = "Subclass 866"
+            tags = "urgent,important"
+
+        class _Repo:
+            def get_filter_options(self):
+                raise RuntimeError("rpc failed")
+
+            def list_cases_fast(self, **_kwargs):
+                return [_Case()]
+
+        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+        monkeypatch.setattr(api_module, "_filter_options_cache_payload", None)
+        monkeypatch.setattr(api_module, "_filter_options_cache_ts", 0.0)
+
+        resp = client.get("/api/v1/filter-options")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["courts"] == ["AATA"]
+        assert data["years"] == [2024]
+        assert data["sources"] == ["AustLII"]
+        assert data["natures"] == ["Appeal"]
+        assert data["visa_types"] == ["Subclass 866"]
+        assert data["tags"] == ["important", "urgent"]
+
     def test_stats_timeout_returns_empty_payload(self, client, monkeypatch):
         class _Repo:
             def count_cases(self, count_mode="planned"):

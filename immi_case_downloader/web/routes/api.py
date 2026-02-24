@@ -68,12 +68,40 @@ ALLOWED_COUNT_MODES = frozenset({"exact", "planned", "estimated"})
 MAX_EXPORT_ROWS = 50_000
 # Keep RPC timeout aggressive so UI can fail fast instead of hanging.
 SUPABASE_RPC_TIMEOUT_SECONDS = 1.2
+CASE_LIST_COLUMNS = [
+    "case_id",
+    "citation",
+    "title",
+    "court_code",
+    "date",
+    "year",
+    "judges",
+    "outcome",
+    "visa_type",
+    "source",
+    "tags",
+    "case_nature",
+    "visa_subclass",
+    "visa_class_code",
+    "applicant_name",
+    "respondent",
+    "country_of_origin",
+    "visa_subclass_number",
+    "hearing_date",
+    "is_represented",
+    "representative",
+]
 
 _rpc_executor = ThreadPoolExecutor(max_workers=2)
+_filter_options_executor = ThreadPoolExecutor(max_workers=2)
 _stats_cache_lock = threading.Lock()
 _stats_cache_payload: dict | None = None
 _stats_cache_ts: float = 0.0
 _STATS_CACHE_TTL_SECONDS = 60.0
+_filter_options_cache_lock = threading.Lock()
+_filter_options_cache_payload: dict | None = None
+_filter_options_cache_ts: float = 0.0
+_FILTER_OPTIONS_CACHE_TTL_SECONDS = 300.0
 
 # ── Outcome normalisation ──────────────────────────────────────────────
 
@@ -778,9 +806,14 @@ def _error(msg: str, status: int = 400):
     return jsonify({"error": msg}), status
 
 
-def _call_with_timeout(func, timeout_seconds: float = SUPABASE_RPC_TIMEOUT_SECONDS):
+def _call_with_timeout(
+    func,
+    timeout_seconds: float = SUPABASE_RPC_TIMEOUT_SECONDS,
+    executor: ThreadPoolExecutor | None = None,
+):
     """Execute a callable with timeout protection."""
-    future = _rpc_executor.submit(func)
+    worker = executor or _rpc_executor
+    future = worker.submit(func)
     return future.result(timeout=timeout_seconds)
 
 
@@ -800,6 +833,184 @@ def _parse_case_list_filters() -> tuple[str, int | None, str, str, str, str, str
     tag = request.args.get("tag", "").strip()
     nature = request.args.get("nature", "").strip()
     return court, year, visa_type, keyword, source, tag, nature
+
+
+def _empty_filter_options_payload() -> dict:
+    """Create a safe minimal payload for filter dropdown data."""
+    return {
+        "courts": [],
+        "years": [],
+        "sources": [],
+        "natures": [],
+        "visa_types": [],
+        "tags": [],
+    }
+
+
+def _default_filter_options_payload() -> dict:
+    """Fast static fallback when live filter metadata is unavailable."""
+    payload = _empty_filter_options_payload()
+    payload["courts"] = sorted(TRIBUNAL_CODES | COURT_CODES)
+    payload["years"] = list(range(END_YEAR, START_YEAR - 1, -1))
+    payload["sources"] = ["AustLII"]
+    return payload
+
+
+def _normalise_filter_options(opts: dict | None) -> dict:
+    """Ensure filter options response always has a stable shape."""
+    if not isinstance(opts, dict):
+        return _empty_filter_options_payload()
+
+    payload = _empty_filter_options_payload()
+    for key in ("courts", "years", "sources", "natures", "visa_types"):
+        values = opts.get(key) or []
+        if isinstance(values, list):
+            payload[key] = values
+
+    raw_tags = opts.get("tags", [])
+    if isinstance(raw_tags, list):
+        payload["tags"] = sorted({
+            str(tag).strip()
+            for tag in raw_tags
+            if isinstance(tag, str) and tag.strip()
+        })
+
+    return payload
+
+
+def _sample_filter_options_fallback(repo) -> dict:
+    """Build lightweight filter options from a small recent sample."""
+    payload = _empty_filter_options_payload()
+
+    try:
+        if hasattr(repo, "list_cases_fast"):
+            sampler = lambda: repo.list_cases_fast(
+                sort_by="year",
+                sort_dir="desc",
+                page=1,
+                page_size=400,
+                columns=["court_code", "year", "source", "case_nature", "visa_type", "tags"],
+            )
+            if hasattr(repo, "count_cases"):
+                sample_cases = _call_with_timeout(
+                    sampler,
+                    timeout_seconds=0.8,
+                    executor=_filter_options_executor,
+                )
+            else:
+                sample_cases = sampler()
+        else:
+            sample_cases, _ = repo.filter_cases(
+                sort_by="year",
+                sort_dir="desc",
+                page=1,
+                page_size=400,
+            )
+    except Exception:
+        logger.warning("Filter-options sample fallback failed", exc_info=True)
+        return _default_filter_options_payload()
+
+    courts: set[str] = set()
+    years: set[int] = set()
+    sources: set[str] = set()
+    natures: set[str] = set()
+    visa_types: set[str] = set()
+    tags: set[str] = set()
+
+    for case in sample_cases:
+        court_code = str(getattr(case, "court_code", "") or "").strip()
+        if court_code:
+            courts.add(court_code)
+
+        year = getattr(case, "year", None)
+        if isinstance(year, int) and year > 0:
+            years.add(year)
+
+        source = str(getattr(case, "source", "") or "").strip()
+        if source:
+            sources.add(source)
+
+        nature = str(getattr(case, "case_nature", "") or "").strip()
+        if nature:
+            natures.add(nature)
+
+        visa_type = str(getattr(case, "visa_type", "") or "").strip()
+        if visa_type:
+            visa_types.add(visa_type)
+
+        raw_tags = str(getattr(case, "tags", "") or "")
+        if raw_tags:
+            for tag in raw_tags.split(","):
+                cleaned = tag.strip()
+                if cleaned:
+                    tags.add(cleaned)
+
+    payload["courts"] = sorted(courts)
+    payload["years"] = sorted(years, reverse=True)
+    payload["sources"] = sorted(sources)
+    payload["natures"] = sorted(natures)
+    payload["visa_types"] = sorted(visa_types)
+    payload["tags"] = sorted(tags)
+    # Guarantee useful baseline choices even when sample is sparse.
+    if not payload["courts"]:
+        payload["courts"] = sorted(TRIBUNAL_CODES | COURT_CODES)
+    if not payload["years"]:
+        payload["years"] = list(range(END_YEAR, START_YEAR - 1, -1))
+    if not payload["sources"]:
+        payload["sources"] = ["AustLII"]
+    return payload
+
+
+def _count_cases_with_fallback(
+    repo,
+    *,
+    court: str,
+    year: int | None,
+    visa_type: str,
+    source: str,
+    tag: str,
+    nature: str,
+    keyword: str,
+    count_mode: str,
+) -> tuple[int, str]:
+    """Try requested count mode, then degrade to faster modes on failure."""
+    fast_supabase_path = hasattr(repo, "list_cases_fast")
+    if fast_supabase_path and count_mode == "exact":
+        preferred_modes = ("planned", "estimated", "exact")
+    elif fast_supabase_path and count_mode == "estimated":
+        preferred_modes = ("estimated", "planned")
+    elif fast_supabase_path:
+        preferred_modes = ("planned", "estimated")
+    else:
+        preferred_modes = (count_mode, "planned", "estimated")
+
+    ordered_modes: list[str] = []
+    for mode in preferred_modes:
+        if mode in ALLOWED_COUNT_MODES and mode not in ordered_modes:
+            ordered_modes.append(mode)
+
+    last_exc: Exception | None = None
+    for mode in ordered_modes:
+        try:
+            counter = lambda: repo.count_cases(
+                court=court,
+                year=year,
+                visa_type=visa_type,
+                source=source,
+                tag=tag,
+                nature=nature,
+                keyword=keyword,
+                count_mode=mode,
+            )
+            total = int(counter())
+            return max(total, 0), mode
+        except Exception as exc:
+            last_exc = exc
+            logger.warning("count_cases failed for mode '%s': %s", mode, exc)
+
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("Unable to compute case count")
 
 
 def _empty_stats_payload(total_cases: int = 0, recent_cases: list | None = None) -> dict:
@@ -1190,29 +1401,40 @@ def list_cases():
     if use_fast_supabase_path:
         if count_mode not in ALLOWED_COUNT_MODES:
             return _error(f"Invalid count_mode '{count_mode}'. Allowed: {sorted(ALLOWED_COUNT_MODES)}")
-        page_cases = repo.list_cases_fast(
-            court=court,
-            year=year,
-            visa_type=visa_type,
-            source=source,
-            tag=tag,
-            nature=nature,
-            keyword=keyword,
-            sort_by=sort_by,
-            sort_dir=sort_dir,
-            page=page,
-            page_size=page_size,
-        )
-        total = repo.count_cases(
-            court=court,
-            year=year,
-            visa_type=visa_type,
-            source=source,
-            tag=tag,
-            nature=nature,
-            keyword=keyword,
-            count_mode=count_mode,
-        )
+        try:
+            page_cases = repo.list_cases_fast(
+                court=court,
+                year=year,
+                visa_type=visa_type,
+                source=source,
+                tag=tag,
+                nature=nature,
+                keyword=keyword,
+                sort_by=sort_by,
+                sort_dir=sort_dir,
+                page=page,
+                page_size=page_size,
+                columns=CASE_LIST_COLUMNS,
+            )
+        except Exception:
+            logger.warning("list_cases_fast failed; returning empty page", exc_info=True)
+            page_cases = []
+        try:
+            total, count_mode = _count_cases_with_fallback(
+                repo,
+                court=court,
+                year=year,
+                visa_type=visa_type,
+                source=source,
+                tag=tag,
+                nature=nature,
+                keyword=keyword,
+                count_mode=count_mode,
+            )
+        except Exception:
+            logger.warning("Case count unavailable; falling back to page length", exc_info=True)
+            total = (page - 1) * page_size + len(page_cases)
+            count_mode = "planned"
     else:
         page_cases, total = repo.filter_cases(
             court=court, year=year, visa_type=visa_type,
@@ -1244,16 +1466,22 @@ def count_cases():
         return _error(f"Invalid count_mode '{count_mode}'. Allowed: {sorted(ALLOWED_COUNT_MODES)}")
 
     if hasattr(repo, "count_cases"):
-        total = repo.count_cases(
-            court=court,
-            year=year,
-            visa_type=visa_type,
-            source=source,
-            tag=tag,
-            nature=nature,
-            keyword=keyword,
-            count_mode=count_mode,
-        )
+        try:
+            total, count_mode = _count_cases_with_fallback(
+                repo,
+                court=court,
+                year=year,
+                visa_type=visa_type,
+                source=source,
+                tag=tag,
+                nature=nature,
+                keyword=keyword,
+                count_mode=count_mode,
+            )
+        except Exception:
+            logger.warning("count endpoint fallback to 0", exc_info=True)
+            total = 0
+            count_mode = "planned"
     else:
         _, total = repo.filter_cases(
             court=court,
@@ -1585,9 +1813,45 @@ def search():
 
 @api_bp.route("/filter-options")
 def filter_options():
+    global _filter_options_cache_payload, _filter_options_cache_ts
+
+    with _filter_options_cache_lock:
+        if (
+            _filter_options_cache_payload is not None
+            and (time.time() - _filter_options_cache_ts) < _FILTER_OPTIONS_CACHE_TTL_SECONDS
+        ):
+            return jsonify(_filter_options_cache_payload)
+
     repo = get_repo()
-    opts = repo.get_filter_options()
-    return jsonify(opts)
+    try:
+        if hasattr(repo, "count_cases"):
+            opts = _call_with_timeout(
+                repo.get_filter_options,
+                executor=_filter_options_executor,
+            )
+        else:
+            opts = repo.get_filter_options()
+        payload = _normalise_filter_options(opts)
+    except FuturesTimeoutError:
+        logger.warning("filter-options timed out; using fast fallback")
+        with _filter_options_cache_lock:
+            cached = _filter_options_cache_payload
+        if cached is not None:
+            return jsonify(cached)
+        payload = _default_filter_options_payload()
+    except Exception:
+        logger.warning("filter-options failed; using sample fallback", exc_info=True)
+        with _filter_options_cache_lock:
+            cached = _filter_options_cache_payload
+        if cached is not None:
+            return jsonify(cached)
+        payload = _sample_filter_options_fallback(repo)
+
+    with _filter_options_cache_lock:
+        _filter_options_cache_payload = payload
+        _filter_options_cache_ts = time.time()
+
+    return jsonify(payload)
 
 
 # ── Export ──────────────────────────────────────────────────────────────

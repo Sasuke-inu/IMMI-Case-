@@ -14,10 +14,16 @@ interface StringEntry {
   hasInterpolation: boolean
 }
 
+interface GoogleTranslateResponse {
+  data?: {
+    translations?: Array<{ translatedText: string }>
+  }
+}
+
 /**
  * 遞歸提取 JSON 中所有字串值
  */
-function extractStrings(obj: any, prefix: string = ''): StringEntry[] {
+function extractStrings(obj: Record<string, unknown>, prefix: string = ''): StringEntry[] {
   const strings: StringEntry[] = []
 
   for (const [key, value] of Object.entries(obj)) {
@@ -31,7 +37,7 @@ function extractStrings(obj: any, prefix: string = ''): StringEntry[] {
         hasInterpolation,
       })
     } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-      strings.push(...extractStrings(value, fullKey))
+      strings.push(...extractStrings(value as Record<string, unknown>, fullKey))
     }
   }
 
@@ -46,7 +52,7 @@ function protectInterpolation(text: string): { text: string; vars: Record<string
   const varRegex = /\{\{([\w_]+)\}\}/g
   let counter = 0
 
-  const protected_text = text.replace(varRegex, (match, varName) => {
+  const protected_text = text.replace(varRegex, (_match: string, varName: string) => {
     const placeholder = `[IMMI_VAR_${counter}]`
     vars[placeholder] = varName
     counter++
@@ -95,8 +101,9 @@ async function translateBatch(texts: string[]): Promise<string[]> {
       throw new Error(`API error: ${response.status}`)
     }
 
-    const data: any = await response.json()
-    return data.data.translations.map((t: any) => t.translatedText)
+    const data = (await response.json()) as GoogleTranslateResponse
+    const translations = data.data?.translations ?? []
+    return translations.map((t) => t.translatedText)
   } catch (error) {
     console.error('❌ Translation API failed:', error)
     throw error
@@ -154,18 +161,23 @@ async function translateStrings(strings: StringEntry[]): Promise<Map<string, str
 /**
  * 重建翻譯後的 JSON 結構
  */
-function rebuildJson(translations: Map<string, string>): any {
-  const result: any = {}
+function rebuildJson(translations: Map<string, string>): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
 
   for (const [key, value] of translations.entries()) {
     const parts = key.split('.')
-    let current = result
+    let current: Record<string, unknown> = result
 
     for (let i = 0; i < parts.length - 1; i++) {
-      if (!current[parts[i]]) {
-        current[parts[i]] = {}
+      const key = parts[i]
+      if (
+        !current[key] ||
+        typeof current[key] !== 'object' ||
+        Array.isArray(current[key])
+      ) {
+        current[key] = {}
       }
-      current = current[parts[i]]
+      current = current[key] as Record<string, unknown>
     }
 
     current[parts[parts.length - 1]] = value
