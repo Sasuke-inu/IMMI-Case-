@@ -27,6 +27,7 @@ export function useOutcomes(filters?: AnalyticsFilterParams) {
   return useQuery({
     queryKey: ["analytics", "outcomes", ...filterKey(filters)],
     queryFn: () => fetchOutcomes(filters),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -36,6 +37,7 @@ export function useJudges(filters?: AnalyticsFilterParams, limit = 20) {
   return useQuery({
     queryKey: ["analytics", "judges", limit, ...filterKey(filters)],
     queryFn: () => fetchJudges(filters, limit),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -45,6 +47,7 @@ export function useLegalConcepts(filters?: AnalyticsFilterParams, limit = 20) {
   return useQuery({
     queryKey: ["analytics", "concepts", limit, ...filterKey(filters)],
     queryFn: () => fetchLegalConcepts(filters, limit),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -54,6 +57,7 @@ export function useNatureOutcome(filters?: AnalyticsFilterParams) {
   return useQuery({
     queryKey: ["analytics", "nature-outcome", ...filterKey(filters)],
     queryFn: () => fetchNatureOutcome(filters),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -76,6 +80,7 @@ export function useSuccessRate(
       ...(params.legal_concepts ?? []),
     ],
     queryFn: () => fetchSuccessRate(params),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -92,6 +97,7 @@ export function useConceptEffectiveness(
       params?.limit ?? 30,
     ],
     queryFn: () => fetchConceptEffectiveness(params),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -109,6 +115,7 @@ export function useConceptCooccurrence(
       params?.min_count ?? 50,
     ],
     queryFn: () => fetchConceptCooccurrence(params),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -125,6 +132,7 @@ export function useConceptTrends(
       params?.limit ?? 10,
     ],
     queryFn: () => fetchConceptTrends(params),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -141,6 +149,7 @@ export function useFlowMatrix(
       params?.top_n ?? 8,
     ],
     queryFn: () => fetchFlowMatrix(params),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -150,6 +159,7 @@ export function useMonthlyTrends(params?: AnalyticsFilterParams) {
   return useQuery({
     queryKey: ["analytics", "monthly-trends", ...filterKey(params)],
     queryFn: () => fetchMonthlyTrends(params),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -159,6 +169,7 @@ export function useVisaFamilies(params?: AnalyticsFilterParams) {
   return useQuery({
     queryKey: ["analytics", "visa-families", ...filterKey(params)],
     queryFn: () => fetchVisaFamilies(params),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });

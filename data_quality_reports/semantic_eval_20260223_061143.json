@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-02-22T19:11:43.050171+00:00",
+  "config": {
+    "sample_size": 1000,
+    "seed": 42,
+    "provider": "gemini",
+    "model": "models/gemini-embedding-001",
+    "price_per_1m_tokens": 0.02,
+    "k_values": [
+      5,
+      10,
+      20
+    ],
+    "ranking_limit": 50
+  },
+  "dataset": {
+    "total_cases": 149016,
+    "sampled_cases": 1000,
+    "evaluated_queries": 999,
+    "notes": "Silver labels: documents are considered relevant when they share legal concepts and/or case nature with the query case."
+  },
+  "results": {
+    "lexical_fts5": {
+      "query_count": 999.0,
+      "recall@5": 0.026126583321292675,
+      "precision@5": 0.43063063063063034,
+      "ndcg@5": 0.4264831015873313,
+      "recall@10": 0.049705171442980645,
+      "precision@10": 0.4211211211211207,
+      "ndcg@10": 0.4214295258602245,
+      "recall@20": 0.09452356997449687,
+      "precision@20": 0.4243243243243252,
+      "ndcg@20": 0.424620911378438,
+      "mrr@20": 0.5943198284701542
+    },
+    "semantic_embeddings": {
+      "query_count": 999.0,
+      "recall@5": 0.038279022837728396,
+      "precision@5": 0.7201201201201196,
+      "ndcg@5": 0.7284977166117608,
+      "recall@10": 0.07269388377449074,
+      "precision@10": 0.6938938938938922,
+      "ndcg@10": 0.7074841541432114,
+      "recall@20": 0.13293690396129232,
+      "precision@20": 0.6548548548548553,
+      "ndcg@20": 0.6761315127156039,
+      "mrr@20": 0.8418318413201459
+    },
+    "hybrid_rrf": {
+      "query_count": 999.0,
+      "recall@5": 0.039286858256701536,
+      "precision@5": 0.7151151151151142,
+      "ndcg@5": 0.7218735468335082,
+      "recall@10": 0.07223563630302808,
+      "precision@10": 0.6663663663663641,
+      "ndcg@10": 0.6859020687402028,
+      "recall@20": 0.12985574933999702,
+      "precision@20": 0.6141641641641657,
+      "ndcg@20": 0.6431351413366744,
+      "mrr@20": 0.8280315530315532
+    }
+  },
+  "costs": {
+    "sample_summary_tokens": 219722,
+    "sample_query_tokens": 32418,
+    "sample_full_text_tokens": 5691486,
+    "sample_summary_cost_usd": 0.00439444,
+    "sample_query_cost_usd": 0.0006483600000000001,
+    "sample_total_cost_usd": 0.0050428,
+    "projected_summary_ingest_cost_usd": 0.65484187104,
+    "projected_full_text_ingest_cost_usd": 16.96244955552,
+    "estimated_query_cost_usd": 6.490090090090091e-07
+  },
+  "runtime_seconds": 95.6664272909984
+}

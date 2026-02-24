@@ -14,7 +14,10 @@ REACT_ROUTES = {
     "judge_profiles": "/judge-profiles",
     "judge_detail": "/judge-profiles/Senior%20Member%20Jones",
     "judge_compare": "/judge-profiles/compare?names=Senior%20Member%20Jones,Deputy%20President%20Smith",
+    "court_lineage": "/court-lineage",
     "cases": "/cases",
+    "collections": "/collections",
+    "saved_searches": "/saved-searches",
     "case_add": "/cases/add",
     "case_compare": "/cases/compare",
     "download": "/download",
@@ -30,7 +33,10 @@ SMOKE_PAGES = [
     ("dashboard", "/"),
     ("analytics", "/analytics"),
     ("judge_profiles", "/judge-profiles"),
+    ("court_lineage", "/court-lineage"),
     ("cases", "/cases"),
+    ("collections", "/collections"),
+    ("saved_searches", "/saved-searches"),
     ("cases_add", "/cases/add"),
     ("download", "/download"),
     ("jobs", "/jobs"),
@@ -70,7 +76,10 @@ SIDEBAR_NAV_ITEMS = [
     ("Dashboard", "/"),
     ("Analytics", "/analytics"),
     ("Judge Profiles", "/judge-profiles"),
+    ("Court Lineage", "/court-lineage"),
     ("Cases", "/cases"),
+    ("Collections", "/collections"),
+    ("Saved Searches", "/saved-searches"),
     ("Download", "/download"),  # Matches en.json nav.download
     ("Pipeline", "/pipeline"),  # Matches en.json nav.pipeline
     ("Legislations", "/legislations"),  # Added in 2026-02-20

@@ -1,27 +1,11 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import type { LucideIcon } from "lucide-react";
-import {
-  LayoutDashboard,
-  FileText,
-  CloudDownload,
-  Workflow,
-  Activity,
-  BookOpen,
-  BookMarked,
-  Palette,
-  TrendingUp,
-  Users,
-  Network,
-  Bookmark,
-  BookmarkCheck,
-  Tags,
-  Search,
-} from "lucide-react";
+import { FileText, Bookmark, BookmarkCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefetchRoute } from "@/lib/prefetch";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useSavedSearches } from "@/hooks/use-saved-searches";
+import { APP_NAV_GROUPS } from "@/components/layout/nav-config";
 
 function RecentBookmarksPanel() {
   const { t } = useTranslation();
@@ -57,18 +41,6 @@ function RecentBookmarksPanel() {
   );
 }
 
-interface NavItem {
-  readonly to: string;
-  readonly icon: LucideIcon;
-  readonly label: string;
-  readonly showBadge?: boolean;
-}
-
-interface NavGroup {
-  readonly title: string;
-  readonly items: readonly NavItem[];
-}
-
 interface SidebarProps {
   collapsed?: boolean;
 }
@@ -76,57 +48,6 @@ interface SidebarProps {
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const { t } = useTranslation();
   const { savedSearches } = useSavedSearches();
-
-  const navGroups: readonly NavGroup[] = [
-    {
-      title: t("nav.browse"),
-      items: [
-        { to: "/", icon: LayoutDashboard, label: t("nav.dashboard") },
-        { to: "/analytics", icon: TrendingUp, label: t("nav.analytics") },
-        { to: "/judge-profiles", icon: Users, label: t("nav.judge_profiles") },
-        { to: "/court-lineage", icon: Network, label: t("nav.court_lineage") },
-        { to: "/cases", icon: FileText, label: t("nav.cases") },
-        {
-          to: "/collections",
-          icon: BookmarkCheck,
-          label: t("nav.collections"),
-        },
-        {
-          to: "/cases",
-          icon: Bookmark,
-          label: t("nav.saved_searches"),
-          showBadge: true,
-        },
-      ],
-    },
-    {
-      title: t("nav.search"),
-      items: [
-        { to: "/taxonomy", icon: Tags, label: t("nav.search_taxonomy") },
-        { to: "/guided-search", icon: Search, label: t("nav.guided_search") },
-      ],
-    },
-    {
-      title: t("nav.data_tools"),
-      items: [
-        { to: "/download", icon: CloudDownload, label: t("nav.download") },
-        { to: "/pipeline", icon: Workflow, label: t("nav.pipeline") },
-        { to: "/jobs", icon: Activity, label: t("nav.jobs") },
-      ],
-    },
-    {
-      title: t("nav.reference"),
-      items: [
-        { to: "/legislations", icon: BookMarked, label: t("nav.legislations") },
-        {
-          to: "/data-dictionary",
-          icon: BookOpen,
-          label: t("nav.data_dictionary"),
-        },
-        { to: "/design-tokens", icon: Palette, label: t("nav.design_tokens") },
-      ],
-    },
-  ];
 
   return (
     <aside
@@ -147,46 +68,49 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-2">
-        {navGroups.map((group, gi) => (
-          <div key={group.title} className={cn(gi > 0 && "mt-4")}>
+        {APP_NAV_GROUPS.map((group, gi) => (
+          <div key={group.titleKey} className={cn(gi > 0 && "mt-4")}>
             {!collapsed && (
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-text">
-                {group.title}
+                {t(group.titleKey)}
               </p>
             )}
             {collapsed && gi > 0 && (
               <div className="mx-3 mb-2 border-t border-border-light" />
             )}
-            {group.items.map(({ to, icon: Icon, label, showBadge }) => (
-              <NavLink
-                key={`${to}-${label}`}
-                to={to}
-                end={to === "/"}
-                title={label}
-                onMouseEnter={() => prefetchRoute(to)}
-                onFocus={() => prefetchRoute(to)}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-accent-muted text-accent"
-                      : "text-secondary-text hover:bg-surface hover:text-foreground",
-                  )
-                }
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && (
-                  <>
-                    <span className="min-w-0 flex-1 truncate">{label}</span>
-                    {showBadge && savedSearches.length > 0 && (
-                      <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[10px] font-semibold text-accent shrink-0">
-                        {savedSearches.length}
-                      </span>
-                    )}
-                  </>
-                )}
-              </NavLink>
-            ))}
+            {group.items.map(({ to, icon: Icon, labelKey, showSavedSearchBadge }) => {
+              const label = t(labelKey);
+              return (
+                <NavLink
+                  key={`${to}-${labelKey}`}
+                  to={to}
+                  end={to === "/"}
+                  title={label}
+                  onMouseEnter={() => prefetchRoute(to)}
+                  onFocus={() => prefetchRoute(to)}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-accent-muted text-accent"
+                        : "text-secondary-text hover:bg-surface hover:text-foreground",
+                    )
+                  }
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="min-w-0 flex-1 truncate">{label}</span>
+                      {showSavedSearchBadge && savedSearches.length > 0 && (
+                        <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[10px] font-semibold text-accent shrink-0">
+                          {savedSearches.length}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
           </div>
         ))}
         {!collapsed && <RecentBookmarksPanel />}

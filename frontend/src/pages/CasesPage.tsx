@@ -23,6 +23,7 @@ import { CaseCard } from "@/components/cases/CaseCard";
 import { FilterPill } from "@/components/shared/FilterPill";
 import { Pagination } from "@/components/shared/Pagination";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { SaveSearchModal } from "@/components/saved-searches/SaveSearchModal";
 import { SavedSearchPanel } from "@/components/saved-searches/SavedSearchPanel";
@@ -60,6 +61,7 @@ export function CasesPage() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
+  const keywordInputRef = useRef<HTMLInputElement>(null);
 
   const filters: CaseFilters = {
     court: searchParams.get("court") ?? "",
@@ -77,11 +79,24 @@ export function CasesPage() {
     page_size: 100,
   };
 
-  const { data, isLoading } = useCases(filters);
-  const { data: filterOpts } = useFilterOptions();
+  const {
+    data,
+    isLoading,
+    isError: isCasesError,
+    error: casesError,
+    refetch: refetchCases,
+  } = useCases(filters);
+  const {
+    data: filterOpts,
+    isError: isFilterOptionsError,
+    error: filterOptionsError,
+    refetch: refetchFilterOptions,
+  } = useFilterOptions();
   const batchMutation = useBatchCases();
   const { savedSearches, saveSearch, updateSearch, getSearchById } =
     useSavedSearches();
+
+  const [keywordInput, setKeywordInput] = useState(filters.keyword ?? "");
 
   const updateFilter = useCallback(
     (key: string, value: string) => {
@@ -100,6 +115,10 @@ export function CasesPage() {
   const clearAllFilters = useCallback(() => {
     setSearchParams(new URLSearchParams());
   }, [setSearchParams]);
+
+  useEffect(() => {
+    setKeywordInput(filters.keyword ?? "");
+  }, [filters.keyword]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -229,6 +248,33 @@ export function CasesPage() {
     setShowSaveModal(true);
   }, []);
 
+  // Global keyboard shortcuts on cases page
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "SELECT" ||
+        target.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
+      if (e.key === "/") {
+        e.preventDefault();
+        keywordInputRef.current?.focus();
+        keywordInputRef.current?.select();
+      }
+
+      if (e.key === "a") {
+        e.preventDefault();
+        navigate("/cases/add");
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [navigate]);
+
   // Keyboard navigation
   useEffect(() => {
     if (viewMode !== "table") return;
@@ -254,11 +300,15 @@ export function CasesPage() {
         e.preventDefault();
         const c = data?.cases[focusedIdx];
         if (c) navigate(`/cases/${c.case_id}`);
+      } else if (e.key.toLowerCase() === "x" && focusedIdx >= 0) {
+        e.preventDefault();
+        const c = data?.cases[focusedIdx];
+        if (c) toggleSelect(c.case_id);
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [viewMode, data, focusedIdx, navigate]);
+  }, [viewMode, data, focusedIdx, navigate, toggleSelect]);
 
   // Scroll focused row into view
   useEffect(() => {
@@ -271,6 +321,16 @@ export function CasesPage() {
   const total = data?.total ?? 0;
   const totalPages = data?.total_pages ?? 1;
   const currentPage = filters.page ?? 1;
+
+  useEffect(() => {
+    if (!cases.length) {
+      setFocusedIdx(-1);
+      return;
+    }
+    if (focusedIdx > cases.length - 1) {
+      setFocusedIdx(cases.length - 1);
+    }
+  }, [cases.length, focusedIdx]);
 
   // Active filter pills
   const activeFilters: Array<{ key: string; label: string; value: string }> =
@@ -327,6 +387,8 @@ export function CasesPage() {
           ? t("cases.title")
           : t("filters.court");
 
+  const hasActiveFilterSet = activeFilters.length > 0;
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -378,6 +440,7 @@ export function CasesPage() {
           </button>
           <button
             onClick={() => navigate("/cases/add")}
+            aria-keyshortcuts="A"
             className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-light"
           >
             {t("buttons.add_case")}
@@ -426,15 +489,25 @@ export function CasesPage() {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-text" />
           <input
+            ref={keywordInputRef}
             type="text"
             placeholder={t("common.search_placeholder")}
-            defaultValue={filters.keyword}
-            onBlur={(e) => updateFilter("keyword", e.target.value)}
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            onBlur={(e) => updateFilter("keyword", e.target.value.trim())}
             onKeyDown={(e) => {
-              if (e.key === "Enter")
-                updateFilter("keyword", e.currentTarget.value);
+              if (e.key === "Enter") {
+                updateFilter("keyword", e.currentTarget.value.trim());
+              }
+              if (e.key === "Escape") {
+                setKeywordInput(filters.keyword ?? "");
+                (e.target as HTMLInputElement).blur();
+              }
             }}
             className="rounded-md border border-border bg-card py-1.5 pl-8 pr-3 text-sm text-foreground placeholder:text-muted-text"
+            aria-label={t("common.search_cases")}
+            aria-keyshortcuts="/"
+            title={t("cases.search_shortcut_hint")}
           />
         </div>
         <button
@@ -490,6 +563,28 @@ export function CasesPage() {
           </button>
         </div>
       </div>
+
+      {isFilterOptionsError && (
+        <ApiErrorState
+          title={t("errors.failed_to_load", {
+            name: t("filters.filter"),
+          })}
+          message={
+            filterOptionsError instanceof Error
+              ? filterOptionsError.message
+              : t("errors.unable_to_load_message")
+          }
+          onRetry={() => {
+            void refetchFilterOptions();
+          }}
+        />
+      )}
+
+      {!isLoading && !isCasesError && cases.length > 0 && viewMode === "table" && (
+        <div className="rounded-md border border-border-light bg-surface px-3 py-2 text-xs text-muted-text">
+          {t("cases.keyboard_shortcuts")}
+        </div>
+      )}
 
       {/* Advanced Filters */}
       {showAdvanced && (
@@ -606,31 +701,54 @@ export function CasesPage() {
         </div>
       )}
 
+      {/* Data load error */}
+      {isCasesError && !data && (
+        <ApiErrorState
+          title={t("errors.failed_to_load", { name: t("cases.title") })}
+          message={
+            casesError instanceof Error
+              ? casesError.message
+              : t("errors.unable_to_load_message")
+          }
+          onRetry={() => {
+            void refetchCases();
+          }}
+        />
+      )}
+
       {/* Loading */}
-      {isLoading && (
+      {isLoading && !isCasesError && (
         <div className="flex h-32 items-center justify-center text-muted-text">
           {t("common.loading_ellipsis")}
         </div>
       )}
 
       {/* Empty state */}
-      {!isLoading && cases.length === 0 && (
+      {!isLoading && !isCasesError && cases.length === 0 && (
         <EmptyState
           icon={<FileText className="h-8 w-8" />}
           title={t("cases.empty_state_title")}
           description={
             activeFilters.length > 0
-              ? t("cases.empty_state_description")
+              ? t("cases.empty_state_filtered_description")
               : t("empty_states.no_cases_description")
           }
           action={
-            activeFilters.length > 0 ? (
-              <button
-                onClick={clearAllFilters}
-                className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
-              >
-                {t("filters.clear_filters")}
-              </button>
+            hasActiveFilterSet ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                <button
+                  onClick={clearAllFilters}
+                  className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
+                >
+                  {t("filters.clear_filters")}
+                </button>
+                <button
+                  onClick={() => navigate("/saved-searches")}
+                  className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-surface"
+                >
+                  {t("saved_searches.title")}
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => navigate("/pipeline")}
@@ -645,127 +763,153 @@ export function CasesPage() {
 
       {/* Table view */}
       {!isLoading && cases.length > 0 && viewMode === "table" && (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
-          <table className="w-full min-w-[1100px] text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface">
-                <th className="w-10 px-2 py-2.5 text-left">
-                  <input
-                    type="checkbox"
-                    checked={selected.size === cases.length && cases.length > 0}
-                    onChange={toggleAll}
-                    className="rounded"
-                  />
-                </th>
-                <th className="px-2 py-2.5 text-left font-medium text-secondary-text">
-                  {t("cases.case_title")}
-                </th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
-                  {t("cases.citation")}
-                </th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
-                  {t("cases.court")}
-                </th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
-                  <span className="block leading-tight">{t("cases.date")}</span>
-                  <span className="block text-[9px] font-normal text-muted-text leading-tight">
-                    {t("cases.date", { defaultValue: "decision" })} /{" "}
-                    {t("cases.hearing_date")}
-                  </span>
-                </th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
-                  {t("cases.country_of_origin")}
-                </th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
-                  {t("cases.outcome")}
-                </th>
-                <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
-                  {t("cases.nature")}
-                </th>
-              </tr>
-            </thead>
-            <tbody ref={tableRef}>
-              {cases.map((c, i) => (
-                <tr
-                  key={c.case_id}
-                  className={cn(
-                    "border-b border-border-light transition-colors cursor-pointer",
-                    focusedIdx === i
-                      ? "bg-accent-muted"
-                      : "hover:bg-surface/50",
-                    selected.has(c.case_id) && "bg-accent-muted/50",
-                  )}
-                  onClick={() => navigate(`/cases/${c.case_id}`)}
-                >
-                  <td
-                    className="w-10 px-2 py-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+        <>
+          <div className="md:hidden rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-text">
+            {t("cases.mobile_table_note", {
+              defaultValue:
+                "Table view is optimized for larger screens. Showing card view on mobile for easier reading.",
+            })}
+          </div>
+          <div className="grid gap-4 md:hidden">
+            {cases.map((c) => (
+              <CaseCard
+                key={c.case_id}
+                case_={c}
+                onClick={() => navigate(`/cases/${c.case_id}`)}
+              />
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto rounded-lg border border-border bg-card md:block">
+            <table className="w-full min-w-[1100px] text-sm">
+              <thead>
+                <tr className="border-b border-border bg-surface">
+                  <th className="w-10 px-2 py-2.5 text-left">
                     <input
                       type="checkbox"
-                      checked={selected.has(c.case_id)}
-                      onChange={() => toggleSelect(c.case_id)}
+                      checked={selected.size === cases.length && cases.length > 0}
+                      onChange={toggleAll}
                       className="rounded"
                     />
-                  </td>
-                  <td className="max-w-xs px-2 py-2">
-                    <span
-                      className="block truncate font-medium text-foreground"
-                      title={c.title || c.citation}
-                    >
-                      {c.title || c.citation}
+                  </th>
+                  <th className="px-2 py-2.5 text-left font-medium text-secondary-text">
+                    {t("cases.case_title")}
+                  </th>
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                    {t("cases.citation")}
+                  </th>
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                    {t("cases.court")}
+                  </th>
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                    <span className="block leading-tight">{t("cases.date")}</span>
+                    <span className="block text-[9px] font-normal text-muted-text leading-tight">
+                      {t("cases.date", { defaultValue: "decision" })} /{" "}
+                      {t("cases.hearing_date")}
                     </span>
-                    {(c.applicant_name || c.judges) && (
-                      <span
-                        className="block truncate text-xs text-muted-text"
-                        title={c.applicant_name || c.judges}
-                      >
-                        {c.applicant_name
-                          ? `${t("cases.applicant")}: ${c.applicant_name}`
-                          : c.judges}
-                      </span>
-                    )}
-                  </td>
-                  <td
-                    className="whitespace-nowrap px-2 py-2 text-xs text-muted-text"
-                    title={c.citation}
-                  >
-                    {c.citation}
-                  </td>
-                  <td className="whitespace-nowrap px-2 py-2">
-                    <CourtBadge court={c.court_code} />
-                  </td>
-                  <td
-                    className="whitespace-nowrap px-2 py-2 text-xs text-muted-text"
-                    title={
-                      c.hearing_date && c.hearing_date !== c.date
-                        ? `${t("cases.date")}: ${c.date}\n${t("cases.hearing_date")}: ${c.hearing_date}`
-                        : c.date
-                    }
-                  >
-                    <span className="block leading-tight">
-                      {formatDateCompact(c.date)}
-                    </span>
-                    {c.hearing_date && c.hearing_date !== c.date && (
-                      <span className="block text-[9px] leading-tight text-muted-text/70">
-                        ↳ {formatDateCompact(c.hearing_date)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text">
-                    {c.country_of_origin || ""}
-                  </td>
-                  <td className="whitespace-nowrap px-2 py-2">
-                    <OutcomeBadge outcome={c.outcome} />
-                  </td>
-                  <td className="whitespace-nowrap px-2 py-2">
-                    <NatureBadge nature={c.case_nature} />
-                  </td>
+                  </th>
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                    {t("cases.country_of_origin")}
+                  </th>
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                    {t("cases.outcome")}
+                  </th>
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                    {t("cases.nature")}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody ref={tableRef}>
+                {cases.map((c, i) => (
+                  <tr
+                    key={c.case_id}
+                    className={cn(
+                      "border-b border-border-light transition-colors cursor-pointer",
+                      focusedIdx === i
+                        ? "bg-accent-muted"
+                        : "hover:bg-surface/50",
+                      selected.has(c.case_id) && "bg-accent-muted/50",
+                    )}
+                    onClick={() => navigate(`/cases/${c.case_id}`)}
+                    onFocus={() => setFocusedIdx(i)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        navigate(`/cases/${c.case_id}`);
+                      }
+                    }}
+                    tabIndex={0}
+                    aria-selected={selected.has(c.case_id)}
+                  >
+                    <td
+                      className="w-10 px-2 py-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.has(c.case_id)}
+                        onChange={() => toggleSelect(c.case_id)}
+                        className="rounded"
+                      />
+                    </td>
+                    <td className="max-w-xs px-2 py-2">
+                      <span
+                        className="block truncate font-medium text-foreground"
+                        title={c.title || c.citation}
+                      >
+                        {c.title || c.citation}
+                      </span>
+                      {(c.applicant_name || c.judges) && (
+                        <span
+                          className="block truncate text-xs text-muted-text"
+                          title={c.applicant_name || c.judges}
+                        >
+                          {c.applicant_name
+                            ? `${t("cases.applicant")}: ${c.applicant_name}`
+                            : c.judges}
+                        </span>
+                      )}
+                    </td>
+                    <td
+                      className="whitespace-nowrap px-2 py-2 text-xs text-muted-text"
+                      title={c.citation}
+                    >
+                      {c.citation}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-2">
+                      <CourtBadge court={c.court_code} />
+                    </td>
+                    <td
+                      className="whitespace-nowrap px-2 py-2 text-xs text-muted-text"
+                      title={
+                        c.hearing_date && c.hearing_date !== c.date
+                          ? `${t("cases.date")}: ${c.date}\n${t("cases.hearing_date")}: ${c.hearing_date}`
+                          : c.date
+                      }
+                    >
+                      <span className="block leading-tight">
+                        {formatDateCompact(c.date)}
+                      </span>
+                      {c.hearing_date && c.hearing_date !== c.date && (
+                        <span className="block text-[9px] leading-tight text-muted-text/70">
+                          ↳ {formatDateCompact(c.hearing_date)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text">
+                      {c.country_of_origin || ""}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-2">
+                      <OutcomeBadge outcome={c.outcome} />
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-2">
+                      <NatureBadge nature={c.case_nature} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Cards view */}

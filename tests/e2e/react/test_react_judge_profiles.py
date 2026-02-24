@@ -68,3 +68,23 @@ class TestJudgeProfilesPage:
         react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         assert react_page.locator("aside").get_by_text("Judge Profiles").is_visible()
+
+    def test_slash_focuses_judge_search(self, react_page):
+        react_navigate(react_page, "/judge-profiles")
+        wait_for_loading_gone(react_page)
+        react_page.locator("h1").first.click()
+        react_page.keyboard.press("/")
+        react_page.wait_for_timeout(200)
+        shortcut_attr = react_page.evaluate(
+            "() => document.activeElement?.getAttribute('aria-keyshortcuts')"
+        )
+        assert shortcut_attr == "/"
+
+    def test_table_row_enter_opens_profile(self, react_page):
+        react_navigate(react_page, "/judge-profiles")
+        wait_for_loading_gone(react_page)
+        first_row = react_page.locator("tbody tr").first
+        first_row.focus()
+        react_page.keyboard.press("Enter")
+        react_page.wait_for_load_state("networkidle")
+        assert "/judge-profiles/" in react_page.url

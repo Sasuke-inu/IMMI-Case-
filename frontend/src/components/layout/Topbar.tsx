@@ -9,7 +9,7 @@ interface TopbarProps {
 }
 
 export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isZhTW = i18n.language === "zh-TW";
 
   return (
@@ -18,7 +18,7 @@ export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
         <button
           onClick={onMenuClick}
           className="rounded-md p-1.5 text-secondary-text hover:bg-surface hover:text-foreground lg:hidden"
-          aria-label="Toggle menu"
+          aria-label={t("common.menu", { defaultValue: "Toggle menu" })}
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -29,20 +29,20 @@ export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
         <button
           onClick={onSearchClick}
           className={cn(
-            "hidden items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-muted-text transition-colors hover:border-accent sm:flex",
+            "hidden w-64 items-center gap-2 rounded-full border border-border bg-surface px-4 py-1.5 text-sm text-muted-text transition-colors hover:border-accent sm:flex",
           )}
         >
           <Search className="h-3.5 w-3.5" />
-          <span>Search...</span>
-          <kbd className="ml-4 rounded bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-text">
+          <span>{t("common.search_placeholder")}</span>
+          <kbd className="ml-auto rounded bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-text">
             /
           </kbd>
         </button>
 
-        {/* Language toggle */}
+        {/* Language toggle — same height as search bar (py-1.5) */}
         <button
           onClick={() => i18n.changeLanguage(isZhTW ? "en" : "zh-TW")}
-          className="rounded-md px-2 py-1 text-xs font-medium text-muted-text hover:bg-surface hover:text-foreground border border-border transition-colors"
+          className="rounded-full border border-border px-4 py-1.5 text-sm font-medium text-muted-text transition-colors hover:bg-surface hover:text-foreground"
           title="Toggle language / 切換語言"
         >
           {isZhTW ? "EN" : "中文"}

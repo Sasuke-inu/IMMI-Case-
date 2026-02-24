@@ -10,23 +10,30 @@ interface FieldDef {
   example: string;
 }
 
-const FIELD_GROUPS: Array<{
-  label: string;
+type FieldGroupKey =
+  | "identification"
+  | "court_information"
+  | "case_content"
+  | "extracted_fields"
+  | "user_data";
+
+const FIELD_GROUP_DEFS: Array<{
+  key: FieldGroupKey;
   icon: typeof Hash;
   fields: string[];
 }> = [
   {
-    label: "Identification",
+    key: "identification",
     icon: Hash,
     fields: ["case_id", "citation", "title", "url", "source"],
   },
   {
-    label: "Court Information",
+    key: "court_information",
     icon: Scale,
     fields: ["court", "court_code", "date", "year", "judges"],
   },
   {
-    label: "Case Content",
+    key: "case_content",
     icon: FileText,
     fields: [
       "catchwords",
@@ -37,7 +44,7 @@ const FIELD_GROUPS: Array<{
     ],
   },
   {
-    label: "Extracted Fields",
+    key: "extracted_fields",
     icon: Brain,
     fields: [
       "visa_type",
@@ -48,7 +55,7 @@ const FIELD_GROUPS: Array<{
     ],
   },
   {
-    label: "User Data",
+    key: "user_data",
     icon: User,
     fields: ["user_notes", "tags"],
   },
@@ -78,6 +85,14 @@ export function DataDictionaryPage() {
   const fields = data?.fields ?? [];
   const fieldMap = new Map(fields.map((f) => [f.name, f]));
 
+  const GROUP_LABELS: Record<FieldGroupKey, string> = {
+    identification: t("pages.data_dictionary.identification"),
+    court_information: t("pages.data_dictionary.court_information"),
+    case_content: t("pages.data_dictionary.case_content"),
+    extracted_fields: t("pages.data_dictionary.extracted_fields"),
+    user_data: t("pages.data_dictionary.user_data"),
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -87,25 +102,25 @@ export function DataDictionaryPage() {
             {t("pages.data_dictionary.title")}
           </h1>
           <p className="text-sm text-muted-text">
-            ImmigrationCase data model — {fields.length} fields across 5 groups
+            {fields.length} {t("pages.data_dictionary.fields")}
           </p>
         </div>
       </div>
 
       {/* Summary stats */}
       <div className="grid gap-3 sm:grid-cols-5">
-        {FIELD_GROUPS.map((g) => {
+        {FIELD_GROUP_DEFS.map((g) => {
           const Icon = g.icon;
           return (
             <div
-              key={g.label}
+              key={g.key}
               className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
             >
               <div className="rounded-md bg-accent-muted p-2 text-accent">
                 <Icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-xs text-muted-text">{g.label}</p>
+                <p className="text-xs text-muted-text">{GROUP_LABELS[g.key]}</p>
                 <p className="font-mono text-sm font-medium text-foreground">
                   {g.fields.length}
                 </p>
@@ -116,7 +131,7 @@ export function DataDictionaryPage() {
       </div>
 
       {/* Grouped tables */}
-      {FIELD_GROUPS.map((group) => {
+      {FIELD_GROUP_DEFS.map((group) => {
         const Icon = group.icon;
         const groupFields = group.fields
           .map((name) => fieldMap.get(name))
@@ -126,16 +141,16 @@ export function DataDictionaryPage() {
 
         return (
           <div
-            key={group.label}
+            key={group.key}
             className="rounded-lg border border-border bg-card"
           >
             <div className="flex items-center gap-2 border-b border-border p-4">
               <Icon className="h-5 w-5 text-accent" />
               <h2 className="font-heading text-base font-semibold">
-                {group.label}
+                {GROUP_LABELS[group.key]}
               </h2>
               <span className="ml-auto rounded-full bg-surface px-2 py-0.5 text-xs text-muted-text">
-                {groupFields.length} fields
+                {groupFields.length} {t("pages.data_dictionary.fields")}
               </span>
             </div>
             <div className="overflow-x-auto">

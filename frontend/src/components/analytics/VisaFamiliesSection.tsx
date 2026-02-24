@@ -34,7 +34,13 @@ interface Props {
 
 function VisaFamiliesSectionInner({ filters }: Props) {
   const { t } = useTranslation();
-  const { data, isLoading } = useVisaFamilies(filters);
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useVisaFamilies(filters);
   const [sortBy, setSortBy] = useState<"total" | "win_rate">("total");
 
   const families = data?.families ?? [];
@@ -42,6 +48,8 @@ function VisaFamiliesSectionInner({ filters }: Props) {
     sortBy === "total" ? b.total - a.total : b.win_rate - a.win_rate,
   );
   const top12 = sorted.slice(0, 12);
+  const errorText =
+    error instanceof Error ? error.message : t("errors.unable_to_load_message");
 
   return (
     <section className="space-y-4" data-testid="visa-families-section">
@@ -66,7 +74,13 @@ function VisaFamiliesSectionInner({ filters }: Props) {
             defaultValue: "Cases by Visa Family",
           })}
           isLoading={isLoading}
+          isError={isError}
+          errorMessage={errorText}
+          onRetry={() => {
+            void refetch();
+          }}
           isEmpty={families.length === 0}
+          emptyMessage={t("analytics.no_visa_family_data")}
         >
           <div className="mb-2 flex justify-end">
             <select
@@ -146,7 +160,13 @@ function VisaFamiliesSectionInner({ filters }: Props) {
             defaultValue: "Win Rates by Family",
           })}
           isLoading={isLoading}
+          isError={isError}
+          errorMessage={errorText}
+          onRetry={() => {
+            void refetch();
+          }}
           isEmpty={families.length === 0}
+          emptyMessage={t("analytics.no_visa_family_data")}
         >
           <div className="max-h-[360px] overflow-y-auto">
             <table className="w-full text-sm">

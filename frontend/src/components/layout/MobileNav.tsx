@@ -2,30 +2,8 @@ import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { X, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
-import {
-  LayoutDashboard,
-  CloudDownload,
-  Workflow,
-  Activity,
-  BookOpen,
-  BookMarked,
-  Palette,
-  TrendingUp,
-  Users,
-} from "lucide-react";
-
-interface NavItem {
-  readonly to: string;
-  readonly icon: LucideIcon;
-  readonly label: string;
-  readonly description?: string;
-}
-
-interface NavGroup {
-  readonly title: string;
-  readonly items: readonly NavItem[];
-}
+import { useSavedSearches } from "@/hooks/use-saved-searches";
+import { APP_NAV_GROUPS } from "@/components/layout/nav-config";
 
 interface MobileNavProps {
   open: boolean;
@@ -34,58 +12,9 @@ interface MobileNavProps {
 
 export function MobileNav({ open, onClose }: MobileNavProps) {
   const { t } = useTranslation();
+  const { savedSearches } = useSavedSearches();
 
   if (!open) return null;
-
-  const navGroups: readonly NavGroup[] = [
-    {
-      title: t("nav.browse"),
-      items: [
-        { to: "/", icon: LayoutDashboard, label: t("nav.dashboard") },
-        { to: "/analytics", icon: TrendingUp, label: t("nav.analytics") },
-        { to: "/judge-profiles", icon: Users, label: t("nav.judge_profiles") },
-        { to: "/cases", icon: FileText, label: t("nav.cases") },
-      ],
-    },
-    {
-      title: t("nav.data_tools"),
-      items: [
-        {
-          to: "/download",
-          icon: CloudDownload,
-          label: t("pipeline.download_title"),
-          description: t("pipeline.download_description"),
-        },
-        {
-          to: "/pipeline",
-          icon: Workflow,
-          label: t("pipeline.crawl_title"),
-          description: t("pipeline.crawl_description"),
-        },
-        {
-          to: "/jobs",
-          icon: Activity,
-          label: t("nav.jobs"),
-        },
-      ],
-    },
-    {
-      title: t("nav.reference"),
-      items: [
-        {
-          to: "/legislations",
-          icon: BookMarked,
-          label: t("nav.legislations"),
-        },
-        {
-          to: "/data-dictionary",
-          icon: BookOpen,
-          label: t("nav.data_dictionary"),
-        },
-        { to: "/design-tokens", icon: Palette, label: t("nav.design_tokens") },
-      ],
-    },
-  ];
 
   return (
     <>
@@ -113,31 +42,44 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
         </div>
 
         <nav className="p-2">
-          {navGroups.map((group, gi) => (
-            <div key={group.title} className={cn(gi > 0 && "mt-3")}>
+          {APP_NAV_GROUPS.map((group, gi) => (
+            <div key={group.titleKey} className={cn(gi > 0 && "mt-3")}>
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-text">
-                {group.title}
+                {t(group.titleKey)}
               </p>
-              {group.items.map(({ to, icon: Icon, label, description }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === "/"}
-                  onClick={onClose}
-                  title={description ?? label}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-accent-muted text-accent"
-                        : "text-secondary-text hover:bg-surface hover:text-foreground",
-                    )
-                  }
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{label}</span>
-                </NavLink>
-              ))}
+              {group.items.map(
+                ({ to, icon: Icon, labelKey, descriptionKey, showSavedSearchBadge }) => {
+                  const label = t(labelKey);
+                  const description = descriptionKey
+                    ? t(descriptionKey)
+                    : undefined;
+                  return (
+                    <NavLink
+                      key={`${to}-${labelKey}`}
+                      to={to}
+                      end={to === "/"}
+                      onClick={onClose}
+                      title={description ?? label}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                          isActive
+                            ? "bg-accent-muted text-accent"
+                            : "text-secondary-text hover:bg-surface hover:text-foreground",
+                        )
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="min-w-0 flex-1 truncate">{label}</span>
+                      {showSavedSearchBadge && savedSearches.length > 0 && (
+                        <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[10px] font-semibold text-accent">
+                          {savedSearches.length}
+                        </span>
+                      )}
+                    </NavLink>
+                  );
+                },
+              )}
             </div>
           ))}
         </nav>

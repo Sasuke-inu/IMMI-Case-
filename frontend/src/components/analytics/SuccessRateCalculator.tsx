@@ -21,6 +21,7 @@ import { ConceptComboTable } from "@/components/analytics/ConceptComboTable";
 import { ConfidenceBadge } from "@/components/analytics/ConfidenceBadge";
 import { SuccessRateDeepModal } from "@/components/analytics/SuccessRateDeepModal";
 import { RiskGauge } from "@/components/analytics/RiskGauge";
+import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import type { AnalyticsFilterParams } from "@/types/case";
 import { cn } from "@/lib/utils";
 
@@ -35,9 +36,13 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
   const [selectedConcepts, setSelectedConcepts] = useState<string[]>([]);
   const [deepModalOpen, setDeepModalOpen] = useState(false);
 
-  const { data: filterOptions } = useFilterOptions();
-  const { data: outcomes } = useOutcomes(filters);
-  const { data: conceptOptions } = useLegalConcepts(filters, 18);
+  const {
+    data: filterOptions,
+    isError: isFilterOptionsError,
+  } = useFilterOptions();
+  const { data: outcomes, isError: isOutcomesError } = useOutcomes(filters);
+  const { data: conceptOptions, isError: isConceptOptionsError } =
+    useLegalConcepts(filters, 18);
 
   const successParams = useMemo(
     () => ({
@@ -49,7 +54,8 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
     [filters, visaSubclass, caseNature, selectedConcepts],
   );
 
-  const { data, isLoading } = useSuccessRate(successParams);
+  const { data, isLoading, isError, error, refetch } =
+    useSuccessRate(successParams);
 
   const subclassOptions = useMemo(() => {
     if (!outcomes) return [];
@@ -134,9 +140,36 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
         </div>
       </div>
 
-      {isLoading || !data ? (
+      {(isFilterOptionsError || isOutcomesError || isConceptOptionsError) && (
+        <p className="mt-2 text-xs text-semantic-warning">
+          {t("analytics.filter_data_partial_warning", {
+            defaultValue:
+              "Some filter options are temporarily unavailable. You can still run calculations with available filters.",
+          })}
+        </p>
+      )}
+
+      {isLoading ? (
         <div className="mt-4 text-sm text-muted-text">
           {t("analytics.loading_calculator")}
+        </div>
+      ) : isError ? (
+        <div className="mt-4">
+          <ApiErrorState
+            title={t("errors.unable_to_load_data")}
+            message={
+              error instanceof Error
+                ? error.message
+                : t("errors.unable_to_load_message")
+            }
+            onRetry={() => {
+              void refetch();
+            }}
+          />
+        </div>
+      ) : !data ? (
+        <div className="mt-4 text-sm text-muted-text">
+          {t("chart.no_data")}
         </div>
       ) : (
         <div className="mt-4 space-y-4">

@@ -1,12 +1,17 @@
 import { memo } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { ApiErrorState } from "@/components/shared/ApiErrorState";
 
 interface ChartCardProps {
   title: string;
   children: ReactNode;
   isLoading?: boolean;
+  isError?: boolean;
+  errorMessage?: string;
+  onRetry?: () => void;
   isEmpty?: boolean;
+  emptyMessage?: string;
   className?: string;
 }
 
@@ -14,7 +19,11 @@ function ChartCardInner({
   title,
   children,
   isLoading,
+  isError,
+  errorMessage,
+  onRetry,
   isEmpty,
+  emptyMessage,
   className,
 }: ChartCardProps) {
   const { t } = useTranslation();
@@ -34,9 +43,15 @@ function ChartCardInner({
           <div className="h-32 w-full animate-pulse rounded bg-border/40" />
           <div className="h-4 w-2/3 animate-pulse rounded bg-border/40" />
         </div>
+      ) : isError ? (
+        <ApiErrorState
+          title={t("errors.unable_to_load_data")}
+          message={errorMessage ?? t("errors.unable_to_load_message")}
+          onRetry={onRetry}
+        />
       ) : isEmpty ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-text">
-          {t("chart.no_data")}
+          {emptyMessage ?? t("chart.no_data")}
         </div>
       ) : (
         <div className="min-h-0 flex-1">{children}</div>

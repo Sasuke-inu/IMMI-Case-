@@ -103,6 +103,23 @@ class TestMobileDrawer:
         wait_for_loading_gone(react_mobile)
         assert "/cases" in react_mobile.url
 
+    def test_mobile_drawer_has_all_browse_links(self, react_mobile):
+        """Mobile drawer should include all browse links available on desktop."""
+        react_navigate(react_mobile, "/")
+        wait_for_loading_gone(react_mobile)
+        click_mobile_menu(react_mobile)
+        drawer = react_mobile.locator(".fixed.inset-y-0.left-0")
+        for label in [
+            "Dashboard",
+            "Analytics",
+            "Judge Profiles",
+            "Court Lineage",
+            "Cases",
+            "Collections",
+            "Saved Searches",
+        ]:
+            assert drawer.get_by_text(label, exact=True).is_visible()
+
 
 class TestBackNavigation:
     """Breadcrumb navigation in detail/add/edit pages (no Back button)."""

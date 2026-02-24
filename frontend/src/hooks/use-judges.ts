@@ -24,6 +24,7 @@ export function useJudgeLeaderboard(params: {
       params.limit,
     ],
     queryFn: () => fetchJudgeLeaderboard(params),
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -37,6 +38,7 @@ export function useJudgeProfile(
     queryKey: ["judges", "profile", name, params.yearFrom, params.yearTo],
     queryFn: () => fetchJudgeProfile(name, params),
     enabled: !!name,
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -50,6 +52,7 @@ export function useJudgeCompare(
     queryKey: ["judges", "compare", ...names, params.yearFrom, params.yearTo],
     queryFn: () => fetchJudgeCompare(names, params),
     enabled: names.length >= 2,
+    retry: 0,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -60,6 +63,7 @@ export function useJudgeBio(name: string) {
     queryKey: ["judges", "bio", name],
     queryFn: () => fetchJudgeBio(name),
     enabled: !!name,
+    retry: 0,
     staleTime: 10 * 60_000,
     placeholderData: keepPreviousData,
   });

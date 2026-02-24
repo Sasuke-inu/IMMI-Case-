@@ -21,19 +21,59 @@ interface Props {
 
 function OutcomeAnalysisSectionInner({ filters }: Props) {
   const { t } = useTranslation();
-  const { data: outcomes, isLoading: loadingOutcomes } = useOutcomes(filters);
-  const { data: judgesData, isLoading: loadingJudges } = useJudges(filters);
-  const { data: conceptsData, isLoading: loadingConcepts } =
-    useLegalConcepts(filters);
-  const { data: natureOutcome, isLoading: loadingHeatmap } =
-    useNatureOutcome(filters);
+  const {
+    data: outcomes,
+    isLoading: loadingOutcomes,
+    isError: isOutcomesError,
+    error: outcomesError,
+    refetch: refetchOutcomes,
+  } = useOutcomes(filters);
+  const {
+    data: judgesData,
+    isLoading: loadingJudges,
+    isError: isJudgesError,
+    error: judgesError,
+    refetch: refetchJudges,
+  } = useJudges(filters);
+  const {
+    data: conceptsData,
+    isLoading: loadingConcepts,
+    isError: isConceptsError,
+    error: conceptsError,
+    refetch: refetchConcepts,
+  } = useLegalConcepts(filters);
+  const {
+    data: natureOutcome,
+    isLoading: loadingHeatmap,
+    isError: isHeatmapError,
+    error: heatmapError,
+    refetch: refetchHeatmap,
+  } = useNatureOutcome(filters);
+
+  const errorText = (error: unknown) =>
+    error instanceof Error ? error.message : t("errors.unable_to_load_message");
 
   return (
-    <>
+    <section className="space-y-4" data-testid="outcome-analysis-section">
+      <div>
+        <h2 className="font-semibold text-foreground">
+          {t("analytics.outcome_snapshot")}
+        </h2>
+        <p className="text-sm text-muted-text">
+          {t("analytics.outcome_snapshot_desc")}
+        </p>
+      </div>
+
       <ChartCard
         title={t("analytics.outcome_rate_by_court")}
         isLoading={loadingOutcomes}
+        isError={isOutcomesError}
+        errorMessage={errorText(outcomesError)}
+        onRetry={() => {
+          void refetchOutcomes();
+        }}
         isEmpty={!outcomes || Object.keys(outcomes.by_court).length === 0}
+        emptyMessage={t("analytics.no_outcome_by_court_data")}
       >
         {outcomes && <OutcomeByCourtChart data={outcomes.by_court} />}
       </ChartCard>
@@ -42,7 +82,13 @@ function OutcomeAnalysisSectionInner({ filters }: Props) {
         <ChartCard
           title={t("analytics.affirmed_rate_trend")}
           isLoading={loadingOutcomes}
+          isError={isOutcomesError}
+          errorMessage={errorText(outcomesError)}
+          onRetry={() => {
+            void refetchOutcomes();
+          }}
           isEmpty={!outcomes || Object.keys(outcomes.by_year).length === 0}
+          emptyMessage={t("analytics.no_affirmed_trend_data")}
         >
           {outcomes && <OutcomeTrendChart data={outcomes.by_year} />}
         </ChartCard>
@@ -50,7 +96,13 @@ function OutcomeAnalysisSectionInner({ filters }: Props) {
         <ChartCard
           title={t("analytics.affirmed_rate_visa")}
           isLoading={loadingOutcomes}
+          isError={isOutcomesError}
+          errorMessage={errorText(outcomesError)}
+          onRetry={() => {
+            void refetchOutcomes();
+          }}
           isEmpty={!outcomes || Object.keys(outcomes.by_subclass).length === 0}
+          emptyMessage={t("analytics.no_affirmed_subclass_data")}
         >
           {outcomes && <OutcomeBySubclassChart data={outcomes.by_subclass} />}
         </ChartCard>
@@ -60,7 +112,13 @@ function OutcomeAnalysisSectionInner({ filters }: Props) {
         <ChartCard
           title={t("analytics.active_judges")}
           isLoading={loadingJudges}
+          isError={isJudgesError}
+          errorMessage={errorText(judgesError)}
+          onRetry={() => {
+            void refetchJudges();
+          }}
           isEmpty={!judgesData || judgesData.judges.length === 0}
+          emptyMessage={t("analytics.no_active_judges_data")}
         >
           {judgesData && <TopJudgesChart data={judgesData.judges} />}
         </ChartCard>
@@ -68,7 +126,13 @@ function OutcomeAnalysisSectionInner({ filters }: Props) {
         <ChartCard
           title={t("analytics.legal_concepts_frequency")}
           isLoading={loadingConcepts}
+          isError={isConceptsError}
+          errorMessage={errorText(conceptsError)}
+          onRetry={() => {
+            void refetchConcepts();
+          }}
           isEmpty={!conceptsData || conceptsData.concepts.length === 0}
+          emptyMessage={t("analytics.no_legal_concepts_data")}
         >
           {conceptsData && (
             <LegalConceptsChart data={conceptsData.concepts} />
@@ -79,11 +143,17 @@ function OutcomeAnalysisSectionInner({ filters }: Props) {
       <ChartCard
         title={t("analytics.nature_outcome_matrix")}
         isLoading={loadingHeatmap}
+        isError={isHeatmapError}
+        errorMessage={errorText(heatmapError)}
+        onRetry={() => {
+          void refetchHeatmap();
+        }}
         isEmpty={!natureOutcome || natureOutcome.natures.length === 0}
+        emptyMessage={t("analytics.no_nature_outcome_matrix_data")}
       >
         {natureOutcome && <NatureOutcomeHeatmap data={natureOutcome} />}
       </ChartCard>
-    </>
+    </section>
   );
 }
 

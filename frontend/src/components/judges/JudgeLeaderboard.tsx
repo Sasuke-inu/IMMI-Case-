@@ -42,6 +42,19 @@ export function JudgeLeaderboard({
               key={row.name}
               className="cursor-pointer border-b border-border-light/60 hover:bg-surface/50"
               onClick={() => onOpen(row.name)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onOpen(row.name);
+                }
+                if (event.key.toLowerCase() === "x") {
+                  event.preventDefault();
+                  onToggleCompare(row.name);
+                }
+              }}
+              tabIndex={0}
+              aria-selected={selectedNames.includes(row.name)}
+              aria-label={`${row.name} ${t("judges.judge_member")}`}
             >
               <td
                 className="px-3 py-2"

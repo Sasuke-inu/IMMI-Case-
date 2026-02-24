@@ -118,6 +118,11 @@ const CollectionsPage = lazy(() =>
     default: m.CollectionsPage,
   })),
 );
+const SavedSearchesPage = lazy(() =>
+  import("@/pages/SavedSearchesPage").then((m) => ({
+    default: m.SavedSearchesPage,
+  })),
+);
 const CollectionDetailPage = lazy(() =>
   import("@/pages/CollectionDetailPage").then((m) => ({
     default: m.CollectionDetailPage,
@@ -203,6 +208,14 @@ export default function App() {
                 element={
                   <Suspense fallback={<PageLoader />}>
                     <CollectionsPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="saved-searches"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <SavedSearchesPage />
                   </Suspense>
                 }
               />

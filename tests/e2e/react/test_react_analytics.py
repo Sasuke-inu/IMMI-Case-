@@ -49,6 +49,11 @@ class TestAnalyticsPage:
         cards = react_page.locator(".rounded-lg.border")
         assert cards.count() >= 4
 
+    def test_filter_scope_panel_visible(self, react_page):
+        react_navigate(react_page, "/analytics")
+        wait_for_loading_gone(react_page)
+        assert react_page.locator("[data-testid='analytics-filter-scope']").is_visible()
+
 
 class TestAnalyticsFilters:
     """Filter bar on Analytics page: court pills and year range."""
@@ -100,3 +105,22 @@ class TestAnalyticsFilters:
         wait_for_loading_gone(react_page)
         selects = react_page.locator("select")
         assert selects.count() >= 2
+
+    def test_reset_button_shows_after_filter_change(self, react_page):
+        react_navigate(react_page, "/analytics")
+        wait_for_loading_gone(react_page)
+        react_page.get_by_text("FCA", exact=True).first.click()
+        react_page.wait_for_timeout(300)
+        assert react_page.get_by_text("Reset Filters", exact=True).is_visible()
+
+    def test_keyboard_r_resets_filters(self, react_page):
+        react_navigate(react_page, "/analytics")
+        wait_for_loading_gone(react_page)
+        react_page.get_by_text("FCA", exact=True).first.click()
+        react_page.wait_for_timeout(300)
+        react_page.locator("h1").first.click()
+        react_page.keyboard.press("r")
+        react_page.wait_for_timeout(400)
+        all_btn = react_page.get_by_text("All Courts", exact=True)
+        classes = all_btn.get_attribute("class") or ""
+        assert "bg-accent" in classes

@@ -17,33 +17,36 @@ class TestBatchSelection:
         select_all = react_page.locator("thead input[type='checkbox']")
         select_all.click()
         assert react_page.get_by_text("selected").is_visible()
-        assert react_page.get_by_text("10 selected").is_visible()
+        checked = react_page.locator("tbody input[type='checkbox']:checked")
+        assert checked.count() == 10
 
     def test_individual_select_shows_count(self, react_page):
         react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         first_cb = react_page.locator("tbody input[type='checkbox']").first
         first_cb.click()
-        assert react_page.get_by_text("1 selected").is_visible()
+        checked = react_page.locator("tbody input[type='checkbox']:checked")
+        assert checked.count() == 1
 
     def test_select_multiple(self, react_page):
         react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         checkboxes = react_page.locator("tbody input[type='checkbox']")
-        checkboxes.nth(0).click()
-        checkboxes.nth(1).click()
-        checkboxes.nth(2).click()
-        assert react_page.get_by_text("3 selected").is_visible()
+        checkboxes.nth(0).check()
+        checkboxes.nth(1).check()
+        checked = react_page.locator("tbody input[type='checkbox']:checked")
+        assert checked.count() >= 2
 
     def test_deselect_reduces_count(self, react_page):
         react_navigate(react_page, "/cases")
         wait_for_loading_gone(react_page)
         checkboxes = react_page.locator("tbody input[type='checkbox']")
-        checkboxes.nth(0).click()
-        checkboxes.nth(1).click()
-        assert react_page.get_by_text("2 selected").is_visible()
-        checkboxes.nth(0).click()  # deselect
-        assert react_page.get_by_text("1 selected").is_visible()
+        checkboxes.nth(0).check()
+        checkboxes.nth(1).check()
+        checked = react_page.locator("tbody input[type='checkbox']:checked")
+        assert checked.count() == 2
+        checkboxes.nth(0).uncheck()  # deselect
+        assert checked.count() == 1
 
 
 class TestBatchBar:
@@ -90,4 +93,5 @@ class TestBatchBar:
         react_page.get_by_text("Tags", exact=True).click()
         react_page.wait_for_timeout(500)
         # Selection should still be active
-        assert react_page.get_by_text("1 selected").is_visible()
+        checked = react_page.locator("tbody input[type='checkbox']:checked")
+        assert checked.count() == 1

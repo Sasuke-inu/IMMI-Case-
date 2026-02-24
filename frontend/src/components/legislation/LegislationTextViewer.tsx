@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Search,
   ChevronUp,
@@ -428,12 +429,15 @@ interface TocEntry {
   divisions: Map<string, LegislationSection[]>;
 }
 
-function buildToc(sections: LegislationSection[]): TocEntry[] {
+function buildToc(
+  sections: LegislationSection[],
+  generalProvisionsLabel: string,
+): TocEntry[] {
   const parts: TocEntry[] = [];
   const partMap = new Map<string, TocEntry>();
 
   for (const s of sections) {
-    const partKey = s.part || "General Provisions";
+    const partKey = s.part || generalProvisionsLabel;
     const divKey = s.division || "";
     if (!partMap.has(partKey)) {
       const entry: TocEntry = {
@@ -458,7 +462,14 @@ interface TocSidebarProps {
 }
 
 function TocSidebar({ sections, activeId, onJump, expanded }: TocSidebarProps) {
-  const toc = useMemo(() => buildToc(sections), [sections]);
+  const { t } = useTranslation();
+  const generalProvisionsLabel = t("legislations.general_provisions", {
+    defaultValue: "General Provisions",
+  });
+  const toc = useMemo(
+    () => buildToc(sections, generalProvisionsLabel),
+    [sections, generalProvisionsLabel],
+  );
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const togglePart = useCallback((part: string) => {
@@ -477,39 +488,52 @@ function TocSidebar({ sections, activeId, onJump, expanded }: TocSidebarProps) {
         expanded ? "max-h-none" : "max-h-[calc(100vh-12rem)]",
       )}
     >
-      <p className="sticky top-0 z-10 bg-card px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-text">
-        Contents
-      </p>
-      <div className="pb-3">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 border-b border-border bg-card px-3 py-2.5">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-text">
+          {t("legislations.table_of_contents", { defaultValue: "Contents" })}
+        </p>
+      </div>
+
+      <div className="pb-4">
         {toc.map(({ part, divisions }) => {
           const isCollapsed = collapsed.has(part);
+          const totalSections = Array.from(divisions.values()).flat().length;
           return (
-            <div key={part}>
+            <div key={part} className="mt-1">
               {/* Part heading */}
               <button
                 onClick={() => togglePart(part)}
-                className="flex w-full items-start gap-1 px-3 py-1.5 text-left hover:bg-surface"
+                className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:bg-surface"
               >
                 <ChevronRight
                   className={cn(
-                    "mt-0.5 h-3 w-3 shrink-0 text-muted-text transition-transform",
+                    "h-3 w-3 shrink-0 text-muted-text transition-transform",
                     !isCollapsed && "rotate-90",
                   )}
                 />
-                <span className="text-[11px] font-semibold leading-tight text-secondary-text">
+                <span className="min-w-0 flex-1 text-[11px] font-bold uppercase tracking-wide leading-tight text-secondary-text">
                   {part}
+                </span>
+                <span className="ml-auto shrink-0 rounded-full bg-surface px-1.5 py-0.5 font-mono text-[9px] text-muted-text">
+                  {totalSections}
                 </span>
               </button>
 
               {/* Divisions + sections */}
               {!isCollapsed &&
                 Array.from(divisions.entries()).map(([div, secs]) => (
-                  <div key={div || "__nodiv"}>
+                  <div key={div || "__nodiv"} className="ml-4">
+                    {/* Division label */}
                     {div && (
-                      <p className="ml-5 px-2 py-1 text-[10px] font-medium italic text-muted-text">
-                        {div}
-                      </p>
+                      <div className="mx-2 mb-1 mt-0.5 flex items-center gap-1.5 border-b border-border-light pb-1">
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-text/70">
+                          {div}
+                        </span>
+                      </div>
                     )}
+
+                    {/* Section items */}
                     {secs.map((s) => {
                       const isActive = activeId === s.id;
                       return (
@@ -517,20 +541,34 @@ function TocSidebar({ sections, activeId, onJump, expanded }: TocSidebarProps) {
                           key={s.id}
                           onClick={() => onJump(s.id)}
                           className={cn(
-                            "w-full border-l-2 py-1 pr-2 pl-6 text-left text-[11px] leading-snug transition-colors",
+                            "group w-full border-l-2 py-1.5 pr-3 pl-2 text-left transition-colors",
                             isActive
-                              ? "border-accent bg-accent/5 font-medium text-accent"
-                              : "border-transparent text-muted-text hover:bg-surface hover:text-foreground",
+                              ? "border-accent bg-accent/5"
+                              : "border-transparent hover:border-border hover:bg-surface",
                           )}
                         >
-                          <span className="font-mono text-[10px] font-bold">
-                            {s.number}
+                          <span
+                            className={cn(
+                              "block font-mono text-[10px] font-bold leading-none",
+                              isActive
+                                ? "text-accent"
+                                : "text-muted-text group-hover:text-accent",
+                            )}
+                          >
+                            § {s.number}
                           </span>
-                          {s.title ? (
-                            <span className="ml-1.5 text-[10px] leading-tight opacity-80 line-clamp-2">
+                          {s.title && (
+                            <span
+                              className={cn(
+                                "mt-0.5 block text-[10px] leading-snug line-clamp-2",
+                                isActive
+                                  ? "text-accent/80"
+                                  : "text-muted-text/70 group-hover:text-foreground",
+                              )}
+                            >
                               {s.title}
                             </span>
-                          ) : null}
+                          )}
                         </button>
                       );
                     })}
@@ -628,6 +666,7 @@ interface LegislationTextViewerProps {
 export function LegislationTextViewer({
   sections,
 }: LegislationTextViewerProps) {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeMatchIdx, setActiveMatchIdx] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
@@ -751,7 +790,7 @@ export function LegislationTextViewer({
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 border-b border-border px-4 py-2">
         <h2 className="font-heading text-base font-semibold text-foreground">
-          Sections
+          {t("legislations.sections_heading", { defaultValue: "Sections" })}
         </h2>
         <span className="ml-1 rounded-full bg-surface px-2 py-0.5 text-xs text-muted-text">
           {sections.length}
@@ -770,7 +809,9 @@ export function LegislationTextViewer({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") goToMatch(e.shiftKey ? -1 : 1);
                 }}
-                placeholder="Search sections…"
+                placeholder={t("legislations.search_sections_placeholder", {
+                  defaultValue: "Search sections…",
+                })}
                 className="w-44 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-text"
               />
               {searching && totalMatches > 0 && (
@@ -780,7 +821,7 @@ export function LegislationTextViewer({
               )}
               {searching && totalMatches === 0 && searchTerm.length >= 2 && (
                 <span className="whitespace-nowrap text-xs text-danger">
-                  No results
+                  {t("legislations.no_results", { defaultValue: "No results" })}
                 </span>
               )}
               <button
@@ -812,7 +853,9 @@ export function LegislationTextViewer({
                 setTimeout(() => searchInputRef.current?.focus(), 50);
               }}
               className="rounded-md p-1.5 text-muted-text hover:bg-surface hover:text-foreground"
-              title="Search sections (⌘F)"
+              title={t("legislations.search_sections_title", {
+                defaultValue: "Search sections (⌘F)",
+              })}
             >
               <Search className="h-4 w-4" />
             </button>
@@ -822,7 +865,11 @@ export function LegislationTextViewer({
           <button
             onClick={() => setExpanded(!expanded)}
             className="rounded-md p-1.5 text-muted-text hover:bg-surface hover:text-foreground"
-            title={expanded ? "Collapse" : "Expand"}
+            title={
+              expanded
+                ? t("legislations.collapse", { defaultValue: "Collapse" })
+                : t("legislations.expand", { defaultValue: "Expand" })
+            }
           >
             {expanded ? (
               <Minimize2 className="h-4 w-4" />
@@ -836,7 +883,7 @@ export function LegislationTextViewer({
       {/* ── Body: TOC + Sections ─────────────────────────────────────── */}
       <div className="flex">
         {/* TOC sidebar */}
-        <div className="w-56 flex-shrink-0">
+        <div className="w-60 flex-shrink-0">
           <TocSidebar
             sections={sections}
             activeId={activeId}

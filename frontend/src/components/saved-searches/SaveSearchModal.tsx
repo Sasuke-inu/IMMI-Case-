@@ -53,12 +53,20 @@ export function SaveSearchModal({
 
     // Validation
     if (!trimmedName) {
-      setError(t("saved_searches.error_empty_name", { defaultValue: "Search name cannot be empty" }));
+      setError(
+        t("saved_searches.error_empty_name", {
+          defaultValue: "Search name cannot be empty",
+        }),
+      );
       return;
     }
 
     if (trimmedName.length > 50) {
-      setError(t("saved_searches.error_name_too_long", { defaultValue: "Name must be 50 characters or less" }));
+      setError(
+        t("saved_searches.error_name_too_long", {
+          defaultValue: "Name must be 50 characters or less",
+        }),
+      );
       return;
     }
 
@@ -67,13 +75,21 @@ export function SaveSearchModal({
       existingNames.includes(trimmedName) &&
       trimmedName !== editingSearch?.name
     ) {
-      setError(t("saved_searches.error_duplicate_name", { defaultValue: "A search with this name already exists" }));
+      setError(
+        t("saved_searches.error_duplicate_name", {
+          defaultValue: "A search with this name already exists",
+        }),
+      );
       return;
     }
 
     // Check that at least one filter is applied
     if (!isEditMode && !hasActiveFilters(filters)) {
-      setError(t("saved_searches.error_no_filters", { defaultValue: "Cannot save a search with no filters applied" }));
+      setError(
+        t("saved_searches.error_no_filters", {
+          defaultValue: "Cannot save a search with no filters applied",
+        }),
+      );
       return;
     }
 
@@ -83,10 +99,14 @@ export function SaveSearchModal({
   if (!open) return null;
 
   // Generate filter summary
-  const filterSummary = generateFilterSummary(filters);
+  const filterSummary = generateFilterSummary(filters, t);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="fixed inset-0 bg-black/40" onClick={onCancel} />
       <div className="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
         <form onSubmit={handleSubmit}>
@@ -131,9 +151,7 @@ export function SaveSearchModal({
               placeholder={t("saved_searches.search_name_placeholder")}
               className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
-            {error && (
-              <p className="mt-1 text-sm text-danger">{error}</p>
-            )}
+            {error && <p className="mt-1 text-sm text-danger">{error}</p>}
           </div>
 
           {filterSummary && (
@@ -179,14 +197,18 @@ function hasActiveFilters(filters: CaseFilters): boolean {
     filters.nature ||
     filters.source ||
     filters.tag ||
-    filters.keyword
+    filters.keyword,
   );
 }
 
 /**
  * Generate a human-readable summary of active filters
+ * Note: This function is called from inside the component via a closure to access t()
  */
-function generateFilterSummary(filters: CaseFilters): string {
+function generateFilterSummary(
+  filters: CaseFilters,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
   const parts: string[] = [];
 
   if (filters.court) {
@@ -194,23 +216,23 @@ function generateFilterSummary(filters: CaseFilters): string {
   }
 
   if (filters.year) {
-    parts.push(`Year ${filters.year}`);
+    parts.push(t("saved_searches.filter_year", { year: filters.year }));
   }
 
   if (filters.visa_type) {
-    parts.push(`Visa ${filters.visa_type}`);
+    parts.push(t("saved_searches.filter_visa", { type: filters.visa_type }));
   }
 
   if (filters.source) {
-    parts.push(`Source: ${filters.source}`);
+    parts.push(t("saved_searches.filter_source", { source: filters.source }));
   }
 
   if (filters.tag) {
-    parts.push(`Tag: ${filters.tag}`);
+    parts.push(t("saved_searches.filter_tag", { tag: filters.tag }));
   }
 
   if (filters.nature) {
-    parts.push(`Nature: ${filters.nature}`);
+    parts.push(t("saved_searches.filter_nature", { nature: filters.nature }));
   }
 
   if (filters.keyword) {
@@ -218,9 +240,17 @@ function generateFilterSummary(filters: CaseFilters): string {
   }
 
   if (filters.sort_by && filters.sort_by !== "date") {
-    const dir = filters.sort_dir === "asc" ? "ascending" : "descending";
-    parts.push(`Sorted by ${filters.sort_by} (${dir})`);
+    const dir =
+      filters.sort_dir === "asc" ? t("cases.ascending") : t("cases.descending");
+    parts.push(
+      t("saved_searches.filter_sorted_by", {
+        field: filters.sort_by,
+        direction: dir,
+      }),
+    );
   }
 
-  return parts.length > 0 ? parts.join(" • ") : "No filters applied"; // Intentionally not translated - used in modal context
+  return parts.length > 0
+    ? parts.join(" • ")
+    : t("saved_searches.no_filters_applied");
 }

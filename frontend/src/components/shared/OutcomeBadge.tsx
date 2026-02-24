@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 type OutcomeType = "positive" | "negative" | "neutral";
@@ -28,40 +29,58 @@ function classifyOutcome(outcome: string): OutcomeType {
   return "neutral";
 }
 
-function summarizeOutcome(outcome: string): string {
+function summarizeOutcome(outcome: string): { key: string; fallback: string } {
   const lower = outcome.toLowerCase();
 
   // Positive outcomes (check specific terms first)
-  if (lower.includes("remit")) return "Remitted";
-  if (lower.includes("set aside")) return "Set Aside";
-  if (lower.includes("writ")) return "Writs Issued";
-  if (lower.includes("uphold") || lower.includes("upheld")) return "Upheld";
-  if (lower.includes("allow")) return "Allowed";
-  if (lower.includes("grant")) return "Granted";
-  if (lower.includes("quash")) return "Quashed";
+  if (lower.includes("remit"))
+    return { key: "outcomes.remitted", fallback: "Remitted" };
+  if (lower.includes("set aside"))
+    return { key: "outcomes.set_aside", fallback: "Set Aside" };
+  if (lower.includes("writ"))
+    return { key: "outcomes.writs_issued", fallback: "Writs Issued" };
+  if (lower.includes("uphold") || lower.includes("upheld"))
+    return { key: "outcomes.upheld", fallback: "Upheld" };
+  if (lower.includes("allow"))
+    return { key: "outcomes.allowed", fallback: "Allowed" };
+  if (lower.includes("grant"))
+    return { key: "outcomes.granted", fallback: "Granted" };
+  if (lower.includes("quash"))
+    return { key: "outcomes.quashed", fallback: "Quashed" };
 
   // Negative outcomes
-  if (lower.includes("dismiss")) return "Dismissed";
-  if (lower.includes("affirm")) return "Affirmed";
-  if (lower.includes("refuse")) return "Refused";
-  if (lower.includes("reject")) return "Rejected";
-  if (lower.includes("cancel")) return "Cancelled";
+  if (lower.includes("dismiss"))
+    return { key: "outcomes.dismissed", fallback: "Dismissed" };
+  if (lower.includes("affirm"))
+    return { key: "outcomes.affirmed", fallback: "Affirmed" };
+  if (lower.includes("refuse"))
+    return { key: "outcomes.refused", fallback: "Refused" };
+  if (lower.includes("reject"))
+    return { key: "outcomes.rejected", fallback: "Rejected" };
+  if (lower.includes("cancel"))
+    return { key: "outcomes.cancelled", fallback: "Cancelled" };
 
   // Neutral outcomes
-  if (lower.includes("no jurisdiction")) return "No Jurisdiction";
-  if (lower.includes("varied")) return "Varied";
-  if (lower.includes("withdrawn")) return "Withdrawn";
-  if (lower.includes("discontinu")) return "Discontinued";
-  if (lower.includes("consent order")) return "Consent Order";
+  if (lower.includes("no jurisdiction"))
+    return { key: "outcomes.no_jurisdiction", fallback: "No Jurisdiction" };
+  if (lower.includes("varied"))
+    return { key: "outcomes.varied", fallback: "Varied" };
+  if (lower.includes("withdrawn"))
+    return { key: "outcomes.withdrawn", fallback: "Withdrawn" };
+  if (lower.includes("discontinu"))
+    return { key: "outcomes.discontinued", fallback: "Discontinued" };
+  if (lower.includes("consent order"))
+    return { key: "outcomes.consent_order", fallback: "Consent Order" };
   if (lower.includes("decision record") || /^decision\b/i.test(outcome.trim()))
-    return "Decision";
-  if (/^order/i.test(outcome.trim())) return "Orders";
+    return { key: "outcomes.decision", fallback: "Decision" };
+  if (/^order/i.test(outcome.trim()))
+    return { key: "outcomes.orders", fallback: "Orders" };
 
   // Short enough to display as-is (cleaned)
   const trimmed = outcome.replace(/\s+/g, " ").trim();
-  if (trimmed.length <= 24) return trimmed;
+  if (trimmed.length <= 24) return { key: "", fallback: trimmed };
 
-  return "Other";
+  return { key: "outcomes.other", fallback: "Other" };
 }
 
 const colorMap: Record<OutcomeType, string> = {
@@ -76,9 +95,11 @@ interface OutcomeBadgeProps {
 }
 
 export function OutcomeBadge({ outcome, className }: OutcomeBadgeProps) {
+  const { t } = useTranslation();
   if (!outcome) return null;
   const type = classifyOutcome(outcome);
-  const label = summarizeOutcome(outcome);
+  const { key, fallback } = summarizeOutcome(outcome);
+  const label = key ? t(key, { defaultValue: fallback }) : fallback;
 
   return (
     <span
