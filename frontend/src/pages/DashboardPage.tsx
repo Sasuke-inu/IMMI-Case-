@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -12,6 +12,9 @@ import {
   Search,
   Bookmark,
   Info,
+  Loader2,
+  Clock3,
+  TriangleAlert,
 } from "lucide-react";
 import { useStats, useTrends } from "@/hooks/use-stats";
 import { useSavedSearches } from "@/hooks/use-saved-searches";
@@ -29,6 +32,9 @@ import { downloadExportFile } from "@/lib/api";
 import type { AnalyticsFilterParams } from "@/types/case";
 
 const CURRENT_YEAR = new Date().getFullYear();
+const SLOW_LOADING_MS = 4_000;
+const TIMEOUT_LOADING_MS = 15_000;
+type DashboardLoadingPhase = "loading" | "slow" | "timeout";
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -52,9 +58,48 @@ export function DashboardPage() {
   const { data: trendsData } = useTrends(filters);
   const { savedSearches, executeSearch, deleteSearch } = useSavedSearches();
   const navigate = useNavigate();
+  const [loadingPhase, setLoadingPhase] =
+    useState<DashboardLoadingPhase>("loading");
   const [courtView, setCourtView] = useState<"chart" | "table">("chart");
+  const panelClass = "rounded-lg border border-border bg-card p-4 shadow-xs";
+  const isInitialLoading = isLoading && !stats;
 
-  if (isLoading && !stats) {
+  useEffect(() => {
+    if (!isInitialLoading) return;
+
+    const slowTimer = window.setTimeout(() => {
+      setLoadingPhase("slow");
+    }, SLOW_LOADING_MS);
+    const timeoutTimer = window.setTimeout(() => {
+      setLoadingPhase("timeout");
+    }, TIMEOUT_LOADING_MS);
+
+    return () => {
+      window.clearTimeout(slowTimer);
+      window.clearTimeout(timeoutTimer);
+    };
+  }, [isInitialLoading, filters.court, filters.yearFrom, filters.yearTo]);
+
+  if (isInitialLoading) {
+    const isSlow = loadingPhase === "slow";
+    const isTimeout = loadingPhase === "timeout";
+    const iconClass = isTimeout
+      ? "h-5 w-5 text-danger"
+      : isSlow
+        ? "h-5 w-5 text-warning"
+        : "h-5 w-5 animate-spin text-accent";
+
+    const titleKey = isTimeout
+      ? "dashboard.loading_timeout_title"
+      : isSlow
+        ? "dashboard.loading_slow_title"
+        : "dashboard.loading_title";
+    const messageKey = isTimeout
+      ? "dashboard.loading_timeout_message"
+      : isSlow
+        ? "dashboard.loading_slow_message"
+        : "dashboard.loading_message";
+
     return (
       <div className="space-y-4">
         <div>
@@ -63,8 +108,60 @@ export function DashboardPage() {
           </h1>
           <p className="text-sm text-muted-text">{t("dashboard.subtitle")}</p>
         </div>
-        <div className="flex h-64 items-center justify-center text-muted-text">
-          {t("common.loading_ellipsis")}
+
+        <div
+          className={`rounded-lg border p-4 shadow-xs ${
+            isTimeout
+              ? "border-danger/40 bg-danger/5"
+              : isSlow
+                ? "border-warning/40 bg-warning/5"
+                : "border-border bg-card"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            {isTimeout ? (
+              <TriangleAlert className={iconClass} />
+            ) : isSlow ? (
+              <Clock3 className={iconClass} />
+            ) : (
+              <Loader2 className={iconClass} />
+            )}
+            <div className="space-y-1">
+              <h2 className="text-sm font-semibold text-foreground">
+                {t(titleKey)}
+              </h2>
+              <p className="text-sm text-muted-text">{t(messageKey)}</p>
+            </div>
+          </div>
+
+          {(isSlow || isTimeout) && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoadingPhase("loading");
+                  void refetch();
+                }}
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-light"
+              >
+                {t("common.retry")}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/cases")}
+                className="rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface"
+              >
+                {t("nav.cases")}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/guided-search")}
+                className="rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface"
+              >
+                {t("nav.guided_search")}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -202,13 +299,15 @@ export function DashboardPage() {
       </div>
 
       {/* Row 1: 4 Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
+          className="h-full"
           title={t("dashboard.total_cases")}
           value={stats.total_cases}
           icon={<FileText className="h-5 w-5" />}
         />
         <StatCard
+          className="h-full"
           title={t("dashboard.with_full_text")}
           value={stats.with_full_text}
           icon={<BookOpen className="h-5 w-5" />}
@@ -220,11 +319,13 @@ export function DashboardPage() {
           })}
         />
         <StatCard
+          className="h-full"
           title={t("dashboard.courts_tribunals")}
           value={Object.keys(stats.courts).length}
           icon={<Database className="h-5 w-5" />}
         />
         <StatCard
+          className="h-full"
           title={t("dashboard.case_categories")}
           value={natureCount}
           icon={<Layers className="h-5 w-5" />}
@@ -244,7 +345,7 @@ export function DashboardPage() {
       {/* Row 2: Court Bar Chart + Year Trend Area Chart */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Court distribution */}
-        <div className="rounded-lg border border-border bg-card p-4">
+        <div className={`${panelClass} flex h-full min-h-[360px] flex-col`}>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-heading text-base font-semibold">
               {t("dashboard.cases_by_court")}
@@ -288,36 +389,40 @@ export function DashboardPage() {
               </button>
             </div>
           </div>
-          {courtView === "chart" ? (
-            <CourtChart data={stats.courts} type="bar" />
-          ) : (
-            <div className="space-y-1.5">
-              {sortedCourts.map(([court, count]) => (
-                <Link
-                  key={court}
-                  to={`/cases?court=${court}`}
-                  className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-surface"
-                >
-                  <CourtBadge court={court} />
-                  <span className="font-mono text-sm text-foreground">
-                    {count.toLocaleString()}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
+          <div className="flex-1">
+            {courtView === "chart" ? (
+              <CourtChart data={stats.courts} type="bar" />
+            ) : (
+              <div className="space-y-1.5">
+                {sortedCourts.map(([court, count]) => (
+                  <Link
+                    key={court}
+                    to={`/cases?court=${court}`}
+                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-surface"
+                  >
+                    <CourtBadge court={court} />
+                    <span className="font-mono text-sm text-foreground">
+                      {count.toLocaleString()}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Year trend area chart */}
-        <div className="flex flex-col rounded-lg border border-border bg-card p-4">
+        <div className={`${panelClass} flex h-full min-h-[360px] flex-col`}>
           <h2 className="mb-3 font-heading text-base font-semibold">
             {t("dashboard.year_trend")}
           </h2>
-          {trends.length > 0 ? (
-            <TrendChart data={trends} />
-          ) : (
-            <CourtChart data={stats.years} type="bar" />
-          )}
+          <div className="flex-1">
+            {trends.length > 0 ? (
+              <TrendChart data={trends} />
+            ) : (
+              <CourtChart data={stats.years} type="bar" />
+            )}
+          </div>
         </div>
       </div>
 
@@ -325,31 +430,35 @@ export function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Case nature distribution */}
         {Object.keys(stats.natures || {}).length > 0 && (
-          <div className="rounded-lg border border-border bg-card p-4">
+          <div className={`${panelClass} flex h-full min-h-[360px] flex-col`}>
             <h2 className="mb-3 font-heading text-base font-semibold">
               {t("dashboard.case_categories_dist")}
             </h2>
-            <NatureChart data={stats.natures} />
+            <div className="flex-1">
+              <NatureChart data={stats.natures} />
+            </div>
           </div>
         )}
 
         {/* Visa subclass distribution */}
         {Object.keys(stats.visa_subclasses || {}).length > 0 && (
-          <div className="rounded-lg border border-border bg-card p-4">
+          <div className={`${panelClass} flex h-full min-h-[360px] flex-col`}>
             <h2 className="mb-3 font-heading text-base font-semibold">
               {t("dashboard.top_visa_subclasses")}
             </h2>
-            <SubclassChart data={stats.visa_subclasses} />
+            <div className="flex-1">
+              <SubclassChart data={stats.visa_subclasses} />
+            </div>
           </div>
         )}
       </div>
 
       {/* Quick actions + Export */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <button
           type="button"
           onClick={() => navigate("/download")}
-          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
+          className="flex h-full min-h-[76px] items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
         >
           <div className="rounded-md bg-accent-muted p-2 text-accent">
             <Download className="h-4 w-4" />
@@ -361,7 +470,7 @@ export function DashboardPage() {
         <button
           type="button"
           onClick={() => navigate("/guided-search")}
-          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
+          className="flex h-full min-h-[76px] items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
         >
           <div className="rounded-md bg-accent-muted p-2 text-accent">
             <Search className="h-4 w-4" />
@@ -373,7 +482,7 @@ export function DashboardPage() {
         <button
           type="button"
           onClick={() => downloadExportFile("csv")}
-          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
+          className="flex h-full min-h-[76px] items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
         >
           <div className="rounded-md bg-accent-muted p-2 text-accent">
             <Download className="h-4 w-4" />
@@ -385,7 +494,7 @@ export function DashboardPage() {
         <button
           type="button"
           onClick={() => downloadExportFile("json")}
-          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
+          className="flex h-full min-h-[76px] items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
         >
           <div className="rounded-md bg-accent-muted p-2 text-accent">
             <Download className="h-4 w-4" />
@@ -398,7 +507,7 @@ export function DashboardPage() {
 
       {/* Saved Searches */}
       {savedSearches.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4">
+        <div className={panelClass}>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-heading text-base font-semibold flex items-center gap-2">
               <Bookmark className="h-4 w-4" />
@@ -411,11 +520,12 @@ export function DashboardPage() {
               {t("buttons.view_all")} ({savedSearches.length})
             </Link>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {savedSearches.slice(0, 5).map((search) => (
               <SavedSearchCard
                 key={search.id}
                 search={search}
+                className="h-full"
                 onExecute={(currentCount) => {
                   executeSearch(
                     search.id,
@@ -453,7 +563,7 @@ export function DashboardPage() {
 
       {/* Recent cases */}
       {stats.recent_cases && stats.recent_cases.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4">
+        <div className={panelClass}>
           <h2 className="mb-3 font-heading text-base font-semibold">
             {t("dashboard.recent_cases")}
           </h2>

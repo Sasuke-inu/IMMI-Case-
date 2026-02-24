@@ -39,6 +39,7 @@ interface FlowState {
 export function GuidedSearchPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const panelClass = "rounded-lg border border-border bg-card p-4 shadow-xs";
   const [selectedFlow, setSelectedFlow] = useState<FlowType>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [flowState, setFlowState] = useState<FlowState>({
@@ -241,15 +242,15 @@ export function GuidedSearchPage() {
 
   if (results) {
     return (
-      <div className="container-padding">
+      <div className="container-padding space-y-6">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl" aria-live="polite">
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="text-2xl font-semibold text-foreground">
               {t("guided_search.results_heading", {
                 defaultValue: "Search Results",
               })}
             </h1>
-            <p className="mt-2 text-muted-text">
+            <p className="mt-1 text-sm text-muted-text">
               {t("guided_search.results_found_count", {
                 defaultValue: "Found {{count}} cases matching your criteria",
                 count: results.length,
@@ -311,14 +312,14 @@ export function GuidedSearchPage() {
 
   if (!selectedFlow) {
     return (
-      <div className="container-padding">
-        <div className="mb-10 max-w-3xl">
-          <h1 className="text-3xl font-bold text-foreground">
+      <div className="container-padding space-y-8">
+        <div className="max-w-3xl">
+          <h1 className="text-2xl font-semibold text-foreground">
             {t("guided_search.page_title", {
               defaultValue: "Guided Search",
             })}
           </h1>
-          <p className="mt-2 text-lg text-muted-text">
+          <p className="mt-1 text-sm text-muted-text">
             {t("guided_search.page_subtitle", {
               defaultValue:
                 "Choose a search flow to get started with finding relevant cases or judge information",
@@ -326,7 +327,7 @@ export function GuidedSearchPage() {
           </p>
         </div>
 
-        <div className="grid auto-rows-fr gap-6 md:grid-cols-2">
+        <div className="grid auto-rows-fr gap-4 md:grid-cols-2">
           {(Object.keys(flowConfig) as FlowType[])
             .filter((key): key is Exclude<FlowType, null> => key !== null)
             .map((flowKey) => {
@@ -337,21 +338,21 @@ export function GuidedSearchPage() {
                   key={flowKey}
                   type="button"
                   onClick={() => handleFlowSelect(flowKey)}
-                  className="group relative flex h-full overflow-hidden rounded-xl border border-border bg-card p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent hover:shadow-lg"
+                  className="group relative flex h-full min-h-[200px] overflow-hidden rounded-lg border border-border bg-card p-5 text-left shadow-xs transition-all hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
                 >
                   <div className="flex items-start gap-4">
                     <div className="rounded-lg bg-accent/10 p-3">
                       <Icon className="h-6 w-6 text-accent" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-xl font-semibold text-foreground group-hover:text-accent">
+                      <p className="text-lg font-semibold text-foreground group-hover:text-accent">
                         {flow.title}
                       </p>
                       <p className="mt-2 text-sm text-muted-text">
                         {flow.description}
                       </p>
-                      <div className="mt-4">
-                        <span className="inline-flex items-center gap-1 text-sm font-medium text-accent">
+                      <div className="mt-4 inline-flex rounded-md border border-accent/40 bg-accent/10 px-2.5 py-1">
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-accent">
                           {t("guided_search.start_flow_btn", {
                             defaultValue: "Start flow",
                           })}
@@ -365,8 +366,8 @@ export function GuidedSearchPage() {
             })}
         </div>
 
-        <div className="mt-12 rounded-xl border border-border bg-surface p-6">
-          <h2 className="text-lg font-semibold text-foreground">
+        <div className={`${panelClass} p-5`}>
+          <h2 className="text-base font-semibold text-foreground">
             {t("guided_search.how_it_works_heading", {
               defaultValue: "How it works",
             })}
@@ -386,7 +387,7 @@ export function GuidedSearchPage() {
             ].map((stepText, idx) => (
               <li
                 key={idx}
-                className="rounded-lg border border-border bg-card p-4 text-sm text-muted-text"
+                className="rounded-md border border-border bg-surface p-4 text-sm text-muted-text"
               >
                 <div className="mb-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-xs font-semibold text-accent">
                   {idx + 1}
@@ -405,7 +406,7 @@ export function GuidedSearchPage() {
   const isLastStep = currentStep === flow.steps.length;
 
   return (
-    <div className="container-padding">
+    <div className="container-padding space-y-6">
       <div className="mb-5">
         <div className="mb-4 flex items-center gap-2">
           <button
@@ -417,8 +418,8 @@ export function GuidedSearchPage() {
             {t("guided_search.back_btn", { defaultValue: "Back" })}
           </button>
         </div>
-        <h1 className="text-3xl font-bold text-foreground">{flow.title}</h1>
-        <p className="mt-2 text-muted-text">{flow.description}</p>
+        <h1 className="text-2xl font-semibold text-foreground">{flow.title}</h1>
+        <p className="mt-1 text-sm text-muted-text">{flow.description}</p>
         <div className="mt-3 inline-flex items-center rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-text">
           {t("guided_search.step_progress_badge", {
             defaultValue: "Step {{current}} of {{total}}",
@@ -429,7 +430,7 @@ export function GuidedSearchPage() {
       </div>
 
       {/* Progress indicator */}
-      <div className="mb-6 rounded-xl border border-border bg-card p-4">
+      <div className={`${panelClass}`}>
         <div className="flex items-center gap-2">
           {flow.steps.map((step, idx) => (
             <div key={idx} className="flex flex-1 items-center">
@@ -479,11 +480,11 @@ export function GuidedSearchPage() {
 
       {/* Step content */}
       <div className="mx-auto max-w-3xl">
-        <div className="rounded-xl border border-border bg-card p-6 md:p-8">
-          <h2 className="text-2xl font-bold text-foreground">
+        <div className={`${panelClass} p-6 md:p-8`}>
+          <h2 className="text-xl font-semibold text-foreground">
             {currentStepConfig.title}
           </h2>
-          <p className="mt-2 text-muted-text">
+          <p className="mt-1 text-sm text-muted-text">
             {currentStepConfig.description}
           </p>
 

@@ -257,6 +257,14 @@ export default function App() {
                 }
               />
               <Route
+                path="search-taxonomy"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <SearchTaxonomyPage />
+                  </Suspense>
+                }
+              />
+              <Route
                 path="guided-search"
                 element={
                   <Suspense fallback={<PageLoader />}>

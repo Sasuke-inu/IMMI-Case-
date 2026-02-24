@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { generateShareableUrl } from "@/lib/saved-searches";
 import { useCaseCount } from "@/hooks/use-cases";
+import { cn } from "@/lib/utils";
 import type { SavedSearch } from "@/types/case";
 
 interface SavedSearchCardProps {
@@ -11,6 +12,7 @@ interface SavedSearchCardProps {
   onExecute: (currentCount: number) => void;
   onEdit: () => void;
   onDelete: () => void;
+  className?: string;
 }
 
 function SavedSearchCardInner({
@@ -18,6 +20,7 @@ function SavedSearchCardInner({
   onExecute,
   onEdit,
   onDelete,
+  className,
 }: SavedSearchCardProps) {
   const { t } = useTranslation();
 
@@ -88,7 +91,12 @@ function SavedSearchCardInner({
   }, [onExecute, currentCount]);
 
   return (
-    <div className="group flex min-h-[140px] flex-col rounded-lg border border-border bg-card shadow-xs transition-all duration-150 hover:shadow-md">
+    <div
+      className={cn(
+        "group flex min-h-[140px] flex-col rounded-lg border border-border bg-card shadow-xs transition-all duration-150 hover:shadow-md",
+        className,
+      )}
+    >
       <div className="flex flex-1 flex-col p-4">
         {/* Top row: name + result count badge */}
         <div className="mb-2 flex items-start justify-between gap-2">

@@ -8,11 +8,12 @@ import {
   Loader2,
   Scale,
   Search,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useLlmCouncil } from "@/hooks/use-llm-council";
-import type { LlmCouncilResponse } from "@/lib/api";
+import { useLlmCouncil, useLlmCouncilHealthCheck } from "@/hooks/use-llm-council";
+import type { LlmCouncilHealthResponse, LlmCouncilResponse } from "@/lib/api";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 
 const DEFAULT_MODELS: LlmCouncilResponse["models"] = {
@@ -67,9 +68,13 @@ export function LlmCouncilPage() {
   const [caseId, setCaseId] = useState("");
   const [context, setContext] = useState("");
   const [result, setResult] = useState<LlmCouncilResponse | null>(null);
+  const [healthResult, setHealthResult] = useState<LlmCouncilHealthResponse | null>(null);
+  const [healthError, setHealthError] = useState("");
+  const [healthLiveProbe, setHealthLiveProbe] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
   const councilMutation = useLlmCouncil();
+  const healthMutation = useLlmCouncilHealthCheck();
 
   const models = result?.models ?? DEFAULT_MODELS;
   const sortedOpinions = useMemo(() => {
@@ -113,6 +118,29 @@ export function LlmCouncilPage() {
           defaultValue: "LLM council request failed",
         });
       setSubmitError(msg);
+      toast.error(msg);
+    }
+  }
+
+  async function onHealthCheck() {
+    setHealthError("");
+    try {
+      const payload = await healthMutation.mutateAsync({ live: healthLiveProbe });
+      setHealthResult(payload);
+      toast.success(
+        payload.ok
+          ? t("llm_council.health_ok", { defaultValue: "Health check passed." })
+          : t("llm_council.health_warn", {
+              defaultValue: "Health check completed with warnings.",
+            }),
+      );
+    } catch (error) {
+      const msg =
+        (error as Error).message ||
+        t("llm_council.health_failed", {
+          defaultValue: "Health check failed",
+        });
+      setHealthError(msg);
       toast.error(msg);
     }
   }
@@ -164,6 +192,123 @@ export function LlmCouncilPage() {
             </article>
           ))}
         </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-accent" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-text">
+              {t("llm_council.health_heading", {
+                defaultValue: "Provider Health Check",
+              })}
+            </h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center gap-2 text-xs text-muted-text">
+              <input
+                type="checkbox"
+                checked={healthLiveProbe}
+                onChange={(e) => setHealthLiveProbe(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              {t("llm_council.health_live_probe_label", {
+                defaultValue: "Enable live probe",
+              })}
+            </label>
+            <button
+              type="button"
+              onClick={onHealthCheck}
+              disabled={healthMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-card disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {healthMutation.isPending ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  {t("llm_council.health_running_btn", {
+                    defaultValue: "Checking...",
+                  })}
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  {t("llm_council.health_btn", {
+                    defaultValue: "Health Check",
+                  })}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <p className="mt-2 text-xs text-muted-text">
+          {healthLiveProbe
+            ? t("llm_council.health_live_note", {
+                defaultValue:
+                  "Live probe will call provider APIs and verify response availability.",
+              })
+            : t("llm_council.health_config_note", {
+                defaultValue:
+                  "Config-only check validates API keys and model/prompt configuration without external calls.",
+              })}
+        </p>
+
+        {healthError ? <div className="mt-3"><ApiErrorState message={healthError} /></div> : null}
+
+        {healthResult ? (
+          <div className="mt-3 space-y-3">
+            {!healthResult.ok && healthResult.errors.length > 0 ? (
+              <div className="rounded-md border border-amber-300/40 bg-amber-50/70 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-900/20 dark:text-amber-200">
+                <p className="font-semibold">
+                  {t("llm_council.health_issues_title", {
+                    defaultValue: "Issues detected",
+                  })}
+                </p>
+                <ul className="mt-1 space-y-1">
+                  {healthResult.errors.map((entry) => (
+                    <li key={entry}>• {entry}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {Object.entries(healthResult.providers).map(([key, provider]) => {
+                const probe = healthResult.probe_results?.[
+                  key as keyof NonNullable<LlmCouncilHealthResponse["probe_results"]>
+                ];
+                return (
+                  <article key={key} className="rounded-md border border-border bg-surface/50 p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-text">{key}</p>
+                    <p className="mt-1 break-all text-xs text-foreground">{provider.model}</p>
+                    <p className="mt-2 text-xs text-muted-text">
+                      {provider.api_key_present
+                        ? t("llm_council.health_api_key_yes", { defaultValue: "API key: present" })
+                        : t("llm_council.health_api_key_no", { defaultValue: "API key: missing" })}
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-text break-words">
+                      {provider.system_prompt_preview ||
+                        t("llm_council.default_meta", { defaultValue: "default" })}
+                    </p>
+                    {probe ? (
+                      <p className="mt-2 text-xs text-muted-text">
+                        {probe.success
+                          ? t("llm_council.health_probe_ok", {
+                              defaultValue: "Probe OK ({{latency}} ms)",
+                              latency: probe.latency_ms,
+                            })
+                          : t("llm_council.health_probe_failed", {
+                              defaultValue: "Probe failed ({{latency}} ms)",
+                              latency: probe.latency_ms,
+                            })}
+                      </p>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-lg border border-border bg-card p-5">
