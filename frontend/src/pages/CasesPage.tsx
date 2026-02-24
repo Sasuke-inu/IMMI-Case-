@@ -775,10 +775,10 @@ export function CasesPage() {
             ) : (
               <button
                 type="button"
-                onClick={() => navigate("/pipeline")}
+                onClick={() => navigate("/guided-search")}
                 className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
               >
-                {t("buttons.start_pipeline")}
+                {t("nav.guided_search")}
               </button>
             )
           }
@@ -794,12 +794,13 @@ export function CasesPage() {
                 "Table view is optimized for larger screens. Showing card view on mobile for easier reading.",
             })}
           </div>
-          <div className="grid gap-4 md:hidden">
+          <div className="grid auto-rows-fr gap-4 md:hidden">
             {cases.map((c) => (
               <CaseCard
                 key={c.case_id}
                 case_={c}
                 onClick={() => navigate(`/cases/${c.case_id}`)}
+                className="h-full"
               />
             ))}
           </div>
@@ -818,29 +819,29 @@ export function CasesPage() {
                       })}
                     />
                   </th>
-                  <th className="px-2 py-2.5 text-left font-medium text-secondary-text">
+                  <th className="px-2 py-2.5 text-left font-medium text-muted-text">
                     {t("cases.case_title")}
                   </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
                     {t("cases.citation")}
                   </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
                     {t("cases.court")}
                   </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
                     <span className="block leading-tight">{t("cases.date")}</span>
                     <span className="block text-[9px] font-normal text-muted-text leading-tight">
                       {t("cases.date", { defaultValue: "decision" })} /{" "}
                       {t("cases.hearing_date")}
                     </span>
                   </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
                     {t("cases.country_of_origin")}
                   </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
                     {t("cases.outcome")}
                   </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-secondary-text">
+                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
                     {t("cases.nature")}
                   </th>
                 </tr>
@@ -945,12 +946,13 @@ export function CasesPage() {
 
       {/* Cards view */}
       {!isLoading && cases.length > 0 && viewMode === "cards" && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cases.map((c) => (
             <CaseCard
               key={c.case_id}
               case_={c}
               onClick={() => navigate(`/cases/${c.case_id}`)}
+              className="h-full"
             />
           ))}
         </div>

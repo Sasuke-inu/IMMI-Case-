@@ -72,12 +72,12 @@ export function JudgeLeaderboard({
               <td className="px-3 py-2 font-medium text-foreground">
                 {row.name}
               </td>
-              <td className="px-3 py-2 text-secondary-text">
+              <td className="px-3 py-2 text-muted-text">
                 {row.total_cases.toLocaleString()}
               </td>
               <td className="px-3 py-2">
                 <div className="w-40">
-                  <div className="mb-1 text-xs text-secondary-text">
+                  <div className="mb-1 text-xs text-muted-text">
                     {row.approval_rate.toFixed(1)}%
                   </div>
                   <div className="h-2 rounded bg-surface">
@@ -88,13 +88,13 @@ export function JudgeLeaderboard({
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-2 whitespace-nowrap text-secondary-text">
+              <td className="px-3 py-2 whitespace-nowrap text-muted-text">
                 {row.active_years.first ?? "-"} – {row.active_years.last ?? "-"}
               </td>
-              <td className="px-3 py-2 text-secondary-text">
+              <td className="px-3 py-2 text-muted-text">
                 {row.courts.join(", ") || "-"}
               </td>
-              <td className="px-3 py-2 text-secondary-text">
+              <td className="px-3 py-2 text-muted-text">
                 {row.top_visa_subclasses[0]
                   ? `${row.top_visa_subclasses[0].subclass} (${row.top_visa_subclasses[0].count})`
                   : "-"}

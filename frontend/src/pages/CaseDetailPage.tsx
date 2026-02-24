@@ -158,7 +158,7 @@ export function CaseDetailPage() {
           />
         </div>
         {c.title && c.citation && c.title !== c.citation && (
-          <p className="mt-1 text-sm text-secondary-text">{c.title}</p>
+          <p className="mt-1 text-sm text-muted-text">{c.title}</p>
         )}
       </div>
 
@@ -231,7 +231,7 @@ export function CaseDetailPage() {
           <h2 className="mb-2 font-heading text-base font-semibold">
             {t("case_detail.catchwords")}
           </h2>
-          <p className="text-sm leading-relaxed text-secondary-text">
+          <p className="text-sm leading-relaxed text-muted-text">
             {c.catchwords}
           </p>
         </div>
@@ -269,7 +269,7 @@ export function CaseDetailPage() {
           </h2>
           {c.tags && (
             <div className="mb-3">
-              <dt className="mb-1 text-xs font-medium text-secondary-text">
+              <dt className="mb-1 text-xs font-medium text-muted-text">
                 {t("case_detail.tags")}
               </dt>
               <div className="flex flex-wrap gap-1.5">
@@ -291,7 +291,7 @@ export function CaseDetailPage() {
           )}
           {c.user_notes && (
             <div>
-              <dt className="mb-1 text-xs font-medium text-secondary-text">
+              <dt className="mb-1 text-xs font-medium text-muted-text">
                 {t("case_detail.notes")}
               </dt>
               <p className="whitespace-pre-wrap text-sm text-foreground">
@@ -462,7 +462,7 @@ function MetaField({
   if (!value) return null;
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-medium text-secondary-text">{label}</dt>
+      <dt className="text-xs font-medium text-muted-text">{label}</dt>
       <dd
         className={cn(
           "mt-0.5 break-words text-sm text-foreground",

@@ -9,7 +9,7 @@ import {
   BarChart3,
   Table,
   Download,
-  GitBranch,
+  Search,
   Bookmark,
   Info,
 } from "lucide-react";
@@ -143,12 +143,29 @@ export function DashboardPage() {
                   </strong>
                 </p>
               </div>
-              <button
-                onClick={() => navigate("/pipeline")}
-                className="mt-2 rounded-md bg-accent px-6 py-2 text-sm font-medium text-white hover:bg-accent-light"
-              >
-                {t("buttons.start_pipeline")}
-              </button>
+              <div className="mt-2 flex flex-wrap justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate("/cases")}
+                  className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
+                >
+                  {t("nav.cases")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/guided-search")}
+                  className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-surface"
+                >
+                  {t("nav.guided_search")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/download")}
+                  className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-muted-text hover:bg-surface hover:text-foreground"
+                >
+                  {t("nav.download")}
+                </button>
+              </div>
             </div>
           }
         />
@@ -330,6 +347,7 @@ export function DashboardPage() {
       {/* Quick actions + Export */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <button
+          type="button"
           onClick={() => navigate("/download")}
           className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
         >
@@ -341,17 +359,19 @@ export function DashboardPage() {
           </span>
         </button>
         <button
-          onClick={() => navigate("/pipeline")}
+          type="button"
+          onClick={() => navigate("/guided-search")}
           className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
         >
           <div className="rounded-md bg-accent-muted p-2 text-accent">
-            <GitBranch className="h-4 w-4" />
+            <Search className="h-4 w-4" />
           </div>
           <span className="text-sm font-medium text-foreground">
-            {t("nav.pipeline")}
+            {t("nav.guided_search")}
           </span>
         </button>
         <button
+          type="button"
           onClick={() => downloadExportFile("csv")}
           className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
         >
@@ -363,6 +383,7 @@ export function DashboardPage() {
           </span>
         </button>
         <button
+          type="button"
           onClick={() => downloadExportFile("json")}
           className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent hover:shadow-md"
         >

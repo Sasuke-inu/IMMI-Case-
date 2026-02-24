@@ -23,7 +23,7 @@ function RecentBookmarksPanel() {
         <button
           key={b.case_id}
           onClick={() => navigate(`/cases/${b.case_id}`)}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs text-secondary-text hover:bg-surface hover:text-foreground transition-colors"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs text-muted-text hover:bg-surface hover:text-foreground transition-colors"
           title={b.case_citation || b.case_title}
         >
           <Bookmark className="h-3 w-3 shrink-0 text-accent" />
@@ -93,7 +93,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                       "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                       isActive
                         ? "bg-accent-muted text-accent"
-                        : "text-secondary-text hover:bg-surface hover:text-foreground",
+                        : "text-muted-text hover:bg-surface hover:text-foreground",
                     )
                   }
                 >

@@ -44,10 +44,10 @@ function ConceptComboTableInner({ combos }: ConceptComboTableProps) {
               <td className="py-2 pr-2 text-foreground">
                 {combo.concepts.join(" + ")}
               </td>
-              <td className="py-2 pr-2 text-secondary-text">
+              <td className="py-2 pr-2 text-muted-text">
                 {combo.count.toLocaleString()}
               </td>
-              <td className="py-2 pr-2 text-secondary-text">
+              <td className="py-2 pr-2 text-muted-text">
                 {combo.win_rate.toFixed(1)}%
               </td>
               <td className="py-2">

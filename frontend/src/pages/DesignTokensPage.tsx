@@ -281,7 +281,7 @@ function SectionHeading({
 
 function SubHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="mb-2 text-sm font-medium text-secondary-text">{children}</h3>
+    <h3 className="mb-2 text-sm font-medium text-muted-text">{children}</h3>
   );
 }
 
@@ -1642,7 +1642,7 @@ function SectionNav() {
         <a
           key={item.id}
           href={`#${item.id}`}
-          className="rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-secondary-text transition-colors hover:border-accent hover:text-accent"
+          className="rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-text transition-colors hover:border-accent hover:text-accent"
         >
           {item.label}
         </a>

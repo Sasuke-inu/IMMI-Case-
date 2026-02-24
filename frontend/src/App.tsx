@@ -138,6 +138,11 @@ const GuidedSearchPage = lazy(() =>
     default: m.GuidedSearchPage,
   })),
 );
+const LlmCouncilPage = lazy(() =>
+  import("@/pages/LlmCouncilPage").then((m) => ({
+    default: m.LlmCouncilPage,
+  })),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -256,6 +261,14 @@ export default function App() {
                 element={
                   <Suspense fallback={<PageLoader />}>
                     <GuidedSearchPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="llm-council"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <LlmCouncilPage />
                   </Suspense>
                 }
               />

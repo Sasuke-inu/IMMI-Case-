@@ -217,7 +217,7 @@ export function JudgeProfilesPage() {
         </div>
 
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm text-secondary-text">
+          <p className="text-sm text-muted-text">
             {isLoading
               ? t("common.loading_ellipsis")
               : t("judges.judges_found", { count: filteredJudges.length })}

@@ -103,7 +103,7 @@ export function CaseAddPage() {
                 label={t("cases.date")}
                 value={form.date}
                 onChange={(v) => updateField("date", v)}
-                placeholder="DD Month YYYY"
+                placeholder={t("cases.date_placeholder")}
               />
               <Field
                 label={t("cases.judges")}
@@ -165,10 +165,10 @@ export function CaseAddPage() {
                 label={t("case_detail.tags")}
                 value={form.tags}
                 onChange={(v) => updateField("tags", v)}
-                placeholder="Comma-separated"
+                placeholder={t("cases.tags_placeholder")}
               />
               <div className="mt-4">
-                <label className="mb-1 block text-xs font-medium text-secondary-text">
+                <label className="mb-1 block text-xs font-medium text-muted-text">
                   {t("case_detail.notes")}
                 </label>
                 <textarea
@@ -220,7 +220,7 @@ function Field({
 }) {
   return (
     <div className={span2 ? "sm:col-span-2" : ""}>
-      <label className="mb-1 block text-xs font-medium text-secondary-text">
+      <label className="mb-1 block text-xs font-medium text-muted-text">
         {label}
       </label>
       <input
@@ -248,7 +248,7 @@ function SelectField({
   const { t } = useTranslation();
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-secondary-text">
+      <label className="mb-1 block text-xs font-medium text-muted-text">
         {label}
       </label>
       <select

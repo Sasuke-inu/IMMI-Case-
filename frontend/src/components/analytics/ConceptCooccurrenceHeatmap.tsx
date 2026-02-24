@@ -38,7 +38,7 @@ function ConceptCooccurrenceHeatmapInner({
         {concepts.map((concept) => (
           <div
             key={`head-${concept}`}
-            className="p-1.5 text-center text-[10px] font-semibold text-secondary-text"
+            className="p-1.5 text-center text-[10px] font-semibold text-muted-text"
           >
             {concept}
           </div>

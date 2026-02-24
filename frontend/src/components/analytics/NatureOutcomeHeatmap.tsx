@@ -34,7 +34,7 @@ function NatureOutcomeHeatmapInner({ data }: NatureOutcomeHeatmapProps) {
         {outcomes.map((outcome) => (
           <div
             key={outcome}
-            className="p-1.5 text-center text-[10px] font-semibold text-secondary-text"
+            className="p-1.5 text-center text-[10px] font-semibold text-muted-text"
             title={outcome}
           >
             {outcome}

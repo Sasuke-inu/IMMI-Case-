@@ -147,7 +147,7 @@ export function AdvancedFilterPanel({
                   "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
                   active
                     ? "bg-accent text-white"
-                    : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
+                    : "bg-surface text-muted-text hover:bg-accent-muted hover:text-accent",
                 )}
               >
                 {nature}
@@ -176,7 +176,7 @@ export function AdvancedFilterPanel({
                   "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
                   active
                     ? "bg-accent text-white"
-                    : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
+                    : "bg-surface text-muted-text hover:bg-accent-muted hover:text-accent",
                 )}
               >
                 {subclass}
@@ -205,7 +205,7 @@ export function AdvancedFilterPanel({
                   "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
                   active
                     ? "bg-accent text-white"
-                    : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
+                    : "bg-surface text-muted-text hover:bg-accent-muted hover:text-accent",
                 )}
               >
                 {outcome}
@@ -222,7 +222,7 @@ export function AdvancedFilterPanel({
             key={preset.name}
             type="button"
             onClick={() => handleLoadPreset(preset)}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-secondary-text hover:bg-surface hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-text hover:bg-surface hover:text-foreground"
           >
             <Bookmark className="h-3 w-3" />
             {preset.name}
@@ -249,7 +249,7 @@ export function AdvancedFilterPanel({
             onClick={handleSavePreset}
             aria-label={t("common.save", { defaultValue: "Save" })}
             disabled={!presetName.trim()}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-secondary-text hover:bg-surface hover:text-foreground disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-text hover:bg-surface hover:text-foreground disabled:opacity-40"
           >
             <Save className="h-3 w-3" />
             {t("common.save", { defaultValue: "Save" })}

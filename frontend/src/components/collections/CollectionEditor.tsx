@@ -138,7 +138,7 @@ function CollectionEditorDialog({
         <div className="space-y-4">
           {/* Name */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-secondary-text">
+            <label className="mb-1 block text-xs font-medium text-muted-text">
               {t("bookmarks.collection_name", "Collection Name")} *
             </label>
             <input
@@ -155,7 +155,7 @@ function CollectionEditorDialog({
 
           {/* Description */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-secondary-text">
+            <label className="mb-1 block text-xs font-medium text-muted-text">
               {t(
                 "bookmarks.collection_description",
                 "Description (optional)",
@@ -174,7 +174,7 @@ function CollectionEditorDialog({
 
           {/* Tags */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-secondary-text">
+            <label className="mb-1 block text-xs font-medium text-muted-text">
               {t("bookmarks.collection_tags", "Tags")}
             </label>
             <div className="flex flex-wrap gap-1.5 rounded-md border border-border bg-surface px-3 py-2">
@@ -204,7 +204,7 @@ function CollectionEditorDialog({
 
           {/* Color */}
           <div>
-            <label className="mb-2 block text-xs font-medium text-secondary-text">
+            <label className="mb-2 block text-xs font-medium text-muted-text">
               {t("bookmarks.collection_color", "Colour")}
             </label>
             <div className="flex gap-2">
@@ -226,7 +226,7 @@ function CollectionEditorDialog({
                 <button
                   onClick={() => setColor(undefined)}
                   className="h-6 w-6 rounded-full border border-border bg-surface text-muted-text hover:scale-110 transition-transform flex items-center justify-center"
-                  aria-label="Clear color"
+                  aria-label={t("bookmarks.clear_color")}
                 >
                   <X className="h-3 w-3" />
                 </button>

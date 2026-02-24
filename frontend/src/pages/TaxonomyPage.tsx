@@ -23,7 +23,7 @@ export function TaxonomyPage() {
         <h1 className="font-heading text-2xl font-semibold text-foreground">
           {t("taxonomy.title", { defaultValue: "Search Taxonomy" })}
         </h1>
-        <p className="mt-1 text-sm text-secondary-text">
+        <p className="mt-1 text-sm text-muted-text">
           {t("taxonomy.description", {
             defaultValue:
               "Search and filter immigration cases using specialized taxonomies",

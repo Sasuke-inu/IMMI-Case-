@@ -300,7 +300,7 @@ export function PipelinePage() {
             {/* Database selection */}
             <div className="mb-4">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-secondary-text">
+                <span className="text-xs font-medium text-muted-text">
                   {t("pipeline.databases_label")} (
                   {t("pipeline.databases_selected", {
                     count: selectedDbs.size,
@@ -342,7 +342,7 @@ export function PipelinePage() {
             {/* Parameters */}
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-secondary-text">
+                <label className="mb-1 block text-xs font-medium text-muted-text">
                   {t("pipeline.start_year_label")}
                 </label>
                 <input
@@ -355,7 +355,7 @@ export function PipelinePage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-secondary-text">
+                <label className="mb-1 block text-xs font-medium text-muted-text">
                   {t("pipeline.end_year_label")}
                 </label>
                 <input
@@ -368,7 +368,7 @@ export function PipelinePage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-secondary-text">
+                <label className="mb-1 block text-xs font-medium text-muted-text">
                   {t("pipeline.request_delay_label")}
                 </label>
                 <select

@@ -122,7 +122,7 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
                 {displayName}
               </h1>
               {bio.found && bio.role && (
-                <p className="text-sm text-secondary-text">{bio.role}</p>
+                <p className="text-sm text-muted-text">{bio.role}</p>
               )}
               {bio.found && bio.court && (
                 <p className="text-sm text-muted-text">{bio.court}</p>
@@ -256,7 +256,7 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
                     <p className="text-xs font-medium text-accent">
                       {nc.citation}
                     </p>
-                    <p className="mt-1 text-xs leading-relaxed text-secondary-text">
+                    <p className="mt-1 text-xs leading-relaxed text-muted-text">
                       {nc.description}
                     </p>
                   </div>

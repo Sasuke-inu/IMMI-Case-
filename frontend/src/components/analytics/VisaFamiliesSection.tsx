@@ -195,7 +195,7 @@ function VisaFamiliesSectionInner({ filters }: Props) {
                     <td className="py-2 font-medium text-foreground">
                       {f.family}
                     </td>
-                    <td className="py-2 text-right tabular-nums text-secondary-text">
+                    <td className="py-2 text-right tabular-nums text-muted-text">
                       {f.total.toLocaleString()}
                     </td>
                     <td className="py-2 text-right tabular-nums">

@@ -15,6 +15,7 @@
     "search": "Search",
     "search_taxonomy": "Search Taxonomy",
     "guided_search": "Guided Search",
+    "llm_council": "LLM IMMI Council",
     "data_tools": "Data Tools",
     "analytics": "Analytics",
     "download": "Download",
@@ -36,6 +37,7 @@
     "saved_searches": "Re-run saved filter sets",
     "search_taxonomy": "Browse by concept tags",
     "guided_search": "Step-by-step filter wizard",
+    "llm_council": "Multi-model legal reasoning council",
     "download": "Fetch case texts from AustLII",
     "pipeline": "Automated crawl & download",
     "jobs": "Monitor background tasks",
@@ -79,10 +81,12 @@
     "optional": "(optional)",
     "cases": "cases",
     "cases_unit": "cases",
-    "searching": "Searching..."
+    "searching": "Searching...",
+    "menu": "Toggle menu",
+    "next": "Next",
+    "close_menu": "Close menu"
   },
   "buttons": {
-    "start_pipeline": "Start Pipeline",
     "browse_cases": "Browse Cases",
     "add_case": "Add Case",
     "edit_case": "Edit Case",
@@ -112,9 +116,11 @@
     "top_visa_subclasses": "Top Visa Subclasses",
     "recent_cases": "Recent Cases",
     "welcome_title": "Welcome to IMMI-Case",
-    "welcome_description": "Get started by downloading cases from AustLII.",
-    "step_1": "Step 1: Run the Pipeline to crawl, clean & download",
-    "step_2": "Step 2: Browse, filter, and analyse cases"
+    "welcome_description": "Start by browsing cases or guided search. Use the download page only when you need additional full-text data.",
+    "step_1": "Step 1: Browse existing cases or use guided search",
+    "step_2": "Step 2: Filter, compare, and analyse outcomes",
+    "chart_view": "Show chart view",
+    "table_view": "Show table view"
   },
   "cases": {
     "title": "Cases",
@@ -160,7 +166,17 @@
     "representative": "Representative",
     "sorted": "Sorted",
     "ascending": "ascending",
-    "descending": "descending"
+    "descending": "descending",
+    "card_view": "Card view",
+    "table_view": "Table view",
+    "select_all": "Select all visible cases",
+    "select_case": "Select case {{citation}}",
+    "date_placeholder": "DD Month YYYY",
+    "tags_placeholder": "Comma-separated",
+    "legal_concepts_placeholder": "Semicolon-separated",
+    "representation_yes": "Yes",
+    "representation_no": "No",
+    "representation_self": "Self-represented"
   },
   "case_detail": {
     "loading": "Loading case...",
@@ -189,7 +205,10 @@
   "pagination": {
     "showing": "Showing {{start}}-{{end}} of {{total}}",
     "rows_per_page": "Rows per page",
-    "ellipsis": "..."
+    "ellipsis": "...",
+    "previous_page": "Go to previous page",
+    "next_page": "Go to next page",
+    "page_number": "Go to page {{page}}"
   },
   "outcomes": {
     "remitted": "Remitted",
@@ -308,7 +327,9 @@
     "section_representation": "Representation",
     "section_country": "Country",
     "section_concepts": "Concepts",
-    "section_recent": "Recent Cases"
+    "section_recent": "Recent Cases",
+    "current_role": "Current Role",
+    "notable_cases": "Notable Cases"
   },
   "saved_searches": {
     "title": "Saved Searches",
@@ -457,7 +478,19 @@
     "favourable": "Favourable",
     "moderate": "Moderate",
     "unfavourable": "Unfavourable",
-    "total": "Total"
+    "total": "Total",
+    "advanced_filters": "Advanced Filters",
+    "deep_analysis_title": "Success Rate Deep Analysis",
+    "visa_families": "Visa Family Analysis",
+    "visa_families_desc": "Success rates aggregated by visa family grouping. Compare outcomes across visa categories.",
+    "visa_family_volume": "Cases by Visa Family",
+    "visa_family_win_rates": "Win Rates by Family",
+    "sort_by_volume": "Sort by Volume",
+    "sort_by_win_rate": "Sort by Win Rate",
+    "family": "Family",
+    "total_cases": "Total Cases",
+    "cases": "Cases",
+    "preset_name_placeholder": "Preset name"
   },
   "lineage": {
     "title": "Court Lineage Timeline",
@@ -504,7 +537,9 @@
     "court_table_peak": "Peak Year",
     "court_table_avg": "Avg/Year",
     "court_table_status_active": "Active",
-    "court_table_status_dissolved": "Dissolved"
+    "court_table_status_dissolved": "Dissolved",
+    "loading_hint": "Court lineage aggregates can take a few seconds on large datasets.",
+    "now": "now"
   },
   "chart": {
     "loading": "Loading...",
@@ -546,7 +581,9 @@
     "general_provisions": "General Provisions",
     "no_results": "No results",
     "table_of_contents": "Contents",
-    "close_search": "Close search"
+    "close_search": "Close search",
+    "legislation_information": "Legislation Information",
+    "results_heading": "Legislation search results"
   },
   "pipeline": {
     "title": "Pipeline",
@@ -589,7 +626,13 @@
     "select_all": "Select All",
     "clear": "Clear",
     "stop_pipeline": "Stop",
-    "running_status": "Running..."
+    "running_status": "Running...",
+    "auto_phases_info": "The pipeline runs all three phases automatically with smart fallback strategies.",
+    "fallback_info": "If a crawl strategy fails, it rotates to the next one (direct → viewdb → keyword search).",
+    "found": "found",
+    "new": "new",
+    "valid": "valid",
+    "dupes": "dupes"
   },
   "download": {
     "title": "Download Full Text",
@@ -683,7 +726,8 @@
     "export": "Export",
     "more_options": "More options",
     "navigate_up_down": "Navigate with ↑↓",
-    "escape_to_close": "Press esc to close"
+    "escape_to_close": "Press esc to close",
+    "type_to_search": "Type to search"
   },
   "states": {
     "loading": "Loading",
@@ -883,7 +927,8 @@
     "confirm_delete_collection": "Delete this collection?",
     "confirm_delete_collection_message": "This will delete \"{{name}}\". Bookmarked cases will not be affected.",
     "collection_detail_empty": "No cases in this collection yet.",
-    "collection_detail_empty_desc": "Add cases from the case list or detail view."
+    "collection_detail_empty_desc": "Add cases from the case list or detail view.",
+    "clear_color": "Clear color"
   },
   "taxonomy": {
     "title": "Search Taxonomy",
@@ -980,6 +1025,45 @@
     "toast_please_select_visa": "Please select a visa subclass",
     "toast_found_cases": "Found {{count}} matching cases",
     "toast_no_cases_found": "No cases found matching your criteria",
-    "toast_max_concepts": "Maximum 5 legal concepts allowed"
+    "toast_max_concepts": "Maximum 5 legal concepts allowed",
+    "step_progress_badge": "Step {{current}} of {{total}}"
+  },
+  "theme": {
+    "switchToDark": "Switch to dark mode",
+    "switchToLight": "Switch to light mode"
+  },
+  "llm_council": {
+    "title": "LLM IMMI Council",
+    "subtitle": "Direct multi-provider council with OpenAI, Gemini Pro, Anthropic Sonnet, and Gemini Flash as middle-ranker/composer.",
+    "models_heading": "Model Council Setup",
+    "question_label": "Legal Research Question",
+    "question_placeholder": "Example: Compare strongest review grounds for visa cancellation where procedural fairness may be breached.",
+    "case_id_label": "Case ID (optional)",
+    "case_id_placeholder": "12-char case id",
+    "context_label": "Extra Context (optional)",
+    "context_placeholder": "Focus area, assumptions, or constraints",
+    "run_btn": "Run LLM Council",
+    "running_btn": "Running Council...",
+    "run_success": "LLM council completed.",
+    "runtime_note": "This runs 3 expert models plus 1 composition model, so response time may be longer.",
+    "validation_question_required": "Please enter your legal research question.",
+    "moderator_title": "Gemini Flash Middle-Ranking & Composition",
+    "composed_answer_label": "Composed Answer",
+    "consensus_label": "Consensus",
+    "disagreements_label": "Disagreements",
+    "ranking_label": "Council Ranking",
+    "moderator_failed_title": "Moderator synthesis unavailable",
+    "expert_title": "Expert Model Opinions",
+    "expert_failed_title": "Model request failed",
+    "running_hint": "Council is running. Waiting for all expert opinions and composition.",
+    "idle_hint": "Submit a question to generate a 3-model council analysis and Gemini Flash synthesis.",
+    "default_meta": "default",
+    "no_rationale": "No rationale provided.",
+    "unknown_moderator_error": "Unknown moderator error",
+    "status_ok": "OK ({{latency}} ms)",
+    "status_failed": "Failed ({{latency}} ms)",
+    "sources_label": "Sources",
+    "unknown_model_error": "Unknown model error",
+    "request_failed": "LLM council request failed"
   }
 }

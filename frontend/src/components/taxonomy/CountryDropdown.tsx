@@ -33,7 +33,7 @@ export function CountryDropdown() {
             defaultValue: "Country of Origin",
           })}
         </h2>
-        <p className="mt-0.5 text-sm text-secondary-text">
+        <p className="mt-0.5 text-sm text-muted-text">
           {t("taxonomy.country_dropdown_desc", {
             defaultValue: "Filter cases by applicant's country of origin",
           })}
@@ -74,7 +74,7 @@ export function CountryDropdown() {
       {/* Summary */}
       {!isLoading && countries.length > 0 && (
         <div className="rounded-md border border-border bg-surface px-3 py-2">
-          <p className="text-xs text-secondary-text">
+          <p className="text-xs text-muted-text">
             {t("taxonomy.country_summary", {
               defaultValue: "Showing {{count}} countries with the most cases",
               count: countries.length,

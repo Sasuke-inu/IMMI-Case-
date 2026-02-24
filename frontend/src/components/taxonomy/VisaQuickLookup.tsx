@@ -64,7 +64,7 @@ export function VisaQuickLookup() {
         <h2 className="font-heading text-lg font-semibold text-foreground">
           {t("taxonomy.visa_lookup", { defaultValue: "Visa Quick Lookup" })}
         </h2>
-        <p className="mt-0.5 text-sm text-secondary-text">
+        <p className="mt-0.5 text-sm text-muted-text">
           {t("taxonomy.visa_lookup_desc", {
             defaultValue: "Search by visa subclass code or name",
           })}
@@ -124,7 +124,7 @@ export function VisaQuickLookup() {
                           {visa.name}
                         </span>
                       </div>
-                      <div className="mt-0.5 text-xs text-secondary-text">
+                      <div className="mt-0.5 text-xs text-muted-text">
                         {visa.family}
                       </div>
                     </div>

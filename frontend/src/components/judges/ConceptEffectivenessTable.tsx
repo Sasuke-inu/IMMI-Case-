@@ -44,10 +44,10 @@ export function ConceptEffectivenessTable({
           {data.slice(0, 20).map((item) => (
             <tr key={item.concept} className="border-b border-border-light/60">
               <td className="py-2 pr-2 text-foreground">{item.concept}</td>
-              <td className="py-2 pr-2 text-secondary-text">
+              <td className="py-2 pr-2 text-muted-text">
                 {item.total.toLocaleString()}
               </td>
-              <td className="py-2 pr-2 text-secondary-text">
+              <td className="py-2 pr-2 text-muted-text">
                 {item.win_rate.toFixed(1)}%
               </td>
               <td className="py-2">

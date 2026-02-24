@@ -45,7 +45,7 @@ export function CollectionsPage() {
           <h1 className="font-heading text-xl font-semibold text-foreground">
             {t("bookmarks.collections", "Collections")}
           </h1>
-          <p className="mt-0.5 text-sm text-secondary-text">
+          <p className="mt-0.5 text-sm text-muted-text">
             {t(
               "bookmarks.collections_subtitle",
               "Organise cases into named collections",

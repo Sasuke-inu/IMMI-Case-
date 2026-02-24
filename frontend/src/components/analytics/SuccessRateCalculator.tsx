@@ -130,7 +130,7 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
                   "rounded-full px-2 py-1 text-xs",
                   active
                     ? "bg-accent text-white"
-                    : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
+                    : "bg-surface text-muted-text hover:bg-accent-muted hover:text-accent",
                 )}
               >
                 {concept.name}
@@ -184,7 +184,7 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
               >
                 {data.success_rate.overall.toFixed(1)}%
               </p>
-              <p className="mt-1 text-xs text-secondary-text">
+              <p className="mt-1 text-xs text-muted-text">
                 {data.query.total_matching.toLocaleString()}{" "}
                 {t("analytics.matching_cases")}
               </p>
@@ -193,7 +193,7 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
                 <button
                   type="button"
                   onClick={() => setDeepModalOpen(true)}
-                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-secondary-text hover:bg-surface hover:text-foreground"
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-text hover:bg-surface hover:text-foreground"
                 >
                   <Microscope className="h-3 w-3" />
                   {t("analytics.deep_dive", { defaultValue: "Deep Dive" })}
@@ -237,7 +237,7 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
                   <div key={item.concept}>
                     <div className="mb-1 flex items-center justify-between text-xs">
                       <span className="text-foreground">{item.concept}</span>
-                      <span className="text-secondary-text">
+                      <span className="text-muted-text">
                         {item.win_rate.toFixed(1)}%
                       </span>
                     </div>

@@ -22,6 +22,7 @@ from flask import Blueprint, request, jsonify, send_file
 from flask_wtf.csrf import generate_csrf
 
 from ...config import START_YEAR, END_YEAR
+from ...llm_council import run_immi_council
 from ...models import ImmigrationCase
 from ...semantic_search_eval import (
     GeminiEmbeddingClient,
@@ -59,6 +60,8 @@ DEFAULT_SEMANTIC_CANDIDATE_LIMIT = 150
 MAX_SEMANTIC_CANDIDATE_LIMIT = 500
 DEFAULT_RELATED_LIMIT = 5
 MAX_RELATED_LIMIT = 20
+MAX_LLM_COUNCIL_QUESTION_LEN = 8_000
+MAX_LLM_COUNCIL_CONTEXT_LEN = 20_000
 ALLOWED_SORT_FIELDS = frozenset({
     "date", "title", "court", "outcome", "visa_subclass_number",
     "applicant_name", "hearing_date", "case_id",
@@ -1745,6 +1748,27 @@ def _case_semantic_text(case: ImmigrationCase) -> str:
     )
 
 
+def _build_llm_case_context(case: ImmigrationCase, extra_context: str = "") -> str:
+    """Build compact case context text for LLM council prompts."""
+    chunks = [
+        f"Case ID: {case.case_id}",
+        f"Citation: {case.citation or ''}",
+        f"Title: {case.title or ''}",
+        f"Court: {case.court_code or case.court or ''}",
+        f"Date: {case.date or ''}",
+        f"Outcome: {case.outcome or ''}",
+        f"Visa Subclass: {case.visa_subclass or case.visa_type or ''}",
+        f"Case Nature: {case.case_nature or ''}",
+        f"Legal Concepts: {case.legal_concepts or ''}",
+        f"Catchwords: {case.catchwords or ''}",
+        f"Text Snippet: {case.text_snippet or ''}",
+    ]
+    if extra_context:
+        chunks.append(f"User Context: {extra_context}")
+    joined = "\n".join(chunk.strip() for chunk in chunks if chunk and chunk.strip())
+    return joined[:MAX_LLM_COUNCIL_CONTEXT_LEN]
+
+
 def _normalize_vectors(vectors: np.ndarray) -> np.ndarray:
     """L2-normalize vectors for cosine similarity."""
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
@@ -3242,6 +3266,44 @@ def analytics_visa_families():
         })
 
     return jsonify({"families": families, "total_cases": len(cases)})
+
+
+# ── LLM Council ──────────────────────────────────────────────────────────
+
+@api_bp.route("/llm-council/run", methods=["POST"])
+def llm_council_run():
+    """Run the multi-model IMMI council and return ranked/synthesized output."""
+    data = request.get_json(silent=True) or {}
+    question = str(data.get("question", "")).strip()
+    if not question:
+        return _error("question is required")
+    if len(question) > MAX_LLM_COUNCIL_QUESTION_LEN:
+        return _error(
+            f"question is too long (max {MAX_LLM_COUNCIL_QUESTION_LEN} characters)"
+        )
+
+    case_context = str(data.get("context", "")).strip()
+    if len(case_context) > MAX_LLM_COUNCIL_CONTEXT_LEN:
+        case_context = case_context[:MAX_LLM_COUNCIL_CONTEXT_LEN]
+
+    case_id = str(data.get("case_id", "")).strip()
+    if case_id:
+        if not _valid_case_id(case_id):
+            return _error("Invalid case ID")
+        case = get_repo().get_by_id(case_id)
+        if not case:
+            return _error("Case not found", 404)
+        case_context = _build_llm_case_context(case, case_context)
+
+    try:
+        payload = run_immi_council(question=question, case_context=case_context)
+    except ValueError as exc:
+        return _error(str(exc))
+    except Exception as exc:  # pragma: no cover - network/provider failures
+        logger.warning("LLM council run failed: %s", exc, exc_info=True)
+        return _error("LLM council backend unavailable", 503)
+
+    return jsonify(payload)
 
 
 # ── Data Dictionary ─────────────────────────────────────────────────────

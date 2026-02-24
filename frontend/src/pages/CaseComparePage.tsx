@@ -93,7 +93,7 @@ export function CaseComparePage() {
         <table className="min-w-max text-sm">
           <thead>
             <tr className="border-b border-border bg-surface">
-              <th className="sticky left-0 z-10 bg-surface p-3 text-left font-medium text-secondary-text">
+              <th className="sticky left-0 z-10 bg-surface p-3 text-left font-medium text-muted-text">
                 {t("pages.data_dictionary.field_name")}
               </th>
               {cases.map((c) => (
@@ -132,7 +132,7 @@ export function CaseComparePage() {
                     isDiffering && "bg-warning/5",
                   )}
                 >
-                  <td className="sticky left-0 z-10 bg-card p-3 font-medium text-secondary-text whitespace-nowrap">
+                  <td className="sticky left-0 z-10 bg-card p-3 font-medium text-muted-text whitespace-nowrap">
                     {label}
                     {isDiffering && (
                       <span className="ml-1 text-[10px] text-warning">

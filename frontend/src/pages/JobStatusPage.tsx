@@ -197,10 +197,11 @@ export function JobStatusPage() {
             <div className="mt-3 flex flex-wrap justify-center gap-2">
               {[
                 { labelKey: "nav.download", to: "/download" },
-                { labelKey: "nav.pipeline", to: "/pipeline" },
+                { labelKey: "nav.guided_search", to: "/guided-search" },
               ].map((link) => (
                 <button
                   key={link.to}
+                  type="button"
                   onClick={() => navigate(link.to)}
                   className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-card"
                 >

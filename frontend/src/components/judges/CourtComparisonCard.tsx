@@ -40,13 +40,13 @@ export function CourtComparisonCard({ data }: CourtComparisonCardProps) {
                 <td className="py-2 pr-2 font-medium text-foreground">
                   {row.court_code}
                 </td>
-                <td className="py-2 pr-2 text-right text-secondary-text">
+                <td className="py-2 pr-2 text-right text-muted-text">
                   {row.judge_total.toLocaleString()}
                 </td>
                 <td className="py-2 pr-2 text-right text-foreground">
                   {row.judge_rate.toFixed(1)}%
                 </td>
-                <td className="py-2 pr-2 text-right text-secondary-text">
+                <td className="py-2 pr-2 text-right text-muted-text">
                   {row.court_avg_rate.toFixed(1)}%
                 </td>
                 <td className="py-2 text-right">

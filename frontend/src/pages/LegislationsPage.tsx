@@ -150,7 +150,7 @@ export function LegislationsPage() {
               <h1 className="font-heading text-xl font-semibold text-foreground">
                 {t("legislations.title", { defaultValue: "Legislations" })}
               </h1>
-              <p className="mt-0.5 text-sm text-secondary-text">
+              <p className="mt-0.5 text-sm text-muted-text">
                 {t("legislations.description", {
                   defaultValue:
                     "Browse and search legislation relevant to immigration law",
@@ -290,7 +290,7 @@ export function LegislationsPage() {
 
                   {/* Description */}
                   {leg.description && (
-                    <p className="mt-1 line-clamp-1 text-xs text-secondary-text">
+                    <p className="mt-1 line-clamp-1 text-xs text-muted-text">
                       {leg.description}
                     </p>
                   )}
@@ -298,7 +298,7 @@ export function LegislationsPage() {
                   {/* Badge row */}
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     {leg.type && (
-                      <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] font-medium text-secondary-text">
+                      <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] font-medium text-muted-text">
                         {leg.type}
                       </span>
                     )}

@@ -208,7 +208,7 @@ export function GuidedSearchFlow() {
             defaultValue: "Judge profile found!",
           }),
         );
-        navigate(`/judges/${encodeURIComponent(flowState.judge_name)}`);
+        navigate(`/judge-profiles/${encodeURIComponent(flowState.judge_name)}`);
       }
     } catch (error) {
       toast.error((error as Error).message);
@@ -225,7 +225,7 @@ export function GuidedSearchFlow() {
               defaultValue: "Guided Search",
             })}
           </h2>
-          <p className="mt-0.5 text-sm text-secondary-text">
+          <p className="mt-0.5 text-sm text-muted-text">
             {t("taxonomy.guided_search_desc", {
               defaultValue: "Choose a workflow to find cases or assess judges",
             })}
@@ -235,6 +235,7 @@ export function GuidedSearchFlow() {
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Find Precedents Flow */}
           <button
+            type="button"
             onClick={() => handleSelectFlow("find-precedents")}
             className={cn(
               "group rounded-lg border border-border bg-card p-6 text-left transition-all",
@@ -251,7 +252,7 @@ export function GuidedSearchFlow() {
                     defaultValue: "Find Precedents",
                   })}
                 </h3>
-                <p className="mt-1 text-sm text-secondary-text">
+                <p className="mt-1 text-sm text-muted-text">
                   {t("taxonomy.find_precedents_desc", {
                     defaultValue:
                       "Search for similar cases by visa type, country, and legal concepts",
@@ -285,7 +286,7 @@ export function GuidedSearchFlow() {
                     defaultValue: "Assess Judge",
                   })}
                 </h3>
-                <p className="mt-1 text-sm text-secondary-text">
+                <p className="mt-1 text-sm text-muted-text">
                   {t("taxonomy.assess_judge_desc", {
                     defaultValue:
                       "View judge profile, approval rates, and case history",
@@ -317,7 +318,7 @@ export function GuidedSearchFlow() {
                 defaultValue: "Find Precedents",
               })}
             </h2>
-            <p className="mt-0.5 text-sm text-secondary-text">
+            <p className="mt-0.5 text-sm text-muted-text">
               {t("taxonomy.step_n_of_m", {
                 defaultValue: "Step {{current}} of {{total}}",
                 current: step,
@@ -327,7 +328,7 @@ export function GuidedSearchFlow() {
           </div>
           <button
             onClick={resetFlow}
-            className="text-sm text-secondary-text hover:text-foreground"
+            className="text-sm text-muted-text hover:text-foreground"
           >
             {t("common.cancel", { defaultValue: "Cancel" })}
           </button>
@@ -356,7 +357,7 @@ export function GuidedSearchFlow() {
                 })}
                 <span className="ml-1 text-red-500">*</span>
               </label>
-              <p className="mt-0.5 text-xs text-secondary-text">
+              <p className="mt-0.5 text-xs text-muted-text">
                 {t("taxonomy.visa_search_hint", {
                   defaultValue: "Search by code or name",
                 })}
@@ -401,7 +402,7 @@ export function GuidedSearchFlow() {
                             {visa.name}
                           </span>
                         </div>
-                        <div className="mt-0.5 text-xs text-secondary-text">
+                        <div className="mt-0.5 text-xs text-muted-text">
                           {visa.family}
                         </div>
                       </div>
@@ -436,7 +437,7 @@ export function GuidedSearchFlow() {
                   {t("common.optional", { defaultValue: "(optional)" })}
                 </span>
               </label>
-              <p className="mt-0.5 text-xs text-secondary-text">
+              <p className="mt-0.5 text-xs text-muted-text">
                 {t("taxonomy.country_hint", {
                   defaultValue: "Filter by applicant's country",
                 })}
@@ -461,7 +462,7 @@ export function GuidedSearchFlow() {
                       {country.country}
                     </span>
                   </div>
-                  <span className="text-xs text-secondary-text">
+                  <span className="text-xs text-muted-text">
                     {country.case_count.toLocaleString()}
                   </span>
                 </button>
@@ -470,7 +471,7 @@ export function GuidedSearchFlow() {
 
             <button
               onClick={handleNext}
-              className="w-full rounded-md border border-dashed border-border bg-surface px-3 py-2 text-sm text-secondary-text hover:bg-card hover:text-foreground"
+              className="w-full rounded-md border border-dashed border-border bg-surface px-3 py-2 text-sm text-muted-text hover:bg-card hover:text-foreground"
             >
               {t("taxonomy.skip_country", {
                 defaultValue: "Skip (search all countries)",
@@ -491,7 +492,7 @@ export function GuidedSearchFlow() {
                   {t("common.optional", { defaultValue: "(optional)" })}
                 </span>
               </label>
-              <p className="mt-0.5 text-xs text-secondary-text">
+              <p className="mt-0.5 text-xs text-muted-text">
                 {t("taxonomy.concepts_hint", {
                   defaultValue: "Choose relevant concepts (multi-select)",
                 })}
@@ -560,7 +561,7 @@ export function GuidedSearchFlow() {
                   defaultValue: "Review your search",
                 })}
               </h3>
-              <p className="mt-0.5 text-xs text-secondary-text">
+              <p className="mt-0.5 text-xs text-muted-text">
                 {t("taxonomy.review_hint", {
                   defaultValue: "Confirm criteria before searching",
                 })}
@@ -571,7 +572,7 @@ export function GuidedSearchFlow() {
               <div className="flex items-start gap-2">
                 <FileText className="mt-0.5 h-4 w-4 text-accent" />
                 <div className="flex-1">
-                  <div className="text-xs font-medium text-secondary-text">
+                  <div className="text-xs font-medium text-muted-text">
                     {t("taxonomy.visa_subclass", {
                       defaultValue: "Visa Subclass",
                     })}
@@ -586,7 +587,7 @@ export function GuidedSearchFlow() {
                 <div className="flex items-start gap-2">
                   <Globe className="mt-0.5 h-4 w-4 text-accent" />
                   <div className="flex-1">
-                    <div className="text-xs font-medium text-secondary-text">
+                    <div className="text-xs font-medium text-muted-text">
                       {t("taxonomy.country", { defaultValue: "Country" })}
                     </div>
                     <div className="text-sm font-semibold text-foreground">
@@ -600,7 +601,7 @@ export function GuidedSearchFlow() {
                 <div className="flex items-start gap-2">
                   <Tag className="mt-0.5 h-4 w-4 text-accent" />
                   <div className="flex-1">
-                    <div className="text-xs font-medium text-secondary-text">
+                    <div className="text-xs font-medium text-muted-text">
                       {t("taxonomy.legal_concepts", {
                         defaultValue: "Legal Concepts",
                       })}
@@ -656,7 +657,7 @@ export function GuidedSearchFlow() {
             <h2 className="font-heading text-lg font-semibold text-foreground">
               {t("taxonomy.assess_judge", { defaultValue: "Assess Judge" })}
             </h2>
-            <p className="mt-0.5 text-sm text-secondary-text">
+            <p className="mt-0.5 text-sm text-muted-text">
               {t("taxonomy.step_n_of_m", {
                 defaultValue: "Step {{current}} of {{total}}",
                 current: step,
@@ -666,7 +667,7 @@ export function GuidedSearchFlow() {
           </div>
           <button
             onClick={resetFlow}
-            className="text-sm text-secondary-text hover:text-foreground"
+            className="text-sm text-muted-text hover:text-foreground"
           >
             {t("common.cancel", { defaultValue: "Cancel" })}
           </button>
@@ -695,7 +696,7 @@ export function GuidedSearchFlow() {
                 })}
                 <span className="ml-1 text-red-500">*</span>
               </label>
-              <p className="mt-0.5 text-xs text-secondary-text">
+              <p className="mt-0.5 text-xs text-muted-text">
                 {t("taxonomy.judge_search_hint", {
                   defaultValue: "Type at least 2 characters",
                 })}
@@ -774,7 +775,7 @@ export function GuidedSearchFlow() {
                   defaultValue: "View judge profile",
                 })}
               </h3>
-              <p className="mt-0.5 text-xs text-secondary-text">
+              <p className="mt-0.5 text-xs text-muted-text">
                 {t("taxonomy.judge_profile_hint", {
                   defaultValue: "View detailed analysis and case history",
                 })}
@@ -787,7 +788,7 @@ export function GuidedSearchFlow() {
                   <User className="h-6 w-6" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-secondary-text">
+                  <div className="text-sm font-medium text-muted-text">
                     {t("taxonomy.selected_judge", {
                       defaultValue: "Selected Judge",
                     })}

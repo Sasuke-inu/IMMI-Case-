@@ -35,7 +35,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
         type="button"
         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
         onClick={onClose}
-        aria-label={t("common.close", { defaultValue: "Close menu" })}
+        aria-label={t("common.close_menu")}
       />
       {/* Drawer */}
       <div
@@ -53,8 +53,8 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1.5 text-secondary-text hover:bg-surface"
-            aria-label="Close menu"
+            className="rounded-md p-1.5 text-muted-text hover:bg-surface"
+            aria-label={t("common.close_menu")}
           >
             <X className="h-5 w-5" />
           </button>
@@ -84,7 +84,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                           "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                           isActive
                             ? "bg-accent-muted text-accent"
-                            : "text-secondary-text hover:bg-surface hover:text-foreground",
+                            : "text-muted-text hover:bg-surface hover:text-foreground",
                         )
                       }
                     >

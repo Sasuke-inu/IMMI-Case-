@@ -481,7 +481,7 @@ export function CaseTextViewer({ text, citation }: CaseTextViewerProps) {
                     "w-full border-l-2 px-3 py-1 text-left text-[11px] leading-snug transition-colors",
                     activeId === s.id
                       ? "border-accent bg-accent/5 font-medium text-accent"
-                      : "border-transparent text-secondary-text hover:bg-surface hover:text-foreground",
+                      : "border-transparent text-muted-text hover:bg-surface hover:text-foreground",
                   )}
                 >
                   {s.title}

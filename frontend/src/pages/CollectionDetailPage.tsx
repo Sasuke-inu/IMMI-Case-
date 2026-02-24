@@ -186,7 +186,7 @@ export function CollectionDetailPage() {
           </h1>
         </div>
         {collection.description && (
-          <p className="mt-1 text-sm text-secondary-text">
+          <p className="mt-1 text-sm text-muted-text">
             {collection.description}
           </p>
         )}

@@ -15,6 +15,7 @@
     "search": "搜尋",
     "search_taxonomy": "分類搜尋",
     "guided_search": "導引搜尋",
+    "llm_council": "LLM 移民評議會",
     "data_tools": "數據工具",
     "analytics": "數據分析",
     "download": "下載全文",
@@ -36,6 +37,7 @@
     "saved_searches": "快速重新執行已儲存搜尋",
     "search_taxonomy": "按法律概念標籤瀏覽案例",
     "guided_search": "逐步式篩選導引",
+    "llm_council": "多模型法律推理與綜合評議",
     "download": "從AustLII下載判決全文",
     "pipeline": "自動爬取、清理及下載數據",
     "jobs": "監控後台任務執行進度",
@@ -79,10 +81,12 @@
     "optional": "（選填）",
     "cases": "件案例",
     "cases_unit": "件案例",
-    "searching": "搜尋中⋯"
+    "searching": "搜尋中⋯",
+    "menu": "切換選單",
+    "next": "下一步",
+    "close_menu": "關閉選單"
   },
   "buttons": {
-    "start_pipeline": "啟動流程",
     "browse_cases": "瀏覽案例",
     "add_case": "新增案例",
     "edit_case": "編輯案例",
@@ -112,9 +116,11 @@
     "top_visa_subclasses": "主要簽證子類別",
     "recent_cases": "近期案例",
     "welcome_title": "歡迎使用 IMMI-Case",
-    "welcome_description": "請先從 AustLII 下載案例以開始使用。",
-    "step_1": "步驟一：執行資料流程（爬取、清理、下載）",
-    "step_2": "步驟二：瀏覽、篩選並深入分析案例"
+    "welcome_description": "先瀏覽現有案例或使用導引搜尋；只有在需要補充全文資料時才前往下載頁。",
+    "step_1": "步驟一：先瀏覽現有案例或使用導引搜尋",
+    "step_2": "步驟二：按條件篩選、比較及分析結果",
+    "chart_view": "顯示圖表檢視",
+    "table_view": "顯示表格檢視"
   },
   "cases": {
     "title": "案例",
@@ -154,13 +160,23 @@
     "class_code": "類別代碼",
     "hearing_date": "聆訊日期",
     "mobile_table_note": "表格檢視較適合大螢幕；在手機上已改用卡片檢視以提升可讀性。",
-    "keyboard_shortcuts": "鍵盤操作：j/k 移動列 • Enter 開啟案例 • x 勾選列 • / 聚焦搜尋 • a 新增案例",
+    "keyboard_shortcuts": "鍵盤操作：j/k 移動列 • Enter 鍵開啟案例 • x 勾選列 • / 聚焦搜尋 • a 新增案例",
     "search_shortcut_hint": "按 / 可快速聚焦搜尋框",
     "represented": "有無代理",
     "representative": "代理人",
     "sorted": "排序依據",
     "ascending": "升序",
-    "descending": "降序"
+    "descending": "降序",
+    "card_view": "卡片檢視",
+    "table_view": "表格檢視",
+    "select_all": "選取目前頁面所有可見案例",
+    "select_case": "選取案例 {{citation}}",
+    "date_placeholder": "例如：10 February 2026",
+    "tags_placeholder": "以逗號分隔",
+    "legal_concepts_placeholder": "以分號分隔",
+    "representation_yes": "有代理",
+    "representation_no": "無代理",
+    "representation_self": "自行代理"
   },
   "case_detail": {
     "loading": "案件載入中⋯",
@@ -189,7 +205,10 @@
   "pagination": {
     "showing": "顯示第 {{start}}–{{end}} 筆，共 {{total}} 筆",
     "rows_per_page": "每頁筆數",
-    "ellipsis": "⋯"
+    "ellipsis": "⋯",
+    "previous_page": "前往上一頁",
+    "next_page": "前往下一頁",
+    "page_number": "前往第 {{page}} 頁"
   },
   "outcomes": {
     "remitted": "發回重審",
@@ -241,7 +260,7 @@
     "sort_name": "姓名",
     "judges_found": "共找到 {{count}} 位法官",
     "search_shortcut_hint": "按 / 可快速聚焦法官搜尋",
-    "keyboard_shortcuts": "鍵盤操作：Tab 到資料列 • Enter 開啟檔案 • x 切換比較 • / 聚焦搜尋 • c 比較已選項目",
+    "keyboard_shortcuts": "鍵盤操作：Tab 鍵到資料列 • Enter 鍵開啟檔案 • x 切換比較 • / 聚焦搜尋 • c 比較已選項目",
     "max_selected": "最多可選 {{max}} 位",
     "compare_selected": "比較已選取（{{count}}）",
     "table_view_label": "表格視圖",
@@ -308,7 +327,9 @@
     "section_representation": "出庭代理",
     "section_country": "國籍",
     "section_concepts": "法律概念",
-    "section_recent": "近期案件"
+    "section_recent": "近期案件",
+    "current_role": "現職",
+    "notable_cases": "代表案件"
   },
   "saved_searches": {
     "title": "已儲存搜尋",
@@ -457,7 +478,19 @@
     "favourable": "有利",
     "moderate": "中等",
     "unfavourable": "不利",
-    "total": "合計"
+    "total": "合計",
+    "advanced_filters": "進階篩選",
+    "deep_analysis_title": "勝訴率深度分析",
+    "visa_families": "簽證家族分析",
+    "visa_families_desc": "按簽證家族群組彙整勝訴率，比較不同簽證類別的裁決結果。",
+    "visa_family_volume": "各簽證家族案件量",
+    "visa_family_win_rates": "各簽證家族勝訴率",
+    "sort_by_volume": "按案件量排序",
+    "sort_by_win_rate": "按勝訴率排序",
+    "family": "家族",
+    "total_cases": "案件總數",
+    "cases": "案件",
+    "preset_name_placeholder": "篩選方案名稱"
   },
   "lineage": {
     "title": "法院沿革時間軸",
@@ -504,7 +537,9 @@
     "court_table_peak": "峰值年份",
     "court_table_avg": "年均案件",
     "court_table_status_active": "運作中",
-    "court_table_status_dissolved": "已裁撤"
+    "court_table_status_dissolved": "已裁撤",
+    "loading_hint": "法院沿革彙整在大型資料集上可能需要數秒，請稍候。",
+    "now": "現在"
   },
   "chart": {
     "loading": "載入中⋯",
@@ -546,7 +581,9 @@
     "general_provisions": "一般規定",
     "no_results": "無符合結果",
     "table_of_contents": "目錄",
-    "close_search": "關閉搜尋"
+    "close_search": "關閉搜尋",
+    "legislation_information": "法律資訊",
+    "results_heading": "法律搜尋結果"
   },
   "pipeline": {
     "title": "資料流程",
@@ -589,7 +626,13 @@
     "select_all": "全選",
     "clear": "清除",
     "stop_pipeline": "停止",
-    "running_status": "執行中⋯"
+    "running_status": "執行中⋯",
+    "auto_phases_info": "系統會自動執行三個階段，並採用智能後備策略。",
+    "fallback_info": "若某個爬取策略失敗，系統會自動切換到下一個策略（direct → viewdb → keyword search）。",
+    "found": "已找到",
+    "new": "新增",
+    "valid": "有效",
+    "dupes": "重覆"
   },
   "download": {
     "title": "下載全文",
@@ -640,7 +683,7 @@
     "no": "否"
   },
   "design_tokens": {
-    "title": "設計代符",
+    "title": "設計代碼",
     "subtitle": "視覺設計系統規格",
     "colors": "顏色",
     "typography": "字型排版",
@@ -683,7 +726,8 @@
     "export": "匯出",
     "more_options": "更多選項",
     "navigate_up_down": "使用 ↑↓ 鍵導覽",
-    "escape_to_close": "按 Esc 關閉"
+    "escape_to_close": "按 Esc 鍵關閉",
+    "type_to_search": "輸入以搜尋"
   },
   "states": {
     "loading": "載入中",
@@ -720,7 +764,7 @@
     "case_text_viewer": {
       "full_text": "案件全文",
       "search_in_text": "在文中搜尋⋯",
-      "search_tooltip": "搜尋（Ctrl+F）",
+      "search_tooltip": "搜尋（Ctrl + F）",
       "download_tooltip": "下載 .txt",
       "print_tooltip": "列印",
       "expand_tooltip": "展開",
@@ -812,7 +856,7 @@
       "loading": "資料字典載入中⋯"
     },
     "design_tokens": {
-      "title": "設計代符",
+      "title": "設計代碼",
       "subtitle": "視覺設計系統規格",
       "colors": "顏色",
       "typography": "字型排版",
@@ -883,7 +927,8 @@
     "confirm_delete_collection": "確定刪除此收藏？",
     "confirm_delete_collection_message": "此操作將刪除「{{name}}」。書籤案件不受影響。",
     "collection_detail_empty": "此收藏尚無案件。",
-    "collection_detail_empty_desc": "從案例列表或詳情頁面新增案件。"
+    "collection_detail_empty_desc": "從案例列表或詳情頁面新增案件。",
+    "clear_color": "清除顏色"
   },
   "taxonomy": {
     "title": "分類搜尋",
@@ -980,6 +1025,45 @@
     "toast_please_select_visa": "請選擇簽證子類別",
     "toast_found_cases": "已找到 {{count}} 件符合的案例",
     "toast_no_cases_found": "查無符合條件的案例",
-    "toast_max_concepts": "最多只能選擇 5 個法律概念"
+    "toast_max_concepts": "最多只能選擇 5 個法律概念",
+    "step_progress_badge": "第 {{current}} 步（共 {{total}} 步）"
+  },
+  "theme": {
+    "switchToDark": "切換到深色模式",
+    "switchToLight": "切換到淺色模式"
+  },
+  "llm_council": {
+    "title": "LLM 移民評議會",
+    "subtitle": "由 OpenAI、Gemini Pro、Anthropic Sonnet 提供專家意見，再由 Gemini Flash 進行中位排序及綜合撰寫。",
+    "models_heading": "模型評議設定",
+    "question_label": "法律研究問題",
+    "question_placeholder": "例如：在可能違反程序公義的簽證取消案件中，哪類覆核理由最具勝算？",
+    "case_id_label": "案件 ID（選填）",
+    "case_id_placeholder": "12 位案件 ID",
+    "context_label": "補充背景（選填）",
+    "context_placeholder": "重點範圍、前提假設或限制條件",
+    "run_btn": "執行 LLM 評議會",
+    "running_btn": "評議會執行中⋯",
+    "run_success": "LLM 評議已完成。",
+    "runtime_note": "此功能會同時執行 3 個專家模型及 1 個綜合模型，回應時間可能較長。",
+    "validation_question_required": "請先輸入法律研究問題。",
+    "moderator_title": "Gemini Flash 中位排序與綜合結論",
+    "composed_answer_label": "綜合答案",
+    "consensus_label": "共識",
+    "disagreements_label": "分歧",
+    "ranking_label": "評議排序",
+    "moderator_failed_title": "綜合模型暫時不可用",
+    "expert_title": "專家模型意見",
+    "expert_failed_title": "模型請求失敗",
+    "running_hint": "評議會正在執行，正等待所有專家意見及綜合結論。",
+    "idle_hint": "提交問題後，系統會生成 3 模型評議分析並由 Gemini Flash 綜合。",
+    "default_meta": "預設",
+    "no_rationale": "未提供理由。",
+    "unknown_moderator_error": "未知綜合模型錯誤",
+    "status_ok": "成功（{{latency}} 毫秒）",
+    "status_failed": "失敗（{{latency}} 毫秒）",
+    "sources_label": "資料來源",
+    "unknown_model_error": "未知模型錯誤",
+    "request_failed": "LLM 評議請求失敗"
   }
 }

@@ -17,7 +17,7 @@ export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="rounded-md p-1.5 text-secondary-text hover:bg-surface hover:text-foreground lg:hidden"
+          className="rounded-md p-1.5 text-muted-text hover:bg-surface hover:text-foreground lg:hidden"
           aria-label={t("common.menu", { defaultValue: "Toggle menu" })}
         >
           <Menu className="h-5 w-5" />
@@ -28,7 +28,7 @@ export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
         {/* Mobile search trigger */}
         <button
           onClick={onSearchClick}
-          className="rounded-md p-1.5 text-secondary-text hover:bg-surface hover:text-foreground sm:hidden"
+          className="rounded-md p-1.5 text-muted-text hover:bg-surface hover:text-foreground sm:hidden"
           aria-label={t("common.search", { defaultValue: "Search" })}
         >
           <Search className="h-5 w-5" />
@@ -53,7 +53,7 @@ export function Topbar({ onMenuClick, onSearchClick }: TopbarProps) {
         <button
           onClick={() => i18n.changeLanguage(isZhTW ? "en" : "zh-TW")}
           className="rounded-full border border-border px-4 py-1.5 text-sm font-medium text-muted-text transition-colors hover:bg-surface hover:text-foreground"
-          title="Toggle language / 切換語言"
+          title={t("common.toggle_language")}
         >
           {isZhTW ? "EN" : "中文"}
         </button>

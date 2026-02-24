@@ -685,6 +685,78 @@ export function submitGuidedSearch(
   });
 }
 
+// ─── LLM Council ─────────────────────────────────────────────────
+
+export interface LlmCouncilRequest {
+  question: string;
+  case_id?: string;
+  context?: string;
+}
+
+export interface LlmCouncilModelConfig {
+  provider: string;
+  model: string;
+  reasoning?: string;
+  reasoning_budget?: number;
+  web_search?: boolean;
+  grounding_google_search?: boolean;
+  role?: string;
+}
+
+export interface LlmCouncilOpinion {
+  provider_key: "openai" | "gemini_pro" | "anthropic" | string;
+  provider_label: string;
+  model: string;
+  success: boolean;
+  answer: string;
+  error: string;
+  sources: string[];
+  latency_ms: number;
+}
+
+export interface LlmCouncilRankingEntry {
+  rank: number;
+  provider_key: string;
+  provider_label: string;
+  score: number;
+  reason: string;
+}
+
+export interface LlmCouncilModeratorResult {
+  success: boolean;
+  ranking: LlmCouncilRankingEntry[];
+  consensus: string;
+  disagreements: string;
+  composed_answer: string;
+  follow_up_questions: string[];
+  raw_text: string;
+  error: string;
+  latency_ms: number;
+}
+
+export interface LlmCouncilResponse {
+  question: string;
+  case_context: string;
+  models: {
+    openai: LlmCouncilModelConfig;
+    gemini_pro: LlmCouncilModelConfig;
+    anthropic: LlmCouncilModelConfig;
+    gemini_flash: LlmCouncilModelConfig;
+  };
+  opinions: LlmCouncilOpinion[];
+  moderator: LlmCouncilModeratorResult;
+}
+
+export function runLlmCouncil(
+  payload: LlmCouncilRequest,
+): Promise<LlmCouncilResponse> {
+  return apiFetch("/api/v1/llm-council/run", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    timeoutMs: 180_000,
+  });
+}
+
 // ─── Collections export (server-side HTML report) ──────────────
 export interface CollectionExportPayload {
   collection_id: string;

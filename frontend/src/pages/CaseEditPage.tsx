@@ -204,7 +204,7 @@ export function CaseEditPage() {
                 label={t("cases.date")}
                 value={form.date}
                 onChange={(v) => updateField("date", v)}
-                placeholder="DD Month YYYY"
+                placeholder={t("cases.date_placeholder")}
               />
               <Field
                 label={t("units.year")}
@@ -254,7 +254,7 @@ export function CaseEditPage() {
                 value={form.legal_concepts}
                 onChange={(v) => updateField("legal_concepts", v)}
                 span2
-                placeholder="Semicolon-separated"
+                placeholder={t("cases.legal_concepts_placeholder")}
               />
               <Field
                 label={t("cases.url")}
@@ -302,7 +302,7 @@ export function CaseEditPage() {
                 label={t("cases.hearing_date")}
                 value={form.hearing_date}
                 onChange={(v) => updateField("hearing_date", v)}
-                placeholder="DD Month YYYY"
+                placeholder={t("cases.date_placeholder")}
               />
               <SelectField
                 label={t("cases.represented")}
@@ -329,7 +329,7 @@ export function CaseEditPage() {
                 label={t("case_detail.tags")}
                 value={form.tags}
                 onChange={(v) => updateField("tags", v)}
-                placeholder="Comma-separated"
+                placeholder={t("cases.tags_placeholder")}
               />
               <div className="mt-4">
                 <TextareaField
@@ -383,7 +383,7 @@ function Field({
 }) {
   return (
     <div className={span2 ? "sm:col-span-2" : ""}>
-      <label className="mb-1 block text-xs font-medium text-secondary-text">
+      <label className="mb-1 block text-xs font-medium text-muted-text">
         {label}
       </label>
       <input
@@ -411,7 +411,7 @@ function SelectField({
   const { t } = useTranslation();
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-secondary-text">
+      <label className="mb-1 block text-xs font-medium text-muted-text">
         {label}
       </label>
       <select
@@ -421,7 +421,15 @@ function SelectField({
       >
         {options.map((o) => (
           <option key={o} value={o}>
-            {o || t("common.all", { defaultValue: `— ${label} —` })}
+            {o
+              ? o === "Yes"
+                ? t("cases.representation_yes")
+                : o === "No"
+                  ? t("cases.representation_no")
+                  : o === "Self-represented"
+                    ? t("cases.representation_self")
+                    : o
+              : t("common.all", { defaultValue: `— ${label} —` })}
           </option>
         ))}
       </select>
@@ -442,7 +450,7 @@ function TextareaField({
 }) {
   return (
     <div className="sm:col-span-2">
-      <label className="mb-1 block text-xs font-medium text-secondary-text">
+      <label className="mb-1 block text-xs font-medium text-muted-text">
         {label}
       </label>
       <textarea

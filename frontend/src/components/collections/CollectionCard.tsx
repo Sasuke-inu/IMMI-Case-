@@ -56,7 +56,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
       </div>
 
       {collection.description && (
-        <p className="mb-2 line-clamp-2 text-xs text-secondary-text">
+        <p className="mb-2 line-clamp-2 text-xs text-muted-text">
           {collection.description}
         </p>
       )}

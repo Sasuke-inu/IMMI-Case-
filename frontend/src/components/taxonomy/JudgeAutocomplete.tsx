@@ -52,7 +52,7 @@ export function JudgeAutocomplete() {
   const handleJudgeClick = useCallback(
     (judge: JudgeAutocompleteEntry) => {
       // Navigate to judge profile page
-      navigate(`/judges/${encodeURIComponent(judge.name)}`);
+      navigate(`/judge-profiles/${encodeURIComponent(judge.name)}`);
     },
     [navigate],
   );
@@ -66,7 +66,7 @@ export function JudgeAutocomplete() {
             defaultValue: "Judge Search",
           })}
         </h2>
-        <p className="mt-0.5 text-sm text-secondary-text">
+        <p className="mt-0.5 text-sm text-muted-text">
           {t("taxonomy.judge_autocomplete_desc", {
             defaultValue: "Search for judge profiles and case history",
           })}
@@ -116,6 +116,7 @@ export function JudgeAutocomplete() {
               {judgeResults.map((judge) => (
                 <button
                   key={judge.name}
+                  type="button"
                   onClick={() => handleJudgeClick(judge)}
                   className={cn(
                     "w-full px-4 py-3 text-left transition-colors",

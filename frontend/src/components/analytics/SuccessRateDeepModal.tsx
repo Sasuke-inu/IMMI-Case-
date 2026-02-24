@@ -87,7 +87,7 @@ export function SuccessRateDeepModal({
           </div>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("common.close")}
             className="rounded-md p-1.5 text-muted-text hover:bg-surface hover:text-foreground"
           >
             <X className="h-5 w-5" />
@@ -98,7 +98,7 @@ export function SuccessRateDeepModal({
         <div className="space-y-6">
           <section>
             <h3 className="mb-3 text-lg font-semibold text-foreground">
-              Nature vs Outcome Breakdown
+              {t("analytics.nature_outcome")}
             </h3>
             <div className="rounded-md border border-border bg-surface p-4">
               {loadingNature || !natureOutcome ? (
@@ -113,7 +113,7 @@ export function SuccessRateDeepModal({
 
           <section>
             <h3 className="mb-3 text-lg font-semibold text-foreground">
-              Concept Effectiveness
+              {t("analytics.concept_effectiveness")}
             </h3>
             <div className="rounded-md border border-border bg-surface p-4">
               {loadingEffectiveness || !conceptEffectiveness ? (
@@ -128,7 +128,7 @@ export function SuccessRateDeepModal({
 
           <section>
             <h3 className="mb-3 text-lg font-semibold text-foreground">
-              Concept Trends
+              {t("analytics.concept_trends")}
             </h3>
             <div className="rounded-md border border-border bg-surface p-4">
               {loadingTrends || !conceptTrends ? (

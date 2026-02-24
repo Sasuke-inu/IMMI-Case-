@@ -69,7 +69,7 @@ function NotScrapedState({ onUpdate }: { onUpdate: () => void }) {
           defaultValue: "Full text not yet downloaded",
         })}
       </h3>
-      <p className="mt-1 text-sm text-secondary-text">
+      <p className="mt-1 text-sm text-muted-text">
         {t("legislations.not_scraped_description", {
           defaultValue:
             'Click "Update Laws" on the legislations list to download section text from AustLII.',
@@ -110,7 +110,7 @@ export function LegislationDetailPage() {
           <h2 className="font-heading text-lg font-semibold text-foreground">
             {t("common.not_found")}
           </h2>
-          <p className="mt-2 text-sm text-secondary-text">
+          <p className="mt-2 text-sm text-muted-text">
             {t("legislations.not_found_description", {
               defaultValue: "This legislation could not be found",
             })}
@@ -203,7 +203,7 @@ export function LegislationDetailPage() {
                 {legislation.title}
               </h1>
               {legislation.description && (
-                <p className="mt-1.5 text-sm leading-relaxed text-secondary-text">
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-text">
                   {legislation.description}
                 </p>
               )}

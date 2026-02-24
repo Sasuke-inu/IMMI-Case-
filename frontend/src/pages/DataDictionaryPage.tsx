@@ -157,16 +157,16 @@ export function DataDictionaryPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-surface">
-                    <th className="p-3 text-left font-medium text-secondary-text">
+                    <th className="p-3 text-left font-medium text-muted-text">
                       {t("pages.data_dictionary.field_name")}
                     </th>
-                    <th className="p-3 text-left font-medium text-secondary-text">
+                    <th className="p-3 text-left font-medium text-muted-text">
                       {t("pages.data_dictionary.field_type")}
                     </th>
-                    <th className="p-3 text-left font-medium text-secondary-text">
+                    <th className="p-3 text-left font-medium text-muted-text">
                       {t("pages.data_dictionary.field_description")}
                     </th>
-                    <th className="p-3 text-left font-medium text-secondary-text">
+                    <th className="p-3 text-left font-medium text-muted-text">
                       {t("pages.data_dictionary.example")}
                     </th>
                   </tr>

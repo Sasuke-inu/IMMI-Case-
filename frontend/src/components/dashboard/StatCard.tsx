@@ -28,7 +28,7 @@ export function StatCard({
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-secondary-text">{title}</p>
+          <p className="text-sm font-medium text-muted-text">{title}</p>
           <p className="mt-1 text-2xl font-semibold text-foreground">
             {typeof value === "number" ? value.toLocaleString() : value}
           </p>

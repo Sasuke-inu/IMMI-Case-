@@ -32,7 +32,7 @@ export function LegalConceptBrowser() {
             defaultValue: "Legal Concepts Browser",
           })}
         </h2>
-        <p className="mt-0.5 text-sm text-secondary-text">
+        <p className="mt-0.5 text-sm text-muted-text">
           {t("taxonomy.legal_concepts_desc", {
             defaultValue: "Browse cases by 34 canonical legal concept categories",
           })}
@@ -88,7 +88,7 @@ export function LegalConceptBrowser() {
 
       {/* Summary */}
       {!isLoading && concepts.length > 0 && (
-        <div className="flex items-center gap-2 text-xs text-secondary-text">
+        <div className="flex items-center gap-2 text-xs text-muted-text">
           <Tag className="h-3.5 w-3.5" />
           <span>
             {t("taxonomy.concepts_summary", {

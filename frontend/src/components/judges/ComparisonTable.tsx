@@ -99,10 +99,10 @@ export function ComparisonTable({
                 <td className="px-4 py-3 font-medium text-foreground">
                   {row.metric}
                 </td>
-                <td className="px-4 py-3 text-secondary-text">
+                <td className="px-4 py-3 text-muted-text">
                   {formatValue(row.judge1Value)}
                 </td>
-                <td className="px-4 py-3 text-secondary-text">
+                <td className="px-4 py-3 text-muted-text">
                   {formatValue(row.judge2Value)}
                 </td>
                 <td
@@ -112,7 +112,7 @@ export function ComparisonTable({
                       ? "text-emerald-600 dark:text-emerald-400"
                       : diff < 0
                         ? "text-rose-600 dark:text-rose-400"
-                        : "text-secondary-text",
+                        : "text-muted-text",
                   )}
                 >
                   {diff !== 0

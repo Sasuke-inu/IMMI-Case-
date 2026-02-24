@@ -33,7 +33,7 @@ export function useKeyboard({ onSearch }: KeyboardShortcuts = {}) {
           navigate("/cases")
           break
         case "p":
-          navigate("/pipeline")
+          navigate("/guided-search")
           break
       }
     }

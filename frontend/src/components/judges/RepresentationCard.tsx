@@ -39,7 +39,7 @@ export function RepresentationCard({ data }: RepresentationCardProps) {
       </div>
 
       {delta !== null && (
-        <p className="mt-3 text-xs text-secondary-text">
+        <p className="mt-3 text-xs text-muted-text">
           {t("judges.difference_in_approval", {
             delta: `${delta > 0 ? "+" : ""}${delta}pp`,
           })}

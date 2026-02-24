@@ -60,7 +60,7 @@ export function AnalyticsFilters({
               "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
               isPresetActive(preset)
                 ? "bg-accent text-white"
-                : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
+                : "bg-surface text-muted-text hover:bg-accent-muted hover:text-accent",
             )}
             aria-pressed={isPresetActive(preset)}
           >
@@ -115,7 +115,7 @@ export function AnalyticsFilters({
             "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
             !court
               ? "bg-accent text-white"
-              : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
+              : "bg-surface text-muted-text hover:bg-accent-muted hover:text-accent",
           )}
           aria-pressed={!court}
         >
@@ -130,7 +130,7 @@ export function AnalyticsFilters({
               "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
               court === c
                 ? "bg-accent text-white"
-                : "bg-surface text-secondary-text hover:bg-accent-muted hover:text-accent",
+                : "bg-surface text-muted-text hover:bg-accent-muted hover:text-accent",
             )}
             aria-pressed={court === c}
           >

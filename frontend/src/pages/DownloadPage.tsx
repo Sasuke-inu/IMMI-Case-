@@ -113,16 +113,18 @@ export function DownloadPage() {
               </p>
               <div className="mt-4 flex gap-2">
                 <button
+                  type="button"
                   onClick={() => navigate("/cases")}
                   className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
                 >
                   {t("buttons.browse_cases")}
                 </button>
                 <button
-                  onClick={() => navigate("/pipeline")}
+                  type="button"
+                  onClick={() => navigate("/guided-search")}
                   className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-surface"
                 >
-                  {t("buttons.start_pipeline")}
+                  {t("nav.guided_search")}
                 </button>
               </div>
             </div>
@@ -133,7 +135,7 @@ export function DownloadPage() {
               </h2>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-secondary-text">
+                  <label className="mb-1 block text-xs font-medium text-muted-text">
                     {t("download.court_filter_label")}
                   </label>
                   <select
@@ -150,7 +152,7 @@ export function DownloadPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-secondary-text">
+                  <label className="mb-1 block text-xs font-medium text-muted-text">
                     {t("download.batch_size_label")}
                   </label>
                   <select

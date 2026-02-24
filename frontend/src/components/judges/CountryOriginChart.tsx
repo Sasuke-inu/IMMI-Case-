@@ -84,7 +84,7 @@ export function CountryOriginChart({ data }: CountryOriginChartProps) {
             {chartData.map((row) => (
               <tr key={row.country} className="border-b border-border-light/40">
                 <td className="py-1.5 pr-2 text-foreground">{row.country}</td>
-                <td className="py-1.5 pr-2 text-right text-secondary-text">
+                <td className="py-1.5 pr-2 text-right text-muted-text">
                   {row.total.toLocaleString()}
                 </td>
                 <td className="py-1.5 text-right">

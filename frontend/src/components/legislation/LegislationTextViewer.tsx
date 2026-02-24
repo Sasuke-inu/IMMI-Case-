@@ -250,7 +250,7 @@ function renderStatuteLine(
       const rest = line.replace(PARAGRAPH_RE, "").trimStart();
       return (
         <p key={key} className="ml-6 text-sm leading-relaxed text-foreground">
-          <span className="mr-1.5 font-mono text-xs font-semibold text-secondary-text">
+          <span className="mr-1.5 font-mono text-xs font-semibold text-muted-text">
             {line.match(PARAGRAPH_RE)?.[0].trim()}
           </span>
           {linkifyText(rest, sectionMap, onJump)}
@@ -263,7 +263,7 @@ function renderStatuteLine(
       return (
         <p
           key={key}
-          className="ml-12 text-sm leading-relaxed text-secondary-text"
+          className="ml-12 text-sm leading-relaxed text-muted-text"
         >
           <span className="mr-1 font-mono text-xs text-muted-text">
             {line.match(SUBPARA_RE)?.[0].trim()}
@@ -277,7 +277,7 @@ function renderStatuteLine(
       return (
         <div
           key={key}
-          className="my-2 ml-4 rounded-r border-l-2 border-info/40 bg-info/5 px-3 py-2 text-sm italic text-secondary-text"
+          className="my-2 ml-4 rounded-r border-l-2 border-info/40 bg-info/5 px-3 py-2 text-sm italic text-muted-text"
         >
           {linkifyText(line, sectionMap, onJump)}
         </div>
@@ -297,7 +297,7 @@ function renderStatuteLine(
       return (
         <div
           key={key}
-          className="my-2 ml-4 rounded-r border-l-2 border-success/40 bg-success/5 px-3 py-2 text-sm text-secondary-text"
+          className="my-2 ml-4 rounded-r border-l-2 border-success/40 bg-success/5 px-3 py-2 text-sm text-muted-text"
         >
           {linkifyText(line, sectionMap, onJump)}
         </div>
@@ -512,7 +512,7 @@ function TocSidebar({ sections, activeId, onJump, expanded }: TocSidebarProps) {
                     !isCollapsed && "rotate-90",
                   )}
                 />
-                <span className="min-w-0 flex-1 text-[11px] font-bold uppercase tracking-wide leading-tight text-secondary-text">
+                <span className="min-w-0 flex-1 text-[11px] font-bold uppercase tracking-wide leading-tight text-muted-text">
                   {part}
                 </span>
                 <span className="ml-auto shrink-0 rounded-full bg-surface px-1.5 py-0.5 font-mono text-[9px] text-muted-text">

@@ -146,7 +146,7 @@ export function JudgeDetailPage() {
                 <p className="text-lg font-semibold text-foreground">
                   {yr.approval_rate.toFixed(1)}%
                 </p>
-                <p className="text-xs text-secondary-text">
+                <p className="text-xs text-muted-text">
                   {yr.total.toLocaleString()} {t("judges.cases")}
                 </p>
               </div>
@@ -334,13 +334,13 @@ export function JudgeDetailPage() {
                         {item.citation}
                       </Link>
                     </td>
-                    <td className="py-2 pr-2 text-secondary-text">
+                    <td className="py-2 pr-2 text-muted-text">
                       {item.date || "-"}
                     </td>
-                    <td className="py-2 pr-2 text-secondary-text">
+                    <td className="py-2 pr-2 text-muted-text">
                       {item.outcome || "-"}
                     </td>
-                    <td className="py-2 text-secondary-text">
+                    <td className="py-2 text-muted-text">
                       {item.visa_subclass || "-"}
                     </td>
                   </tr>
