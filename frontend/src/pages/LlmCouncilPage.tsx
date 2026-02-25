@@ -5,6 +5,7 @@ import {
   Bot,
   CheckCircle2,
   ExternalLink,
+  Info,
   Loader2,
   Scale,
   Search,
@@ -60,6 +61,22 @@ function modelMetaLine(config: {
   if (config.grounding_google_search) parts.push("google_grounding=on");
   if (config.role) parts.push(`role=${config.role}`);
   return parts.join(" • ");
+}
+
+function likelihoodTone(label: string) {
+  const normalized = (label || "").toLowerCase();
+  if (normalized === "high") return "text-emerald-700 dark:text-emerald-300";
+  if (normalized === "medium") return "text-amber-700 dark:text-amber-300";
+  if (normalized === "low") return "text-rose-700 dark:text-rose-300";
+  return "text-muted-text";
+}
+
+function lawSectionSearchHref(section: string) {
+  const normalized = (section || "").trim();
+  if (!normalized) return "/legislations";
+  const actMatch = normalized.match(/^(.+?)\s+s\.?\s*\d+/i);
+  const query = (actMatch?.[1] || normalized).trim();
+  return `/legislations?q=${encodeURIComponent(query)}`;
 }
 
 export function LlmCouncilPage() {
@@ -398,6 +415,56 @@ export function LlmCouncilPage() {
 
       {result ? (
         <>
+          {result.retrieved_cases && result.retrieved_cases.length > 0 ? (
+            <section className="rounded-lg border border-border bg-card p-5">
+              <h2 className="text-lg font-semibold text-foreground">
+                {t("llm_council.retrieved_cases_title", {
+                  defaultValue: "Retrieved Supporting Cases",
+                })}
+              </h2>
+              <p className="mt-1 text-xs text-muted-text">
+                {t("llm_council.retrieved_cases_note", {
+                  defaultValue:
+                    "These local IMMI-Case precedents were provided to the council as evidence context.",
+                })}
+              </p>
+              <div className="mt-3 space-y-2">
+                {result.retrieved_cases.map((entry) => (
+                  <article
+                    key={entry.case_id}
+                    className="rounded-md border border-border bg-surface p-3"
+                  >
+                    <p className="text-sm font-semibold text-foreground">
+                      {entry.citation || entry.case_id}
+                    </p>
+                    <p className="text-sm text-foreground">{entry.title || "—"}</p>
+                    <p className="mt-1 text-xs text-muted-text">
+                      {entry.court || "—"} • {entry.date || "—"} • {entry.outcome || "—"}
+                    </p>
+                    {entry.legal_concepts ? (
+                      <p className="mt-1 text-xs text-muted-text">
+                        {entry.legal_concepts}
+                      </p>
+                    ) : null}
+                    {entry.url ? (
+                      <a
+                        href={entry.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {t("llm_council.open_case_source", {
+                          defaultValue: "Open source case",
+                        })}
+                      </a>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <section className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-accent" />
@@ -421,7 +488,38 @@ export function LlmCouncilPage() {
                   </p>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-md border border-border bg-surface p-3">
+                    <div className="mb-1 flex items-center gap-1 text-xs uppercase tracking-wide text-muted-text">
+                      {t("llm_council.outcome_likelihood_label", {
+                        defaultValue: "Outcome Likelihood",
+                      })}
+                      <span
+                        title={t("llm_council.outcome_likelihood_tooltip", {
+                          defaultValue:
+                            "This percentage is a model-generated estimate based on available facts and cited precedents, not a judicial prediction or legal advice.",
+                        })}
+                        className="inline-flex items-center"
+                      >
+                        <Info className="h-3.5 w-3.5 text-muted-text" />
+                      </span>
+                    </div>
+                    <p
+                      className={`text-base font-semibold ${likelihoodTone(
+                        result.moderator.outcome_likelihood_label,
+                      )}`}
+                    >
+                      {result.moderator.outcome_likelihood_percent ?? 0}%
+                    </p>
+                    <p className="mt-1 text-xs uppercase tracking-wide text-muted-text">
+                      {(
+                        result.moderator.outcome_likelihood_label || "unknown"
+                      ).toUpperCase()}
+                    </p>
+                    <p className="mt-2 text-xs text-muted-text">
+                      {result.moderator.outcome_likelihood_reason || "—"}
+                    </p>
+                  </div>
                   <div className="rounded-md border border-border bg-surface p-3">
                     <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
                       {t("llm_council.consensus_label", { defaultValue: "Consensus" })}
@@ -440,6 +538,34 @@ export function LlmCouncilPage() {
                       {result.moderator.disagreements || "—"}
                     </p>
                   </div>
+                </div>
+
+                <div className="rounded-md border border-border bg-surface p-3">
+                  <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
+                    {t("llm_council.law_sections_label", {
+                      defaultValue: "Relevant Law Sections",
+                    })}
+                  </p>
+                  {result.moderator.law_sections &&
+                  result.moderator.law_sections.length > 0 ? (
+                    <div className="space-y-1">
+                      {result.moderator.law_sections.map((section) => (
+                        <a
+                          key={section}
+                          href={lawSectionSearchHref(section)}
+                          className="inline-flex items-center gap-1 text-sm text-accent hover:underline"
+                          title={t("llm_council.law_section_open_search", {
+                            defaultValue: "Open legislation search for this section",
+                          })}
+                        >
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          {section}
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-text">—</p>
+                  )}
                 </div>
 
                 <div className="rounded-md border border-border bg-surface p-3">

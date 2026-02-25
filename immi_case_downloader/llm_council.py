@@ -221,19 +221,25 @@ def _extract_urls(*chunks: str) -> list[str]:
 
 
 def _build_user_prompt(question: str, case_context: str) -> str:
+    structure = (
+        "Please provide a structured research answer with: "
+        "(1) Key legal issues and governing tests, "
+        "(2) Viable defense/argument strategies for the applicant, "
+        "(3) Most likely outcome with confidence level and conditions, "
+        "(4) Counterarguments and failure risks, "
+        "(5) Case-based support: cite which cases support each key conclusion "
+        "(prefer case_id/citation from provided context when available), "
+        "(6) Evidence gaps and next research steps."
+    )
     if case_context:
         return (
             f"User question:\n{question}\n\n"
             f"Case context:\n{case_context}\n\n"
-            "Please provide a structured answer with: "
-            "(1) key legal issues, (2) likely arguments, (3) risks/uncertainties, "
-            "(4) recommended next research steps."
+            f"{structure}"
         )
     return (
         f"User question:\n{question}\n\n"
-        "Please provide a structured answer with: "
-        "(1) key legal issues, (2) likely arguments, (3) risks/uncertainties, "
-        "(4) recommended next research steps."
+        f"{structure}"
     )
 
 
@@ -610,6 +616,10 @@ def _fallback_moderator(opinions: list[CouncilOpinion]) -> dict[str, Any]:
             "composed_answer": "No model produced a usable answer.",
             "consensus": "Unavailable",
             "disagreements": "Unavailable",
+            "outcome_likelihood_percent": 0,
+            "outcome_likelihood_label": "unknown",
+            "outcome_likelihood_reason": "Unavailable due to missing successful model outputs.",
+            "law_sections": [],
             "follow_up_questions": [],
             "raw_text": "",
             "error": "All council models failed",
@@ -636,6 +646,10 @@ def _fallback_moderator(opinions: list[CouncilOpinion]) -> dict[str, Any]:
         "composed_answer": composed_answer,
         "consensus": "Partial consensus generated via fallback path.",
         "disagreements": "Possible conflicts remain; review each model opinion.",
+        "outcome_likelihood_percent": 50,
+        "outcome_likelihood_label": "medium",
+        "outcome_likelihood_reason": "Fallback estimate based on limited synthesis confidence.",
+        "law_sections": [],
         "follow_up_questions": [],
         "raw_text": composed_answer,
         "error": "",
@@ -678,12 +692,18 @@ def _run_moderator(
         "  ],\n"
         '  "consensus":"... ",\n'
         '  "disagreements":"... ",\n'
+        '  "outcome_likelihood_percent":0-100,\n'
+        '  "outcome_likelihood_label":"high|medium|low|unknown",\n'
+        '  "outcome_likelihood_reason":"... ",\n'
+        '  "law_sections":["Migration Act 1958 (Cth) s 36", "Migration Act 1958 (Cth) s 424A"],\n'
         '  "composed_answer":"... ",\n'
         '  "follow_up_questions":["...", "..."]\n'
         "}\n"
         "Requirements:\n"
         "- Rank only providers that succeeded.\n"
         "- Focus on Australian immigration case research quality.\n"
+        "- Provide a conservative outcome likelihood percentage with short justification.\n"
+        "- List likely relevant statutory or regulatory sections to review.\n"
         "- Mention uncertainty explicitly when evidence is weak.\n"
     )
 
@@ -745,11 +765,35 @@ def _run_moderator(
         follow_up = []
     follow_up = [str(q).strip() for q in follow_up if str(q).strip()]
 
+    likelihood_raw = parsed.get("outcome_likelihood_percent", 0)
+    try:
+        likelihood_percent = int(likelihood_raw)
+    except Exception:
+        likelihood_percent = 0
+    likelihood_percent = max(0, min(100, likelihood_percent))
+
+    likelihood_label = str(parsed.get("outcome_likelihood_label", "")).strip().lower()
+    if likelihood_label not in {"high", "medium", "low", "unknown"}:
+        likelihood_label = "unknown"
+
+    law_sections_raw = parsed.get("law_sections", [])
+    if not isinstance(law_sections_raw, list):
+        law_sections_raw = []
+    law_sections = _dedupe(
+        [str(item).strip() for item in law_sections_raw if str(item).strip()]
+    )
+
     return {
         "success": True,
         "ranking": ranking,
         "consensus": str(parsed.get("consensus", "")).strip(),
         "disagreements": str(parsed.get("disagreements", "")).strip(),
+        "outcome_likelihood_percent": likelihood_percent,
+        "outcome_likelihood_label": likelihood_label,
+        "outcome_likelihood_reason": str(
+            parsed.get("outcome_likelihood_reason", "")
+        ).strip(),
+        "law_sections": law_sections,
         "composed_answer": str(parsed.get("composed_answer", "")).strip()
         or mod_opinion.answer,
         "follow_up_questions": follow_up,

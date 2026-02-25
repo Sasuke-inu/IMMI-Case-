@@ -62,6 +62,7 @@ DEFAULT_RELATED_LIMIT = 5
 MAX_RELATED_LIMIT = 20
 MAX_LLM_COUNCIL_QUESTION_LEN = 8_000
 MAX_LLM_COUNCIL_CONTEXT_LEN = 20_000
+MAX_LLM_COUNCIL_PRECEDENT_CASES = 8
 ALLOWED_SORT_FIELDS = frozenset({
     "date", "title", "court", "outcome", "visa_subclass_number",
     "applicant_name", "hearing_date", "case_id",
@@ -1769,6 +1770,101 @@ def _build_llm_case_context(case: ImmigrationCase, extra_context: str = "") -> s
     return joined[:MAX_LLM_COUNCIL_CONTEXT_LEN]
 
 
+def _safe_case_year(case: ImmigrationCase) -> int:
+    try:
+        return int(case.year or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _score_precedent_case(case: ImmigrationCase, query: str) -> int:
+    """Lightweight lexical relevance score for council precedent context."""
+    tokens = [t for t in re.split(r"[^a-z0-9]+", query.lower()) if len(t) >= 3]
+    if not tokens:
+        return 0
+    fields = [
+        case.title,
+        case.citation,
+        case.case_nature,
+        case.legal_concepts,
+        case.catchwords,
+        case.visa_subclass,
+        case.visa_type,
+        case.outcome,
+        case.text_snippet,
+    ]
+    haystack = " | ".join((f or "").lower() for f in fields)
+    score = 0
+    for token in tokens:
+        if token in haystack:
+            score += 1
+    if case.legal_concepts:
+        score += 1
+    if case.citation:
+        score += 1
+    return score
+
+
+def _find_llm_precedents(question: str, case_id: str = "", limit: int = MAX_LLM_COUNCIL_PRECEDENT_CASES) -> list[ImmigrationCase]:
+    """Find relevant precedent cases from local repository for council grounding."""
+    repo = get_repo()
+    if not hasattr(repo, "search_text"):
+        return []
+
+    try:
+        lexical = repo.search_text(question, limit=max(40, limit * 6))  # type: ignore[attr-defined]
+    except Exception:
+        return []
+    if not lexical:
+        return []
+
+    scored: list[tuple[int, int, ImmigrationCase]] = []
+    for case in lexical:
+        if not case or not case.case_id:
+            continue
+        if case_id and case.case_id == case_id:
+            continue
+        score = _score_precedent_case(case, question)
+        if score <= 0:
+            continue
+        scored.append((score, _safe_case_year(case), case))
+
+    if not scored:
+        return []
+
+    scored.sort(key=lambda item: (-item[0], -item[1]))
+    deduped: list[ImmigrationCase] = []
+    seen: set[str] = set()
+    for _, _, case in scored:
+        if case.case_id in seen:
+            continue
+        seen.add(case.case_id)
+        deduped.append(case)
+        if len(deduped) >= limit:
+            break
+    return deduped
+
+
+def _build_llm_precedent_context(precedents: list[ImmigrationCase]) -> str:
+    if not precedents:
+        return ""
+    lines: list[str] = [
+        "Relevant precedent candidates from local IMMI-Case dataset:",
+    ]
+    for idx, case in enumerate(precedents, start=1):
+        lines.append(
+            (
+                f"{idx}. [{case.case_id}] {case.citation or 'No citation'} | "
+                f"{case.title or 'Untitled'} | "
+                f"Court: {case.court_code or case.court or 'Unknown'} | "
+                f"Outcome: {case.outcome or 'Unknown'} | "
+                f"Legal Concepts: {case.legal_concepts or 'N/A'} | "
+                f"Date: {case.date or str(_safe_case_year(case) or '')}"
+            ).strip()
+        )
+    return "\n".join(lines).strip()
+
+
 def _normalize_vectors(vectors: np.ndarray) -> np.ndarray:
     """L2-normalize vectors for cosine similarity."""
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
@@ -3307,6 +3403,14 @@ def llm_council_run():
             return _error("Case not found", 404)
         case_context = _build_llm_case_context(case, case_context)
 
+    precedents = _find_llm_precedents(question, case_id=case_id)
+    precedent_context = _build_llm_precedent_context(precedents)
+    if precedent_context:
+        merged_context = (
+            f"{case_context}\n\n{precedent_context}" if case_context else precedent_context
+        )
+        case_context = merged_context[:MAX_LLM_COUNCIL_CONTEXT_LEN]
+
     try:
         payload = run_immi_council(question=question, case_context=case_context)
     except ValueError as exc:
@@ -3314,6 +3418,20 @@ def llm_council_run():
     except Exception as exc:  # pragma: no cover - network/provider failures
         logger.warning("LLM council run failed: %s", exc, exc_info=True)
         return _error("LLM council backend unavailable", 503)
+
+    payload["retrieved_cases"] = [
+        {
+            "case_id": c.case_id,
+            "citation": c.citation,
+            "title": c.title,
+            "court": c.court_code or c.court,
+            "date": c.date,
+            "outcome": c.outcome,
+            "legal_concepts": c.legal_concepts,
+            "url": c.url,
+        }
+        for c in precedents
+    ]
 
     return jsonify(payload)
 

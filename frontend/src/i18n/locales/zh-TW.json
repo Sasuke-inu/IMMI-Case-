@@ -1072,6 +1072,10 @@
     "composed_answer_label": "綜合答案",
     "consensus_label": "共識",
     "disagreements_label": "分歧",
+    "outcome_likelihood_label": "結果可能性",
+    "outcome_likelihood_tooltip": "此百分比為模型根據現有事實與引用先例所做之估計，並非司法預測或法律意見。",
+    "law_sections_label": "可參考法條條文",
+    "law_section_open_search": "開啟此條文對應的法規搜尋",
     "ranking_label": "評議排序",
     "moderator_failed_title": "綜合模型暫時不可用",
     "expert_title": "專家模型意見",
@@ -1084,6 +1088,9 @@
     "status_ok": "成功（{{latency}} 毫秒）",
     "status_failed": "失敗（{{latency}} 毫秒）",
     "sources_label": "資料來源",
+    "retrieved_cases_title": "已擷取之依據案例",
+    "retrieved_cases_note": "以下本地 IMMI-Case 先例已提供給評議會作為證據上下文。",
+    "open_case_source": "開啟原始案例來源",
     "unknown_model_error": "未知模型錯誤",
     "request_failed": "LLM 評議請求失敗"
   }

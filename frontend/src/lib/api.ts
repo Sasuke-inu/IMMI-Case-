@@ -28,6 +28,12 @@ let csrfToken: string | null = null;
 const API_TIMEOUT_MS = 20_000;
 const ANALYTICS_TIMEOUT_MS = 10_000;
 const FILTER_OPTIONS_TIMEOUT_MS = 8_000;
+const DASHBOARD_STATS_TIMEOUT_MS = 12_000;
+const DASHBOARD_TRENDS_TIMEOUT_MS = 8_000;
+const DASHBOARD_FALLBACK_COUNT_TIMEOUT_MS = 6_000;
+const DASHBOARD_CACHE_TTL_MS = 5 * 60_000;
+const DASHBOARD_STATS_CACHE_KEY = "immi:dashboard:stats:v2";
+const DASHBOARD_TRENDS_CACHE_KEY = "immi:dashboard:trends:v2";
 
 async function fetchCsrfToken(): Promise<string> {
   if (csrfToken) return csrfToken;
@@ -39,6 +45,10 @@ async function fetchCsrfToken(): Promise<string> {
 
 interface ApiRequestOptions extends RequestInit {
   timeoutMs?: number;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
 }
 
 async function apiFetch<T>(
@@ -55,25 +65,44 @@ async function apiFetch<T>(
     headers["X-CSRFToken"] = await fetchCsrfToken();
   }
 
-  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-  let signal = requestOptions.signal;
+  const controller = new AbortController();
+  const upstreamSignal = requestOptions.signal;
+  let timedOut = false;
 
-  if (!signal) {
-    const controller = new AbortController();
-    signal = controller.signal;
-    timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+  const onUpstreamAbort = () => {
+    controller.abort();
+  };
+
+  if (upstreamSignal) {
+    if (upstreamSignal.aborted) {
+      controller.abort();
+    } else {
+      upstreamSignal.addEventListener("abort", onUpstreamAbort, { once: true });
+    }
   }
+
+  const timeoutHandle = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
 
   let res: Response;
   try {
-    res = await fetch(url, { ...requestOptions, headers, signal });
+    res = await fetch(url, {
+      ...requestOptions,
+      headers,
+      signal: controller.signal,
+    });
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (isAbortError(error) && timedOut) {
       throw new Error(`Request timeout after ${timeoutMs / 1000} seconds`);
     }
     throw error;
   } finally {
-    if (timeoutHandle) clearTimeout(timeoutHandle);
+    window.clearTimeout(timeoutHandle);
+    if (upstreamSignal) {
+      upstreamSignal.removeEventListener("abort", onUpstreamAbort);
+    }
   }
 
   if (!res.ok) {
@@ -86,6 +115,78 @@ async function apiFetch<T>(
 
 // ─── Shared filter query string builder ───────────────────────
 const CURRENT_YEAR = new Date().getFullYear();
+
+function createEmptyDashboardStats(totalCases = 0): DashboardStats {
+  return {
+    total_cases: totalCases,
+    with_full_text: 0,
+    courts: {},
+    years: {},
+    natures: {},
+    visa_subclasses: {},
+    sources: {},
+    recent_cases: [],
+  };
+}
+
+function buildDashboardCacheKey(
+  baseKey: string,
+  filters?: AnalyticsFilterParams,
+): string {
+  const keyObject = {
+    court: filters?.court ?? "",
+    yearFrom: filters?.yearFrom ?? 0,
+    yearTo: filters?.yearTo ?? 0,
+    caseNatures: (filters?.caseNatures ?? []).slice().sort(),
+    visaSubclasses: (filters?.visaSubclasses ?? []).slice().sort(),
+    outcomeTypes: (filters?.outcomeTypes ?? []).slice().sort(),
+  };
+  return `${baseKey}:${JSON.stringify(keyObject)}`;
+}
+
+function readCache<T>(key: string): T | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { ts?: number; data?: T };
+    if (!parsed.ts || !parsed.data) return null;
+    if (Date.now() - parsed.ts > DASHBOARD_CACHE_TTL_MS) return null;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache<T>(key: string, data: T): void {
+  try {
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({
+        ts: Date.now(),
+        data,
+      }),
+    );
+  } catch {
+    // no-op
+  }
+}
+
+function buildCaseCountFallbackFilters(
+  filters?: AnalyticsFilterParams,
+): CaseFilters {
+  const caseFilters: CaseFilters = {};
+  if (filters?.court) {
+    caseFilters.court = filters.court;
+  }
+  if (
+    typeof filters?.yearFrom === "number" &&
+    typeof filters?.yearTo === "number" &&
+    filters.yearFrom === filters.yearTo
+  ) {
+    caseFilters.year = filters.yearFrom;
+  }
+  return caseFilters;
+}
 
 function appendAdvancedFilters(
   params: URLSearchParams,
@@ -132,13 +233,45 @@ function appendAnalyticsFilters(
 export function fetchStats(
   filters?: AnalyticsFilterParams,
 ): Promise<DashboardStats> {
-  return apiFetch(`/api/v1/stats${buildFilterParams(filters)}`);
+  const cacheKey = buildDashboardCacheKey(DASHBOARD_STATS_CACHE_KEY, filters);
+
+  return apiFetch<DashboardStats>(`/api/v1/stats${buildFilterParams(filters)}`, {
+    timeoutMs: DASHBOARD_STATS_TIMEOUT_MS,
+  })
+    .then((stats) => {
+      writeCache(cacheKey, stats);
+      return stats;
+    })
+    .catch(async () => {
+      const cached = readCache<DashboardStats>(cacheKey);
+      if (cached) return cached;
+
+      const fallbackFilters = buildCaseCountFallbackFilters(filters);
+      try {
+        const count = await fetchCaseCount(fallbackFilters, "planned", {
+          timeoutMs: DASHBOARD_FALLBACK_COUNT_TIMEOUT_MS,
+        });
+        return createEmptyDashboardStats(count.total);
+      } catch {
+        return createEmptyDashboardStats();
+      }
+    });
 }
 
 export function fetchTrends(
   filters?: AnalyticsFilterParams,
 ): Promise<{ trends: TrendEntry[] }> {
-  return apiFetch(`/api/v1/stats/trends${buildFilterParams(filters)}`);
+  const cacheKey = buildDashboardCacheKey(DASHBOARD_TRENDS_CACHE_KEY, filters);
+
+  return apiFetch<{ trends: TrendEntry[] }>(
+    `/api/v1/stats/trends${buildFilterParams(filters)}`,
+    { timeoutMs: DASHBOARD_TRENDS_TIMEOUT_MS },
+  )
+    .then((data) => {
+      writeCache(cacheKey, data);
+      return data;
+    })
+    .catch(() => readCache<{ trends: TrendEntry[] }>(cacheKey) ?? { trends: [] });
 }
 
 // ─── Court Lineage ─────────────────────────────────────────────
@@ -354,6 +487,7 @@ export type CaseCountMode = "exact" | "planned" | "estimated";
 export function fetchCaseCount(
   filters: CaseFilters,
   countMode: CaseCountMode = "planned",
+  options?: ApiRequestOptions,
 ): Promise<{ total: number; count_mode: CaseCountMode }> {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
@@ -362,7 +496,7 @@ export function fetchCaseCount(
     }
   }
   params.set("count_mode", countMode);
-  return apiFetch(`/api/v1/cases/count?${params}`);
+  return apiFetch(`/api/v1/cases/count?${params}`, options);
 }
 
 export function fetchCase(
@@ -728,6 +862,10 @@ export interface LlmCouncilModeratorResult {
   ranking: LlmCouncilRankingEntry[];
   consensus: string;
   disagreements: string;
+  outcome_likelihood_percent: number;
+  outcome_likelihood_label: "high" | "medium" | "low" | "unknown" | string;
+  outcome_likelihood_reason: string;
+  law_sections: string[];
   composed_answer: string;
   follow_up_questions: string[];
   raw_text: string;
@@ -746,6 +884,16 @@ export interface LlmCouncilResponse {
   };
   opinions: LlmCouncilOpinion[];
   moderator: LlmCouncilModeratorResult;
+  retrieved_cases?: Array<{
+    case_id: string;
+    citation: string;
+    title: string;
+    court: string;
+    date: string;
+    outcome: string;
+    legal_concepts: string;
+    url: string;
+  }>;
 }
 
 export interface LlmCouncilHealthProviderStatus {

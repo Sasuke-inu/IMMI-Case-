@@ -1072,6 +1072,10 @@
     "composed_answer_label": "Composed Answer",
     "consensus_label": "Consensus",
     "disagreements_label": "Disagreements",
+    "outcome_likelihood_label": "Outcome Likelihood",
+    "outcome_likelihood_tooltip": "This percentage is a model-generated estimate based on available facts and cited precedents, not a judicial prediction or legal advice.",
+    "law_sections_label": "Relevant Law Sections",
+    "law_section_open_search": "Open legislation search for this section",
     "ranking_label": "Council Ranking",
     "moderator_failed_title": "Moderator synthesis unavailable",
     "expert_title": "Expert Model Opinions",
@@ -1084,6 +1088,9 @@
     "status_ok": "OK ({{latency}} ms)",
     "status_failed": "Failed ({{latency}} ms)",
     "sources_label": "Sources",
+    "retrieved_cases_title": "Retrieved Supporting Cases",
+    "retrieved_cases_note": "These local IMMI-Case precedents were provided to the council as evidence context.",
+    "open_case_source": "Open source case",
     "unknown_model_error": "Unknown model error",
     "request_failed": "LLM council request failed"
   }

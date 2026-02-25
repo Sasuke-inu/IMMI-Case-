@@ -118,3 +118,51 @@ def test_llm_council_runs_and_passes_compact_case_context(client, monkeypatch):
     assert payload["question"] == "What are the strongest grounds for review?"
     assert "Citation: [2024] AATA 999" in observed["case_context"]
     assert "User Context: Focus on procedural fairness." in observed["case_context"]
+
+
+def test_llm_council_includes_retrieved_precedents(client, monkeypatch):
+    precedent = ImmigrationCase(
+        case_id="bbbbbbbbbbbb",
+        citation="[2022] FCA 100",
+        title="Sample v Minister",
+        court_code="FCA",
+        outcome="Allowed",
+        legal_concepts="Procedural fairness; jurisdictional error",
+        text_snippet="Court found denial of opportunity to respond.",
+        date="2022-05-01",
+        url="https://example.test/case",
+    )
+
+    class _Repo:
+        def get_by_id(self, _case_id):
+            return None
+
+        def search_text(self, _query, limit=50):
+            assert limit >= 40
+            return [precedent]
+
+    observed: dict = {}
+
+    def _fake_run(*, question, case_context):
+        observed["question"] = question
+        observed["case_context"] = case_context
+        return {
+            "question": question,
+            "case_context": case_context,
+            "models": {},
+            "opinions": [],
+            "moderator": {"success": True, "ranking": []},
+        }
+
+    monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+    monkeypatch.setattr(api_module, "run_immi_council", _fake_run)
+
+    resp = client.post(
+        "/api/v1/llm-council/run",
+        json={"question": "procedural fairness denial of hearing response rights"},
+    )
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert payload["retrieved_cases"][0]["case_id"] == "bbbbbbbbbbbb"
+    assert "Relevant precedent candidates from local IMMI-Case dataset:" in observed["case_context"]
+    assert "[bbbbbbbbbbbb] [2022] FCA 100" in observed["case_context"]
