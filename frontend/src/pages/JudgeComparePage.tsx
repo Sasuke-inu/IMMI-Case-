@@ -41,6 +41,29 @@ export function JudgeComparePage() {
           ← {t("pages.judge_comparison.back_to_profiles")}
         </Link>
       </div>
+      <p className="max-w-4xl text-sm text-muted-text">
+        {t("pages.judge_comparison.interpretation_hint", {
+          defaultValue:
+            "Compare each judge by outcome mix, top visa subclasses, and yearly approval trend. Use tooltip values to read exact case counts and percentages.",
+        })}
+      </p>
+      {names.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-text">
+            {t("pages.judge_comparison.selected_judges_label", {
+              defaultValue: "Selected judges",
+            })}
+          </span>
+          {names.map((name) => (
+            <span
+              key={name}
+              className="rounded-full border border-border-light/60 bg-surface px-2 py-0.5 text-xs text-foreground"
+            >
+              {name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {names.length < 2 ? (
         <p className="text-sm text-muted-text">
@@ -73,7 +96,10 @@ export function JudgeComparePage() {
       ) : (
         <div className={`grid gap-4 ${gridCols}`}>
           {data.judges.map((judge) => (
-            <JudgeCompareCard key={judge.judge.name} judge={judge} />
+            <JudgeCompareCard
+              key={judge.judge.canonical_name ?? judge.judge.name}
+              judge={judge}
+            />
           ))}
         </div>
       )}

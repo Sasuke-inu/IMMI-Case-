@@ -36,16 +36,26 @@ pip install -r requirements.txt
 cd frontend && npm install
 ```
 
+### Shared Dev Port (Recommended)
+
+Use one environment variable so backend and frontend proxy always point to the same port:
+
+```bash
+cp .env.example .env
+# Then set BACKEND_PORT (example: 8080) in .env
+```
+
 ## Web Interface
 
 Start the web interface:
 
 ```bash
-python web.py --port 8080        # http://localhost:8080/app/
-python web.py --debug             # Debug mode
+python web.py                    # Uses BACKEND_PORT if set, else 5000
+python web.py --port 8080        # Explicit override
+python web.py --debug            # Debug mode
 ```
 
-The React SPA is served at `/app/` and the API at `/api/v1/*`. Legacy Jinja2 templates remain accessible at the original routes (`/`, `/cases`, etc.).
+The React SPA is served at `/` and the API at `/api/v1/*`. Legacy Jinja2 templates remain accessible at the original routes (`/cases`, etc.).
 
 ### Search API Gateway Modes
 
@@ -74,9 +84,63 @@ Query params:
 cd frontend
 npm run dev                       # Vite dev server with HMR
 npm run build                     # Production build → static/react/
+npm run build:cloudflare          # Cloudflare Pages build → frontend/dist
+npm run dev:cloudflare            # Local Cloudflare Pages simulation (uses functions/)
 npm run tokens                    # Rebuild design tokens (CSS + TS)
 npx vitest run                    # Run 83 frontend unit tests
 ```
+
+`npm run dev` will proxy `/api/*` to the backend using:
+
+- `BACKEND_HOST` / `BACKEND_PORT` (shared with backend)
+- or `VITE_BACKEND_HOST` / `VITE_BACKEND_PORT`
+- or `VITE_API_PROXY_TARGET` (highest priority)
+
+### Cloudflare Pages Dev Site + Supabase Database
+
+This repository includes a Cloudflare Pages setup for the frontend:
+
+- `frontend/wrangler.jsonc` (Pages config)
+- `frontend/functions/api/[[path]].js` (same-origin proxy for `/api/*`)
+- `frontend/public/_redirects` (SPA route fallback)
+
+Recommended architecture:
+
+1. Run/deploy Flask API with Supabase backend:
+
+```bash
+# Required for SupabaseRepository
+export SUPABASE_URL="https://<project-ref>.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
+
+# Start API using Supabase
+python web.py --backend supabase --host 0.0.0.0 --port 5000
+```
+
+2. Connect GitHub repo in Cloudflare Pages:
+- Root directory: `frontend`
+- Build command: `npm run build:cloudflare`
+- Build output directory: `dist`
+- Environment variable: `API_ORIGIN=https://<your-backend-domain>`
+
+3. Enable GitHub auto-deploy workflow (`.github/workflows/cloudflare-dev-site.yml`) and add repository secrets:
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `IMMI_API_ORIGIN` (your public Flask API URL, running with `--backend supabase`)
+
+4. Optional local Cloudflare simulation before push:
+
+```bash
+cd frontend
+cp .dev.vars.example .dev.vars
+# Set API_ORIGIN in .dev.vars
+npm run dev:cloudflare
+```
+
+Why this works:
+- Browser still calls same-origin `/api/v1/*` (no frontend rewrite needed)
+- Cloudflare Pages Function proxies requests to your Flask API upstream
+- Flask can continue using `--backend supabase` for database access
 
 ### Web Interface Pages
 

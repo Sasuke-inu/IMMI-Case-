@@ -62,12 +62,16 @@ export function CountryDropdown() {
                   defaultValue: "Select a country",
                 })}
           </option>
-          {countries.map((entry: CountryEntry) => (
-            <option key={entry.country} value={entry.country}>
-              {entry.country} ({entry.case_count.toLocaleString()}{" "}
-              {t("common.cases", { defaultValue: "cases" })})
-            </option>
-          ))}
+          {countries.map((entry: CountryEntry) => {
+            const countryName = entry.country.trim();
+            if (!countryName) return null;
+            return (
+              <option key={countryName} value={countryName}>
+                {countryName} ({entry.case_count.toLocaleString()}{" "}
+                {t("common.cases", { defaultValue: "cases" })})
+              </option>
+            );
+          })}
         </select>
       </div>
 

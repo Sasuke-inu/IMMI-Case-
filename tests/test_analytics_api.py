@@ -284,6 +284,23 @@ def test_judge_leaderboard_returns_list(client, patch_analytics_cases):
     assert isinstance(data["judges"], list)
 
 
+def test_judge_leaderboard_name_query_matches_name_or_display_name(
+    client, patch_analytics_cases
+):
+    data = client.get("/api/v1/analytics/judge-leaderboard?name_q=alpha").get_json()
+    assert data["judges"]
+    assert all(
+        "alpha" in f"{row['name']} {row.get('display_name', '')}".lower()
+        for row in data["judges"]
+    )
+
+
+def test_judge_leaderboard_min_cases_filter(client, patch_analytics_cases):
+    data = client.get("/api/v1/analytics/judge-leaderboard?min_cases=3").get_json()
+    assert data["judges"]
+    assert all(row["total_cases"] >= 3 for row in data["judges"])
+
+
 def test_judge_leaderboard_sorted_by_cases(client, patch_analytics_cases):
     data = client.get("/api/v1/analytics/judge-leaderboard?sort_by=cases").get_json()
     totals = [j["total_cases"] for j in data["judges"]]
@@ -348,6 +365,49 @@ def test_judge_compare_two_judges(client, patch_analytics_cases):
 def test_judge_compare_requires_two_names(client, patch_analytics_cases):
     resp = client.get("/api/v1/analytics/judge-compare?names=Member%20Alpha")
     assert resp.status_code == 400
+
+
+def test_judge_profile_strict_identity_avoids_cross_court_murphy_mix(client, monkeypatch):
+    from immi_case_downloader.web.routes import api as api_routes
+
+    api_routes._judge_identity.cache_clear()
+    cases = [
+        _make_case(
+            citation="[2019] FCA 300",
+            court_code="FCA",
+            year=2019,
+            outcome="Allowed",
+            judge="MURPHY J",
+            visa_subclass="500",
+        ),
+        _make_case(
+            citation="[2023] AATA 301",
+            court_code="AATA",
+            year=2023,
+            outcome="Remitted",
+            judge="Alison Murphy",
+            visa_subclass="866",
+        ),
+        _make_case(
+            citation="[2023] AATA 302",
+            court_code="AATA",
+            year=2023,
+            outcome="Set Aside",
+            judge="Jade Murphy",
+            visa_subclass="866",
+        ),
+    ]
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+
+    data = client.get(
+        "/api/v1/analytics/judge-profile?name=Bernard%20Michael%20Murphy"
+    ).get_json()
+
+    assert data["judge"]["canonical_name"] == "Bernard Michael Murphy"
+    assert data["judge"]["total_cases"] == 1
+    assert data["judge"]["courts"] == ["FCA"]
+
+    api_routes._judge_identity.cache_clear()
 
 
 # ---------------------------------------------------------------------------

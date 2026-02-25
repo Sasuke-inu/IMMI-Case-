@@ -426,12 +426,14 @@ def _build_user_prompt(question: str, case_context: str) -> str:
     structure = (
         "Please provide a structured research answer with: "
         "(1) Key legal issues and governing tests, "
-        "(2) Viable defense/argument strategies for the applicant, "
-        "(3) Most likely outcome with confidence level and conditions, "
-        "(4) Counterarguments and failure risks, "
-        "(5) Case-based support: cite which cases support each key conclusion "
+        "(2) How the user-provided case-study facts (which may not be in public records) map to those legal tests, "
+        "(3) Viable defense/argument strategies for the applicant, "
+        "(4) Most likely outcome with confidence level and conditions, "
+        "(5) Counterarguments and failure risks, "
+        "(6) Case-based support: cite which cases support each key conclusion "
         "(prefer case_id/citation from provided context when available), "
-        "(6) Evidence gaps and next research steps."
+        "(7) Draft mock judgment outline (non-binding, research simulation only) including findings, reasoning path, and likely orders, "
+        "(8) Evidence gaps and next research steps."
     )
     if case_context:
         return (
@@ -850,6 +852,7 @@ def _fallback_moderator(opinions: list[CouncilOpinion]) -> dict[str, Any]:
             "shared_law_sections_confidence_percent": 0,
             "shared_law_sections_confidence_reason": "No successful expert outputs are available for consistency scoring.",
             "composed_answer": "No model produced a usable answer.",
+            "mock_judgment": "",
             "consensus": "Unavailable",
             "disagreements": "Unavailable",
             "outcome_likelihood_percent": 0,
@@ -892,6 +895,9 @@ def _fallback_moderator(opinions: list[CouncilOpinion]) -> dict[str, Any]:
     composed_answer = "\n\n".join(
         f"[{op.provider_label}] {op.answer}" for op in successful[:2]
     )
+    composed_answer = str(parsed.get("composed_answer", "")).strip() or mod_opinion.answer
+    mock_judgment = str(parsed.get("mock_judgment", "")).strip() or composed_answer
+
     return {
         "success": True,
         "ranking": ranking,
@@ -915,6 +921,7 @@ def _fallback_moderator(opinions: list[CouncilOpinion]) -> dict[str, Any]:
         "shared_law_sections_confidence_percent": shared_law_confidence_percent,
         "shared_law_sections_confidence_reason": shared_law_confidence_reason,
         "composed_answer": composed_answer,
+        "mock_judgment": composed_answer,
         "consensus": "Partial consensus generated via fallback path.",
         "disagreements": "Possible conflicts remain; review each model opinion.",
         "outcome_likelihood_percent": 50,
@@ -984,6 +991,7 @@ def _run_moderator(
         '  "outcome_likelihood_label":"high|medium|low|unknown",\n'
         '  "outcome_likelihood_reason":"... ",\n'
         '  "law_sections":["Migration Act 1958 (Cth) s 36", "Migration Act 1958 (Cth) s 424A"],\n'
+        '  "mock_judgment":"... ",\n'
         '  "composed_answer":"... ",\n'
         '  "follow_up_questions":["...", "..."]\n'
         "}\n"
@@ -996,6 +1004,7 @@ def _run_moderator(
         "- Include provider_law_sections for each successful model using only statutes/regulations explicitly cited in that model answer.\n"
         "- shared_law_sections must contain only sections present across all successful models.\n"
         "- Focus on Australian immigration case research quality.\n"
+        "- Write mock_judgment as a non-binding research simulation, explicitly based on provided facts and precedent context.\n"
         "- Provide a conservative outcome likelihood percentage with short justification.\n"
         "- List likely relevant statutory or regulatory sections to review.\n"
         "- Mention uncertainty explicitly when evidence is weak.\n"
@@ -1224,8 +1233,8 @@ def _run_moderator(
             parsed.get("outcome_likelihood_reason", "")
         ).strip(),
         "law_sections": law_sections,
-        "composed_answer": str(parsed.get("composed_answer", "")).strip()
-        or mod_opinion.answer,
+        "mock_judgment": mock_judgment,
+        "composed_answer": composed_answer,
         "follow_up_questions": follow_up,
         "raw_text": mod_opinion.answer,
         "error": "",

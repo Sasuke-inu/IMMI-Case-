@@ -107,6 +107,8 @@ export interface OutcomeData {
 
 export interface JudgeEntry {
   name: string;
+  canonical_name?: string;
+  display_name?: string;
   count: number;
   courts: string[];
 }
@@ -169,6 +171,7 @@ export interface SuccessRateData {
 
 export interface JudgeLeaderboardEntry {
   name: string;
+  display_name?: string;
   total_cases: number;
   approval_rate: number;
   courts: string[];
@@ -225,6 +228,7 @@ export interface CourtComparisonEntry {
 export interface JudgeProfile {
   judge: {
     name: string;
+    canonical_name?: string;
     total_cases: number;
     courts: string[];
     active_years: { first: number | null; last: number | null };

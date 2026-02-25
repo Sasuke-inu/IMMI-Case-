@@ -12,6 +12,8 @@ import json
 import logging
 import time
 import threading
+from pathlib import Path
+from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from itertools import combinations
 from collections import Counter, defaultdict
@@ -157,6 +159,7 @@ _JUDGE_TITLE_RE = re.compile(
     r"Chief\s+Justice\s+|Justice\s+|Senior\s+Member\s+|"
     r"Deputy\s+President\s+|Deputy\s+Member\s+|Deputy\s+|"
     r"Principal\s+Member\s+|Member\s+|Magistrate\s+|"
+    r"Judge\s+|"
     r"President\s+|Registrar\s+|"
     r"Mr\.?\s+|Mrs\.?\s+|Ms\.?\s+|Miss\s+|Dr\.?\s+|Prof\.?\s+)",
     re.IGNORECASE,
@@ -164,15 +167,22 @@ _JUDGE_TITLE_RE = re.compile(
 
 # Trailing legal abbreviations (e.g. "Smith J", "Brown CJ", "White FM")
 _JUDGE_SUFFIX_RE = re.compile(
-    r"\s+(?:J|CJ|ACJ|FM|AM|DCJ|JA|RFM|SM|DP|P)\b\.?$",
+    r"\s+(?:J|CJ|ACJ|FM|AM|DCJ|JA|RFM|SM|DP|P|SC|KC|QC|AO|AC|OAM|PSM)\b\.?$",
     re.IGNORECASE,
 )
 
 # Words that disqualify an entry as a real person's name
 _NAME_DISQUALIFIERS = frozenset({
     "the", "of", "in", "for", "at", "on", "by", "to", "with", "and", "or",
+    "a", "an", "this", "that", "was", "were", "which", "where", "when",
     "tribunal", "court", "department", "minister", "registry", "review",
     "applicant", "respondent", "appellant", "migration", "australia",
+    "held", "error", "errors", "finding", "findings", "reason", "reasons",
+    "dismissed", "dismiss", "allowed", "allow", "granted", "grant",
+    "refused", "refuse", "rejected", "reject", "affirmed", "affirm",
+    "remitted", "remit", "quashed", "quash", "set", "aside", "decision",
+    "order", "orders", "hearing", "judgment", "judgement", "appeal",
+    "application", "visa",
 })
 
 
@@ -195,12 +205,28 @@ def _extract_month_key(date_str: "str | None") -> "str | None":
 def _is_real_judge_name(name: str) -> bool:
     """Return True only if name looks like an actual person's name."""
     words = name.split()
-    if not words or len(words) > 4:
+    # Allow longer forms for full names with titles/nicknames/post-nominals.
+    if not words or len(words) > 8:
         return False
+    if any(not re.fullmatch(r"[A-Za-z][A-Za-z'.-]*\.?", w) for w in words):
+        return False
+
+    lowered_words = [w.lower().strip(".") for w in words]
+    if any(w in _NAME_DISQUALIFIERS for w in lowered_words):
+        return False
+    if all(w in _NAME_DISQUALIFIERS for w in lowered_words):
+        return False
+
+    # Single-token entries are usually surnames; reject overly short fragments.
+    if len(words) == 1 and len(words[0].strip(".")) < 3:
+        return False
+
+    # Must contain at least one non-initial token.
+    if not any(len(w.strip(".")) > 1 for w in words):
+        return False
+
     # All words must not be disqualifiers
-    if all(w.lower() in _NAME_DISQUALIFIERS for w in words):
-        return False
-    # Must contain at least one word that starts with a capital letter
+    # Must contain at least one word that starts with a capital letter.
     if not any(w[0].isupper() for w in words if w):
         return False
     return True
@@ -220,6 +246,11 @@ def _normalise_judge_name(raw: str) -> str:
     m = _JUDGE_SUFFIX_RE.search(name)
     if m:
         name = name[:m.start()].strip()
+    # Remove bracket artifacts and non-name punctuation from noisy OCR/text extractions.
+    name = re.sub(r"[\(\)\[\]\{\}]", " ", name)
+    # Remove quoted nicknames: "'Sandy'" -> "Sandy"
+    name = re.sub(r"(?<![A-Za-z])[‘’']([A-Za-z]+)[‘’'](?![A-Za-z])", r"\1", name)
+    name = re.sub(r"[^A-Za-z'.\-\s]", " ", name)
     # Normalise whitespace
     name = re.sub(r"\s+", " ", name).strip()
     if not name:
@@ -230,6 +261,266 @@ def _normalise_judge_name(raw: str) -> str:
     name = re.sub(r"\bMc([a-z])", lambda x: "Mc" + x.group(1).upper(), name)
     name = re.sub(r"\bO'([a-z])", lambda x: "O'" + x.group(1).upper(), name)
     return name
+
+
+@lru_cache(maxsize=1)
+def _load_judge_bios() -> dict[str, dict]:
+    """Load judge biography map from disk once per process."""
+    bio_path = os.path.join(get_output_dir(), "judge_bios.json")
+    if not os.path.exists(bio_path):
+        return {}
+    try:
+        with open(bio_path, encoding="utf-8") as f:
+            payload = json.load(f)
+    except Exception:
+        logger.warning("Failed to load judge_bios.json", exc_info=True)
+        return {}
+
+    if not isinstance(payload, dict):
+        return {}
+
+    bios: dict[str, dict] = {}
+    for key, value in payload.items():
+        if isinstance(key, str) and isinstance(value, dict):
+            cleaned = key.strip().lower()
+            if cleaned:
+                bios[cleaned] = value
+    return bios
+
+
+@lru_cache(maxsize=1)
+def _load_judge_name_overrides() -> dict[str, str]:
+    """Load alias -> full-name overrides from output dir, fallback to packaged defaults."""
+    package_default = (
+        Path(__file__).resolve().parents[2] / "data" / "judge_name_overrides.json"
+    )
+    candidate_paths = [
+        Path(get_output_dir()) / "judge_name_overrides.json",
+        package_default,
+    ]
+    overrides: dict[str, str] = {}
+
+    for path in candidate_paths:
+        if not path.exists():
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                payload = json.load(f)
+        except Exception:
+            logger.warning("Failed to load %s", path, exc_info=True)
+            continue
+
+        if isinstance(payload, dict) and isinstance(payload.get("overrides"), dict):
+            raw_map = payload["overrides"]
+        elif isinstance(payload, dict):
+            raw_map = payload
+        else:
+            continue
+
+        for alias, value in raw_map.items():
+            if not isinstance(alias, str) or not isinstance(value, str):
+                continue
+            alias_key = alias.strip().lower()
+            full_name = re.sub(r"\s+", " ", value).strip()
+            if not alias_key or not full_name:
+                continue
+            # First source wins (output-dir file takes precedence over packaged fallback).
+            overrides.setdefault(alias_key, full_name)
+
+    return overrides
+
+
+def _judge_query_aliases(raw: str) -> set[str]:
+    """Build robust match aliases (full name, normalized name, surname, initials)."""
+    aliases: set[str] = set()
+    raw_name = (raw or "").strip()
+    if not raw_name:
+        return aliases
+
+    normalized = _normalise_judge_name(raw_name)
+    for candidate in (raw_name, normalized):
+        c = candidate.strip().lower()
+        if c:
+            aliases.add(c)
+
+    tokens = [t.strip(".") for t in normalized.split() if t.strip(".")]
+    if tokens:
+        surname = tokens[-1].lower()
+        aliases.add(surname)
+        if len(tokens) >= 2:
+            first_initial = tokens[0][0].lower()
+            aliases.add(f"{first_initial} {surname}")
+            aliases.add(f"{first_initial}. {surname}")
+
+    return aliases
+
+
+def _normalise_court_code(court_code: str | None) -> str:
+    return (court_code or "").strip().upper()
+
+
+def _normalise_year_value(year: int | str | None) -> int:
+    try:
+        value = int(str(year).strip())
+    except (TypeError, ValueError):
+        return 0
+    return value if 1800 <= value <= 2200 else 0
+
+
+def _resolve_contextual_judge_name(
+    raw_clean: str,
+    normalized: str,
+    court_code: str,
+    year: int,
+) -> str:
+    """Resolve ambiguous surname-only aliases using court/year context."""
+    court = _normalise_court_code(court_code)
+    norm_tokens = [t.lower() for t in re.findall(r"[A-Za-z]+", normalized)]
+    raw_tokens = [t.lower() for t in re.findall(r"[A-Za-z]+", raw_clean)]
+    if not norm_tokens:
+        return ""
+
+    surname = norm_tokens[-1]
+    first_token = norm_tokens[0] if len(norm_tokens) > 1 else ""
+    raw_first = raw_tokens[0] if raw_tokens else ""
+
+    if "graham" in norm_tokens and "friedman" in norm_tokens:
+        return "Graham Friedman"
+
+    if surname == "graham":
+        if court in COURT_CODES:
+            return "Peter Ross Graham KC"
+        if "ann" in norm_tokens:
+            return "Ann Graham"
+        if court == "MRTA" and len(norm_tokens) == 1:
+            if year and year <= 2001:
+                return "Graham Friedman"
+            if year >= 2002:
+                return "Ann Graham"
+
+    if surname == "murphy":
+        if court in COURT_CODES:
+            return "Bernard Michael Murphy"
+        if "alison" in norm_tokens or first_token == "a" or raw_first == "a":
+            return "Member Alison Murphy"
+        if "jade" in norm_tokens or first_token == "j" or raw_first == "j":
+            return "Member Jade Murphy"
+        if "peter" in norm_tokens or first_token == "p" or raw_first == "p":
+            return "Member Peter Murphy"
+
+    if surname == "downes":
+        if "tegen" in norm_tokens or first_token == "t" or raw_first == "t":
+            return "Tegen Downes"
+        if court in COURT_CODES:
+            if year and year >= 2021:
+                return "Kylie Elizabeth Downes"
+            if year and year <= 2012:
+                return "Garry Keith Downes AM KC"
+        if court in TRIBUNAL_CODES:
+            if year and year >= 2022:
+                return "Tegen Downes"
+            if year and year <= 2012:
+                return "Garry Keith Downes AM KC"
+
+    return ""
+
+
+def _resolve_judge_display_name(
+    raw: str,
+    court_code: str = "",
+    year: int | str | None = None,
+) -> str:
+    """Prefer full name from bios when available, fallback to normalized short name."""
+    raw_clean = re.sub(r"\s+", " ", (raw or "").strip())
+    normalized = _normalise_judge_name(raw_clean)
+    year_value = _normalise_year_value(year)
+    if raw_clean:
+        # Preserve user-visible labels (e.g. "Member Alpha"), but beautify all-lowercase input.
+        fallback = raw_clean.title() if raw_clean.islower() else raw_clean
+    else:
+        fallback = normalized or ""
+    aliases = _judge_query_aliases(raw)
+    bios = _load_judge_bios()
+    for alias in aliases:
+        bio = bios.get(alias)
+        if not bio:
+            continue
+        full_name = str(bio.get("full_name", "")).strip()
+        if full_name:
+            return full_name
+
+    overrides = _load_judge_name_overrides()
+    for alias in aliases:
+        full_name = overrides.get(alias, "").strip()
+        if full_name:
+            return full_name
+
+    contextual = _resolve_contextual_judge_name(
+        raw_clean=raw_clean,
+        normalized=normalized,
+        court_code=court_code,
+        year=year_value,
+    )
+    if contextual:
+        return contextual
+
+    return fallback
+
+
+def _known_singleton_judge_names() -> set[str]:
+    """Known one-word judge aliases from bios (e.g. street, driver)."""
+    bios = _load_judge_bios()
+    overrides = _load_judge_name_overrides()
+    known = {k for k in bios.keys() if k.isalpha() and " " not in k}
+    known.update(k for k in overrides.keys() if k.isalpha() and " " not in k)
+    return known
+
+
+@lru_cache(maxsize=32768)
+def _judge_identity(
+    raw: str,
+    court_code: str = "",
+    year: int | str | None = None,
+) -> tuple[str, str]:
+    """Return (canonical_name, display_name) for a judge alias."""
+    raw_clean = re.sub(r"\s+", " ", (raw or "").strip())
+    if not raw_clean:
+        return "", ""
+    display_name = _resolve_judge_display_name(raw_clean, court_code, year)
+    canonical_name = display_name or raw_clean
+    return canonical_name, display_name or raw_clean
+
+
+def _collect_cases_for_judge(
+    cases: list[ImmigrationCase],
+    query_name: str,
+) -> tuple[list[ImmigrationCase], str, str]:
+    """Collect cases for a judge using strict canonical matching first, then loose alias fallback."""
+    canonical_name, display_name = _judge_identity(query_name)
+    canonical_name = canonical_name or (_normalise_judge_name(query_name) or query_name)
+    display_name = display_name or canonical_name
+    canonical_key = canonical_name.lower()
+
+    strict_matches: list[ImmigrationCase] = []
+    for case in cases:
+        judge_names = _split_judges(case.judges)
+        if any(
+            _judge_identity(raw_name, case.court_code, case.year)[0].lower() == canonical_key
+            for raw_name in judge_names
+        ):
+            strict_matches.append(case)
+
+    if strict_matches:
+        return strict_matches, canonical_name, display_name
+
+    # Backward-compatible fallback for unknown aliases.
+    match_names = _judge_query_aliases(query_name)
+    loose_matches = [
+        c
+        for c in cases
+        if any(match_names & _judge_query_aliases(j) for j in _split_judges(c.judges))
+    ]
+    return loose_matches, canonical_name, display_name
 
 
 def _normalise_outcome(raw: str) -> str:
@@ -422,9 +713,21 @@ def _split_judges(raw: str) -> list[str]:
         return []
     names: list[str] = []
     seen: set[str] = set()
+    known_singletons = _known_singleton_judge_names()
     for piece in re.split(r"[;,]", raw):
-        name = _normalise_judge_name(piece)
+        raw_piece = piece.strip()
+        if not raw_piece:
+            continue
+
+        had_title_or_suffix = bool(
+            _JUDGE_TITLE_RE.search(raw_piece)
+            or _JUDGE_SUFFIX_RE.search(raw_piece)
+            or re.search(r"\b(?:J|CJ|ACJ|FM|AM|DCJ|JA|RFM|SM|DP|P)\b", raw_piece, re.IGNORECASE)
+        )
+
+        name = _normalise_judge_name(raw_piece)
         lowered = name.lower()
+        is_singleton = len(name.split()) == 1
         if (
             not name
             or len(name) < 2
@@ -432,6 +735,12 @@ def _split_judges(raw: str) -> list[str]:
             or name.replace(" ", "").isdigit()
             or lowered in seen
             or not _is_real_judge_name(name)
+            or (
+                is_singleton
+                and lowered not in known_singletons
+                and not had_title_or_suffix
+                and len(lowered) < 5
+            )
         ):
             continue
         seen.add(lowered)
@@ -1805,14 +2114,27 @@ def _score_precedent_case(case: ImmigrationCase, query: str) -> int:
     return score
 
 
-def _find_llm_precedents(question: str, case_id: str = "", limit: int = MAX_LLM_COUNCIL_PRECEDENT_CASES) -> list[ImmigrationCase]:
+def _find_llm_precedents(
+    question: str,
+    case_id: str = "",
+    limit: int = MAX_LLM_COUNCIL_PRECEDENT_CASES,
+    case_facts: str = "",
+) -> list[ImmigrationCase]:
     """Find relevant precedent cases from local repository for council grounding."""
     repo = get_repo()
     if not hasattr(repo, "search_text"):
         return []
 
+    query_text = " ".join(
+        part.strip()
+        for part in [question, case_facts]
+        if part and part.strip()
+    ).strip()
+    if not query_text:
+        return []
+
     try:
-        lexical = repo.search_text(question, limit=max(40, limit * 6))  # type: ignore[attr-defined]
+        lexical = repo.search_text(query_text, limit=max(40, limit * 6))  # type: ignore[attr-defined]
     except Exception:
         return []
     if not lexical:
@@ -1824,7 +2146,7 @@ def _find_llm_precedents(question: str, case_id: str = "", limit: int = MAX_LLM_
             continue
         if case_id and case.case_id == case_id:
             continue
-        score = _score_precedent_case(case, question)
+        score = _score_precedent_case(case, query_text)
         if score <= 0:
             continue
         scored.append((score, _safe_case_year(case), case))
@@ -2202,16 +2524,29 @@ def analytics_judges():
 
     judge_counter: Counter = Counter()
     judge_courts: dict[str, set[str]] = defaultdict(set)
+    judge_display_name: dict[str, str] = {}
+    judge_canonical_name: dict[str, str] = {}
 
     for c in cases:
-        for name in _split_judges(c.judges):
-            judge_counter[name] += 1
+        for raw_name in _split_judges(c.judges):
+            canonical_name, display_name = _judge_identity(raw_name, c.court_code, c.year)
+            if not canonical_name:
+                continue
+            key = canonical_name.lower()
+            judge_counter[key] += 1
+            judge_canonical_name.setdefault(key, canonical_name)
+            judge_display_name.setdefault(key, display_name)
             if c.court_code:
-                judge_courts[name].add(c.court_code)
+                judge_courts[key].add(c.court_code)
 
     judges = [
-        {"name": name, "count": count, "courts": sorted(judge_courts.get(name, set()))}
-        for name, count in judge_counter.most_common(limit)
+        {
+            "name": judge_canonical_name[name_key],
+            "display_name": judge_display_name.get(name_key, judge_canonical_name[name_key]),
+            "count": count,
+            "courts": sorted(judge_courts.get(name_key, set())),
+        }
+        for name_key, count in judge_counter.most_common(limit)
     ]
 
     return jsonify({"judges": judges})
@@ -2417,24 +2752,40 @@ def analytics_judge_leaderboard():
     sort_by = request.args.get("sort_by", "cases").strip().lower() or "cases"
     if sort_by not in ALLOWED_LEADERBOARD_SORT:
         return jsonify({"error": f"Invalid sort_by. Allowed: {sorted(ALLOWED_LEADERBOARD_SORT)}"}), 400
+    name_q = request.args.get("name_q", "").strip().lower()
     limit = safe_int(request.args.get("limit"), default=50, min_val=1, max_val=200)
+    min_cases = safe_int(request.args.get("min_cases"), default=1, min_val=1, max_val=100000)
     cases = _apply_filters(_get_all_cases())
 
     judge_cases: dict[str, list[ImmigrationCase]] = defaultdict(list)
     judge_court_counts: dict[str, Counter] = defaultdict(Counter)
-    judge_display_name: dict[str, str] = {}  # lowered → first-seen original name
+    judge_canonical_name: dict[str, str] = {}
+    judge_display_name: dict[str, str] = {}
     for case in cases:
-        for name in _split_judges(case.judges):
-            key = name.lower()
-            if key not in judge_display_name:
-                judge_display_name[key] = name
+        for raw_name in _split_judges(case.judges):
+            canonical_name, display_name = _judge_identity(
+                raw_name, case.court_code, case.year
+            )
+            if not canonical_name:
+                continue
+            key = canonical_name.lower()
+            judge_canonical_name.setdefault(key, canonical_name)
+            judge_display_name.setdefault(key, display_name)
             judge_cases[key].append(case)
             if case.court_code:
                 judge_court_counts[key][case.court_code] += 1
 
     rows = []
     for key, jc in judge_cases.items():
-        display_name = judge_display_name[key]
+        canonical_name = judge_canonical_name[key]
+        display_name = judge_display_name.get(key, canonical_name)
+
+        if name_q and (name_q not in canonical_name.lower() and name_q not in display_name.lower()):
+            continue
+
+        if len(jc) < min_cases:
+            continue
+
         profile = _judge_profile_payload(display_name, jc, include_recent_cases=False)
         top_visa_subclasses = [
             {"subclass": item["subclass"], "count": item["total"]}
@@ -2446,7 +2797,8 @@ def analytics_judge_leaderboard():
 
         rows.append(
             {
-                "name": display_name,
+                "name": canonical_name,
+                "display_name": display_name,
                 "total_cases": profile["judge"]["total_cases"],
                 "approval_rate": profile["approval_rate"],
                 "courts": profile["judge"]["courts"],
@@ -2476,15 +2828,7 @@ def analytics_judge_profile():
         return _error("name query parameter is required")
 
     cases = _apply_filters(_get_all_cases())
-    # Normalize the query name (strips titles like "Justice", "Member") for matching,
-    # but keep the original name for display in the response.
-    normalized_query = _normalise_judge_name(name).lower()
-    match_names = {name.lower(), normalized_query} - {""}
-    judge_cases = [
-        c
-        for c in cases
-        if match_names & {j.lower() for j in _split_judges(c.judges)}
-    ]
+    judge_cases, canonical_name, display_name = _collect_cases_for_judge(cases, name)
 
     # Compute court-wide approval rates for comparison
     judge_court_codes = {c.court_code for c in judge_cases if c.court_code}
@@ -2500,8 +2844,9 @@ def analytics_judge_profile():
             court_baselines[court_code] = _round_rate(cw, len(court_cases))
 
     payload = _judge_profile_payload(
-        name, judge_cases, include_recent_cases=True, court_baselines=court_baselines
+        display_name, judge_cases, include_recent_cases=True, court_baselines=court_baselines
     )
+    payload["judge"]["canonical_name"] = canonical_name
     return jsonify(payload)
 
 
@@ -2523,16 +2868,10 @@ def analytics_judge_compare():
 
     profiles = []
     for name in names:
-        normalized_query = _normalise_judge_name(name).lower()
-        match_names = {name.lower(), normalized_query} - {""}
-        judge_cases = [
-            c
-            for c in cases
-            if match_names & {j.lower() for j in _split_judges(c.judges)}
-        ]
-        profiles.append(
-            _judge_profile_payload(name, judge_cases, include_recent_cases=False)
-        )
+        judge_cases, canonical_name, display_name = _collect_cases_for_judge(cases, name)
+        profile = _judge_profile_payload(display_name, judge_cases, include_recent_cases=False)
+        profile["judge"]["canonical_name"] = canonical_name
+        profiles.append(profile)
 
     return jsonify({"judges": profiles})
 
@@ -2857,18 +3196,51 @@ def analytics_monthly_trends():
 
 # ── Judge Bio ──────────────────────────────────────────────────────────
 
+_ALLOWED_JUDGE_PHOTO_EXTS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".avif",
+}
+
+
+@api_bp.route("/judge-photo/<path:filename>")
+def judge_photo(filename: str):
+    """Serve downloaded judge profile photos from output_dir/judge_photos."""
+    photos_dir = (Path(get_output_dir()) / "judge_photos").resolve()
+    requested = (photos_dir / filename).resolve()
+
+    try:
+        requested.relative_to(photos_dir)
+    except ValueError:
+        return jsonify({"error": "Not found"}), 404
+
+    if requested.suffix.lower() not in _ALLOWED_JUDGE_PHOTO_EXTS:
+        return jsonify({"error": "Not found"}), 404
+
+    if not requested.is_file():
+        return jsonify({"error": "Not found"}), 404
+
+    return send_file(requested, conditional=True, max_age=60 * 60 * 24)
+
+
 @api_bp.route("/analytics/judge-bio")
 def analytics_judge_bio():
     """Lookup pre-fetched biographical data for a judge/member."""
     name = request.args.get("name", "").strip()
     if not name:
         return _error("name is required")
-    bio_path = os.path.join(get_output_dir(), "judge_bios.json")
-    if not os.path.exists(bio_path):
+    bios = _load_judge_bios()
+    if not bios:
         return jsonify({"found": False})
-    with open(bio_path, encoding="utf-8") as f:
-        bios = json.load(f)
-    bio = bios.get(name.lower())
+
+    bio = None
+    for alias in _judge_query_aliases(name):
+        bio = bios.get(alias)
+        if bio:
+            break
     if not bio:
         return jsonify({"found": False})
     return jsonify({"found": True, **bio})
@@ -3066,7 +3438,7 @@ def taxonomy_judges_autocomplete():
     Returns:
       {
         "success": true,
-        "data": [
+        "judges": [
           {
             "name": "Smith",
             "case_count": 543
@@ -3091,34 +3463,79 @@ def taxonomy_judges_autocomplete():
         if limit < 1:
             return jsonify({"success": False, "error": "limit must be >= 1"}), 400
 
-        # Get all cases and count by judge name
+        # Get all cases and count by canonical judge name
         cases = _get_all_cases()
         judge_counts: dict[str, int] = Counter()
+        judge_display_name: dict[str, str] = {}
+        judge_canonical_name: dict[str, str] = {}
 
         for c in cases:
-            for judge in _split_judges(c.judges or ""):
-                judge_counts[judge] += 1
+            for raw_name in _split_judges(c.judges or ""):
+                canonical_name, display_name = _judge_identity(
+                    raw_name, c.court_code, c.year
+                )
+                if not canonical_name:
+                    continue
+                key = canonical_name.lower()
+                judge_counts[key] += 1
+                judge_canonical_name.setdefault(key, canonical_name)
+                judge_display_name.setdefault(key, display_name)
 
         # Filter judges matching query (case-insensitive partial match)
+        # and rank exact/prefix matches above generic substring matches.
         q_lower = query.lower()
         results = []
-        total_matched = 0
 
-        for judge_name in sorted(judge_counts.keys()):
-            if q_lower in judge_name.lower():
-                total_matched += 1
-                if len(results) < limit:
-                    results.append({
-                        "name": judge_name,
-                        "case_count": judge_counts[judge_name],
-                    })
+        for judge_key in sorted(judge_counts.keys()):
+            canonical_name = judge_canonical_name[judge_key]
+            display_name = judge_display_name.get(judge_key, canonical_name)
+            canonical_lower = canonical_name.lower()
+            display_lower = display_name.lower()
+            searchable = f"{canonical_lower} {display_lower}"
+            if q_lower not in searchable:
+                continue
 
-        # Sort by case count descending (most active judges first)
-        results.sort(key=lambda x: -x["case_count"])
+            tokens = re.findall(r"[a-z0-9']+", searchable)
+            exact_match = (
+                canonical_lower == q_lower
+                or display_lower == q_lower
+                or q_lower in tokens
+            )
+            token_prefix_match = any(t.startswith(q_lower) for t in tokens)
+            prefix_match = canonical_lower.startswith(q_lower) or display_lower.startswith(q_lower)
+            if exact_match:
+                match_rank = 3
+            elif token_prefix_match or prefix_match:
+                match_rank = 2
+            else:
+                match_rank = 1
+
+            results.append({
+                # Keep `name` user-facing; include canonical alias for routing/debug.
+                "name": display_name,
+                "canonical_name": canonical_name,
+                "case_count": judge_counts[judge_key],
+                "_rank": match_rank,
+            })
+
+        # Sort by relevance first, then activity.
+        results.sort(
+            key=lambda x: (
+                -x["_rank"],
+                -x["case_count"],
+                x["name"].lower(),
+            )
+        )
+        total_matched = len(results)
+        results = results[:limit]
+        for row in results:
+            row.pop("_rank", None)
 
         return jsonify({
             "success": True,
+            # Backward compatible with older frontend bundles that still read `data`.
             "data": results,
+            "judges": results,
             "meta": {
                 "query": query,
                 "total_results": total_matched,
@@ -3138,22 +3555,32 @@ def taxonomy_countries():
     Returns all countries found in case records, sorted by case count descending.
     Used by frontend for country filter dropdown.
 
+    Query parameters:
+      limit (int, default 30, max 200) — max results to return
+
     Returns:
       {
         "success": true,
         "countries": [
           {
+            "country": "China",
             "name": "China",
             "case_count": 12543
           },
           ...
         ],
         "meta": {
-          "total_countries": 89
+          "total_countries": 89,
+          "returned_results": 30,
+          "limit": 30
         }
       }
     """
     try:
+        limit = min(request.args.get("limit", 30, type=int), 200)
+        if limit < 1:
+            return jsonify({"success": False, "error": "limit must be >= 1"}), 400
+
         # Get all cases and count by country
         cases = _get_all_cases()
         country_counts: dict[str, int] = Counter()
@@ -3166,6 +3593,7 @@ def taxonomy_countries():
         # Build results sorted by case count descending
         results = [
             {
+                "country": country,
                 "name": country,
                 "case_count": count,
             }
@@ -3174,13 +3602,15 @@ def taxonomy_countries():
                 key=lambda x: x[1],
                 reverse=True
             )
-        ]
+        ][:limit]
 
         return jsonify({
             "success": True,
             "countries": results,
             "meta": {
-                "total_countries": len(results),
+                "total_countries": len(country_counts),
+                "returned_results": len(results),
+                "limit": limit,
             },
         })
 
@@ -3232,7 +3662,7 @@ def taxonomy_guided_search():
         "success": true,
         "flow": "assess-judge",
         "judge_name": "Smith",
-        "profile_url": "/judges/Smith",
+        "profile_url": "/judge-profiles/Smith",
         "meta": {
           "total_cases": 543
         }
@@ -3309,19 +3739,18 @@ def taxonomy_guided_search():
 
             # Get basic judge stats
             cases = _get_all_cases()
-            judge_cases = []
-
-            for c in cases:
-                judge_names = _split_judges(c.judges)
-                # Case-insensitive partial match
-                if any(normalised_name.lower() in jname.lower() for jname in judge_names):
-                    judge_cases.append(c)
+            judge_cases, canonical_name, display_name = _collect_cases_for_judge(
+                cases, normalised_name
+            )
+            canonical_name = canonical_name or normalised_name
+            display_name = display_name or canonical_name
 
             return jsonify({
                 "success": True,
                 "flow": "assess-judge",
-                "judge_name": normalised_name,
-                "profile_url": f"/judges/{normalised_name}",
+                "judge_name": display_name,
+                "canonical_name": canonical_name,
+                "profile_url": f"/judge-profiles/{canonical_name}",
                 "meta": {
                     "total_cases": len(judge_cases),
                 },
@@ -3403,7 +3832,11 @@ def llm_council_run():
             return _error("Case not found", 404)
         case_context = _build_llm_case_context(case, case_context)
 
-    precedents = _find_llm_precedents(question, case_id=case_id)
+    precedents = _find_llm_precedents(
+        question,
+        case_id=case_id,
+        case_facts=case_context,
+    )
     precedent_context = _build_llm_precedent_context(precedents)
     if precedent_context:
         merged_context = (

@@ -34,6 +34,7 @@ interface FlowState {
   country?: string;
   legal_concepts: string[];
   judge_name?: string;
+  judge_canonical_name?: string;
 }
 
 export function GuidedSearchFlow() {
@@ -152,7 +153,11 @@ export function GuidedSearchFlow() {
 
   const handleSelectJudge = useCallback(
     (judge: JudgeAutocompleteEntry) => {
-      setFlowState((prev) => ({ ...prev, judge_name: judge.name }));
+      setFlowState((prev) => ({
+        ...prev,
+        judge_name: judge.name,
+        judge_canonical_name: judge.canonical_name ?? judge.name,
+      }));
       setJudgeQuery(judge.name);
       handleNext();
     },
@@ -191,7 +196,8 @@ export function GuidedSearchFlow() {
   }, [flowState, guidedSearchMutation, navigate, t]);
 
   const handleSubmitJudge = useCallback(async () => {
-    if (!flowState.judge_name) {
+    const targetJudgeName = flowState.judge_canonical_name ?? flowState.judge_name;
+    if (!targetJudgeName) {
       toast.error(t("taxonomy.judge_required"));
       return;
     }
@@ -199,7 +205,7 @@ export function GuidedSearchFlow() {
     try {
       const result = await guidedSearchMutation.mutateAsync({
         flow: "assess-judge",
-        judge_name: flowState.judge_name,
+        judge_name: targetJudgeName,
       });
 
       if (result.success && result.judge_profile) {
@@ -208,7 +214,11 @@ export function GuidedSearchFlow() {
             defaultValue: "Judge profile found!",
           }),
         );
-        navigate(`/judge-profiles/${encodeURIComponent(flowState.judge_name)}`);
+        navigate(
+          `/judge-profiles/${encodeURIComponent(
+            result.judge_profile.canonical_name ?? targetJudgeName,
+          )}`,
+        );
       }
     } catch (error) {
       toast.error((error as Error).message);
@@ -445,31 +455,38 @@ export function GuidedSearchFlow() {
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">
-              {countries.slice(0, 12).map((country: CountryEntry) => (
-                <button
-                  key={country.country}
-                  onClick={() => handleSelectCountry(country.country)}
-                  className={cn(
-                    "flex items-center justify-between rounded-md border px-3 py-2.5 text-left transition-all",
-                    flowState.country === country.country
-                      ? "border-accent bg-accent-muted"
-                      : "border-border bg-card hover:border-accent hover:bg-surface",
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-3.5 w-3.5 text-muted-text" />
-                    <span className="text-sm font-medium text-foreground">
-                      {country.country}
+              {countries.slice(0, 12).map((country: CountryEntry) => {
+                const countryName = country.country.trim();
+                if (!countryName) return null;
+
+                return (
+                  <button
+                    key={countryName}
+                    type="button"
+                    onClick={() => handleSelectCountry(countryName)}
+                    className={cn(
+                      "flex items-center justify-between rounded-md border px-3 py-2.5 text-left transition-all",
+                      flowState.country === countryName
+                        ? "border-accent bg-accent-muted"
+                        : "border-border bg-card hover:border-accent hover:bg-surface",
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-3.5 w-3.5 text-muted-text" />
+                      <span className="text-sm font-medium text-foreground">
+                        {countryName}
+                      </span>
+                    </div>
+                    <span className="text-xs text-muted-text">
+                      {country.case_count.toLocaleString()}
                     </span>
-                  </div>
-                  <span className="text-xs text-muted-text">
-                    {country.case_count.toLocaleString()}
-                  </span>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
 
             <button
+              type="button"
               onClick={handleNext}
               className="w-full rounded-md border border-dashed border-border bg-surface px-3 py-2 text-sm text-muted-text hover:bg-card hover:text-foreground"
             >
@@ -724,7 +741,7 @@ export function GuidedSearchFlow() {
               <div className="rounded-md border border-border bg-card divide-y divide-border max-h-64 overflow-y-auto">
                 {judgeResults.map((judge) => (
                   <button
-                    key={judge.name}
+                    key={judge.canonical_name ?? judge.name}
                     onClick={() => handleSelectJudge(judge)}
                     className={cn(
                       "w-full px-4 py-3 text-left transition-colors",

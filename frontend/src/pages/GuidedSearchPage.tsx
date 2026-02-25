@@ -34,6 +34,7 @@ interface FlowState {
   country?: string;
   legal_concepts: string[];
   judge_name?: string;
+  judge_canonical_name?: string;
 }
 
 export function GuidedSearchPage() {
@@ -151,7 +152,8 @@ export function GuidedSearchPage() {
     if (!selectedFlow) return;
 
     if (selectedFlow === "assess-judge") {
-      if (!flowState.judge_name) {
+      const targetJudgeName = flowState.judge_canonical_name ?? flowState.judge_name;
+      if (!targetJudgeName) {
         toast.error(
           t("guided_search.toast_please_select_judge", {
             defaultValue: "Please select a judge",
@@ -159,9 +161,7 @@ export function GuidedSearchPage() {
         );
         return;
       }
-      // Navigate to judge detail page
-      const judgeSlug = flowState.judge_name.toLowerCase().replace(/\s+/g, "-");
-      navigate(`/judge-profiles/${encodeURIComponent(judgeSlug)}`);
+      navigate(`/judge-profiles/${encodeURIComponent(targetJudgeName)}`);
       return;
     }
 
@@ -577,41 +577,46 @@ export function GuidedSearchPage() {
                 </p>
                 {countriesData && (
                   <div className="mt-4 grid max-h-96 gap-2 overflow-y-auto rounded-lg border border-border bg-surface p-2">
-                    {countriesData.countries.map((country) => (
-                      <button
-                        key={country.country}
-                        type="button"
-                        aria-pressed={flowState.country === country.country}
-                        onClick={() => {
-                          setFlowState((prev) => ({
-                            ...prev,
-                            country:
-                              prev.country === country.country
-                                ? undefined
-                                : country.country,
-                          }));
-                        }}
-                        className={cn(
-                          "flex items-center justify-between rounded-lg border p-3 text-left transition-all hover:border-accent",
-                          flowState.country === country.country
-                            ? "border-accent bg-accent/5"
-                            : "border-border bg-background",
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-muted-text" />
-                          <span className="font-medium text-foreground">
-                            {country.country}
+                    {countriesData.countries.map((country) => {
+                      const countryName = country.country.trim();
+                      if (!countryName) return null;
+
+                      return (
+                        <button
+                          key={countryName}
+                          type="button"
+                          aria-pressed={flowState.country === countryName}
+                          onClick={() => {
+                            setFlowState((prev) => ({
+                              ...prev,
+                              country:
+                                prev.country === countryName
+                                  ? undefined
+                                  : countryName,
+                            }));
+                          }}
+                          className={cn(
+                            "flex items-center justify-between rounded-lg border p-3 text-left transition-all hover:border-accent",
+                            flowState.country === countryName
+                              ? "border-accent bg-accent/5"
+                              : "border-border bg-background",
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-muted-text" />
+                            <span className="font-medium text-foreground">
+                              {countryName}
+                            </span>
+                          </div>
+                          <span className="text-sm text-muted-text">
+                            {country.case_count.toLocaleString()}{" "}
+                            {t("guided_search.cases_unit", {
+                              defaultValue: "cases",
+                            })}
                           </span>
-                        </div>
-                        <span className="text-sm text-muted-text">
-                          {country.case_count.toLocaleString()}{" "}
-                          {t("guided_search.cases_unit", {
-                            defaultValue: "cases",
-                          })}
-                        </span>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -724,19 +729,27 @@ export function GuidedSearchPage() {
                   <div className="mt-4 space-y-2 rounded-lg border border-border bg-surface p-2">
                     {judgeData.judges.map((judge) => (
                       <button
-                        key={judge.name}
+                        key={judge.canonical_name ?? judge.name}
                         type="button"
-                        aria-pressed={flowState.judge_name === judge.name}
+                        aria-pressed={
+                          (flowState.judge_canonical_name ??
+                            flowState.judge_name) ===
+                          (judge.canonical_name ?? judge.name)
+                        }
                         onClick={() => {
                           setFlowState((prev) => ({
                             ...prev,
                             judge_name: judge.name,
+                            judge_canonical_name:
+                              judge.canonical_name ?? judge.name,
                           }));
                           setJudgeQuery(judge.name);
                         }}
                         className={cn(
                           "w-full rounded-lg border p-4 text-left transition-all hover:border-accent",
-                          flowState.judge_name === judge.name
+                          (flowState.judge_canonical_name ??
+                            flowState.judge_name) ===
+                            (judge.canonical_name ?? judge.name)
                             ? "border-accent bg-accent/5"
                             : "border-border bg-background",
                         )}

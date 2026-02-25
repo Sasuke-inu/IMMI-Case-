@@ -12,6 +12,8 @@ import { useJudgeLeaderboard } from "@/hooks/use-judges";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MAX_COMPARE = 4;
+const SEARCH_DEBOUNCE_MS = 300;
+const DEFAULT_MIN_CASES = 20;
 
 export function JudgeProfilesPage() {
   const navigate = useNavigate();
@@ -23,6 +25,7 @@ export function JudgeProfilesPage() {
     "cases",
   );
   const [nameFilter, setNameFilter] = useState("");
+  const [debouncedNameFilter, setDebouncedNameFilter] = useState("");
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<"table" | "cards">(() => {
@@ -34,54 +37,59 @@ export function JudgeProfilesPage() {
     }
   });
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedNameFilter(nameFilter.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [nameFilter]);
+
   const params = useMemo(
     () => ({
       court: court || undefined,
       yearFrom,
       yearTo,
       sort_by: sortBy,
-      limit: 100,
+      limit: 200,
+      name_q: debouncedNameFilter || undefined,
+      min_cases: debouncedNameFilter ? 1 : DEFAULT_MIN_CASES,
     }),
-    [court, yearFrom, yearTo, sortBy],
+    [court, yearFrom, yearTo, sortBy, debouncedNameFilter],
   );
 
   const { data, isLoading, isError, error, refetch } =
     useJudgeLeaderboard(params);
 
   const judges = useMemo(() => data?.judges ?? [], [data?.judges]);
+  const totalMatchedJudges = data?.total_judges ?? 0;
   const filteredJudges = useMemo(() => {
     const q = nameFilter.trim().toLowerCase();
-    return q ? judges.filter((j) => j.name.toLowerCase().includes(q)) : judges;
+    if (!q) return judges;
+    return judges.filter((j) => {
+      const display = (j.display_name ?? j.name).toLowerCase();
+      return display.includes(q) || j.name.toLowerCase().includes(q);
+    });
   }, [judges, nameFilter]);
-  const visibleJudgeNames = useMemo(
-    () => new Set(judges.map((j) => j.name)),
-    [judges],
-  );
-  const effectiveSelectedNames = useMemo(
-    () => selectedNames.filter((n) => visibleJudgeNames.has(n)),
-    [selectedNames, visibleJudgeNames],
-  );
   const hasActiveFilters = Boolean(
     court || nameFilter.trim() || yearFrom !== 2000 || yearTo !== CURRENT_YEAR,
   );
 
   const toggleCompare = (name: string) => {
     setSelectedNames((prev) => {
-      const pruned = prev.filter((item) => visibleJudgeNames.has(item));
-      const exists = pruned.includes(name);
-      if (exists) return pruned.filter((item) => item !== name);
-      if (pruned.length >= MAX_COMPARE) return pruned;
-      return [...pruned, name];
+      const exists = prev.includes(name);
+      if (exists) return prev.filter((item) => item !== name);
+      if (prev.length >= MAX_COMPARE) return prev;
+      return [...prev, name];
     });
   };
 
   const openCompare = useCallback(() => {
-    if (effectiveSelectedNames.length < 2) return;
-    const names = effectiveSelectedNames
+    if (selectedNames.length < 2) return;
+    const names = selectedNames
       .map((name) => encodeURIComponent(name))
       .join(",");
     navigate(`/judge-profiles/compare?names=${names}`);
-  }, [effectiveSelectedNames, navigate]);
+  }, [selectedNames, navigate]);
 
   const openJudge = (name: string) => {
     navigate(`/judge-profiles/${encodeURIComponent(name)}`);
@@ -105,14 +113,14 @@ export function JudgeProfilesPage() {
         nameInputRef.current?.select();
       }
 
-      if (e.key.toLowerCase() === "c" && effectiveSelectedNames.length >= 2) {
+      if (e.key.toLowerCase() === "c" && selectedNames.length >= 2) {
         e.preventDefault();
         openCompare();
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [effectiveSelectedNames.length, openCompare]);
+  }, [selectedNames.length, openCompare]);
 
   return (
     <div className="space-y-4">
@@ -220,10 +228,12 @@ export function JudgeProfilesPage() {
           <p className="text-sm text-muted-text">
             {isLoading
               ? t("common.loading_ellipsis")
-              : t("judges.judges_found", { count: filteredJudges.length })}
+              : t("judges.judges_found", {
+                  count: totalMatchedJudges || filteredJudges.length,
+                })}
           </p>
           <div className="flex items-center gap-2">
-            {effectiveSelectedNames.length >= MAX_COMPARE && (
+            {selectedNames.length >= MAX_COMPARE && (
               <span className="text-xs text-semantic-warning">
                 {t("judges.max_selected", { max: MAX_COMPARE })}
               </span>
@@ -231,12 +241,12 @@ export function JudgeProfilesPage() {
             <button
               type="button"
               onClick={openCompare}
-              disabled={effectiveSelectedNames.length < 2}
+              disabled={selectedNames.length < 2}
               aria-keyshortcuts="C"
               className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t("judges.compare_selected", {
-                count: effectiveSelectedNames.length,
+                count: selectedNames.length,
               })}
             </button>
           </div>
@@ -290,7 +300,7 @@ export function JudgeProfilesPage() {
         ) : viewMode === "table" ? (
           <JudgeLeaderboard
             data={filteredJudges}
-            selectedNames={effectiveSelectedNames}
+            selectedNames={selectedNames}
             onToggleCompare={toggleCompare}
             onOpen={openJudge}
           />
@@ -300,7 +310,7 @@ export function JudgeProfilesPage() {
               <JudgeCard
                 key={judge.name}
                 judge={judge}
-                isSelected={effectiveSelectedNames.includes(judge.name)}
+                isSelected={selectedNames.includes(judge.name)}
                 onToggleCompare={toggleCompare}
                 onOpen={openJudge}
               />

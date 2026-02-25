@@ -1092,6 +1092,7 @@ export interface LlmCouncilModeratorResult {
   outcome_likelihood_label: "high" | "medium" | "low" | "unknown" | string;
   outcome_likelihood_reason: string;
   law_sections: string[];
+  mock_judgment: string;
   composed_answer: string;
   follow_up_questions: string[];
   raw_text: string;

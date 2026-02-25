@@ -363,7 +363,7 @@ export function CourtLineagePage() {
           <p className="mb-3 text-xs text-muted-text">
             {t("lineage.transition_impact_subtitle")}
           </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {transitionImpacts.map((impact) => (
               <div
                 key={`${impact.from}-${impact.to}`}
@@ -381,9 +381,9 @@ export function CourtLineagePage() {
                     {impact.year}
                   </span>
                 </div>
-                <div className="flex items-end justify-between gap-2">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <p className="text-[10px] text-muted-text">
+                    <p className="text-[11px] leading-tight text-muted-text">
                       {t("lineage.transition_before")}
                     </p>
                     <p className="text-sm font-semibold tabular-nums text-foreground">
@@ -391,7 +391,7 @@ export function CourtLineagePage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-text">
+                    <p className="text-[11px] leading-tight text-muted-text">
                       {t("lineage.transition_after")}
                     </p>
                     <p className="text-sm font-semibold tabular-nums text-foreground">
@@ -399,7 +399,7 @@ export function CourtLineagePage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] text-muted-text">
+                    <p className="text-[11px] leading-tight text-muted-text">
                       {t("lineage.transition_change")}
                     </p>
                     <p

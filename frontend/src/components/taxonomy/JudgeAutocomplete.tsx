@@ -52,7 +52,9 @@ export function JudgeAutocomplete() {
   const handleJudgeClick = useCallback(
     (judge: JudgeAutocompleteEntry) => {
       // Navigate to judge profile page
-      navigate(`/judge-profiles/${encodeURIComponent(judge.name)}`);
+      navigate(
+        `/judge-profiles/${encodeURIComponent(judge.canonical_name ?? judge.name)}`,
+      );
     },
     [navigate],
   );
@@ -115,7 +117,7 @@ export function JudgeAutocomplete() {
             <div className="divide-y divide-border">
               {judgeResults.map((judge) => (
                 <button
-                  key={judge.name}
+                  key={judge.canonical_name ?? judge.name}
                   type="button"
                   onClick={() => handleJudgeClick(judge)}
                   className={cn(

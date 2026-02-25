@@ -37,25 +37,27 @@ export function JudgeLeaderboard({
           </tr>
         </thead>
         <tbody>
-          {data.map((row) => (
-            <tr
-              key={row.name}
-              className="cursor-pointer border-b border-border-light/60 hover:bg-surface/50"
-              onClick={() => onOpen(row.name)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onOpen(row.name);
-                }
-                if (event.key.toLowerCase() === "x") {
-                  event.preventDefault();
-                  onToggleCompare(row.name);
-                }
-              }}
-              tabIndex={0}
-              aria-selected={selectedNames.includes(row.name)}
-              aria-label={`${row.name} ${t("judges.judge_member")}`}
-            >
+          {data.map((row) => {
+            const displayName = row.display_name ?? row.name;
+            return (
+              <tr
+                key={row.name}
+                className="cursor-pointer border-b border-border-light/60 hover:bg-surface/50"
+                onClick={() => onOpen(row.name)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onOpen(row.name);
+                  }
+                  if (event.key.toLowerCase() === "x") {
+                    event.preventDefault();
+                    onToggleCompare(row.name);
+                  }
+                }}
+                tabIndex={0}
+                aria-selected={selectedNames.includes(row.name)}
+                aria-label={`${displayName} ${t("judges.judge_member")}`}
+              >
               <td
                 className="px-3 py-2"
                 onClick={(event) => {
@@ -63,14 +65,14 @@ export function JudgeLeaderboard({
                 }}
               >
                 <input
-                  aria-label={`Compare ${row.name}`}
+                  aria-label={`Compare ${displayName}`}
                   type="checkbox"
                   checked={selectedNames.includes(row.name)}
                   onChange={() => onToggleCompare(row.name)}
                 />
               </td>
               <td className="px-3 py-2 font-medium text-foreground">
-                {row.name}
+                {displayName}
               </td>
               <td className="px-3 py-2 text-muted-text">
                 {row.total_cases.toLocaleString()}
@@ -99,8 +101,9 @@ export function JudgeLeaderboard({
                   ? `${row.top_visa_subclasses[0].subclass} (${row.top_visa_subclasses[0].count})`
                   : "-"}
               </td>
-            </tr>
-          ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

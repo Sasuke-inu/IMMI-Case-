@@ -1,0 +1,10 @@
+# Cloudflare Pages local dev variables
+# Copy to .dev.vars and update values.
+
+# Upstream API server that will handle /api/* requests.
+# For local backend:
+# API_ORIGIN=http://127.0.0.1:5000
+#
+# For deployed backend:
+# API_ORIGIN=https://your-backend.example.com
+API_ORIGIN=http://127.0.0.1:5000

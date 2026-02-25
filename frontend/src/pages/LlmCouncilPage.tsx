@@ -313,6 +313,126 @@ export function LlmCouncilPage() {
 
       <section className="rounded-lg border border-border bg-card p-5">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-text">
+          {t("llm_council.workflow_heading", {
+            defaultValue: "Council Workflow",
+          })}
+        </h2>
+        <div className="grid gap-3 md:grid-cols-4">
+          {[
+            t("llm_council.workflow_step_1", {
+              defaultValue: "Step 1: Enter legal issue and case-study facts (even if case is not in record).",
+            }),
+            t("llm_council.workflow_step_2", {
+              defaultValue: "Step 2: System searches local IMMI-Case database for closest precedents.",
+            }),
+            t("llm_council.workflow_step_3", {
+              defaultValue: "Step 3: Three expert models answer independently and are judged by Gemini Flash.",
+            }),
+            t("llm_council.workflow_step_4", {
+              defaultValue: "Step 4: Receive mock judgment draft, consensus/conflict map, and cited sections.",
+            }),
+          ].map((text) => (
+            <div key={text} className="rounded-md border border-border bg-surface/60 p-3 text-xs text-muted-text">
+              {text}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-5">
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              {t("llm_council.question_label", {
+                defaultValue: "Legal Research Question",
+              })}
+            </label>
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              rows={4}
+              maxLength={8000}
+              placeholder={t("llm_council.question_placeholder", {
+                defaultValue:
+                  "Example: Compare strongest review grounds for visa cancellation where procedural fairness may be breached.",
+              })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              {t("llm_council.context_label", {
+                defaultValue: "Case Study Facts (not in record)",
+              })}
+            </label>
+            <textarea
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              rows={6}
+              maxLength={12000}
+              placeholder={t("llm_council.case_study_placeholder", {
+                defaultValue:
+                  "Describe user-provided facts, timeline, visa status, procedural events, and contested findings. This will be used to search local precedents and draft a mock judgment.",
+              })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent"
+            />
+            <p className="mt-1 text-xs text-muted-text">
+              {t("llm_council.case_study_note", {
+                defaultValue:
+                  "Use concrete facts. The council will map these facts against similar cases in the current database.",
+              })}
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              {t("llm_council.case_id_label", {
+                defaultValue: "Case ID (optional, if existing record)",
+              })}
+            </label>
+            <input
+              type="text"
+              value={caseId}
+              onChange={(e) => setCaseId(e.target.value)}
+              placeholder={t("llm_council.case_id_placeholder", {
+                defaultValue: "12-char case id",
+              })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent"
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={councilMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {councilMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("llm_council.running_btn", { defaultValue: "Running Council..." })}
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4" />
+                  {t("llm_council.run_btn", { defaultValue: "Run LLM Council" })}
+                </>
+              )}
+            </button>
+            <p className="text-xs text-muted-text">
+              {t("llm_council.runtime_note", {
+                defaultValue:
+                  "This runs 3 expert models, then Gemini Flash for ranking/critique/voting/synthesis, so response time may be longer.",
+              })}
+            </p>
+          </div>
+        </form>
+        {submitError ? <ApiErrorState message={submitError} /> : null}
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-text">
           {t("llm_council.models_heading", {
             defaultValue: "Model Council Setup",
           })}
@@ -458,91 +578,6 @@ export function LlmCouncilPage() {
         ) : null}
       </section>
 
-      <section className="rounded-lg border border-border bg-card p-5">
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">
-              {t("llm_council.question_label", {
-                defaultValue: "Legal Research Question",
-              })}
-            </label>
-            <textarea
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              rows={5}
-              maxLength={8000}
-              placeholder={t("llm_council.question_placeholder", {
-                defaultValue:
-                  "Example: Compare strongest review grounds for visa cancellation where procedural fairness may be breached.",
-              })}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent"
-            />
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">
-                {t("llm_council.case_id_label", {
-                  defaultValue: "Case ID (optional)",
-                })}
-              </label>
-              <input
-                type="text"
-                value={caseId}
-                onChange={(e) => setCaseId(e.target.value)}
-                placeholder={t("llm_council.case_id_placeholder", {
-                  defaultValue: "12-char case id",
-                })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">
-                {t("llm_council.context_label", {
-                  defaultValue: "Extra Context (optional)",
-                })}
-              </label>
-              <input
-                type="text"
-                value={context}
-                onChange={(e) => setContext(e.target.value)}
-                placeholder={t("llm_council.context_placeholder", {
-                  defaultValue: "Focus area, assumptions, or constraints",
-                })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={councilMutation.isPending}
-              className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {councilMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t("llm_council.running_btn", { defaultValue: "Running Council..." })}
-                </>
-              ) : (
-                <>
-                  <Search className="h-4 w-4" />
-                  {t("llm_council.run_btn", { defaultValue: "Run LLM Council" })}
-                </>
-              )}
-            </button>
-            <p className="text-xs text-muted-text">
-              {t("llm_council.runtime_note", {
-                defaultValue:
-                  "This runs 3 expert models, then Gemini Flash for ranking/critique/voting/synthesis, so response time may be longer.",
-              })}
-            </p>
-          </div>
-        </form>
-        {submitError ? <ApiErrorState message={submitError} /> : null}
-      </section>
-
       {result ? (
         <>
           {result.retrieved_cases && result.retrieved_cases.length > 0 ? (
@@ -609,8 +644,25 @@ export function LlmCouncilPage() {
               <div className="mt-4 space-y-4">
                 <div className="rounded-md border border-border bg-surface p-3">
                   <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
+                    {t("llm_council.mock_judgment_label", {
+                      defaultValue: "Mock Judgment Draft (Database-grounded Simulation)",
+                    })}
+                  </p>
+                  <p className="mb-2 text-xs text-muted-text">
+                    {t("llm_council.mock_judgment_note", {
+                      defaultValue:
+                        "Research simulation only. This is not legal advice or an actual judicial outcome.",
+                    })}
+                  </p>
+                  <p className="whitespace-pre-wrap text-sm text-foreground">
+                    {result.moderator.mock_judgment || result.moderator.composed_answer}
+                  </p>
+                </div>
+
+                <div className="rounded-md border border-border bg-surface p-3">
+                  <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
                     {t("llm_council.composed_answer_label", {
-                      defaultValue: "Composed Answer",
+                      defaultValue: "Integrated Council Analysis",
                     })}
                   </p>
                   <p className="whitespace-pre-wrap text-sm text-foreground">

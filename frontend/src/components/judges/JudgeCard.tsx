@@ -20,6 +20,7 @@ export function JudgeCard({
   onOpen,
 }: JudgeCardProps) {
   const { t } = useTranslation();
+  const displayName = judge.display_name ?? judge.name;
   const accentColor = courtColors[judge.primary_court ?? ""] ?? "#6b7585";
   const yearsLabel =
     judge.active_years.first && judge.active_years.last
@@ -43,7 +44,7 @@ export function JudgeCard({
           onToggleCompare(judge.name);
         }
       }}
-      aria-label={`${judge.name} ${t("judges.judge_member")}`}
+      aria-label={`${displayName} ${t("judges.judge_member")}`}
       className="group flex min-h-[180px] flex-col rounded-lg border border-border bg-card text-left shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ borderLeftWidth: "3px", borderLeftColor: accentColor }}
     >
@@ -65,7 +66,7 @@ export function JudgeCard({
 
         {/* Judge name */}
         <h3 className="line-clamp-1 text-sm font-semibold text-foreground transition-colors group-hover:text-accent">
-          {judge.name}
+          {displayName}
         </h3>
 
         {/* Active years */}
@@ -103,7 +104,7 @@ export function JudgeCard({
             >
               <input
                 type="checkbox"
-                aria-label={`Compare ${judge.name}`}
+                aria-label={`Compare ${displayName}`}
                 checked={isSelected}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}

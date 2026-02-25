@@ -15,6 +15,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { JudgeProfile, JudgeBio } from "@/types/case";
+import { formatCourtTypeLabel } from "@/lib/display";
 
 interface JudgeHeroProps {
   profile: JudgeProfile;
@@ -85,6 +86,8 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
           ([, url]) => url && typeof url === "string" && url.startsWith("http"),
         )
       : [];
+
+  const courtTypeLabel = formatCourtTypeLabel(profile.court_type, t);
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
@@ -168,7 +171,7 @@ export function JudgeHero({ profile, bio, isLoading }: JudgeHeroProps) {
           label={t("judges.approval_rate")}
           value={`${profile.approval_rate.toFixed(1)}%`}
         />
-        <Stat label={t("judges.court_type")} value={profile.court_type} />
+        <Stat label={t("judges.court_type")} value={courtTypeLabel} />
         <Stat label={t("judges.active_years")} value={`${first} - ${last}`} />
         <Stat
           label={t("judges.recent_3yr_trend")}

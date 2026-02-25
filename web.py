@@ -2,21 +2,61 @@
 """Start the IMMI-Case web interface.
 
 Usage:
-    python web.py                    # Start on http://localhost:5000
-    python web.py --port 8080        # Custom port
+    python web.py                    # Start (BACKEND_PORT env or 5000)
+    python web.py --port 8080        # Custom port (overrides env)
     python web.py --output mydata    # Custom data directory
 """
 
 import argparse
+import os
 import warnings
 
 from immi_case_downloader.webapp import create_app
 
 
+def _get_env_default_port() -> int:
+    """Read backend port from environment with safe fallback."""
+    raw = os.environ.get("BACKEND_PORT")
+    if not raw:
+        return 5000
+
+    try:
+        port = int(raw)
+    except ValueError:
+        warnings.warn(
+            f"Invalid BACKEND_PORT={raw!r}; falling back to 5000.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return 5000
+
+    if not 1 <= port <= 65535:
+        warnings.warn(
+            f"BACKEND_PORT out of range ({port}); falling back to 5000.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return 5000
+
+    return port
+
+
 def main():
+    default_port = _get_env_default_port()
+    default_host = os.environ.get("BACKEND_HOST", "127.0.0.1")
+
     parser = argparse.ArgumentParser(description="IMMI-Case Web Interface")
-    parser.add_argument("--port", type=int, default=5000, help="Port (default: 5000)")
-    parser.add_argument("--host", default="127.0.0.1", help="Host (default: 127.0.0.1)")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=default_port,
+        help=f"Port (default: {default_port}; env: BACKEND_PORT)",
+    )
+    parser.add_argument(
+        "--host",
+        default=default_host,
+        help=f"Host (default: {default_host}; env: BACKEND_HOST)",
+    )
     parser.add_argument("--output", default="downloaded_cases", help="Data directory")
     parser.add_argument(
         "--backend", default="auto",

@@ -273,13 +273,63 @@ def fetch_rows(repo: SupabaseRepository, offset: int, page_size: int) -> list[di
             "embedding_content_hash",
         ]
     )
-    resp = (
-        repo._client.table(TABLE)
-        .select(cols)
-        .range(offset, offset + page_size - 1)
-        .execute()
+    for attempt in range(4):
+        try:
+            resp = (
+                repo._client.table(TABLE)
+                .select(cols)
+                .range(offset, offset + page_size - 1)
+                .execute()
+            )
+            return resp.data or []
+        except Exception as exc:
+            if attempt < 3:
+                wait = 2 ** attempt
+                print(f"  WARN fetch_rows offset={offset} attempt {attempt+1} failed: {exc}; retry in {wait}s")
+                time.sleep(wait)
+            else:
+                raise
+    return []
+
+
+def fetch_rows_needing_embedding(
+    repo: SupabaseRepository, cursor: str, page_size: int
+) -> list[dict]:
+    """Fetch rows with NULL embedding using cursor-based pagination (avoids OFFSET slowdown)."""
+    cols = ",".join(
+        [
+            "case_id",
+            "title",
+            "citation",
+            "catchwords",
+            "visa_type",
+            "legislation",
+            "case_nature",
+            "legal_concepts",
+            "outcome",
+            "text_snippet",
+        ]
     )
-    return resp.data or []
+    for attempt in range(6):
+        try:
+            q = (
+                repo._client.table(TABLE)
+                .select(cols)
+                .is_("embedding", "null")
+                .order("case_id")
+            )
+            if cursor:
+                q = q.gt("case_id", cursor)
+            resp = q.limit(page_size).execute()
+            return resp.data or []
+        except Exception as exc:
+            if attempt < 5:
+                wait = min(2 ** attempt, 16)
+                print(f"  WARN fetch cursor={cursor!r} attempt {attempt+1} failed: {exc}; retry in {wait}s")
+                time.sleep(wait)
+            else:
+                raise
+    return []
 
 
 def parse_args() -> argparse.Namespace:
@@ -322,7 +372,13 @@ def run_generate(args: argparse.Namespace) -> int:
     client = make_embedding_client(provider, model)
     conn = open_stage_db(stage_db)
 
+    # Try RPC first; fall back to estimated count if RPC returns 0
     total_rows = int(repo.get_statistics().get("total") or 0)
+    if total_rows <= 0:
+        resp = repo._client.table("immigration_cases").select(
+            "case_id", count="estimated"
+        ).limit(0).execute()
+        total_rows = int(resp.count or 0)
     if total_rows <= 0:
         print("No rows found in immigration_cases.")
         return 1
@@ -331,15 +387,13 @@ def run_generate(args: argparse.Namespace) -> int:
     embed_batch_size = max(1, int(args.embed_batch_size))
 
     ckpt = load_checkpoint(ckpt_path) if args.resume else {}
-    offset = int(args.start_offset) if int(args.start_offset) > 0 else int(ckpt.get("offset", 0))
-    offset = max(0, min(offset, total_rows))
-    end_offset = min(total_rows, offset + int(args.max_cases)) if int(args.max_cases) > 0 else total_rows
+    resume_cursor = str(ckpt.get("cursor", "")) if args.resume else ""
 
     print("Stage-1 generate started")
     print(f"  provider: {provider}")
     print(f"  model: {model}")
-    print(f"  start_offset: {offset:,}")
-    print(f"  end_offset: {end_offset:,}")
+    print(f"  resume_cursor: {resume_cursor!r}")
+    print(f"  total_rows (estimated): {total_rows:,}")
     print(f"  stage_db: {stage_db}")
 
     processed = 0
@@ -349,8 +403,10 @@ def run_generate(args: argparse.Namespace) -> int:
     embedded_tokens = 0
     started = time.time()
 
-    while offset < end_offset:
-        rows = fetch_rows(repo, offset=offset, page_size=min(page_size, end_offset - offset))
+    # Use targeted query: only fetch rows with NULL embedding (cursor-based, no OFFSET)
+    cursor = resume_cursor
+    while True:
+        rows = fetch_rows_needing_embedding(repo, cursor=cursor, page_size=page_size)
         if not rows:
             break
 
@@ -362,22 +418,13 @@ def run_generate(args: argparse.Namespace) -> int:
                 processed += 1
                 continue
             content_hash = sha256_hex(text)
-            if should_reembed(
-                row,
-                provider=provider,
-                model=model,
-                content_hash=content_hash,
-                force=bool(args.force),
-            ):
-                candidates.append(
-                    {
-                        "case_id": row["case_id"],
-                        "text": text,
-                        "content_hash": content_hash,
-                    }
-                )
-            else:
-                skipped += 1
+            candidates.append(
+                {
+                    "case_id": row["case_id"],
+                    "text": text,
+                    "content_hash": content_hash,
+                }
+            )
             processed += 1
 
         for i in range(0, len(candidates), embed_batch_size):
@@ -387,7 +434,7 @@ def run_generate(args: argparse.Namespace) -> int:
                 vectors = client.embed_texts(texts, batch_size=embed_batch_size, task_type="RETRIEVAL_DOCUMENT")
             except Exception as exc:
                 failed += len(chunk)
-                print(f"  ERROR embedding chunk at offset={offset:,}: {exc}")
+                print(f"  ERROR embedding chunk at cursor={cursor}: {exc}")
                 continue
 
             generated_at = now_iso()
@@ -409,13 +456,13 @@ def run_generate(args: argparse.Namespace) -> int:
             stage_upsert(conn, stage_rows)
             staged += len(stage_rows)
 
-        offset += len(rows)
+        cursor = rows[-1]["case_id"]
         elapsed = time.time() - started
         rate = processed / elapsed if elapsed > 0 else 0.0
         est_cost = (embedded_tokens / 1_000_000) * float(args.price_per_1m)
         total_staged, pending_staged = count_stage_rows(conn)
         print(
-            f"  progress: {offset:,}/{end_offset:,} "
+            f"  progress: cursor={cursor} "
             f"(processed={processed:,}, staged={staged:,}, skipped={skipped:,}, failed={failed:,}, "
             f"stage_total={total_staged:,}, stage_pending={pending_staged:,}, est_cost=${est_cost:.4f}, "
             f"rate={rate:.1f} rows/s)"
@@ -423,7 +470,7 @@ def run_generate(args: argparse.Namespace) -> int:
         save_checkpoint(
             ckpt_path,
             {
-                "offset": offset,
+                "cursor": cursor,
                 "provider": provider,
                 "model": model,
                 "processed": processed,

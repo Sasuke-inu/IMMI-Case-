@@ -12,6 +12,8 @@ export function useJudgeLeaderboard(params: {
   yearTo?: number;
   sort_by?: "cases" | "approval_rate" | "name";
   limit?: number;
+  name_q?: string;
+  min_cases?: number;
 }) {
   return useQuery({
     queryKey: [
@@ -22,6 +24,8 @@ export function useJudgeLeaderboard(params: {
       params.yearTo,
       params.sort_by,
       params.limit,
+      params.name_q,
+      params.min_cases,
     ],
     queryFn: () => fetchJudgeLeaderboard(params),
     retry: 0,
