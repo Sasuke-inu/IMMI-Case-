@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useLlmCouncil, useLlmCouncilHealthCheck } from "@/hooks/use-llm-council";
 import type { LlmCouncilHealthResponse, LlmCouncilResponse } from "@/lib/api";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
+import { humanizeIdentifier } from "@/lib/display";
 
 const DEFAULT_MODELS: LlmCouncilResponse["models"] = {
   openai: {
@@ -39,11 +40,26 @@ const DEFAULT_MODELS: LlmCouncilResponse["models"] = {
   gemini_flash: {
     provider: "Google",
     model: "gemini-3.0-flash",
-    role: "middle_ranking_and_composer",
+    role: "judge_rank_vote_and_composer",
   },
 };
 
 const OPINION_ORDER = ["openai", "gemini_pro", "anthropic"];
+const MODEL_KEY_DEFAULT_LABELS: Record<string, string> = {
+  openai: "OpenAI",
+  gemini_pro: "Gemini Pro",
+  anthropic: "Anthropic",
+  gemini_flash: "Gemini Flash",
+};
+
+function modelKeyLabel(
+  key: string,
+  t: (lookupKey: string, options?: Record<string, unknown>) => string,
+) {
+  return t(`llm_council.model_key_${key}`, {
+    defaultValue: MODEL_KEY_DEFAULT_LABELS[key] ?? humanizeIdentifier(key),
+  });
+}
 
 function modelMetaLine(config: {
   reasoning?: string;
@@ -51,15 +67,46 @@ function modelMetaLine(config: {
   web_search?: boolean;
   grounding_google_search?: boolean;
   role?: string;
-}) {
+}, t: (lookupKey: string, options?: Record<string, unknown>) => string) {
   const parts: string[] = [];
-  if (config.reasoning) parts.push(`reasoning=${config.reasoning}`);
-  if (typeof config.reasoning_budget === "number") {
-    parts.push(`thinking_budget=${config.reasoning_budget}`);
+  if (config.reasoning) {
+    parts.push(
+      t("llm_council.meta_reasoning", {
+        defaultValue: "Reasoning: {{value}}",
+        value: humanizeIdentifier(config.reasoning),
+      }),
+    );
   }
-  if (config.web_search) parts.push("web_search=on");
-  if (config.grounding_google_search) parts.push("google_grounding=on");
-  if (config.role) parts.push(`role=${config.role}`);
+  if (typeof config.reasoning_budget === "number") {
+    parts.push(
+      t("llm_council.meta_thinking_budget", {
+        defaultValue: "Thinking Budget: {{value}}",
+        value: config.reasoning_budget.toLocaleString(),
+      }),
+    );
+  }
+  if (config.web_search) {
+    parts.push(
+      t("llm_council.meta_web_search_on", {
+        defaultValue: "Web Search Enabled",
+      }),
+    );
+  }
+  if (config.grounding_google_search) {
+    parts.push(
+      t("llm_council.meta_google_grounding_on", {
+        defaultValue: "Google Grounding Enabled",
+      }),
+    );
+  }
+  if (config.role) {
+    parts.push(
+      t("llm_council.meta_role", {
+        defaultValue: "Role: {{value}}",
+        value: humanizeIdentifier(config.role),
+      }),
+    );
+  }
   return parts.join(" • ");
 }
 
@@ -69,6 +116,33 @@ function likelihoodTone(label: string) {
   if (normalized === "medium") return "text-amber-700 dark:text-amber-300";
   if (normalized === "low") return "text-rose-700 dark:text-rose-300";
   return "text-muted-text";
+}
+
+function confidenceTone(score: number) {
+  if (score >= 80) return "text-emerald-700 dark:text-emerald-300";
+  if (score >= 50) return "text-amber-700 dark:text-amber-300";
+  return "text-rose-700 dark:text-rose-300";
+}
+
+function voteTone(vote: string) {
+  const normalized = (vote || "").toLowerCase();
+  if (normalized === "support") {
+    return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+  }
+  if (normalized === "oppose") {
+    return "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300";
+  }
+  return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+}
+
+function lawSectionKey(section: string) {
+  return (section || "")
+    .toLowerCase()
+    .replace(/sections?/g, "s")
+    .replace(/\bss\b/g, "s")
+    .replace(/regs?/g, "reg")
+    .replace(/regulation/g, "reg")
+    .replace(/[^a-z0-9]+/g, "");
 }
 
 function lawSectionSearchHref(section: string) {
@@ -103,6 +177,60 @@ export function LlmCouncilPage() {
       ): entry is LlmCouncilResponse["opinions"][number] => entry !== undefined,
     );
   }, [result]);
+  const critiquesByProvider = useMemo(() => {
+    if (!result?.moderator?.model_critiques) return new Map();
+    return new Map(
+      result.moderator.model_critiques.map((entry) => [entry.provider_key, entry]),
+    );
+  }, [result]);
+  const sharedLawSections = useMemo(() => {
+    if (!result) return [];
+    const fromModerator = result.moderator.shared_law_sections || [];
+    if (fromModerator.length > 0) return fromModerator;
+
+    const providerMap = result.moderator.provider_law_sections || {};
+    const successfulProviderKeys = sortedOpinions
+      .filter((entry) => entry.success)
+      .map((entry) => entry.provider_key);
+
+    if (successfulProviderKeys.length === 0) return [];
+
+    const normalizedSets = successfulProviderKeys.map((providerKey) => {
+      const entries = providerMap[providerKey] || [];
+      return new Set(entries.map((entry) => lawSectionKey(entry)).filter(Boolean));
+    });
+
+    if (normalizedSets.some((entry) => entry.size === 0)) return [];
+
+    const sharedKeys = normalizedSets.reduce((acc, current) => {
+      if (!acc) return new Set(current);
+      return new Set(Array.from(acc).filter((item) => current.has(item)));
+    }, null as Set<string> | null);
+    if (!sharedKeys || sharedKeys.size === 0) return [];
+
+    const representative = new Map<string, string>();
+    successfulProviderKeys.forEach((providerKey) => {
+      (providerMap[providerKey] || []).forEach((entry) => {
+        const key = lawSectionKey(entry);
+        if (key && !representative.has(key)) representative.set(key, entry);
+      });
+    });
+
+    return Array.from(sharedKeys)
+      .map((key) => representative.get(key) || "")
+      .filter(Boolean);
+  }, [result, sortedOpinions]);
+  const successfulExpertsCount = sortedOpinions.filter((entry) => entry.success).length;
+  const providerLawSectionEntries = useMemo(() => {
+    if (!result) return [];
+    const providerMap = result.moderator.provider_law_sections || {};
+    return sortedOpinions.map((opinion) => ({
+      provider_key: opinion.provider_key,
+      provider_label: opinion.provider_label,
+      success: opinion.success,
+      sections: providerMap[opinion.provider_key] || [],
+    }));
+  }, [result, sortedOpinions]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -176,7 +304,7 @@ export function LlmCouncilPage() {
             <p className="mt-1 text-sm text-muted-text">
               {t("llm_council.subtitle", {
                 defaultValue:
-                  "Direct multi-provider council with OpenAI, Gemini Pro, Anthropic Sonnet, and Gemini Flash as middle-ranker/composer.",
+                  "Direct multi-provider council with OpenAI, Gemini Pro, Anthropic Sonnet, then Gemini Flash for ranking, critique, voting, and synthesis.",
               })}
             </p>
           </div>
@@ -195,13 +323,15 @@ export function LlmCouncilPage() {
               key={key}
               className="rounded-md border border-border bg-surface/50 p-3"
             >
-              <p className="text-xs uppercase tracking-wide text-muted-text">{key}</p>
+              <p className="text-xs font-medium tracking-wide text-muted-text">
+                {modelKeyLabel(key, t)}
+              </p>
               <p className="mt-1 text-sm font-semibold text-foreground">
                 {config.provider}
               </p>
               <p className="mt-1 break-all text-xs text-muted-text">{config.model}</p>
               <p className="mt-2 text-[11px] text-muted-text">
-                {modelMetaLine(config) ||
+                {modelMetaLine(config, t) ||
                   t("llm_council.default_meta", {
                     defaultValue: "default",
                   })}
@@ -405,7 +535,7 @@ export function LlmCouncilPage() {
             <p className="text-xs text-muted-text">
               {t("llm_council.runtime_note", {
                 defaultValue:
-                  "This runs 3 expert models plus 1 composition model, so response time may be longer.",
+                  "This runs 3 expert models, then Gemini Flash for ranking/critique/voting/synthesis, so response time may be longer.",
               })}
             </p>
           </div>
@@ -470,7 +600,7 @@ export function LlmCouncilPage() {
               <Sparkles className="h-4 w-4 text-accent" />
               <h2 className="text-lg font-semibold text-foreground">
                 {t("llm_council.moderator_title", {
-                  defaultValue: "Gemini Flash Middle-Ranking & Composition",
+                  defaultValue: "Gemini Flash Ranking, Critique, Voting & Composition",
                 })}
               </h2>
             </div>
@@ -488,7 +618,7 @@ export function LlmCouncilPage() {
                   </p>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-md border border-border bg-surface p-3">
                     <div className="mb-1 flex items-center gap-1 text-xs uppercase tracking-wide text-muted-text">
                       {t("llm_council.outcome_likelihood_label", {
@@ -538,6 +668,27 @@ export function LlmCouncilPage() {
                       {result.moderator.disagreements || "—"}
                     </p>
                   </div>
+                  <div className="rounded-md border border-border bg-surface p-3">
+                    <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
+                      {t("llm_council.panel_vote_label", {
+                        defaultValue: "Panel Vote",
+                      })}
+                    </p>
+                    <p className="text-sm font-semibold text-foreground">
+                      {result.moderator.vote_summary?.winner_provider_label || "—"}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-text">
+                      {result.moderator.vote_summary?.winner_reason || "—"}
+                    </p>
+                    <p className="mt-2 text-[11px] uppercase tracking-wide text-muted-text">
+                      {t("llm_council.vote_count_line", {
+                        defaultValue: "Support {{support}} • Neutral {{neutral}} • Oppose {{oppose}}",
+                        support: result.moderator.vote_summary?.support_count ?? 0,
+                        neutral: result.moderator.vote_summary?.neutral_count ?? 0,
+                        oppose: result.moderator.vote_summary?.oppose_count ?? 0,
+                      })}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="rounded-md border border-border bg-surface p-3">
@@ -569,6 +720,152 @@ export function LlmCouncilPage() {
                 </div>
 
                 <div className="rounded-md border border-border bg-surface p-3">
+                  <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
+                    {t("llm_council.shared_law_sections_label", {
+                      defaultValue: "Shared Law Sections (All 3 Models)",
+                    })}
+                  </p>
+                  <div className="mb-2 rounded border border-border bg-card p-2">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-text">
+                      {t("llm_council.shared_law_confidence_label", {
+                        defaultValue: "Shared Citation Confidence",
+                      })}
+                    </p>
+                    <p
+                      className={`mt-1 text-base font-semibold ${confidenceTone(
+                        result.moderator.shared_law_sections_confidence_percent ?? 0,
+                      )}`}
+                    >
+                      {(result.moderator.shared_law_sections_confidence_percent ?? 0).toLocaleString()}
+                      /100
+                    </p>
+                    <p className="mt-1 text-xs text-muted-text">
+                      {result.moderator.shared_law_sections_confidence_reason ||
+                        t("llm_council.shared_law_confidence_note", {
+                          defaultValue:
+                            "Score is estimated from overlap consistency across the three expert model citations.",
+                        })}
+                    </p>
+                  </div>
+                  <p className="mb-2 text-xs text-muted-text">
+                    {t("llm_council.shared_law_sections_note", {
+                      defaultValue:
+                        "This card only shows statutory sections that appear across all successful expert model answers.",
+                    })}
+                  </p>
+                  {successfulExpertsCount < 3 ? (
+                    <p className="text-sm text-muted-text">
+                      {t("llm_council.shared_law_sections_requires_three", {
+                        defaultValue:
+                          "Need all three expert model responses to compute shared sections.",
+                      })}
+                    </p>
+                  ) : sharedLawSections.length > 0 ? (
+                    <div className="space-y-1">
+                      {sharedLawSections.map((section) => (
+                        <a
+                          key={`shared-${section}`}
+                          href={lawSectionSearchHref(section)}
+                          className="inline-flex items-center gap-1 text-sm text-accent hover:underline"
+                          title={t("llm_council.law_section_open_search", {
+                            defaultValue: "Open legislation search for this section",
+                          })}
+                        >
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          {section}
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-text">
+                      {t("llm_council.shared_law_sections_empty", {
+                        defaultValue:
+                          "No section is jointly cited by all three model answers.",
+                      })}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-md border border-border bg-surface p-3">
+                  <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
+                    {t("llm_council.provider_law_sections_label", {
+                      defaultValue: "Provider Law Sections",
+                    })}
+                  </p>
+                  <p className="mb-2 text-xs text-muted-text">
+                    {t("llm_council.provider_law_sections_note", {
+                      defaultValue:
+                        "Expand each model to review the statutory sections extracted from that model's answer.",
+                    })}
+                  </p>
+                  {providerLawSectionEntries.length === 0 ? (
+                    <p className="text-sm text-muted-text">
+                      {t("llm_council.provider_law_sections_empty", {
+                        defaultValue: "No provider section data available.",
+                      })}
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {providerLawSectionEntries.map((entry) => (
+                        <details
+                          key={`provider-law-${entry.provider_key}`}
+                          className="rounded border border-border bg-card p-2"
+                        >
+                          <summary className="cursor-pointer list-none text-sm font-medium text-foreground">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span>{entry.provider_label}</span>
+                              <span className="text-xs text-muted-text">
+                                {entry.success
+                                  ? t("llm_council.provider_law_sections_count", {
+                                      defaultValue: "{{count}} sections",
+                                      count: entry.sections.length,
+                                    })
+                                  : t("llm_council.provider_law_sections_failed", {
+                                      defaultValue: "Model failed",
+                                    })}
+                              </span>
+                            </div>
+                          </summary>
+                          <div className="mt-2 border-t border-border pt-2">
+                            {!entry.success ? (
+                              <p className="text-xs text-muted-text">
+                                {t("llm_council.provider_law_sections_failed_note", {
+                                  defaultValue:
+                                    "This model did not return a successful answer, so no section list is available.",
+                                })}
+                              </p>
+                            ) : entry.sections.length > 0 ? (
+                              <div className="space-y-1">
+                                {entry.sections.map((section) => (
+                                  <a
+                                    key={`${entry.provider_key}-${section}`}
+                                    href={lawSectionSearchHref(section)}
+                                    className="inline-flex items-center gap-1 text-sm text-accent hover:underline"
+                                    title={t("llm_council.law_section_open_search", {
+                                      defaultValue: "Open legislation search for this section",
+                                    })}
+                                  >
+                                    <ExternalLink className="h-3 w-3 shrink-0" />
+                                    {section}
+                                  </a>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-text">
+                                {t("llm_council.provider_law_sections_none_for_model", {
+                                  defaultValue:
+                                    "No identifiable statutory/regulatory section citation was extracted for this model.",
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-md border border-border bg-surface p-3">
                   <p className="mb-2 text-xs uppercase tracking-wide text-muted-text">
                     {t("llm_council.ranking_label", {
                       defaultValue: "Council Ranking",
@@ -583,8 +880,119 @@ export function LlmCouncilPage() {
                         <p className="font-medium text-foreground">
                           #{entry.rank} {entry.provider_label} ({entry.score})
                         </p>
+                        {critiquesByProvider.get(entry.provider_key)?.vote ? (
+                          <p className="mt-1">
+                            <span
+                              className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${voteTone(
+                                critiquesByProvider.get(entry.provider_key)?.vote || "",
+                              )}`}
+                            >
+                              {t(
+                                `llm_council.vote_${(critiquesByProvider.get(entry.provider_key)?.vote || "neutral").toLowerCase()}`,
+                                {
+                                  defaultValue:
+                                    (critiquesByProvider.get(entry.provider_key)?.vote || "neutral").toUpperCase(),
+                                },
+                              )}
+                            </span>
+                          </p>
+                        ) : null}
                         <p className="text-xs text-muted-text">
                           {entry.reason ||
+                            t("llm_council.no_rationale", {
+                              defaultValue: "No rationale provided.",
+                            })}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-md border border-border bg-surface p-3">
+                    <p className="mb-2 text-xs uppercase tracking-wide text-muted-text">
+                      {t("llm_council.agreement_points_label", {
+                        defaultValue: "Agreed Parts",
+                      })}
+                    </p>
+                    {result.moderator.agreement_points &&
+                    result.moderator.agreement_points.length > 0 ? (
+                      <ul className="space-y-1 text-sm text-foreground">
+                        {result.moderator.agreement_points.map((point) => (
+                          <li key={point}>• {point}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-text">—</p>
+                    )}
+                  </div>
+                  <div className="rounded-md border border-border bg-surface p-3">
+                    <p className="mb-2 text-xs uppercase tracking-wide text-muted-text">
+                      {t("llm_council.conflict_points_label", {
+                        defaultValue: "Conflict Parts",
+                      })}
+                    </p>
+                    {result.moderator.conflict_points &&
+                    result.moderator.conflict_points.length > 0 ? (
+                      <ul className="space-y-1 text-sm text-foreground">
+                        {result.moderator.conflict_points.map((point) => (
+                          <li key={point}>• {point}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-text">—</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-border bg-surface p-3">
+                  <p className="mb-2 text-xs uppercase tracking-wide text-muted-text">
+                    {t("llm_council.moderator_critiques_label", {
+                      defaultValue: "Moderator Critiques & Votes",
+                    })}
+                  </p>
+                  <div className="space-y-2">
+                    {(result.moderator.model_critiques || []).map((entry) => (
+                      <div
+                        key={`critique-${entry.provider_key}`}
+                        className="rounded border border-border bg-card p-2"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-foreground">
+                            {entry.provider_label} ({entry.score})
+                          </p>
+                          <span
+                            className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${voteTone(
+                              entry.vote,
+                            )}`}
+                          >
+                            {t(`llm_council.vote_${(entry.vote || "neutral").toLowerCase()}`, {
+                              defaultValue: (entry.vote || "neutral").toUpperCase(),
+                            })}
+                          </span>
+                        </div>
+                        {entry.strengths ? (
+                          <p className="mt-2 text-xs text-foreground">
+                            <span className="font-semibold text-muted-text">
+                              {t("llm_council.critique_strengths", {
+                                defaultValue: "Strengths:",
+                              })}{" "}
+                            </span>
+                            {entry.strengths}
+                          </p>
+                        ) : null}
+                        {entry.weaknesses ? (
+                          <p className="mt-1 text-xs text-foreground">
+                            <span className="font-semibold text-muted-text">
+                              {t("llm_council.critique_weaknesses", {
+                                defaultValue: "Weaknesses:",
+                              })}{" "}
+                            </span>
+                            {entry.weaknesses}
+                          </p>
+                        ) : null}
+                        <p className="mt-1 text-xs text-muted-text">
+                          {entry.critique ||
                             t("llm_council.no_rationale", {
                               defaultValue: "No rationale provided.",
                             })}

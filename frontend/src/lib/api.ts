@@ -345,12 +345,20 @@ export function fetchJudgeLeaderboard(
   params: AnalyticsFilterParams & {
     sort_by?: "cases" | "approval_rate" | "name";
     limit?: number;
+    name_q?: string;
+    min_cases?: number;
   } = {},
 ): Promise<{ judges: JudgeLeaderboardEntry[]; total_judges: number }> {
   const qs = new URLSearchParams();
   appendAnalyticsFilters(qs, params);
   if (params.sort_by) qs.set("sort_by", params.sort_by);
   if (typeof params.limit === "number") qs.set("limit", String(params.limit));
+  if (params.name_q && params.name_q.trim()) {
+    qs.set("name_q", params.name_q.trim());
+  }
+  if (typeof params.min_cases === "number") {
+    qs.set("min_cases", String(params.min_cases));
+  }
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   return apiFetch(`/api/v1/analytics/judge-leaderboard${suffix}`, {
     timeoutMs: ANALYTICS_TIMEOUT_MS,
@@ -736,6 +744,7 @@ export interface LegalConceptEntry {
 
 export interface JudgeAutocompleteEntry {
   name: string;
+  canonical_name?: string;
   case_count: number;
 }
 
@@ -757,11 +766,140 @@ export interface GuidedSearchResult {
   flow: string;
   results?: ImmigrationCase[];
   total?: number;
+  meta?: {
+    total_results?: number;
+    returned_results?: number;
+    total_cases?: number;
+    limit?: number;
+    filters_applied?: Record<string, unknown>;
+  };
   judge_profile?: {
     name: string;
     url: string;
+    canonical_name?: string;
     case_count: number;
   };
+}
+
+interface JudgeAutocompleteRawResponse {
+  success: boolean;
+  judges?: Array<{
+    name?: unknown;
+    canonical_name?: unknown;
+    case_count?: unknown;
+  }>;
+  data?: Array<{
+    name?: unknown;
+    canonical_name?: unknown;
+    case_count?: unknown;
+  }>;
+  meta?: { query?: string; total_results?: number; limit?: number };
+}
+
+interface CountryRawResponse {
+  success: boolean;
+  countries?: Array<{
+    country?: unknown;
+    name?: unknown;
+    case_count?: unknown;
+  }>;
+  meta?: { total_countries?: number; limit?: number };
+}
+
+interface GuidedSearchRawResponse {
+  success: boolean;
+  flow: string;
+  results?: ImmigrationCase[];
+  total?: number;
+  meta?: {
+    total_results?: number;
+    returned_results?: number;
+    total_cases?: number;
+    limit?: number;
+    filters_applied?: Record<string, unknown>;
+  };
+  judge_profile?: {
+    name: string;
+    url: string;
+    canonical_name?: string;
+    case_count: number;
+  };
+  judge_name?: string;
+  canonical_name?: string;
+  profile_url?: string;
+}
+
+function normalizeCount(value: unknown): number {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num < 0) return 0;
+  return Math.floor(num);
+}
+
+function normalizeJudgeAutocompleteEntries(
+  entries: Array<{
+    name?: unknown;
+    canonical_name?: unknown;
+    case_count?: unknown;
+  }>,
+): JudgeAutocompleteEntry[] {
+  const byCanonical = new Map<string, JudgeAutocompleteEntry>();
+
+  for (const entry of entries) {
+    const rawName = typeof entry.name === "string" ? entry.name.trim() : "";
+    if (!rawName) continue;
+    const canonical =
+      typeof entry.canonical_name === "string"
+        ? entry.canonical_name.trim()
+        : "";
+    const key = (canonical || rawName).toLowerCase();
+    const count = normalizeCount(entry.case_count);
+    const prev = byCanonical.get(key);
+
+    if (!prev) {
+      byCanonical.set(key, {
+        name: rawName,
+        canonical_name: canonical || undefined,
+        case_count: count,
+      });
+      continue;
+    }
+
+    byCanonical.set(key, {
+      // Prefer fuller display names when duplicates are merged.
+      name: rawName.length > prev.name.length ? rawName : prev.name,
+      canonical_name: prev.canonical_name ?? (canonical || undefined),
+      case_count: Math.max(prev.case_count, count),
+    });
+  }
+
+  return Array.from(byCanonical.values())
+    .sort((a, b) => b.case_count - a.case_count || a.name.localeCompare(b.name));
+}
+
+function normalizeCountryEntries(
+  entries: Array<{ country?: unknown; name?: unknown; case_count?: unknown }>,
+): CountryEntry[] {
+  const byCountry = new Map<string, number>();
+
+  for (const entry of entries) {
+    const rawCountry =
+      typeof entry.country === "string"
+        ? entry.country.trim()
+        : typeof entry.name === "string"
+          ? entry.name.trim()
+          : "";
+    if (!rawCountry) continue;
+
+    const count = normalizeCount(entry.case_count);
+    byCountry.set(rawCountry, (byCountry.get(rawCountry) ?? 0) + count);
+  }
+
+  return Array.from(byCountry.entries())
+    .map(([country, case_count]) => ({ country, case_count }))
+    .sort(
+      (a, b) =>
+        b.case_count - a.case_count || a.country.localeCompare(b.country),
+    );
 }
 
 export function fetchVisaLookup(
@@ -797,7 +935,22 @@ export function fetchJudgeAutocomplete(
   const params = new URLSearchParams();
   params.set("q", query);
   params.set("limit", String(limit));
-  return apiFetch(`/api/v1/taxonomy/judges/autocomplete?${params}`);
+  return apiFetch<JudgeAutocompleteRawResponse>(
+    `/api/v1/taxonomy/judges/autocomplete?${params}`,
+  ).then((payload) => {
+    const judges = normalizeJudgeAutocompleteEntries(
+      payload.judges ?? payload.data ?? [],
+    );
+    return {
+      success: payload.success,
+      judges,
+      meta: {
+        query: payload.meta?.query ?? query,
+        total_results: payload.meta?.total_results ?? judges.length,
+        limit: payload.meta?.limit ?? limit,
+      },
+    };
+  });
 }
 
 export function fetchCountries(limit: number = 30): Promise<{
@@ -807,15 +960,61 @@ export function fetchCountries(limit: number = 30): Promise<{
 }> {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
-  return apiFetch(`/api/v1/taxonomy/countries?${params}`);
+  return apiFetch<CountryRawResponse>(`/api/v1/taxonomy/countries?${params}`).then(
+    (payload) => {
+      const countries = normalizeCountryEntries(payload.countries ?? []);
+      return {
+        success: payload.success,
+        countries,
+        meta: {
+          total_countries: payload.meta?.total_countries ?? countries.length,
+          limit: payload.meta?.limit ?? limit,
+        },
+      };
+    },
+  );
 }
 
 export function submitGuidedSearch(
   params: GuidedSearchParams,
 ): Promise<GuidedSearchResult> {
-  return apiFetch("/api/v1/taxonomy/guided-search", {
+  return apiFetch<GuidedSearchRawResponse>("/api/v1/taxonomy/guided-search", {
     method: "POST",
     body: JSON.stringify(params),
+  }).then((payload) => {
+    const results = payload.results ?? [];
+    const total =
+      payload.total ??
+      payload.meta?.total_results ??
+      (payload.flow === "find-precedents" ? results.length : undefined);
+
+    const judge_profile =
+      payload.judge_profile ??
+      (payload.judge_name
+        ? {
+            name: payload.judge_name,
+            url: (
+              payload.profile_url?.startsWith("/judges/")
+                ? payload.profile_url.replace(
+                    "/judges/",
+                    "/judge-profiles/",
+                  )
+                : payload.profile_url
+            ) ??
+            `/judge-profiles/${encodeURIComponent(payload.canonical_name ?? payload.judge_name)}`,
+            canonical_name: payload.canonical_name,
+            case_count: payload.meta?.total_cases ?? 0,
+          }
+        : undefined);
+
+    return {
+      success: payload.success,
+      flow: payload.flow,
+      results,
+      total,
+      meta: payload.meta,
+      judge_profile,
+    };
   });
 }
 
@@ -857,9 +1056,36 @@ export interface LlmCouncilRankingEntry {
   reason: string;
 }
 
+export interface LlmCouncilModelCritique {
+  provider_key: string;
+  provider_label: string;
+  score: number;
+  vote: "support" | "neutral" | "oppose" | string;
+  strengths: string;
+  weaknesses: string;
+  critique: string;
+}
+
+export interface LlmCouncilVoteSummary {
+  winner_provider_key: string;
+  winner_provider_label: string;
+  winner_reason: string;
+  support_count: number;
+  neutral_count: number;
+  oppose_count: number;
+}
+
 export interface LlmCouncilModeratorResult {
   success: boolean;
   ranking: LlmCouncilRankingEntry[];
+  model_critiques: LlmCouncilModelCritique[];
+  vote_summary: LlmCouncilVoteSummary;
+  agreement_points: string[];
+  conflict_points: string[];
+  provider_law_sections: Record<string, string[]>;
+  shared_law_sections: string[];
+  shared_law_sections_confidence_percent: number;
+  shared_law_sections_confidence_reason: string;
   consensus: string;
   disagreements: string;
   outcome_likelihood_percent: number;
