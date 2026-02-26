@@ -1225,7 +1225,7 @@ export function downloadExportFile(format: "csv" | "json"): void {
 
 // ─── Semantic Similar Cases ────────────────────────────────────
 
-interface SimilarCasesResponse {
+export interface SimilarCasesResponse {
   similar: SimilarCase[];
   available: boolean;
 }
@@ -1233,12 +1233,11 @@ interface SimilarCasesResponse {
 export async function fetchSimilarCases(
   caseId: string,
   limit = 5,
-): Promise<SimilarCase[]> {
-  const res = await apiFetch<SimilarCasesResponse>(
+): Promise<SimilarCasesResponse> {
+  return apiFetch<SimilarCasesResponse>(
     `/api/v1/cases/${caseId}/similar?limit=${limit}`,
     { timeoutMs: 15_000 },
   );
-  return res.available ? res.similar : [];
 }
 
 // ─── Invalidate CSRF (call on auth errors) ─────────────────────

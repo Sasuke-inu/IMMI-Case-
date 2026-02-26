@@ -2079,7 +2079,7 @@ def similar_cases(case_id):
         emb_resp = (
             repo._client
             .table("immigration_cases")
-            .select("embedding, embedding_provider, embedding_model, embedding_dimensions")
+            .select("embedding, embedding_provider, embedding_model")
             .eq("case_id", case_id)
             .maybe_single()
             .execute()

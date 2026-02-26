@@ -30,6 +30,16 @@ vi.mock("@/hooks/use-cases", () => ({
   useDeleteCase: mockUseDeleteCase,
 }));
 
+// Similar cases — stub with available=false so SimilarCasesPanel hides entirely
+vi.mock("@/hooks/use-similar-cases", () => ({
+  useSimilarCases: vi.fn(() => ({
+    data: { similar: [], available: false },
+    isLoading: false,
+    isError: false,
+    error: null,
+  })),
+}));
+
 vi.mock("@/hooks/use-bookmarks", () => ({
   useBookmarks: vi.fn(() => ({
     bookmarks: [],

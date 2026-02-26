@@ -34,7 +34,7 @@ export function CaseDetailPage() {
   const navigate = useNavigate();
   const { data, isLoading } = useCase(id ?? "");
   const { data: related } = useRelatedCases(id ?? "");
-  const { data: similarCases, isLoading: similarLoading } = useSimilarCases(
+  const { data: similarData, isLoading: similarLoading } = useSimilarCases(
     id ?? "",
   );
   const deleteMutation = useDeleteCase();
@@ -335,9 +335,9 @@ export function CaseDetailPage() {
 
       {/* Similar cases (pgvector semantic search) */}
       <SimilarCasesPanel
-        cases={similarCases}
+        cases={similarData?.similar}
         isLoading={similarLoading}
-        available={similarCases !== undefined || similarLoading}
+        available={similarData?.available ?? similarLoading}
       />
 
       {/* Full text */}
