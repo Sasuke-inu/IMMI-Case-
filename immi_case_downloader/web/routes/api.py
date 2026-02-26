@@ -739,7 +739,7 @@ def _split_judges(raw: str) -> list[str]:
                 is_singleton
                 and lowered not in known_singletons
                 and not had_title_or_suffix
-                and len(lowered) < 5
+                and len(lowered) < 4
             )
         ):
             continue

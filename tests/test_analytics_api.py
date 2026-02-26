@@ -441,6 +441,113 @@ def test_judge_profile_strict_identity_avoids_cross_court_murphy_mix(client, mon
 
 
 # ---------------------------------------------------------------------------
+# Judge name normalisation — variant merging
+# ---------------------------------------------------------------------------
+
+
+def test_split_judges_allows_four_char_singleton(client, monkeypatch):
+    """4-char surnames (e.g. 'Egan', 'Fary') must NOT be filtered by the singleton threshold."""
+    from immi_case_downloader.web.routes import api as api_routes
+    from unittest.mock import patch
+
+    api_routes._judge_identity.cache_clear()
+    cases = [
+        _make_case(citation="[2020] FCCA 1", court_code="FCCA", year=2020, outcome="Dismissed", judge="Egan"),
+        _make_case(citation="[2020] FCCA 2", court_code="FCCA", year=2020, outcome="Dismissed", judge="EGAN"),
+        _make_case(citation="[2021] FedCFamC2G 1", court_code="FedCFamC2G", year=2021, outcome="Dismissed", judge="Fary"),
+    ]
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+    with patch("immi_case_downloader.web.routes.api._load_judge_bios", return_value={}), patch(
+        "immi_case_downloader.web.routes.api._load_judge_name_overrides", return_value={}
+    ):
+        resp = client.get("/api/v1/analytics/judges?limit=10")
+
+    assert resp.status_code == 200
+    judges = resp.get_json()["judges"]
+    names = [j["name"] for j in judges]
+    assert "Egan" in names, f"Expected 'Egan' in judges but got {names}"
+    assert "Fary" in names, f"Expected 'Fary' in judges but got {names}"
+    egan_entry = next(j for j in judges if j["name"] == "Egan")
+    assert egan_entry["count"] == 2
+    api_routes._judge_identity.cache_clear()
+
+
+def test_judge_analytics_merges_suffix_variants_of_same_name(client, monkeypatch):
+    """KENDALL, Kendall J, and Justice KENDALL must collapse to one group."""
+    from immi_case_downloader.web.routes import api as api_routes
+    from unittest.mock import patch
+
+    api_routes._judge_identity.cache_clear()
+    cases = [
+        _make_case(citation="[2018] AATA 1", court_code="AATA", year=2018, outcome="Affirmed", judge="KENDALL"),
+        _make_case(citation="[2018] AATA 2", court_code="AATA", year=2018, outcome="Affirmed", judge="Kendall J"),
+        _make_case(citation="[2018] AATA 3", court_code="AATA", year=2018, outcome="Set Aside", judge="Justice KENDALL"),
+        _make_case(citation="[2018] AATA 4", court_code="AATA", year=2018, outcome="Set Aside", judge="Kendall"),
+    ]
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+    with patch("immi_case_downloader.web.routes.api._load_judge_bios", return_value={}), patch(
+        "immi_case_downloader.web.routes.api._load_judge_name_overrides", return_value={}
+    ):
+        resp = client.get("/api/v1/analytics/judges?limit=10")
+
+    assert resp.status_code == 200
+    judges = resp.get_json()["judges"]
+    assert len(judges) == 1, f"Expected 1 group, got {len(judges)}: {[j['name'] for j in judges]}"
+    assert judges[0]["count"] == 4
+    api_routes._judge_identity.cache_clear()
+
+
+def test_judge_analytics_merges_title_prefix_variants(client, monkeypatch):
+    """'Ms Ricky Johnston' and 'Ricky Johnston' must merge to one group."""
+    from immi_case_downloader.web.routes import api as api_routes
+    from unittest.mock import patch
+
+    api_routes._judge_identity.cache_clear()
+    cases = [
+        _make_case(citation="[2019] AATA 1", court_code="AATA", year=2019, outcome="Affirmed", judge="Ricky Johnston"),
+        _make_case(citation="[2019] AATA 2", court_code="AATA", year=2019, outcome="Affirmed", judge="Ms Ricky Johnston"),
+        _make_case(citation="[2019] AATA 3", court_code="AATA", year=2019, outcome="Set Aside", judge="Ricky Johnston"),
+    ]
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+    with patch("immi_case_downloader.web.routes.api._load_judge_bios", return_value={}), patch(
+        "immi_case_downloader.web.routes.api._load_judge_name_overrides", return_value={}
+    ):
+        resp = client.get("/api/v1/analytics/judges?limit=10")
+
+    assert resp.status_code == 200
+    judges = resp.get_json()["judges"]
+    assert len(judges) == 1, f"Expected 1 group, got {len(judges)}: {[j['name'] for j in judges]}"
+    assert judges[0]["count"] == 3
+    assert judges[0]["name"] == "Ricky Johnston"
+    api_routes._judge_identity.cache_clear()
+
+
+def test_judge_analytics_merges_mixed_case_variants(client, monkeypatch):
+    """'Richard Derewlany' and 'Richard DEREWLANY' must merge to one group."""
+    from immi_case_downloader.web.routes import api as api_routes
+    from unittest.mock import patch
+
+    api_routes._judge_identity.cache_clear()
+    cases = [
+        _make_case(citation="[2020] AATA 1", court_code="AATA", year=2020, outcome="Affirmed", judge="Richard Derewlany"),
+        _make_case(citation="[2020] AATA 2", court_code="AATA", year=2020, outcome="Affirmed", judge="Richard DEREWLANY"),
+        _make_case(citation="[2020] AATA 3", court_code="AATA", year=2020, outcome="Set Aside", judge="Mr Richard Derewlany"),
+    ]
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+    with patch("immi_case_downloader.web.routes.api._load_judge_bios", return_value={}), patch(
+        "immi_case_downloader.web.routes.api._load_judge_name_overrides", return_value={}
+    ):
+        resp = client.get("/api/v1/analytics/judges?limit=10")
+
+    assert resp.status_code == 200
+    judges = resp.get_json()["judges"]
+    assert len(judges) == 1, f"Expected 1 group, got {len(judges)}: {[j['name'] for j in judges]}"
+    assert judges[0]["count"] == 3
+    assert judges[0]["name"] == "Richard Derewlany"
+    api_routes._judge_identity.cache_clear()
+
+
+# ---------------------------------------------------------------------------
 # Phase 3: Concept Intelligence
 # ---------------------------------------------------------------------------
 
