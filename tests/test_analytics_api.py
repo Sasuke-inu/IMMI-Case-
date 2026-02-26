@@ -677,3 +677,40 @@ def test_monthly_trends_has_events(client, patch_analytics_cases):
     data = client.get("/api/v1/analytics/monthly-trends").get_json()
     assert "events" in data
     assert isinstance(data["events"], list)
+
+
+# ---------------------------------------------------------------------------
+# Phase 7: Alias specificity ordering
+# ---------------------------------------------------------------------------
+
+
+def test_alias_specificity_initial_surname_beats_singleton(client, monkeypatch):
+    """'L. Symons' must resolve to Linda Symons (initial+surname alias)
+    not Catherine Symons (singleton 'symons'), when both exist in overrides."""
+    from immi_case_downloader.web.routes import api as api_routes
+    from unittest.mock import patch
+
+    api_routes._judge_identity.cache_clear()
+    # Two distinct judges: L Symons (AATA, Linda) and SYMONS (FedCFamC2G, Catherine).
+    cases = [
+        _make_case(citation="[2020] AATA 1", court_code="AATA", year=2020, outcome="Affirmed", judge="L. Symons"),
+        _make_case(citation="[2021] FedCFamC2G 1", court_code="FedCFamC2G", year=2021, outcome="Affirmed", judge="SYMONS"),
+    ]
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+    overrides = {
+        "l symons": "Linda Symons",
+        "symons": "Judge Catherine Symons",
+    }
+    with patch("immi_case_downloader.web.routes.api._load_judge_bios", return_value={}), patch(
+        "immi_case_downloader.web.routes.api._load_judge_name_overrides", return_value=overrides
+    ):
+        resp = client.get("/api/v1/analytics/judges?limit=10")
+
+    assert resp.status_code == 200
+    judges = resp.get_json()["judges"]
+    names = {j["name"] for j in judges}
+    assert "Linda Symons" in names, f"Expected 'Linda Symons' in {names}"
+    assert "Judge Catherine Symons" in names, f"Expected 'Judge Catherine Symons' in {names}"
+    # They must NOT be merged into one group
+    assert len(judges) == 2, f"Expected 2 groups (different judges), got {len(judges)}: {names}"
+    api_routes._judge_identity.cache_clear()

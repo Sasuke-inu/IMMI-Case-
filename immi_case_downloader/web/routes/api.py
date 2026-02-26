@@ -440,8 +440,11 @@ def _resolve_judge_display_name(
     else:
         fallback = normalized or ""
     aliases = _judge_query_aliases(raw)
+    # Check most-specific aliases first (longer = more specific) to avoid
+    # singleton surname matches overriding correct initial+surname matches.
+    aliases_by_specificity = sorted(aliases, key=len, reverse=True)
     bios = _load_judge_bios()
-    for alias in aliases:
+    for alias in aliases_by_specificity:
         bio = bios.get(alias)
         if not bio:
             continue
@@ -450,7 +453,7 @@ def _resolve_judge_display_name(
             return full_name
 
     overrides = _load_judge_name_overrides()
-    for alias in aliases:
+    for alias in aliases_by_specificity:
         full_name = overrides.get(alias, "").strip()
         if full_name:
             return full_name
