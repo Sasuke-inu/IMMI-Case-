@@ -138,6 +138,11 @@ const GuidedSearchPage = lazy(() =>
     default: m.GuidedSearchPage,
   })),
 );
+const SemanticSearchPage = lazy(() =>
+  import("@/pages/SemanticSearchPage").then((m) => ({
+    default: m.SemanticSearchPage,
+  })),
+);
 const LlmCouncilPage = lazy(() =>
   import("@/pages/LlmCouncilPage").then((m) => ({
     default: m.LlmCouncilPage,
@@ -269,6 +274,14 @@ export default function App() {
                 element={
                   <Suspense fallback={<PageLoader />}>
                     <GuidedSearchPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="search/semantic"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <SemanticSearchPage />
                   </Suspense>
                 }
               />

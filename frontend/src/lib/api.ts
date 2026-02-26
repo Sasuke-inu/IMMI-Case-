@@ -1240,6 +1240,39 @@ export async function fetchSimilarCases(
   );
 }
 
+// ─── Free-Text Semantic Search ──────────────────────────────────
+
+export interface SemanticSearchResult {
+  case_id: string;
+  citation: string;
+  title: string;
+  outcome: string;
+  similarity_score: number;
+}
+
+export interface SemanticSearchResponse {
+  results: SemanticSearchResult[];
+  available: boolean;
+  query: string;
+  provider: string;
+  model: string;
+}
+
+export async function fetchSemanticSearch(
+  query: string,
+  limit = 10,
+  provider = "openai",
+): Promise<SemanticSearchResponse> {
+  const params = new URLSearchParams({
+    q: query,
+    limit: String(limit),
+    provider,
+  });
+  return apiFetch<SemanticSearchResponse>(`/api/v1/search/semantic?${params}`, {
+    timeoutMs: 20_000,
+  });
+}
+
 // ─── Invalidate CSRF (call on auth errors) ─────────────────────
 export function clearCsrfToken(): void {
   csrfToken = null;

@@ -16,6 +16,7 @@ import {
   Tags,
   Search,
   Scale,
+  Zap,
 } from "lucide-react";
 
 export interface AppNavItem {
@@ -58,6 +59,7 @@ export const APP_NAV_GROUPS: readonly AppNavGroup[] = [
     items: [
       { to: "/taxonomy", icon: Tags, labelKey: "nav.search_taxonomy" },
       { to: "/guided-search", icon: Search, labelKey: "nav.guided_search" },
+      { to: "/search/semantic", icon: Zap, labelKey: "nav.semantic_search" },
       { to: "/llm-council", icon: Scale, labelKey: "nav.llm_council" },
     ],
   },

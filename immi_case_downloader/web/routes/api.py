@@ -4071,6 +4071,124 @@ def llm_council_run():
     return jsonify(payload)
 
 
+# ── Free-Text Semantic Search ────────────────────────────────────────────
+
+MAX_SEMANTIC_SEARCH_LIMIT = 20
+DEFAULT_SEMANTIC_SEARCH_LIMIT = 10
+MIN_SEMANTIC_QUERY_LEN = 3
+
+
+def _run_semantic_search(
+    query: str,
+    limit: int = DEFAULT_SEMANTIC_SEARCH_LIMIT,
+    provider: str = "openai",
+    model: str = "",
+) -> dict:
+    """Embed *query* text and perform ANN search via Supabase pgvector RPC.
+
+    Returns a dict with keys:
+        results  – list of matching case dicts (may be empty)
+        available – True if Supabase + embedding API are reachable
+        query    – the original query string (echoed back)
+        provider – embedding provider used
+        model    – embedding model used
+    """
+    repo = get_repo()
+    from ...supabase_repository import SupabaseRepository
+
+    if not isinstance(repo, SupabaseRepository):
+        return {"results": [], "available": False, "query": query,
+                "provider": provider, "model": model}
+
+    try:
+        client, provider_used, model_used = _get_embedding_client(provider, model)
+        query_vectors = _normalize_vectors(
+            client.embed_texts([query], task_type="RETRIEVAL_QUERY")
+        )
+        embedding = query_vectors[0].tolist()
+
+        rpc_resp = repo._client.rpc("search_cases_semantic", {
+            "p_query_embedding": embedding,
+            "p_provider": provider_used,
+            "p_model": model_used,
+            "p_limit": limit,
+        }).execute()
+
+        id_score: list[tuple[str, float]] = [
+            (r["case_id"], float(r["similarity"]))
+            for r in (rpc_resp.data or [])
+            if r.get("case_id")
+        ][:limit]
+
+        if not id_score:
+            return {"results": [], "available": True, "query": query,
+                    "provider": provider_used, "model": model_used}
+
+        ids = [cid for cid, _ in id_score]
+        meta_resp = (
+            repo._client
+            .table("immigration_cases")
+            .select("case_id, citation, title, outcome")
+            .in_("case_id", ids)
+            .execute()
+        )
+        meta_by_id = {r["case_id"]: r for r in (meta_resp.data or [])}
+
+        results = []
+        for cid, score in id_score:
+            meta = meta_by_id.get(cid, {})
+            results.append({
+                "case_id": cid,
+                "citation": meta.get("citation") or "",
+                "title": meta.get("title") or "",
+                "outcome": meta.get("outcome") or "",
+                "similarity_score": round(score, 4),
+            })
+
+        return {"results": results, "available": True, "query": query,
+                "provider": provider_used, "model": model_used}
+
+    except Exception as exc:
+        logger.warning("_run_semantic_search failed: %s", exc)
+        return {"results": [], "available": False, "query": query,
+                "provider": provider, "model": model}
+
+
+@api_bp.route("/search/semantic")
+def semantic_search():
+    """Free-text vector search: embed query → HNSW ANN → return ranked cases.
+
+    Query params:
+        q        – search query (required, min 3 chars)
+        limit    – max results (1-20, default 10)
+        provider – embedding provider: "openai" (default) or "gemini"
+        model    – override model name (optional)
+    """
+    query = (request.args.get("q") or "").strip()
+    if not query:
+        return _error("q parameter is required", 400)
+    if len(query) < MIN_SEMANTIC_QUERY_LEN:
+        return _error(f"q must be at least {MIN_SEMANTIC_QUERY_LEN} characters", 400)
+
+    limit = safe_int(
+        request.args.get("limit"),
+        default=DEFAULT_SEMANTIC_SEARCH_LIMIT,
+        min_val=1,
+        max_val=MAX_SEMANTIC_SEARCH_LIMIT,
+    )
+
+    provider = (request.args.get("provider") or "openai").strip().lower()
+    if provider not in ALLOWED_SEARCH_PROVIDERS:
+        return _error(
+            f"provider must be one of: {sorted(ALLOWED_SEARCH_PROVIDERS)}", 400
+        )
+
+    model = (request.args.get("model") or "").strip()
+
+    payload = _run_semantic_search(query, limit=limit, provider=provider, model=model)
+    return jsonify(payload)
+
+
 # ── Data Dictionary ─────────────────────────────────────────────────────
 
 @api_bp.route("/data-dictionary")
