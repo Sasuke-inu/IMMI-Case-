@@ -96,7 +96,6 @@ export function CasesPage() {
   const { savedSearches, saveSearch, updateSearch, getSearchById } =
     useSavedSearches();
 
-
   const updateFilter = useCallback(
     (key: string, value: string) => {
       const params = new URLSearchParams(searchParams);
@@ -322,51 +321,53 @@ export function CasesPage() {
     row?.scrollIntoView({ block: "nearest" });
   }, [clampedFocusedIdx]);
 
-  // Active filter pills
-  const activeFilters: Array<{ key: string; label: string; value: string }> =
-    [];
-  if (filters.court)
-    activeFilters.push({
-      key: "court",
-      label: t("filters.court"),
-      value: filters.court,
-    });
-  if (filters.year)
-    activeFilters.push({
-      key: "year",
-      label: t("units.year"),
-      value: String(filters.year),
-    });
-  if (filters.nature)
-    activeFilters.push({
-      key: "nature",
-      label: t("cases.nature"),
-      value: filters.nature,
-    });
-  if (filters.visa_type)
-    activeFilters.push({
-      key: "visa_type",
-      label: t("cases.visa_subclass"),
-      value: filters.visa_type,
-    });
-  if (filters.source)
-    activeFilters.push({
-      key: "source",
-      label: t("cases.source") || "Source",
-      value: filters.source,
-    });
-  if (filters.tag)
-    activeFilters.push({
-      key: "tag",
-      label: t("common.tags") || "Tags",
-      value: filters.tag,
-    });
-  if (filters.keyword)
-    activeFilters.push({
-      key: "keyword",
-      label: t("common.search"),
-      value: filters.keyword,
-    });
+  // Active filter pills — memoised to prevent new array on every render
+  const activeFilters = useMemo(() => {
+    const result: Array<{ key: string; label: string; value: string }> = [];
+    if (filters.court)
+      result.push({
+        key: "court",
+        label: t("filters.court"),
+        value: filters.court,
+      });
+    if (filters.year)
+      result.push({
+        key: "year",
+        label: t("units.year"),
+        value: String(filters.year),
+      });
+    if (filters.nature)
+      result.push({
+        key: "nature",
+        label: t("cases.nature"),
+        value: filters.nature,
+      });
+    if (filters.visa_type)
+      result.push({
+        key: "visa_type",
+        label: t("cases.visa_subclass"),
+        value: filters.visa_type,
+      });
+    if (filters.source)
+      result.push({
+        key: "source",
+        label: t("cases.source") || "Source",
+        value: filters.source,
+      });
+    if (filters.tag)
+      result.push({
+        key: "tag",
+        label: t("common.tags") || "Tags",
+        value: filters.tag,
+      });
+    if (filters.keyword)
+      result.push({
+        key: "keyword",
+        label: t("common.search"),
+        value: filters.keyword,
+      });
+    return result;
+  }, [filters, t]);
 
   const sortLabel =
     filters.sort_by === "date"
@@ -589,11 +590,14 @@ export function CasesPage() {
         />
       )}
 
-      {!isLoading && !isCasesError && cases.length > 0 && viewMode === "table" && (
-        <div className="rounded-md border border-border-light bg-surface px-3 py-2 text-xs text-muted-text">
-          {t("cases.keyboard_shortcuts")}
-        </div>
-      )}
+      {!isLoading &&
+        !isCasesError &&
+        cases.length > 0 &&
+        viewMode === "table" && (
+          <div className="rounded-md border border-border-light bg-surface px-3 py-2 text-xs text-muted-text">
+            {t("cases.keyboard_shortcuts")}
+          </div>
+        )}
 
       {/* Advanced Filters */}
       {showAdvanced && (
@@ -811,7 +815,9 @@ export function CasesPage() {
                   <th className="w-10 px-2 py-2.5 text-left">
                     <input
                       type="checkbox"
-                      checked={selected.size === cases.length && cases.length > 0}
+                      checked={
+                        selected.size === cases.length && cases.length > 0
+                      }
                       onChange={toggleAll}
                       className="rounded"
                       aria-label={t("cases.select_all", {
@@ -829,7 +835,9 @@ export function CasesPage() {
                     {t("cases.court")}
                   </th>
                   <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
-                    <span className="block leading-tight">{t("cases.date")}</span>
+                    <span className="block leading-tight">
+                      {t("cases.date")}
+                    </span>
                     <span className="block text-[9px] font-normal text-muted-text leading-tight">
                       {t("cases.date", { defaultValue: "decision" })} /{" "}
                       {t("cases.hearing_date")}

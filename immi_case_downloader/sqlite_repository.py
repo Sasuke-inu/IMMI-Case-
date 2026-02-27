@@ -56,6 +56,11 @@ CREATE INDEX IF NOT EXISTS idx_court_code ON cases(court_code);
 CREATE INDEX IF NOT EXISTS idx_year ON cases(year);
 CREATE INDEX IF NOT EXISTS idx_court_year ON cases(court_code, year);
 CREATE INDEX IF NOT EXISTS idx_source ON cases(source);
+CREATE INDEX IF NOT EXISTS idx_outcome ON cases(outcome);
+CREATE INDEX IF NOT EXISTS idx_case_nature ON cases(case_nature);
+CREATE INDEX IF NOT EXISTS idx_visa_type ON cases(visa_type);
+CREATE INDEX IF NOT EXISTS idx_visa_subclass_number ON cases(visa_subclass_number);
+CREATE INDEX IF NOT EXISTS idx_court_outcome ON cases(court_code, outcome);
 """
 
 _FTS_SQL = """

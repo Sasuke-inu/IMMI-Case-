@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   BarChart,
@@ -34,20 +34,18 @@ interface Props {
 
 function VisaFamiliesSectionInner({ filters }: Props) {
   const { t } = useTranslation();
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useVisaFamilies(filters);
+  const { data, isLoading, isError, error, refetch } = useVisaFamilies(filters);
   const [sortBy, setSortBy] = useState<"total" | "win_rate">("total");
 
   const families = data?.families ?? [];
-  const sorted = families.toSorted((a, b) =>
-    sortBy === "total" ? b.total - a.total : b.win_rate - a.win_rate,
+  const sorted = useMemo(
+    () =>
+      families.toSorted((a, b) =>
+        sortBy === "total" ? b.total - a.total : b.win_rate - a.win_rate,
+      ),
+    [families, sortBy],
   );
-  const top12 = sorted.slice(0, 12);
+  const top12 = useMemo(() => sorted.slice(0, 12), [sorted]);
   const errorText =
     error instanceof Error ? error.message : t("errors.unable_to_load_message");
 
