@@ -61,10 +61,22 @@ def transform_member(name_key: str, member: dict) -> dict:
         "current_role_desc":        member.get("current_role_desc"),
         "source_url":               member.get("source_url"),
         "photo_url":                member.get("photo_url"),
-        "has_legal_qualification":  member.get("has_legal_qualification"),
-        "no_legal_qualification":   member.get("no_legal_qualification"),
+        # legal_status ("confirmed_lawyer"/"confirmed_non_lawyer") is the new
+        # authoritative field added during 2026-02 research.  When present it
+        # takes precedence over the older boolean fields.
+        "has_legal_qualification":  (
+            True  if member.get("legal_status") == "confirmed_lawyer"     else
+            False if member.get("legal_status") == "confirmed_non_lawyer" else
+            member.get("has_legal_qualification")
+        ),
+        "no_legal_qualification":   (
+            False if member.get("legal_status") == "confirmed_lawyer"     else
+            True  if member.get("legal_status") == "confirmed_non_lawyer" else
+            member.get("no_legal_qualification")
+        ),
         "qualification_confidence": member.get("qualification_confidence"),
-        "qualification_notes":      member.get("qualification_notes"),
+        # "notes" is the research narrative; fall back if qualification_notes absent
+        "qualification_notes":      member.get("qualification_notes") or member.get("notes"),
         "found":                    member.get("found"),
         "source":                   member.get("source"),
         # JSONB fields — pass as Python objects; supabase-py serialises to JSON
