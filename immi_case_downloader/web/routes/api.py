@@ -72,8 +72,10 @@ ALLOWED_SORT_FIELDS = frozenset({
 ALLOWED_SORT_DIRS = frozenset({"asc", "desc"})
 ALLOWED_COUNT_MODES = frozenset({"exact", "planned", "estimated"})
 MAX_EXPORT_ROWS = 50_000
-# Keep RPC timeout aggressive so UI can fail fast instead of hanging.
-SUPABASE_RPC_TIMEOUT_SECONDS = 1.2
+# RPC timeout — generous enough for cold-start (Supabase free-tier wakes from sleep in ~4-6s).
+SUPABASE_RPC_TIMEOUT_SECONDS = 8.0
+# Stats cache TTL — keep warm for 5 min so Supabase cold-start only hits once per session.
+_STATS_CACHE_TTL_SECONDS = 300.0
 CASE_LIST_COLUMNS = [
     "case_id",
     "citation",
@@ -103,7 +105,6 @@ _filter_options_executor = ThreadPoolExecutor(max_workers=2)
 _stats_cache_lock = threading.Lock()
 _stats_cache_payload: dict | None = None
 _stats_cache_ts: float = 0.0
-_STATS_CACHE_TTL_SECONDS = 60.0
 _filter_options_cache_lock = threading.Lock()
 _filter_options_cache_payload: dict | None = None
 _filter_options_cache_ts: float = 0.0
@@ -112,6 +113,9 @@ _lineage_cache_lock = threading.Lock()
 _lineage_cache_payload: dict | None = None
 _lineage_cache_ts: float = 0.0
 _LINEAGE_CACHE_TTL_SECONDS = 300.0
+_analytics_cache: dict[str, tuple[dict, float]] = {}
+_analytics_cache_lock = threading.Lock()
+_ANALYTICS_CACHE_TTL_SECONDS = 600.0  # 10 min — pre-computed aggregates
 
 # ── Outcome normalisation ──────────────────────────────────────────────
 
@@ -1028,7 +1032,14 @@ def _judge_profile_payload(
 _all_cases_cache: list[ImmigrationCase] = []
 _all_cases_ts: float = 0.0
 _all_cases_lock = threading.Lock()
-_CACHE_TTL = 60.0
+_CACHE_TTL = 300.0  # 5 min — same as stats; analytics warmup keeps this fresh
+
+# Separate lightweight cache for analytics endpoints (minimal 7 columns).
+# ~4x faster to load than the full all-cases cache (13s vs 57s on free tier).
+_analytics_cases_cache: list[ImmigrationCase] = []
+_analytics_cases_ts: float = 0.0
+_analytics_cases_lock = threading.Lock()
+_ANALYTICS_CASES_TTL = 300.0
 
 
 def _get_all_cases() -> list[ImmigrationCase]:
@@ -1053,9 +1064,97 @@ def _invalidate_cases_cache() -> None:
     _all_cases_ts = 0.0
 
 
+def _analytics_cache_key() -> str:
+    """Build a stable cache key from the current request's sorted query args."""
+    return str(sorted(request.args.items()))
+
+
+def _analytics_get(key: str) -> dict | None:
+    """Return cached analytics payload if still fresh, else None."""
+    entry = _analytics_cache.get(key)
+    if entry and (time.time() - entry[1]) < _ANALYTICS_CACHE_TTL_SECONDS:
+        return entry[0]
+    return None
+
+
+def _analytics_set(key: str, payload: dict) -> None:
+    """Store analytics payload in the cache."""
+    with _analytics_cache_lock:
+        _analytics_cache[key] = (payload, time.time())
+
+
+def _fill_all_cases_cache() -> None:
+    """Pre-warm the all-cases in-memory cache.
+
+    Call from a background thread after startup so the first analytics
+    request is served from cache instead of triggering a 30-second
+    Supabase paginated load.
+    """
+    global _all_cases_cache, _all_cases_ts
+    try:
+        repo = get_repo()
+        cases = repo.load_all()
+        with _all_cases_lock:
+            _all_cases_cache = cases
+            _all_cases_ts = time.time()
+    except Exception:
+        pass  # warmup failure is silent — browser request will fill it
+
+
+def _get_analytics_cases() -> list[ImmigrationCase]:
+    """Return analytics-optimised cases (7 cols, ~13s load) with 5-min cache.
+
+    Uses load_analytics_cases() when available (Supabase backend) to fetch
+    only the 7 columns needed for analytics aggregation, making the load
+    ~4x faster than the full load_all() (13s vs 57s on free tier).
+    """
+    global _analytics_cases_cache, _analytics_cases_ts
+    now = time.time()
+    if _analytics_cases_cache and (now - _analytics_cases_ts) < _ANALYTICS_CASES_TTL:
+        return _analytics_cases_cache
+    with _analytics_cases_lock:
+        if _analytics_cases_cache and (time.time() - _analytics_cases_ts) < _ANALYTICS_CASES_TTL:
+            return _analytics_cases_cache
+        repo = get_repo()
+        if hasattr(repo, "load_analytics_cases"):
+            _analytics_cases_cache = repo.load_analytics_cases()
+        else:
+            _analytics_cases_cache = repo.load_all()
+        _analytics_cases_ts = time.time()
+        return _analytics_cases_cache
+
+
+def _fill_analytics_cases_cache() -> None:
+    """Pre-warm the analytics cases cache at startup (background thread)."""
+    global _analytics_cases_cache, _analytics_cases_ts
+    try:
+        repo = get_repo()
+        if hasattr(repo, "load_analytics_cases"):
+            cases = repo.load_analytics_cases()
+        else:
+            cases = repo.load_all()
+        with _analytics_cases_lock:
+            _analytics_cases_cache = cases
+            _analytics_cases_ts = time.time()
+    except Exception:
+        pass  # warmup failure is silent
+
+
 def _clean_visa(raw: object) -> str:
     """Wrapper around clean_subclass for None/NaN-safe API usage."""
     return clean_subclass(raw)
+
+
+def _has_analytics_filters() -> bool:
+    """Return True if any analytics filter query param is present.
+
+    Used to decide whether to take the fast Supabase RPC path (no filters)
+    or the Python aggregation path (filters require loading cases locally).
+    """
+    return any(request.args.get(p) for p in (
+        "court", "year_from", "year_to",
+        "case_natures", "visa_subclasses", "visa_families", "outcome_types",
+    ))
 
 
 def _apply_filters(cases: list[ImmigrationCase]) -> list[ImmigrationCase]:
@@ -1561,6 +1660,39 @@ def stats():
         _stats_cache_payload = payload
         _stats_cache_ts = time.time()
     return jsonify(payload)
+
+
+def _fill_stats_cache() -> None:
+    """Pre-warm the stats cache. Call from a background thread after startup."""
+    repo = get_repo()
+    try:
+        if hasattr(repo, "count_cases"):
+            s = _call_with_timeout(repo.get_statistics, timeout_seconds=12.0)
+        else:
+            s = repo.get_statistics()
+    except Exception:
+        return  # silent — browser will fill the cache on first request
+
+    sources_dict = s.get("by_source", {})
+    if not sources_dict:
+        sources_dict = {src: 0 for src in s.get("sources", [])}
+    raw_visa = s.get("by_visa_subclass", {})
+    cleaned_visa = {_clean_visa(k): v for k, v in raw_visa.items() if _clean_visa(k)}
+
+    payload = {
+        "total_cases": s.get("total", 0),
+        "with_full_text": s.get("with_full_text", 0),
+        "courts": s.get("by_court", {}),
+        "years": s.get("by_year", {}),
+        "natures": s.get("by_nature", {}),
+        "visa_subclasses": cleaned_visa,
+        "visa_families": group_by_family(raw_visa),
+        "sources": sources_dict,
+        "recent_cases": [],
+    }
+    with _stats_cache_lock:
+        _stats_cache_payload = payload
+        _stats_cache_ts = time.time()
 
 
 @api_bp.route("/stats/trends")
@@ -2694,55 +2826,111 @@ def analytics_filter_options():
 @api_bp.route("/analytics/outcomes")
 def analytics_outcomes():
     """Outcome rates by court, year, and visa subclass."""
-    cases = _apply_filters(_get_all_cases())
+    ck = "outcomes:" + _analytics_cache_key()
+    cached = _analytics_get(ck)
+    if cached is not None:
+        return jsonify(cached)
 
+    repo = get_repo()
     by_court: dict[str, dict[str, int]] = defaultdict(Counter)
-    by_year: dict[int, dict[str, int]] = defaultdict(Counter)
+    by_year: dict[str, dict[str, int]] = defaultdict(Counter)
     by_subclass: dict[str, dict[str, int]] = defaultdict(Counter)
     by_family: dict[str, dict[str, int]] = defaultdict(Counter)
 
-    for c in cases:
-        norm = _normalise_outcome(c.outcome)
-        if c.court_code:
-            by_court[c.court_code][norm] += 1
-        if c.year:
-            by_year[c.year][norm] += 1
-        if c.visa_subclass:
-            cleaned = _clean_visa(c.visa_subclass)
-            if cleaned:
-                by_subclass[cleaned][norm] += 1
-                by_family[get_family(cleaned)][norm] += 1
+    _rpc_ok = False
+    if hasattr(repo, "get_analytics_outcomes") and not _has_analytics_filters():
+        try:
+            # Fast path: server-side SQL aggregation — Python only normalises
+            # the small result set (~1500 rows) instead of 149k case objects.
+            for r in repo.get_analytics_outcomes():
+                norm = _normalise_outcome(r["outcome"])
+                cnt = int(r["cnt"])
+                gt = r["group_type"]
+                key = r["group_key"]
+                if gt == "court":
+                    by_court[key][norm] += cnt
+                elif gt == "year":
+                    by_year[key][norm] += cnt
+                elif gt == "visa_subclass":
+                    cleaned = _clean_visa(key)
+                    if cleaned:
+                        by_subclass[cleaned][norm] += cnt
+                        by_family[get_family(cleaned)][norm] += cnt
+            _rpc_ok = True
+        except Exception:
+            logger.warning("analytics_outcomes RPC failed, falling back to Python")
+    if not _rpc_ok:
+        # Fallback: load cases into Python, apply filters, aggregate locally.
+        for c in _apply_filters(_get_analytics_cases()):
+            norm = _normalise_outcome(c.outcome)
+            if c.court_code:
+                by_court[c.court_code][norm] += 1
+            if c.year:
+                by_year[str(c.year)][norm] += 1
+            if c.visa_subclass:
+                cleaned = _clean_visa(c.visa_subclass)
+                if cleaned:
+                    by_subclass[cleaned][norm] += 1
+                    by_family[get_family(cleaned)][norm] += 1
 
-    return jsonify({
+    result = {
         "by_court": {k: dict(v) for k, v in sorted(by_court.items())},
-        "by_year": {str(k): dict(v) for k, v in sorted(by_year.items())},
+        "by_year": {k: dict(v) for k, v in sorted(by_year.items())},
         "by_subclass": {k: dict(v) for k, v in sorted(by_subclass.items(), key=lambda x: sum(x[1].values()), reverse=True)},
         "by_family": {k: dict(v) for k, v in sorted(by_family.items(), key=lambda x: sum(x[1].values()), reverse=True)},
-    })
+    }
+    _analytics_set(ck, result)
+    return jsonify(result)
 
 
 @api_bp.route("/analytics/judges")
 def analytics_judges():
     """Top judges/members by case count."""
-    limit = safe_int(request.args.get("limit"), default=20, min_val=1, max_val=100)
-    cases = _apply_filters(_get_all_cases())
+    ck = "judges:" + _analytics_cache_key()
+    cached = _analytics_get(ck)
+    if cached is not None:
+        return jsonify(cached)
 
+    limit = safe_int(request.args.get("limit"), default=20, min_val=1, max_val=100)
     judge_counter: Counter = Counter()
     judge_courts: dict[str, set[str]] = defaultdict(set)
     judge_display_name: dict[str, str] = {}
     judge_canonical_name: dict[str, str] = {}
 
-    for c in cases:
-        for raw_name in _split_judges(c.judges):
-            canonical_name, display_name = _judge_identity(raw_name, c.court_code, c.year)
-            if not canonical_name:
-                continue
-            key = canonical_name.lower()
-            judge_counter[key] += 1
-            judge_canonical_name.setdefault(key, canonical_name)
-            judge_display_name.setdefault(key, display_name)
-            if c.court_code:
-                judge_courts[key].add(c.court_code)
+    repo = get_repo()
+    _rpc_ok = False
+    if hasattr(repo, "get_analytics_judges_raw") and not _has_analytics_filters():
+        try:
+            # Fast path: RPC already split judge tokens server-side.
+            # Each row is one pre-split name token (equiv. to _split_judges output).
+            for r in repo.get_analytics_judges_raw():
+                raw_name = r["judge_raw"]
+                court = r["court_code"] or ""
+                cnt = int(r["cnt"])
+                canonical_name, display_name = _judge_identity(raw_name, court)
+                if not canonical_name:
+                    continue
+                key = canonical_name.lower()
+                judge_counter[key] += cnt  # accumulate pre-aggregated counts
+                judge_canonical_name.setdefault(key, canonical_name)
+                judge_display_name.setdefault(key, display_name)
+                if court:
+                    judge_courts[key].add(court)
+            _rpc_ok = True
+        except Exception:
+            logger.warning("analytics_judges RPC failed, falling back to Python")
+    if not _rpc_ok:
+        for c in _apply_filters(_get_analytics_cases()):
+            for raw_name in _split_judges(c.judges):
+                canonical_name, display_name = _judge_identity(raw_name, c.court_code, c.year)
+                if not canonical_name:
+                    continue
+                key = canonical_name.lower()
+                judge_counter[key] += 1
+                judge_canonical_name.setdefault(key, canonical_name)
+                judge_display_name.setdefault(key, display_name)
+                if c.court_code:
+                    judge_courts[key].add(c.court_code)
 
     judges = [
         {
@@ -2754,46 +2942,87 @@ def analytics_judges():
         for name_key, count in judge_counter.most_common(limit)
     ]
 
-    return jsonify({"judges": judges})
+    result = {"judges": judges}
+    _analytics_set(ck, result)
+    return jsonify(result)
 
 
 @api_bp.route("/analytics/legal-concepts")
 def analytics_legal_concepts():
     """Top legal concepts by frequency."""
-    limit = safe_int(request.args.get("limit"), default=20, min_val=1, max_val=100)
-    cases = _apply_filters(_get_all_cases())
+    ck = "legal-concepts:" + _analytics_cache_key()
+    cached = _analytics_get(ck)
+    if cached is not None:
+        return jsonify(cached)
 
+    limit = safe_int(request.args.get("limit"), default=20, min_val=1, max_val=100)
     concept_counter: Counter = Counter()
-    for c in cases:
-        for concept in _split_concepts(c.legal_concepts):
-            concept_counter[concept] += 1
+
+    repo = get_repo()
+    _rpc_ok = False
+    if hasattr(repo, "get_analytics_concepts_raw") and not _has_analytics_filters():
+        try:
+            # Fast path: RPC already split and counted concept tokens.
+            # Each row is one canonical-mapped concept token.
+            for r in repo.get_analytics_concepts_raw():
+                raw = (r["concept_raw"] or "").strip().lower()
+                canonical = _CONCEPT_CANONICAL.get(raw)
+                if canonical:
+                    concept_counter[canonical] += int(r["cnt"])
+            _rpc_ok = True
+        except Exception:
+            logger.warning("analytics_legal_concepts RPC failed, falling back to Python")
+    if not _rpc_ok:
+        for c in _apply_filters(_get_analytics_cases()):
+            for concept in _split_concepts(c.legal_concepts):
+                concept_counter[concept] += 1
 
     concepts = [
         {"name": name, "count": count}
         for name, count in concept_counter.most_common(limit)
     ]
 
-    return jsonify({"concepts": concepts})
+    result = {"concepts": concepts}
+    _analytics_set(ck, result)
+    return jsonify(result)
 
 
 @api_bp.route("/analytics/nature-outcome")
 def analytics_nature_outcome():
     """Nature x Outcome cross-tabulation matrix."""
-    cases = _apply_filters(_get_all_cases())
+    ck = "nature-outcome:" + _analytics_cache_key()
+    cached = _analytics_get(ck)
+    if cached is not None:
+        return jsonify(cached)
 
     nature_outcome: dict[str, dict[str, int]] = defaultdict(Counter)
-    for c in cases:
-        if not c.case_nature:
-            continue
-        norm = _normalise_outcome(c.outcome)
-        nature_outcome[c.case_nature][norm] += 1
+    repo = get_repo()
+
+    _rpc_ok = False
+    if hasattr(repo, "get_analytics_nature_outcome") and not _has_analytics_filters():
+        try:
+            # Fast path: RPC returns (case_nature, outcome, cnt) — Python normalises.
+            for r in repo.get_analytics_nature_outcome():
+                if not r["case_nature"]:
+                    continue
+                norm = _normalise_outcome(r["outcome"])
+                nature_outcome[r["case_nature"]][norm] += int(r["cnt"])
+            _rpc_ok = True
+        except Exception:
+            logger.warning("analytics_nature_outcome RPC failed, falling back to Python")
+    if not _rpc_ok:
+        for c in _apply_filters(_get_analytics_cases()):
+            if not c.case_nature:
+                continue
+            norm = _normalise_outcome(c.outcome)
+            nature_outcome[c.case_nature][norm] += 1
 
     # Get top natures by total count
     nature_totals = {n: sum(outcomes.values()) for n, outcomes in nature_outcome.items()}
-    top_natures = sorted(nature_totals, key=nature_totals.get, reverse=True)[:20]
+    top_natures = sorted(nature_totals, key=lambda n: nature_totals[n], reverse=True)[:20]
 
     # Collect all outcome labels
-    all_outcomes = set()
+    all_outcomes: set[str] = set()
     for outcomes in nature_outcome.values():
         all_outcomes.update(outcomes.keys())
     outcome_labels = sorted(all_outcomes)
@@ -2802,11 +3031,13 @@ def analytics_nature_outcome():
     for nature in top_natures:
         matrix[nature] = {o: nature_outcome[nature].get(o, 0) for o in outcome_labels}
 
-    return jsonify({
+    result = {
         "natures": top_natures,
         "outcomes": outcome_labels,
         "matrix": matrix,
-    })
+    }
+    _analytics_set(ck, result)
+    return jsonify(result)
 
 
 @api_bp.route("/analytics/success-rate")

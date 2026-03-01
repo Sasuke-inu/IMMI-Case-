@@ -456,7 +456,8 @@ def test_split_judges_allows_four_char_singleton(client, monkeypatch):
         _make_case(citation="[2020] FCCA 2", court_code="FCCA", year=2020, outcome="Dismissed", judge="EGAN"),
         _make_case(citation="[2021] FedCFamC2G 1", court_code="FedCFamC2G", year=2021, outcome="Dismissed", judge="Fary"),
     ]
-    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._analytics_cache", {})
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_analytics_cases", lambda: cases)
     with patch("immi_case_downloader.web.routes.api._load_judge_bios", return_value={}), patch(
         "immi_case_downloader.web.routes.api._load_judge_name_overrides", return_value={}
     ):
@@ -484,7 +485,8 @@ def test_judge_analytics_merges_suffix_variants_of_same_name(client, monkeypatch
         _make_case(citation="[2018] AATA 3", court_code="AATA", year=2018, outcome="Set Aside", judge="Justice KENDALL"),
         _make_case(citation="[2018] AATA 4", court_code="AATA", year=2018, outcome="Set Aside", judge="Kendall"),
     ]
-    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._analytics_cache", {})
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_analytics_cases", lambda: cases)
     with patch("immi_case_downloader.web.routes.api._load_judge_bios", return_value={}), patch(
         "immi_case_downloader.web.routes.api._load_judge_name_overrides", return_value={}
     ):
@@ -508,7 +510,8 @@ def test_judge_analytics_merges_title_prefix_variants(client, monkeypatch):
         _make_case(citation="[2019] AATA 2", court_code="AATA", year=2019, outcome="Affirmed", judge="Ms Ricky Johnston"),
         _make_case(citation="[2019] AATA 3", court_code="AATA", year=2019, outcome="Set Aside", judge="Ricky Johnston"),
     ]
-    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._analytics_cache", {})
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_analytics_cases", lambda: cases)
     with patch("immi_case_downloader.web.routes.api._load_judge_bios", return_value={}), patch(
         "immi_case_downloader.web.routes.api._load_judge_name_overrides", return_value={}
     ):
@@ -533,7 +536,8 @@ def test_judge_analytics_merges_mixed_case_variants(client, monkeypatch):
         _make_case(citation="[2020] AATA 2", court_code="AATA", year=2020, outcome="Affirmed", judge="Richard DEREWLANY"),
         _make_case(citation="[2020] AATA 3", court_code="AATA", year=2020, outcome="Set Aside", judge="Mr Richard Derewlany"),
     ]
-    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._analytics_cache", {})
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_analytics_cases", lambda: cases)
     with patch("immi_case_downloader.web.routes.api._load_judge_bios", return_value={}), patch(
         "immi_case_downloader.web.routes.api._load_judge_name_overrides", return_value={}
     ):
@@ -696,7 +700,8 @@ def test_alias_specificity_initial_surname_beats_singleton(client, monkeypatch):
         _make_case(citation="[2020] AATA 1", court_code="AATA", year=2020, outcome="Affirmed", judge="L. Symons"),
         _make_case(citation="[2021] FedCFamC2G 1", court_code="FedCFamC2G", year=2021, outcome="Affirmed", judge="SYMONS"),
     ]
-    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_all_cases", lambda: cases)
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._analytics_cache", {})
+    monkeypatch.setattr("immi_case_downloader.web.routes.api._get_analytics_cases", lambda: cases)
     overrides = {
         "l symons": "Linda Symons",
         "symons": "Judge Catherine Symons",

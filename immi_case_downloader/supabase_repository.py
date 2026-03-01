@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -25,6 +26,18 @@ ALLOWED_COUNT_MODES = frozenset({"exact", "planned", "estimated"})
 TABLE = "immigration_cases"
 BATCH_SIZE = 500
 PAGE_MAX = 1000
+
+# Minimal columns needed for analytics aggregation (7 vs 31 total).
+# Using this set makes load_analytics_cases() ~4x faster than load_all().
+ANALYTICS_COLS = [
+    "court_code",
+    "year",
+    "outcome",
+    "judges",
+    "case_nature",
+    "legal_concepts",
+    "visa_subclass",
+]
 
 
 class SupabaseRepository:
@@ -70,6 +83,110 @@ class SupabaseRepository:
                 break
             offset += PAGE_MAX
         return cases
+
+    def load_analytics_cases(self) -> list[ImmigrationCase]:
+        """Load minimal analytics columns (7 vs 31) for ~4x faster loading.
+
+        Returns ImmigrationCase objects with only the fields required by
+        analytics aggregation endpoints.  All other fields will be empty/None.
+        """
+        available = set(self._get_table_columns())
+        cols = ",".join(c for c in ANALYTICS_COLS if c in available)
+        cases: list[ImmigrationCase] = []
+        offset = 0
+        while True:
+            resp = (
+                self._client.table(TABLE)
+                .select(cols)
+                .range(offset, offset + PAGE_MAX - 1)
+                .execute()
+            )
+            if not resp.data:
+                break
+            cases.extend(self._row_to_case(r) for r in resp.data)
+            if len(resp.data) < PAGE_MAX:
+                break
+            offset += PAGE_MAX
+        return cases
+
+    # ── Analytics RPC ─────────────────────────────────────────────────────
+
+    def _rpc(self, fn_name: str, limit: int | None = None) -> list[dict]:
+        """Execute an RPC call with one retry on transient HTTP/2 ReadError.
+
+        Multiple concurrent Flask threads share the same httpx HTTP/2
+        connection pool.  On cold-start, simultaneous reads trigger EAGAIN
+        (ReadError errno 35).  A single short retry is enough to recover
+        once the connection pool settles.
+        """
+        for attempt in range(2):
+            try:
+                query = self._client.rpc(fn_name)
+                if limit is not None:
+                    query = query.limit(limit)
+                resp = query.execute()
+                return resp.data or []
+            except Exception as exc:
+                if attempt == 0 and "ReadError" in type(exc).__name__:
+                    logger.warning(
+                        "RPC %s ReadError (attempt %d), retrying in 0.4s…",
+                        fn_name, attempt + 1,
+                    )
+                    time.sleep(0.4)
+                    continue
+                raise
+        return []  # unreachable, satisfies type checker
+
+    def get_analytics_outcomes(self) -> list[dict]:
+        """Server-side outcome aggregation via 3 focused SQL functions.
+
+        The original single UNION ALL function exceeded Supabase's 8-second
+        statement timeout on free tier.  We now call three focused functions
+        sequentially and merge them into the original
+        [{group_type, group_key, outcome, cnt}] format.
+        """
+        rows: list[dict] = []
+
+        # court (fast, ~0.4s, ~102 rows)
+        for r in self._rpc("get_analytics_outcomes_court"):
+            rows.append({"group_type": "court", "group_key": r["court_code"],
+                         "outcome": r["outcome"], "cnt": r["cnt"]})
+
+        # year (slow, ~4s, ~322 rows — index may not be fully warm)
+        for r in self._rpc("get_analytics_outcomes_year"):
+            rows.append({"group_type": "year", "group_key": r["year_key"],
+                         "outcome": r["outcome"], "cnt": r["cnt"]})
+
+        # visa_subclass — request up to 5000 rows to avoid PostgREST 1000-row limit
+        for r in self._rpc("get_analytics_outcomes_visa", limit=5000):
+            rows.append({"group_type": "visa_subclass", "group_key": r["visa_subclass"],
+                         "outcome": r["outcome"], "cnt": r["cnt"]})
+
+        return rows
+
+    def get_analytics_judges_raw(self) -> list[dict]:
+        """Server-side judge token aggregation via SQL.
+
+        Returns top 3000 (judge_raw, court_code, cnt) rows ordered by cnt DESC.
+        Python applies _judge_identity() normalisation.
+        """
+        return self._rpc("get_analytics_judges_raw", limit=3000)
+
+    def get_analytics_concepts_raw(self) -> list[dict]:
+        """Server-side legal concept aggregation via SQL.
+
+        Returns top 2000 (concept_raw, cnt) rows ordered by cnt DESC.
+        Python applies _normalise_concept to map to canonical forms.
+        """
+        return self._rpc("get_analytics_concepts_raw", limit=2000)
+
+    def get_analytics_nature_outcome(self) -> list[dict]:
+        """Server-side nature × outcome cross-tabulation via SQL.
+
+        Returns rows: [{case_nature, outcome, cnt}]
+        (~200 rows; Python applies _normalise_outcome).
+        """
+        return self._rpc("get_analytics_nature_outcome")
 
     def get_by_id(self, case_id: str) -> ImmigrationCase | None:
         cols = ",".join(self._get_table_columns())
