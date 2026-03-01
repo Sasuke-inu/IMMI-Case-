@@ -260,7 +260,10 @@ def test_judge_leaderboard_merges_aliases_with_overrides(api_client):
     ]
 
     overrides = {"street": "Judge Alexander 'Sandy' Whistler Street SC"}
+    # judge-leaderboard uses _get_analytics_cases (7-col optimised path)
     with patch("immi_case_downloader.web.routes.api._get_all_cases", return_value=cases), patch(
+        "immi_case_downloader.web.routes.api._get_analytics_cases", return_value=cases
+    ), patch(
         "immi_case_downloader.web.routes.api._load_judge_bios", return_value={}
     ), patch(
         "immi_case_downloader.web.routes.api._load_judge_name_overrides",

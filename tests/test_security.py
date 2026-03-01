@@ -137,13 +137,18 @@ class TestDefaultHost:
 import warnings
 import sys
 sys.argv = ['web.py', '--host', '0.0.0.0', '--debug', '--port', '0']
-# Patch Flask.run to not actually start the server
-from unittest.mock import patch
-with patch("flask.Flask.run"):
+# Import web first so we can patch create_app via patch.object.
+# Patching create_app prevents the real Flask app (and its background
+# warmup thread) from starting — which could otherwise block the subprocess
+# for tens of seconds while loading case data.
+# The warning under test is issued BEFORE create_app() is called, so
+# this patch does not affect the behaviour we are testing.
+from unittest.mock import patch, MagicMock
+import web
+with patch.object(web, "create_app", return_value=MagicMock()):
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        from web import main
-        main()
+        web.main()
         for w in caught:
             if 'public' in str(w.message).lower() or '0.0.0.0' in str(w.message):
                 print('WARNING_FOUND')
