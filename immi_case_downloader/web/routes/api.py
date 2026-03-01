@@ -1059,9 +1059,18 @@ def _get_all_cases() -> list[ImmigrationCase]:
 
 
 def _invalidate_cases_cache() -> None:
-    """Reset the in-memory cases cache so the next read fetches fresh data."""
-    global _all_cases_ts
+    """Reset all in-memory caches so the next read fetches fresh data.
+
+    Clears the full-cases cache, the lightweight analytics-cases cache, and
+    the pre-computed analytics results cache so CRUD mutations are immediately
+    reflected across all endpoints (instead of serving stale data for up to
+    10 minutes).
+    """
+    global _all_cases_ts, _analytics_cases_ts
     _all_cases_ts = 0.0
+    _analytics_cases_ts = 0.0
+    with _analytics_cache_lock:
+        _analytics_cache.clear()
 
 
 def _analytics_cache_key() -> str:

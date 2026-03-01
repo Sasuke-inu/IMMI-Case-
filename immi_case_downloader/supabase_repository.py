@@ -70,12 +70,7 @@ class SupabaseRepository:
         cases: list[ImmigrationCase] = []
         offset = 0
         while True:
-            resp = (
-                self._client.table(TABLE)
-                .select(cols)
-                .range(offset, offset + PAGE_MAX - 1)
-                .execute()
-            )
+            resp = self._fetch_page(cols, offset)
             if not resp.data:
                 break
             cases.extend(self._row_to_case(r) for r in resp.data)
@@ -95,12 +90,7 @@ class SupabaseRepository:
         cases: list[ImmigrationCase] = []
         offset = 0
         while True:
-            resp = (
-                self._client.table(TABLE)
-                .select(cols)
-                .range(offset, offset + PAGE_MAX - 1)
-                .execute()
-            )
+            resp = self._fetch_page(cols, offset)
             if not resp.data:
                 break
             cases.extend(self._row_to_case(r) for r in resp.data)
@@ -109,19 +99,49 @@ class SupabaseRepository:
             offset += PAGE_MAX
         return cases
 
+    def _fetch_page(self, cols: str, offset: int):
+        """Fetch one page of rows from Supabase with one retry on ReadError.
+
+        This helper centralises the retry logic for paginated loads so both
+        load_all() and load_analytics_cases() benefit without code duplication.
+        """
+        for attempt in range(2):
+            try:
+                return (
+                    self._client.table(TABLE)
+                    .select(cols)
+                    .range(offset, offset + PAGE_MAX - 1)
+                    .execute()
+                )
+            except Exception as exc:
+                if attempt == 0 and "ReadError" in type(exc).__name__:
+                    logger.warning(
+                        "Page fetch ReadError at offset=%d (attempt %d), retrying in 0.4s…",
+                        offset, attempt + 1,
+                    )
+                    time.sleep(0.4)
+                    continue
+                raise
+
     # ── Analytics RPC ─────────────────────────────────────────────────────
 
-    def _rpc(self, fn_name: str, limit: int | None = None) -> list[dict]:
+    def _rpc(self, fn_name: str, params: dict | None = None,
+             limit: int | None = None) -> list[dict]:
         """Execute an RPC call with one retry on transient HTTP/2 ReadError.
 
         Multiple concurrent Flask threads share the same httpx HTTP/2
         connection pool.  On cold-start, simultaneous reads trigger EAGAIN
         (ReadError errno 35).  A single short retry is enough to recover
         once the connection pool settles.
+
+        Args:
+            fn_name: Name of the PostgreSQL function to call.
+            params:  Optional parameters dict passed to the function.
+            limit:   Optional row limit (applied before execute).
         """
         for attempt in range(2):
             try:
-                query = self._client.rpc(fn_name)
+                query = self._client.rpc(fn_name, params or {})
                 if limit is not None:
                     query = query.limit(limit)
                 resp = query.execute()
@@ -136,6 +156,27 @@ class SupabaseRepository:
                     continue
                 raise
         return []  # unreachable, satisfies type checker
+
+    def _rpc_one(self, fn_name: str, params: dict | None = None) -> dict:
+        """Execute an RPC that returns a single JSON object (not a list).
+
+        Uses the same ReadError retry logic as _rpc().  Returns an empty dict
+        if the RPC returns None/empty so callers can safely use .get().
+        """
+        for attempt in range(2):
+            try:
+                resp = self._client.rpc(fn_name, params or {}).execute()
+                return resp.data or {}
+            except Exception as exc:
+                if attempt == 0 and "ReadError" in type(exc).__name__:
+                    logger.warning(
+                        "RPC %s ReadError (attempt %d), retrying in 0.4s…",
+                        fn_name, attempt + 1,
+                    )
+                    time.sleep(0.4)
+                    continue
+                raise
+        return {}  # unreachable, satisfies type checker
 
     def get_analytics_outcomes(self) -> list[dict]:
         """Server-side outcome aggregation via 3 focused SQL functions.
@@ -297,8 +338,7 @@ class SupabaseRepository:
 
     def get_statistics(self) -> dict:
         """Compute dashboard statistics via server-side RPC."""
-        resp = self._client.rpc("get_case_statistics").execute()
-        stats = resp.data
+        stats = self._rpc_one("get_case_statistics")
         # Normalise by_year keys to int (PostgreSQL returns text keys)
         if "by_year" in stats and isinstance(stats["by_year"], dict):
             stats["by_year"] = {
@@ -307,9 +347,8 @@ class SupabaseRepository:
         return stats
 
     def get_existing_urls(self) -> set[str]:
-        resp = self._client.rpc("get_existing_urls").execute()
-        urls = resp.data if isinstance(resp.data, list) else []
-        return set(urls)
+        urls = self._rpc("get_existing_urls")
+        return set(u for u in urls if isinstance(u, str))
 
     def filter_cases(
         self,
@@ -472,14 +511,14 @@ class SupabaseRepository:
         if not case:
             return []
 
-        resp = self._client.rpc("find_related_cases", {
+        rows = self._rpc("find_related_cases", params={
             "p_case_id": case_id,
             "p_case_nature": case.case_nature or "",
             "p_visa_type": case.visa_type or "",
             "p_court_code": case.court_code or "",
             "p_limit": limit,
-        }).execute()
-        return [self._row_to_case(r) for r in (resp.data or [])]
+        })
+        return [self._row_to_case(r) for r in rows]
 
     def export_csv_rows(self) -> list[dict]:
         return [c.to_dict() for c in self.load_all()]
@@ -498,8 +537,7 @@ class SupabaseRepository:
 
     def get_filter_options(self) -> dict:
         """Retrieve dropdown options via server-side RPC."""
-        resp = self._client.rpc("get_case_filter_options").execute()
-        opts = resp.data
+        opts = self._rpc_one("get_case_filter_options")
 
         # Split comma-separated tags into a deduplicated sorted list
         all_tags: set[str] = set()

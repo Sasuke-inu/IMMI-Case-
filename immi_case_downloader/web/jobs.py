@@ -39,6 +39,21 @@ def _reset_job_status(new_status: dict):
     _job_status.update(new_status)
 
 
+def _notify_cache_invalidation() -> None:
+    """Invalidate in-memory cases/analytics caches after a data-mutating job.
+
+    Uses a lazy import to avoid a circular dependency between jobs.py and
+    routes/api.py. The import succeeds once Flask has loaded the api blueprint,
+    which always happens before any job can be started from a route handler.
+    Silently no-ops if the api module is not yet loaded (e.g. in unit tests).
+    """
+    try:
+        from .routes.api import _invalidate_cases_cache
+        _invalidate_cases_cache()
+    except Exception:
+        pass  # Non-fatal: next TTL expiry will refresh the cache naturally
+
+
 def _ensure_repo(repo, output_dir):
     """Return ``repo`` if given, else create a CsvRepository for *output_dir*."""
     if repo is not None:
@@ -113,6 +128,7 @@ def _run_search_job(databases, start_year, end_year, max_results, search_fedcour
 
         if new_cases:
             repo.save_many(new_cases)
+            _notify_cache_invalidation()
 
         # Generate summary report (filesystem operation)
         try:
@@ -192,6 +208,7 @@ def _run_download_job(court_filter, limit, output_dir=None, repo=None):
         # Persist updated full_text_path via upsert
         if updated:
             repo.save_many(updated)
+            _notify_cache_invalidation()
 
         _job_status["progress"] = f"Done! Downloaded {ok}/{len(targets)} cases."
         _job_status["results"].append(f"Downloaded: {ok}, Failed: {len(targets)-ok}")
@@ -270,6 +287,7 @@ def _run_update_job(mode, databases=None, start_year=None, end_year=None,
         # Save all new cases via repository
         if all_new:
             repo.save_many(all_new)
+            _notify_cache_invalidation()
 
         _job_status["progress"] = (
             f"Done! Added {len(all_new)} new cases."
@@ -345,6 +363,9 @@ def _run_bulk_download_job(court_filter, limit, delay, output_dir, repo=None):
         # Final save
         if updated_batch:
             repo.save_many(updated_batch)
+
+        if ok > 0:
+            _notify_cache_invalidation()
 
         _job_status["progress"] = f"Done! Downloaded {ok}/{len(targets)} cases."
         _job_status["results"].append(f"Total: {ok} downloaded, {fail} failed")
