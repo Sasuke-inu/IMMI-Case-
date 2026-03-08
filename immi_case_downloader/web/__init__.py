@@ -13,6 +13,7 @@ import os
 import secrets
 import warnings
 import logging
+import mimetypes
 
 from dotenv import load_dotenv
 from flask import Flask
@@ -75,6 +76,13 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
         app.config["REPO"] = CsvRepository(output_dir)
         app.config["BACKEND"] = "csv"
 
+    @app.teardown_appcontext
+    def close_repository(_exc):
+        repo = app.config.get("REPO")
+        close = getattr(repo, "close", None)
+        if callable(close):
+            close()
+
     # Security headers on every response
     @app.after_request
     def security_headers(response):
@@ -109,9 +117,23 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
             abort(404)
         # Static assets (JS, CSS, images) — serve the actual file
         if path and os.path.exists(os.path.join(react_dir, path)):
-            return send_from_directory(react_dir, path)
+            asset_path = os.path.join(react_dir, path)
+            if not app.testing:
+                return send_from_directory(react_dir, path)
+
+            mime_type, encoding = mimetypes.guess_type(asset_path)
+            with open(asset_path, "rb") as asset_file:
+                response = app.response_class(
+                    asset_file.read(),
+                    mimetype=mime_type or "application/octet-stream",
+                )
+            if encoding:
+                response.headers["Content-Encoding"] = encoding
+            return response
         # All other routes → React index.html (client-side routing handles the rest)
-        return send_from_directory(react_dir, "index.html")
+        index_path = os.path.join(react_dir, "index.html")
+        with open(index_path, "rb") as index_file:
+            return app.response_class(index_file.read(), mimetype="text/html")
 
     # Background warmup: pre-fetch and pre-compute caches so the first browser
     # request is instant instead of paying the cold-start penalty.

@@ -247,6 +247,7 @@ def _fixture_server(tmp_path_factory, is_live_mode):
     # Create the Flask app with CSV backend
     from immi_case_downloader.web import create_app
 
+    os.environ.setdefault("SECRET_KEY", "test-secret-key-for-e2e")
     app = create_app(output_dir=tmp_dir, backend="csv")
     app.config["TESTING"] = True
 

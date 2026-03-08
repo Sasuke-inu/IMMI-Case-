@@ -86,7 +86,7 @@ class FederalCourtScraper(BaseScraper):
         # Check for pagination
         page = 2
         while len(cases) < 500:
-            next_link = soup.find("a", text=re.compile(r"Next|»"))
+            next_link = soup.find("a", string=re.compile(r"Next|»"))
             if not next_link:
                 break
 

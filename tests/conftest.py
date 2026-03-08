@@ -17,6 +17,20 @@ def _load_fixture(name: str) -> str:
         return f.read()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def test_secret_key():
+    """Provide a stable SECRET_KEY for tests that do not exercise missing-key behavior."""
+    original = os.environ.get("SECRET_KEY")
+    os.environ["SECRET_KEY"] = "test-secret-key-for-pytest"
+    try:
+        yield
+    finally:
+        if original is None:
+            os.environ.pop("SECRET_KEY", None)
+        else:
+            os.environ["SECRET_KEY"] = original
+
+
 @pytest.fixture
 def sample_case():
     """A fully populated ImmigrationCase."""

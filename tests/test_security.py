@@ -94,7 +94,11 @@ class TestSecretKey:
         env.pop("SECRET_KEY", None)
         with patch.dict(os.environ, env, clear=True):
             from immi_case_downloader.web import create_app
-            app = create_app(str(populated_dir))
+            with pytest.warns(
+                RuntimeWarning,
+                match="SECRET_KEY not set",
+            ):
+                app = create_app(str(populated_dir))
             # Should not be the old hardcoded value
             assert app.secret_key != "immi-case-dev-key-change-in-prod"
             # Should be a non-empty string

@@ -116,6 +116,21 @@ class SqliteRepository:
             self._local.conn = conn
         return conn
 
+    def close(self):
+        """Close the current thread-local connection if one exists."""
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            return
+        conn.close()
+        self._local.conn = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            # Destructors must not raise during interpreter shutdown.
+            pass
+
     def initialize(self):
         """Create tables, indexes, FTS, and triggers if they don't exist."""
         conn = self._conn()

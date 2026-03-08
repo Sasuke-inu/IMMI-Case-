@@ -101,7 +101,8 @@ class TestSaveCaseText:
         text = "Full judgment text here."
         path = save_case_text(sample_case, text, str(tmp_path))
         assert os.path.exists(path)
-        content = open(path).read()
+        with open(path) as stored_file:
+            content = stored_file.read()
         assert "Title: Smith v Minister for Immigration" in content
         assert "Full judgment text here." in content
 

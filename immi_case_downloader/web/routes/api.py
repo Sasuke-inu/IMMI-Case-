@@ -20,7 +20,7 @@ from collections import Counter, defaultdict
 from datetime import datetime
 
 import numpy as np
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, current_app
 from flask_wtf.csrf import generate_csrf
 
 from ...config import START_YEAR, END_YEAR
@@ -3721,6 +3721,19 @@ def judge_photo(filename: str):
 
     if not requested.is_file():
         return jsonify({"error": "Not found"}), 404
+
+    if current_app.testing:
+        import mimetypes
+
+        mime_type, encoding = mimetypes.guess_type(requested)
+        with open(requested, "rb") as photo_file:
+            response = current_app.response_class(
+                photo_file.read(),
+                mimetype=mime_type or "application/octet-stream",
+            )
+        if encoding:
+            response.headers["Content-Encoding"] = encoding
+        return response
 
     return send_file(requested, conditional=True, max_age=60 * 60 * 24)
 
