@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { JudgeLeaderboardEntry } from "@/types/case";
 
@@ -9,21 +9,20 @@ interface JudgeLeaderboardProps {
   onOpen: (name: string) => void;
 }
 
+interface JudgeLeaderboardTableProps extends JudgeLeaderboardProps {
+  dataKey: string;
+}
+
 const PAGE_SIZE = 50;
 
-export function JudgeLeaderboard({
+function JudgeLeaderboardTable({
   data,
   selectedNames,
   onToggleCompare,
   onOpen,
-}: JudgeLeaderboardProps) {
+}: JudgeLeaderboardTableProps) {
   const { t } = useTranslation();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-
-  // Reset visible count whenever the underlying data changes (new filter applied)
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [data]);
 
   if (!data.length) {
     return (
@@ -127,7 +126,7 @@ export function JudgeLeaderboard({
         <div className="p-3 text-center">
           <button
             type="button"
-            onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
+            onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
             className="rounded border border-border px-3 py-1.5 text-xs text-muted-text hover:text-foreground"
           >
             {t("judges.load_more", {
@@ -138,4 +137,13 @@ export function JudgeLeaderboard({
       )}
     </div>
   );
+}
+
+export function JudgeLeaderboard(props: JudgeLeaderboardProps) {
+  const dataKey = useMemo(
+    () => props.data.map((row) => row.name).join("|"),
+    [props.data],
+  );
+
+  return <JudgeLeaderboardTable key={dataKey} dataKey={dataKey} {...props} />;
 }

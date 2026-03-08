@@ -32,8 +32,11 @@ export function useKeyboard({ onSearch }: KeyboardShortcuts = {}) {
         case "c":
           navigate("/cases")
           break
-        case "p":
+        case "g":
           navigate("/guided-search")
+          break
+        case "p":
+          navigate("/pipeline")
           break
       }
     }

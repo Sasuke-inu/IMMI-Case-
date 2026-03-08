@@ -30,7 +30,7 @@ test.describe("Edge Cases", () => {
     })
 
     test("long title does not break case detail layout", async ({ page }) => {
-      await navigateAndWaitForApi(page, `/app/cases/${caseId}`, `/api/v1/cases/${caseId}`)
+      await navigateAndWaitForApi(page, `/cases/${caseId}`, `/api/v1/cases/${caseId}`)
 
       // Page should load without horizontal overflow on main area
       const main = page.locator("main")
@@ -67,7 +67,7 @@ test.describe("Edge Cases", () => {
     })
 
     test("special characters render safely in case detail", async ({ page }) => {
-      await navigateAndWaitForApi(page, `/app/cases/${caseId}`, `/api/v1/cases/${caseId}`)
+      await navigateAndWaitForApi(page, `/cases/${caseId}`, `/api/v1/cases/${caseId}`)
 
       // HTML should be escaped, not rendered
       await expect(page.locator("#root")).not.toBeEmpty()
@@ -80,7 +80,7 @@ test.describe("Edge Cases", () => {
   // ─── 404 / Not found ─────────────────────────────────────────
   test.describe("Not found", () => {
     test("non-existent case shows error state", async ({ page }) => {
-      await navigateTo(page, "/app/cases/000000000000")
+      await navigateTo(page, "/cases/000000000000")
 
       // Wait a moment for any API response
       await page.waitForTimeout(3000)
@@ -93,7 +93,7 @@ test.describe("Edge Cases", () => {
       const errors: string[] = []
       page.on("pageerror", (err) => errors.push(err.message))
 
-      await page.goto("/app/this-route-does-not-exist")
+      await page.goto("/this-route-does-not-exist")
       await page.waitForSelector("#root", { state: "attached", timeout: 10_000 })
 
       // No uncaught JS errors
@@ -164,15 +164,15 @@ test.describe("Edge Cases", () => {
 
       // Go back to Cases
       await page.goBack()
-      await page.waitForURL(/\/app\/cases/)
+      await page.waitForURL(/\/cases/)
 
       // Go back to Dashboard
       await page.goBack()
-      await page.waitForURL(/\/app\/$/)
+      await page.waitForURL(/\/$/)
 
       // Go forward to Cases
       await page.goForward()
-      await page.waitForURL(/\/app\/cases/)
+      await page.waitForURL(/\/cases/)
     })
   })
 

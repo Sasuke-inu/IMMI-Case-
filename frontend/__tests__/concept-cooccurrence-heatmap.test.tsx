@@ -46,12 +46,6 @@ describe("ConceptCooccurrenceHeatmap - diagonal masking (M2)", () => {
     render(<ConceptCooccurrenceHeatmap data={fixtureData} />);
     // Diagonal counts are 200, 150, 120 — these should not appear as cell text
     // (they may appear in title attributes but not as visible text)
-    const allTextNodes = Array.from(
-      document.body.querySelectorAll(
-        ".recharts-text, [class*='grid'] > div",
-      ),
-    ).map((el) => el.textContent ?? "");
-
     // "200" as a standalone cell content should not exist
     // Note: counts 85, 60, 40 are off-diagonal and should be visible
     expect(screen.queryByText("200")).toBeNull();

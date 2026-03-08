@@ -171,7 +171,7 @@ def click_mobile_menu(page: Page):
 
 def close_mobile_menu(page: Page):
     """Close the mobile navigation drawer."""
-    page.get_by_label("Close menu").click()
+    page.get_by_role("dialog", name="IMMI-Case").get_by_label("Close menu").click()
 
 
 def get_toast_text(page: Page, timeout: int = 5000) -> str:

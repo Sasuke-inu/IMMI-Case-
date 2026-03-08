@@ -140,6 +140,7 @@
     "loading_slow_message": "目前請求仍在處理中，你可先重試，或先改用「案例」與「導引搜尋」。",
     "loading_timeout_title": "儀表板載入逾時",
     "loading_timeout_message": "儀表板在 15 秒內未能完成載入。請先重試，或先改用「案例」與「導引搜尋」。",
+    "degraded_message": "即時儀表板統計暫時不可用，系統正盡可能顯示後備計數。",
     "report_eyebrow": "移民案例情勢報告",
     "report_generated_label": "報告日期",
     "report_scope_label": "法院範圍",

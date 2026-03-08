@@ -118,7 +118,10 @@ async function apiFetch<T>(
 // ─── Shared filter query string builder ───────────────────────
 const CURRENT_YEAR = new Date().getFullYear();
 
-function createEmptyDashboardStats(totalCases = 0): DashboardStats {
+function createEmptyDashboardStats(
+  totalCases = 0,
+  degraded = false,
+): DashboardStats {
   return {
     total_cases: totalCases,
     with_full_text: 0,
@@ -128,6 +131,14 @@ function createEmptyDashboardStats(totalCases = 0): DashboardStats {
     visa_subclasses: {},
     sources: {},
     recent_cases: [],
+    degraded,
+  };
+}
+
+function markDashboardStatsDegraded(stats: DashboardStats): DashboardStats {
+  return {
+    ...stats,
+    degraded: true,
   };
 }
 
@@ -249,16 +260,16 @@ export function fetchStats(
     })
     .catch(async () => {
       const cached = readCache<DashboardStats>(cacheKey);
-      if (cached) return cached;
+      if (cached) return markDashboardStatsDegraded(cached);
 
       const fallbackFilters = buildCaseCountFallbackFilters(filters);
       try {
         const count = await fetchCaseCount(fallbackFilters, "planned", {
           timeoutMs: DASHBOARD_FALLBACK_COUNT_TIMEOUT_MS,
         });
-        return createEmptyDashboardStats(count.total);
+        return createEmptyDashboardStats(count.total, true);
       } catch {
-        return createEmptyDashboardStats();
+        return createEmptyDashboardStats(0, true);
       }
     });
 }

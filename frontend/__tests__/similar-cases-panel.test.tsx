@@ -50,9 +50,7 @@ describe("SimilarCasesPanel", () => {
   });
 
   it("skeleton container contains 3 animated placeholder items", () => {
-    const { container } = wrap(
-      <SimilarCasesPanel cases={undefined} isLoading={true} />,
-    );
+    wrap(<SimilarCasesPanel cases={undefined} isLoading={true} />);
     const skeleton = screen.getByTestId("similar-cases-skeleton");
     const items = skeleton.querySelectorAll(".animate-pulse");
     expect(items.length).toBe(3);

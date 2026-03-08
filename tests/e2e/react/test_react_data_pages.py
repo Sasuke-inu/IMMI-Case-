@@ -49,17 +49,17 @@ class TestDesignTokensPage:
     def test_color_palette_section(self, react_page):
         react_navigate(react_page, "/design-tokens")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_role("heading", name="Color Palette").is_visible()
+        assert react_page.locator("#colors").is_visible()
 
     def test_typography_section(self, react_page):
         react_navigate(react_page, "/design-tokens")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_role("heading", name="Typography").is_visible()
+        assert react_page.locator("#typography").is_visible()
 
     def test_spacing_section(self, react_page):
         react_navigate(react_page, "/design-tokens")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_role("heading", name="Spacing").is_visible()
+        assert react_page.locator("#spacing").is_visible()
 
     def test_court_badges_section(self, react_page):
         react_navigate(react_page, "/design-tokens")
@@ -76,9 +76,9 @@ class TestDesignTokensPage:
     def test_usage_guide_section(self, react_page):
         react_navigate(react_page, "/design-tokens")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_role("heading", name="Usage Guide").is_visible()
+        assert react_page.locator("#usage").is_visible()
 
     def test_component_gallery_section(self, react_page):
         react_navigate(react_page, "/design-tokens")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_role("heading", name="Component Gallery").is_visible()
+        assert react_page.locator("#components").is_visible()

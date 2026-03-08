@@ -10,9 +10,14 @@ import type { CaseFilters } from "@/types/case";
 interface SavedSearchPanelProps {
   onExecute: (filters: CaseFilters) => void;
   onEdit?: (id: string) => void;
+  compactEmptyState?: boolean;
 }
 
-export function SavedSearchPanel({ onExecute, onEdit }: SavedSearchPanelProps) {
+export function SavedSearchPanel({
+  onExecute,
+  onEdit,
+  compactEmptyState = false,
+}: SavedSearchPanelProps) {
   const { t } = useTranslation();
   const { savedSearches, deleteSearch, executeSearch, count, limitReached } =
     useSavedSearches();
@@ -96,17 +101,33 @@ export function SavedSearchPanel({ onExecute, onEdit }: SavedSearchPanelProps) {
 
       {/* Empty state */}
       {count === 0 && (
-        <EmptyState
-          icon={<Bookmark className="h-8 w-8" />}
-          title={t("saved_searches.empty_title", {
-            defaultValue: "No saved searches yet",
-          })}
-          description={t("saved_searches.empty_description", {
-            defaultValue:
-              "Apply filters and click Save Search to create your first saved search.",
-          })}
-          className="py-8"
-        />
+        compactEmptyState ? (
+          <div className="rounded-md border border-dashed border-border-light bg-surface/60 px-3 py-2 text-xs">
+            <p className="font-medium text-foreground">
+              {t("saved_searches.empty_title", {
+                defaultValue: "No saved searches yet",
+              })}
+            </p>
+            <p className="mt-1 text-muted-text">
+              {t("saved_searches.empty_description", {
+                defaultValue:
+                  "Apply filters and click Save Search to create your first saved search.",
+              })}
+            </p>
+          </div>
+        ) : (
+          <EmptyState
+            icon={<Bookmark className="h-8 w-8" />}
+            title={t("saved_searches.empty_title", {
+              defaultValue: "No saved searches yet",
+            })}
+            description={t("saved_searches.empty_description", {
+              defaultValue:
+                "Apply filters and click Save Search to create your first saved search.",
+            })}
+            className="py-8"
+          />
+        )
       )}
 
       {/* No results from search */}

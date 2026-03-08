@@ -55,7 +55,6 @@ describe("OutcomeStackedBar", () => {
     const { container } = render(<OutcomeStackedBar data={data} />);
     // The segment div for Other should have no span child (or span with very small %)
     // We check that 4% text does not appear as a label
-    const allText = container.textContent ?? "";
     // Should not contain "4%" as a label in the bars (only in legend potentially)
     // The bar segment for 4.9% should NOT render the label span
     const barContainer = container.querySelector(

@@ -2,17 +2,17 @@ import { type Page, type APIRequestContext, expect } from "@playwright/test"
 
 // ─── Routes ────────────────────────────────────────────────────────
 export const ROUTES = {
-  dashboard: "/app/",
-  cases: "/app/cases",
-  caseAdd: "/app/cases/add",
-  caseCompare: "/app/cases/compare",
-  search: "/app/search",
-  download: "/app/download",
-  updateDb: "/app/update-db",
-  jobs: "/app/jobs",
-  pipeline: "/app/pipeline",
-  dataDictionary: "/app/data-dictionary",
-  designTokens: "/app/design-tokens",
+  dashboard: "/",
+  cases: "/cases",
+  caseAdd: "/cases/add",
+  caseCompare: "/cases/compare",
+  search: "/search",
+  download: "/download",
+  updateDb: "/update-db",
+  jobs: "/jobs",
+  pipeline: "/pipeline",
+  dataDictionary: "/data-dictionary",
+  designTokens: "/design-tokens",
 } as const
 
 export const ALL_PAGES = Object.entries(ROUTES)
@@ -151,14 +151,14 @@ export function uniqueTitle(prefix = "E2E-Test") {
 
 // ─── Sidebar navigation (desktop only) ─────────────────────────────
 export const SIDEBAR_ITEMS = [
-  { label: "Dashboard", path: "/app/" },
-  { label: "Cases", path: "/app/cases" },
-  { label: "Search", path: "/app/search" },
-  { label: "Download", path: "/app/download" },
-  { label: "Update DB", path: "/app/update-db" },
-  { label: "Pipeline", path: "/app/pipeline" },
-  { label: "Data Dictionary", path: "/app/data-dictionary" },
-  { label: "Design Tokens", path: "/app/design-tokens" },
+  { label: "Dashboard", path: "/" },
+  { label: "Cases", path: "/cases" },
+  { label: "Search", path: "/search" },
+  { label: "Download", path: "/download" },
+  { label: "Update DB", path: "/update-db" },
+  { label: "Pipeline", path: "/pipeline" },
+  { label: "Data Dictionary", path: "/data-dictionary" },
+  { label: "Design Tokens", path: "/design-tokens" },
 ]
 
 export async function clickSidebarLink(page: Page, label: string) {

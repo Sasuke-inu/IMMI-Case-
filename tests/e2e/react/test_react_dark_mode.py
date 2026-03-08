@@ -77,7 +77,10 @@ class TestDarkModeAnalytics:
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
         assert react_page.get_by_text("Outcome Rate by Court").is_visible()
-        assert react_page.get_by_text("Most Active Judges").is_visible()
+        assert react_page.get_by_role(
+            "heading",
+            name="Most Active Judges / Members",
+        ).is_visible()
 
 
 class TestDarkModeNavigation:

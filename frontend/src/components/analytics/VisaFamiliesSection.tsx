@@ -32,12 +32,14 @@ interface Props {
   filters: AnalyticsFilterParams;
 }
 
+const EMPTY_FAMILIES: VisaFamilyEntry[] = [];
+
 function VisaFamiliesSectionInner({ filters }: Props) {
   const { t } = useTranslation();
   const { data, isLoading, isError, error, refetch } = useVisaFamilies(filters);
   const [sortBy, setSortBy] = useState<"total" | "win_rate">("total");
 
-  const families = data?.families ?? [];
+  const families = data?.families ?? EMPTY_FAMILIES;
   const sorted = useMemo(
     () =>
       families.toSorted((a, b) =>

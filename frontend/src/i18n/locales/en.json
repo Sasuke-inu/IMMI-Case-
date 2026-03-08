@@ -140,6 +140,7 @@
     "loading_slow_message": "This request is taking longer than expected. You can retry now or continue with Cases / Guided Search.",
     "loading_timeout_title": "Dashboard load timed out",
     "loading_timeout_message": "The dashboard could not load within 15 seconds. Retry now, or continue with Cases / Guided Search.",
+    "degraded_message": "Live dashboard statistics are temporarily unavailable. Showing fallback counts where possible.",
     "report_eyebrow": "Immigration Case Situation Report",
     "report_generated_label": "Report Date",
     "report_scope_label": "Court Scope",

@@ -40,7 +40,7 @@ test.describe("Case CRUD", () => {
       await page.getByRole("button", { name: /create/i }).click()
 
       // Should navigate to the new case detail page
-      await page.waitForURL(/\/app\/cases\/[a-f0-9]+/, { timeout: 30_000 })
+      await page.waitForURL(/\/cases\/[a-f0-9]+/, { timeout: 30_000 })
 
       // Extract the case ID from URL for cleanup
       const url = page.url()
@@ -73,7 +73,7 @@ test.describe("Case CRUD", () => {
 
       await page.getByRole("button", { name: "Cancel" }).click()
       // Should go back to cases list
-      await page.waitForURL(/\/app\/cases$/, { timeout: 15_000 })
+      await page.waitForURL(/\/cases$/, { timeout: 15_000 })
     })
   })
 
@@ -96,7 +96,7 @@ test.describe("Case CRUD", () => {
     })
 
     test("edits case fields and saves", async ({ page }) => {
-      await navigateAndWaitForApi(page, `/app/cases/${testCaseId}/edit`, `/api/v1/cases/${testCaseId}`)
+      await navigateAndWaitForApi(page, `/cases/${testCaseId}/edit`, `/api/v1/cases/${testCaseId}`)
 
       // Should see "Edit Case" heading
       await expect(page.getByRole("heading", { name: /edit case/i })).toBeVisible()
@@ -110,7 +110,7 @@ test.describe("Case CRUD", () => {
       await page.getByRole("button", { name: /save/i }).click()
 
       // Should navigate to detail page
-      await page.waitForURL(`/app/cases/${testCaseId}`, { timeout: 30_000 })
+      await page.waitForURL(`/cases/${testCaseId}`, { timeout: 30_000 })
       await waitForLoadingGone(page)
 
       // Verify new title
@@ -131,7 +131,7 @@ test.describe("Case CRUD", () => {
     })
 
     test("deletes case with confirmation", async ({ page }) => {
-      await navigateAndWaitForApi(page, `/app/cases/${testCaseId}`, `/api/v1/cases/${testCaseId}`)
+      await navigateAndWaitForApi(page, `/cases/${testCaseId}`, `/api/v1/cases/${testCaseId}`)
 
       // Set up dialog handler to accept the confirm dialog
       page.on("dialog", (dialog) => dialog.accept())
@@ -139,11 +139,11 @@ test.describe("Case CRUD", () => {
       await page.getByRole("button", { name: /delete/i }).click()
 
       // Should navigate back to cases list
-      await page.waitForURL(/\/app\/cases$/, { timeout: 20_000 })
+      await page.waitForURL(/\/cases$/, { timeout: 20_000 })
     })
 
     test("cancel delete keeps the case", async ({ page, request }) => {
-      await navigateAndWaitForApi(page, `/app/cases/${testCaseId}`, `/api/v1/cases/${testCaseId}`)
+      await navigateAndWaitForApi(page, `/cases/${testCaseId}`, `/api/v1/cases/${testCaseId}`)
 
       // Dismiss the confirm dialog
       page.on("dialog", (dialog) => dialog.dismiss())

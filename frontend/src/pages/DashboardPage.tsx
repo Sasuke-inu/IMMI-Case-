@@ -67,6 +67,7 @@ const EMPTY_DASHBOARD_STATS: DashboardStats = {
   natures: {},
   visa_subclasses: {},
   recent_cases: [],
+  degraded: false,
 };
 
 function formatSignedNumber(value: number): string {
@@ -390,7 +391,7 @@ export function DashboardPage() {
     );
   }
 
-  if (stats.total_cases === 0 && !isFetching) {
+  if (stats.total_cases === 0 && !isFetching && !stats.degraded) {
     return (
       <div className="space-y-6">
         <div>
@@ -452,6 +453,7 @@ export function DashboardPage() {
   const courtDistribution = toRenderableDistribution(
     stats.courts as Record<string, unknown>,
   );
+  const isDegradedStats = Boolean(stats.degraded);
   const yearDistribution = toRenderableDistribution(
     stats.years as Record<string, unknown>,
   );
@@ -676,6 +678,25 @@ export function DashboardPage() {
             setYearTo(to);
           }}
         />
+
+        {isDegradedStats && (
+          <div
+            role="alert"
+            className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3"
+          >
+            <div className="flex items-start gap-3">
+              <TriangleAlert className="mt-0.5 h-4 w-4 text-warning" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {t("errors.failed_to_load", { name: "Dashboard" })}
+                </p>
+                <p className="mt-1 text-sm text-muted-text">
+                  {t("dashboard.degraded_message")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Executive Briefing */}

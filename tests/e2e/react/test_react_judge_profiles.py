@@ -3,6 +3,13 @@
 from .react_helpers import react_navigate, wait_for_loading_gone, assert_no_js_errors
 
 
+def _filter_leaderboard(page, query="Judge"):
+    search_input = page.locator("input[aria-keyshortcuts='/']").first
+    search_input.fill(query)
+    page.wait_for_timeout(700)
+    wait_for_loading_gone(page)
+
+
 class TestJudgeProfilesPage:
     def test_page_loads_with_heading(self, react_page):
         react_navigate(react_page, "/judge-profiles")
@@ -12,6 +19,7 @@ class TestJudgeProfilesPage:
     def test_leaderboard_shows_judges(self, react_page):
         react_navigate(react_page, "/judge-profiles")
         wait_for_loading_gone(react_page)
+        _filter_leaderboard(react_page)
         rows = react_page.locator("tbody tr")
         assert rows.count() > 0
 
@@ -20,7 +28,7 @@ class TestJudgeProfilesPage:
         wait_for_loading_gone(react_page)
 
         react_page.locator("select").last.select_option("approval_rate")
-        react_page.wait_for_timeout(700)
+        _filter_leaderboard(react_page)
 
         rate_cells = react_page.locator("tbody tr td:nth-child(4) .text-xs")
         if rate_cells.count() >= 2:
@@ -31,6 +39,7 @@ class TestJudgeProfilesPage:
     def test_click_judge_opens_profile(self, react_page):
         react_navigate(react_page, "/judge-profiles")
         wait_for_loading_gone(react_page)
+        _filter_leaderboard(react_page)
 
         first_row = react_page.locator("tbody tr").first
         first_row.click()
@@ -46,6 +55,7 @@ class TestJudgeProfilesPage:
     def test_profile_no_js_errors(self, react_page):
         react_navigate(react_page, "/judge-profiles")
         wait_for_loading_gone(react_page)
+        _filter_leaderboard(react_page)
         react_page.locator("tbody tr").first.click()
         react_page.wait_for_load_state("networkidle")
 
@@ -83,6 +93,7 @@ class TestJudgeProfilesPage:
     def test_table_row_enter_opens_profile(self, react_page):
         react_navigate(react_page, "/judge-profiles")
         wait_for_loading_gone(react_page)
+        _filter_leaderboard(react_page)
         first_row = react_page.locator("tbody tr").first
         first_row.focus()
         react_page.keyboard.press("Enter")

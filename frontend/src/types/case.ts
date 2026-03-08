@@ -61,6 +61,7 @@ export interface DashboardStats {
   natures: Record<string, number>;
   visa_subclasses: Record<string, number>;
   recent_cases: ImmigrationCase[];
+  degraded?: boolean;
 }
 
 export interface TrendEntry {

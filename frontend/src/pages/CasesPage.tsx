@@ -63,21 +63,24 @@ export function CasesPage() {
   const tableRef = useRef<HTMLTableSectionElement>(null);
   const keywordInputRef = useRef<HTMLInputElement>(null);
 
-  const filters: CaseFilters = {
-    court: searchParams.get("court") ?? "",
-    year: searchParams.get("year")
-      ? Number(searchParams.get("year"))
-      : undefined,
-    visa_type: searchParams.get("visa_type") ?? "",
-    nature: searchParams.get("nature") ?? "",
-    source: searchParams.get("source") ?? "",
-    tag: searchParams.get("tag") ?? "",
-    keyword: searchParams.get("keyword") ?? "",
-    sort_by: searchParams.get("sort_by") ?? "date",
-    sort_dir: (searchParams.get("sort_dir") as "asc" | "desc") ?? "desc",
-    page: Number(searchParams.get("page") ?? 1),
-    page_size: 100,
-  };
+  const filters: CaseFilters = useMemo(
+    () => ({
+      court: searchParams.get("court") ?? "",
+      year: searchParams.get("year")
+        ? Number(searchParams.get("year"))
+        : undefined,
+      visa_type: searchParams.get("visa_type") ?? "",
+      nature: searchParams.get("nature") ?? "",
+      source: searchParams.get("source") ?? "",
+      tag: searchParams.get("tag") ?? "",
+      keyword: searchParams.get("keyword") ?? "",
+      sort_by: searchParams.get("sort_by") ?? "date",
+      sort_dir: (searchParams.get("sort_dir") as "asc" | "desc") ?? "desc",
+      page: Number(searchParams.get("page") ?? 1),
+      page_size: 100,
+    }),
+    [searchParams],
+  );
 
   const {
     data,
@@ -672,6 +675,7 @@ export function CasesPage() {
       <SavedSearchPanel
         onExecute={handleExecuteSavedSearch}
         onEdit={handleEditSearch}
+        compactEmptyState
       />
 
       {/* Batch bar */}
