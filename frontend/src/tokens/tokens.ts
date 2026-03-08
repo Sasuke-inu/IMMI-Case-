@@ -1,5 +1,5 @@
 /* Auto-generated from tokens.json — do not edit manually */
-/* Generated: 2026-02-28T17:07:11.592Z */
+/* Generated: 2026-03-08T17:08:24.287Z */
 
 export const tokens = {
   "color": {
@@ -90,6 +90,17 @@ export const tokens = {
         "warning": "#d4a017",
         "danger": "#d04848",
         "info": "#4a90c4"
+      },
+      "court": {
+        "AATA": "#1a5276",
+        "ARTA": "#6c3483",
+        "FCA": "#117864",
+        "FCCA": "#b9770e",
+        "FedCFamC2G": "#a93226",
+        "HCA": "#1b2631",
+        "RRTA": "#1e8449",
+        "MRTA": "#922b5f",
+        "FMCA": "#b84c00"
       }
     }
   },
