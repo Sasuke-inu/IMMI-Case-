@@ -4,8 +4,10 @@ import au.gov.immi.cases.core.model.CaseDetailResponse
 import au.gov.immi.cases.core.model.ImmigrationCase
 import au.gov.immi.cases.core.model.SimilarCasesResponse
 import au.gov.immi.cases.data.local.dao.CachedCaseDao
+import au.gov.immi.cases.data.local.entity.CachedCaseEntity
 import au.gov.immi.cases.network.api.CasesApiService
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -214,5 +216,127 @@ class CasesRepositoryTest {
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull()?.message?.contains("HTTP 400") == true)
+    }
+
+    // ─── Cache-first strategy ─────────────────────────────────────────────────
+
+    @Test
+    fun `getCaseById returns cached case when fresh`() = runTest {
+        val cached = CachedCaseEntity(
+            caseId = "abc123",
+            citation = "[2024] AATA 1",
+            title = "Test Case",
+            court = "AATA",
+            courtCode = "AATA",
+            year = 2024,
+            outcome = "Granted",
+            judges = "Smith J",
+            caseNature = "Protection visa",
+            visaType = "866",
+            tags = "",
+            textSnippet = "snippet",
+            cachedAt = System.currentTimeMillis() // fresh
+        )
+        coEvery { mockDao.getCachedCase("abc123") } returns cached
+
+        val result = repository.getCaseById("abc123")
+
+        assertTrue(result.isSuccess)
+        assertEquals("abc123", result.getOrNull()?.caseId)
+        assertEquals("[2024] AATA 1", result.getOrNull()?.citation)
+        // API should NOT be called when cache is fresh
+        coVerify(exactly = 0) { mockApi.getCaseById(any()) }
+    }
+
+    @Test
+    fun `getCaseById fetches from API when cache expired`() = runTest {
+        val staleTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000L) // 25 hours ago
+        val cached = CachedCaseEntity(
+            caseId = "abc123",
+            citation = "[2024] AATA 1",
+            title = "Old Title",
+            court = "AATA",
+            courtCode = "AATA",
+            year = 2024,
+            outcome = "Refused",
+            judges = "",
+            caseNature = "",
+            visaType = "",
+            tags = "",
+            textSnippet = "",
+            cachedAt = staleTime
+        )
+        coEvery { mockDao.getCachedCase("abc123") } returns cached
+
+        val freshCase = ImmigrationCase(caseId = "abc123", citation = "[2024] AATA 1", title = "New Title")
+        coEvery { mockApi.getCaseById("abc123") } returns Response.success(
+            CaseDetailResponse(case = freshCase)
+        )
+
+        val result = repository.getCaseById("abc123")
+
+        assertTrue(result.isSuccess)
+        assertEquals("New Title", result.getOrNull()?.title)
+        // API should be called because cache is stale
+        coVerify(exactly = 1) { mockApi.getCaseById("abc123") }
+    }
+
+    @Test
+    fun `getCaseById saves to cache after API fetch`() = runTest {
+        coEvery { mockDao.getCachedCase("new1") } returns null
+
+        val apiCase = ImmigrationCase(caseId = "new1", citation = "[2025] ARTA 5", court = "ARTA")
+        coEvery { mockApi.getCaseById("new1") } returns Response.success(
+            CaseDetailResponse(case = apiCase)
+        )
+
+        val result = repository.getCaseById("new1")
+
+        assertTrue(result.isSuccess)
+        assertEquals("new1", result.getOrNull()?.caseId)
+        // Verify it was saved to cache
+        coVerify(exactly = 1) { mockDao.insertCachedCase(match { it.caseId == "new1" }) }
+    }
+
+    @Test
+    fun `getCaseById returns stale cache when API fails`() = runTest {
+        val staleTime = System.currentTimeMillis() - (25 * 60 * 60 * 1000L)
+        val cached = CachedCaseEntity(
+            caseId = "abc123",
+            citation = "[2024] AATA 1",
+            title = "Stale Case",
+            court = "AATA",
+            courtCode = "AATA",
+            year = 2024,
+            outcome = "Granted",
+            judges = "",
+            caseNature = "",
+            visaType = "",
+            tags = "",
+            textSnippet = "",
+            cachedAt = staleTime
+        )
+        coEvery { mockDao.getCachedCase("abc123") } returns cached
+        coEvery { mockApi.getCaseById("abc123") } returns Response.error(
+            500,
+            """{"error":"Internal Server Error"}""".toResponseBody()
+        )
+
+        val result = repository.getCaseById("abc123")
+
+        assertTrue(result.isSuccess)
+        assertEquals("Stale Case", result.getOrNull()?.title)
+    }
+
+    @Test
+    fun `deleteCase removes from cache`() = runTest {
+        coEvery { mockApi.deleteCase("abc123") } returns Response.success(
+            mapOf("success" to true as Any)
+        )
+
+        val result = repository.deleteCase("abc123")
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { mockDao.deleteCachedCase("abc123") }
     }
 }

@@ -6,6 +6,7 @@ import androidx.paging.PagingData
 import au.gov.immi.cases.core.model.CasesFilter
 import au.gov.immi.cases.core.model.ImmigrationCase
 import au.gov.immi.cases.data.local.dao.CachedCaseDao
+import au.gov.immi.cases.data.local.entity.CachedCaseEntity
 import au.gov.immi.cases.feature.cases.paging.CasesPagingSource
 import au.gov.immi.cases.network.api.CasesApiService
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +28,11 @@ class CasesRepositoryImpl @Inject constructor(
     private val cachedCaseDao: CachedCaseDao
 ) : CasesRepository {
 
+    companion object {
+        /** Cache entries older than 24 hours are considered stale. */
+        private const val CACHE_TTL_MS = 24 * 60 * 60 * 1000L
+    }
+
     override fun getCasesPager(filter: CasesFilter): Flow<PagingData<ImmigrationCase>> {
         return Pager(
             config = PagingConfig(
@@ -39,11 +45,26 @@ class CasesRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getCaseById(caseId: String): Result<ImmigrationCase> = runCatching {
+        // 1. Check cache first
+        val cached = cachedCaseDao.getCachedCase(caseId)
+        if (cached != null) {
+            val cacheAge = System.currentTimeMillis() - cached.cachedAt
+            if (cacheAge < CACHE_TTL_MS) {
+                return@runCatching cached.toImmigrationCase()
+            }
+        }
+
+        // 2. Fetch from API
         val response = api.getCaseById(caseId)
         if (response.isSuccessful) {
-            response.body()?.case ?: error("Case not found: $caseId")
+            val case = response.body()?.case ?: error("Case not found: $caseId")
+            // 3. Save to cache
+            cachedCaseDao.insertCachedCase(CachedCaseEntity.fromImmigrationCase(case))
+            case
         } else {
-            error("Case not found: $caseId (HTTP ${response.code()})")
+            // 4. If API fails but we have stale cache, return it
+            cached?.toImmigrationCase()
+                ?: error("Case not found: $caseId (HTTP ${response.code()})")
         }
     }
 
@@ -73,6 +94,8 @@ class CasesRepositoryImpl @Inject constructor(
         if (!response.isSuccessful) {
             error("Failed to delete case: $caseId (HTTP ${response.code()})")
         }
+        // Remove from local cache after successful server deletion
+        cachedCaseDao.deleteCachedCase(caseId)
     }
 
     override suspend fun getSimilarCases(caseId: String): Result<List<ImmigrationCase>> =

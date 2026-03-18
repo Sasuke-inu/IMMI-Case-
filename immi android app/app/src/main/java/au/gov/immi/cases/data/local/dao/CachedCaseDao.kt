@@ -18,6 +18,9 @@ interface CachedCaseDao {
     @Query("DELETE FROM cached_cases WHERE cachedAt < :expiryTime")
     suspend fun deleteExpiredCache(expiryTime: Long)
 
+    @Query("DELETE FROM cached_cases WHERE caseId = :caseId")
+    suspend fun deleteCachedCase(caseId: String)
+
     @Query("SELECT COUNT(*) FROM cached_cases")
     suspend fun getCacheSize(): Int
 }
