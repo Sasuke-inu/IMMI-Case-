@@ -6,6 +6,7 @@ import time
 import pytest
 
 import immi_case_downloader.web.routes.api as api_module
+import immi_case_downloader.web.routes.legislations as legislations_module
 
 
 # ── SPA serving ───────────────────────────────────────────────────────────
@@ -22,6 +23,16 @@ class TestSPAServing:
     def test_unknown_path_serves_spa(self, client):
         """Any unknown path falls through to React router (200, not 404)."""
         resp = client.get("/some/deep/route")
+        assert resp.status_code == 200
+
+    def test_legacy_app_root_serves_spa(self, client):
+        """Legacy /app entrypoint still serves the React SPA for old links."""
+        resp = client.get("/app")
+        assert resp.status_code == 200
+
+    def test_legacy_app_deep_route_serves_spa(self, client):
+        """Legacy /app/* routes still return the SPA shell."""
+        resp = client.get("/app/cases")
         assert resp.status_code == 200
 
     def test_api_path_not_caught_by_spa(self, client):
@@ -102,6 +113,82 @@ class TestApiRoutes:
             content_type="application/json",
         )
         assert resp.status_code == 400
+
+    def test_download_start_reserves_job_slot_before_worker_runs(self, client, monkeypatch):
+        class _ThreadStub:
+            def __init__(self, *args, **kwargs):
+                self.args = args
+                self.kwargs = kwargs
+
+            def start(self):
+                return None
+
+        from immi_case_downloader.web.jobs import job_manager
+
+        monkeypatch.setattr(api_module.threading, "Thread", _ThreadStub)
+        job_manager.reset()
+
+        try:
+            first = client.post(
+                "/api/v1/download/start",
+                data=json.dumps({"limit": 1}),
+                content_type="application/json",
+            )
+            assert first.status_code == 200
+            assert job_manager.snapshot()["running"] is True
+
+            second = client.post(
+                "/api/v1/download/start",
+                data=json.dumps({"limit": 1}),
+                content_type="application/json",
+            )
+            assert second.status_code == 400
+            assert "already running" in second.get_json()["error"]
+        finally:
+            job_manager.reset()
+
+    def test_legislation_update_reserves_job_slot_before_worker_runs(self, client, monkeypatch):
+        class _ThreadStub:
+            def __init__(self, *args, **kwargs):
+                self.args = args
+                self.kwargs = kwargs
+
+            def start(self):
+                return None
+
+        monkeypatch.setattr(legislations_module.threading, "Thread", _ThreadStub)
+        legislations_module.legislation_job_manager.reset()
+
+        try:
+            first = client.post(
+                "/api/v1/legislations/update",
+                data=json.dumps({}),
+                content_type="application/json",
+            )
+            assert first.status_code == 200
+            assert legislations_module.legislation_job_manager.snapshot()["running"] is True
+
+            second = client.post(
+                "/api/v1/legislations/update",
+                data=json.dumps({}),
+                content_type="application/json",
+            )
+            assert second.status_code == 409
+            assert "already running" in second.get_json()["error"]
+        finally:
+            legislations_module.legislation_job_manager.reset()
+
+    def test_legislation_update_invalid_law_id_does_not_lock_job_slot(self, client):
+        legislations_module.legislation_job_manager.reset()
+
+        resp = client.post(
+            "/api/v1/legislations/update",
+            data=json.dumps({"law_id": "not-a-real-law"}),
+            content_type="application/json",
+        )
+
+        assert resp.status_code == 400
+        assert legislations_module.legislation_job_manager.snapshot()["running"] is False
 
     def test_cases_fast_path_uses_planned_count(self, client, monkeypatch):
         class _Case:

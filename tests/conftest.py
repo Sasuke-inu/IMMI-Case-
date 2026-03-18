@@ -1,5 +1,6 @@
 """Shared test fixtures for IMMI-Case tests."""
 
+import copy
 import os
 import pytest
 import responses
@@ -9,6 +10,7 @@ from immi_case_downloader.storage import save_cases_csv, save_cases_json, ensure
 
 
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
+_PIPELINE_STATUS_BASELINE = None
 
 
 def _load_fixture(name: str) -> str:
@@ -29,6 +31,41 @@ def test_secret_key():
             os.environ.pop("SECRET_KEY", None)
         else:
             os.environ["SECRET_KEY"] = original
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Ensure per-test isolation for the in-memory API rate limiter."""
+    from immi_case_downloader.web.security import rate_limiter
+
+    rate_limiter.reset()
+    try:
+        yield
+    finally:
+        rate_limiter.reset()
+
+
+def _reset_pipeline_status():
+    """Restore the shared pipeline status dict to its baseline shape."""
+    from immi_case_downloader import pipeline as pipeline_module
+
+    global _PIPELINE_STATUS_BASELINE
+    if _PIPELINE_STATUS_BASELINE is None:
+        _PIPELINE_STATUS_BASELINE = copy.deepcopy(pipeline_module._pipeline_status)
+
+    with pipeline_module._pipeline_lock:
+        pipeline_module._pipeline_status.clear()
+        pipeline_module._pipeline_status.update(copy.deepcopy(_PIPELINE_STATUS_BASELINE))
+
+
+@pytest.fixture(autouse=True)
+def reset_pipeline_state():
+    """Prevent pipeline control flags from leaking across tests."""
+    _reset_pipeline_status()
+    try:
+        yield
+    finally:
+        _reset_pipeline_status()
 
 
 @pytest.fixture

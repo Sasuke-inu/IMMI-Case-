@@ -92,6 +92,9 @@ class TestSecretKey:
         """Without SECRET_KEY env var, a random key should be generated."""
         env = os.environ.copy()
         env.pop("SECRET_KEY", None)
+        env.pop("APP_ENV", None)
+        env.pop("IMMI_ENV", None)
+        env.pop("FLASK_ENV", None)
         with patch.dict(os.environ, env, clear=True):
             from immi_case_downloader.web import create_app
             with pytest.warns(
@@ -103,6 +106,38 @@ class TestSecretKey:
             assert app.secret_key != "immi-case-dev-key-change-in-prod"
             # Should be a non-empty string
             assert len(app.secret_key) >= 32
+
+    def test_secret_key_required_in_production(self, populated_dir):
+        """Production-like environments must provide SECRET_KEY explicitly."""
+        env = os.environ.copy()
+        env.pop("SECRET_KEY", None)
+        env["APP_ENV"] = "production"
+        with patch.dict(os.environ, env, clear=True):
+            from immi_case_downloader.web import create_app
+
+            with pytest.raises(RuntimeError, match="SECRET_KEY must be set"):
+                create_app(str(populated_dir))
+
+    def test_cookie_flags_default_to_secure_baseline(self, populated_dir):
+        """Session and CSRF cookies should be configured defensively."""
+        test_key = "cookie-flags-dev-key"
+        with patch.dict(os.environ, {"SECRET_KEY": test_key, "APP_ENV": "development"}):
+            from immi_case_downloader.web import create_app
+
+            app = create_app(str(populated_dir))
+            assert app.config["SESSION_COOKIE_HTTPONLY"] is True
+            assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"
+            assert app.config["SESSION_COOKIE_SECURE"] is False
+            assert "X-CSRFToken" in app.config["WTF_CSRF_HEADERS"]
+
+    def test_cookie_secure_flag_enabled_in_production(self, populated_dir):
+        """Production-like environments should force Secure cookies."""
+        test_key = "cookie-flags-prod-key"
+        with patch.dict(os.environ, {"SECRET_KEY": test_key, "APP_ENV": "production"}):
+            from immi_case_downloader.web import create_app
+
+            app = create_app(str(populated_dir))
+            assert app.config["SESSION_COOKIE_SECURE"] is True
 
 
 # ── Issue 0.3: Default Host Binding ────────────────────────────────────────
@@ -209,3 +244,79 @@ class TestSecurityHeaders:
         resp = client.get("/nonexistent-deep/route/123")
         # SPA catch-all returns 200 with index.html
         assert resp.headers.get("X-Content-Type-Options") == "nosniff"
+
+
+class TestRateLimiting:
+    """Verify high-risk POST endpoints are protected by rate limits."""
+
+    def test_pipeline_action_rate_limited(self, client):
+        for _ in range(10):
+            resp = client.post(
+                "/api/v1/pipeline-action",
+                json={"action": "stop"},
+                content_type="application/json",
+            )
+            assert resp.status_code == 200
+
+        limited = client.post(
+            "/api/v1/pipeline-action",
+            json={"action": "stop"},
+            content_type="application/json",
+        )
+        assert limited.status_code == 429
+        assert limited.headers.get("Retry-After")
+        payload = limited.get_json()
+        assert "Rate limit exceeded" in payload["error"]
+
+    def test_pipeline_action_ignores_spoofed_forwarded_for_by_default(self, client):
+        for idx in range(10):
+            resp = client.post(
+                "/api/v1/pipeline-action",
+                json={"action": "stop"},
+                content_type="application/json",
+                headers={"X-Forwarded-For": f"198.51.100.{idx}"},
+                environ_overrides={"REMOTE_ADDR": "203.0.113.10"},
+            )
+            assert resp.status_code == 200
+
+        limited = client.post(
+            "/api/v1/pipeline-action",
+            json={"action": "stop"},
+            content_type="application/json",
+            headers={"X-Forwarded-For": "198.51.100.250"},
+            environ_overrides={"REMOTE_ADDR": "203.0.113.10"},
+        )
+        assert limited.status_code == 429
+
+    def test_pipeline_action_can_trust_forwarded_for_when_opted_in(self, client):
+        client.application.config["TRUST_PROXY_HEADERS"] = True
+        try:
+            for _ in range(10):
+                resp = client.post(
+                    "/api/v1/pipeline-action",
+                    json={"action": "stop"},
+                    content_type="application/json",
+                    headers={"X-Forwarded-For": "198.51.100.10"},
+                    environ_overrides={"REMOTE_ADDR": "203.0.113.10"},
+                )
+                assert resp.status_code == 200
+
+            limited = client.post(
+                "/api/v1/pipeline-action",
+                json={"action": "stop"},
+                content_type="application/json",
+                headers={"X-Forwarded-For": "198.51.100.10"},
+                environ_overrides={"REMOTE_ADDR": "203.0.113.10"},
+            )
+            assert limited.status_code == 429
+
+            fresh_bucket = client.post(
+                "/api/v1/pipeline-action",
+                json={"action": "stop"},
+                content_type="application/json",
+                headers={"X-Forwarded-For": "198.51.100.11"},
+                environ_overrides={"REMOTE_ADDR": "203.0.113.10"},
+            )
+            assert fresh_bucket.status_code == 200
+        finally:
+            client.application.config["TRUST_PROXY_HEADERS"] = False

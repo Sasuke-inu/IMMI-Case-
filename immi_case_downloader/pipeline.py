@@ -707,8 +707,34 @@ def start_pipeline(config: PipelineConfig, output_dir: str = OUTPUT_DIR) -> bool
     with _pipeline_lock:
         if _pipeline_status["running"]:
             return False
+        _pipeline_status.update({
+            "running": True,
+            "phase": "",
+            "phase_progress": "Starting pipeline...",
+            "overall_progress": 0,
+            "config": config.to_dict(),
+            "phases_completed": [],
+            "stats": {
+                "crawl": {"total_found": 0, "new_added": 0, "strategies_used": {}},
+                "clean": {"year_fixed": 0, "dupes_removed": 0, "validated": 0},
+                "download": {"downloaded": 0, "failed": 0, "skipped": 0, "retried": 0},
+            },
+            "errors": [],
+            "log": [],
+            "retry_queue": [],
+            "current_strategy": "direct",
+            "stop_requested": False,
+        })
 
     pipeline = SmartPipeline(config, output_dir)
     thread = threading.Thread(target=pipeline.run, daemon=True)
-    thread.start()
+    try:
+        thread.start()
+    except Exception:
+        with _pipeline_lock:
+            _pipeline_status.update({
+                "running": False,
+                "phase_progress": "Failed to start pipeline thread.",
+            })
+        return False
     return True

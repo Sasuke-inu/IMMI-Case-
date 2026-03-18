@@ -57,6 +57,9 @@ It built the labyrinth.
 | ![Guided Search Before](guided-search-before.png) | **引導式搜尋（原始版）** — 基本過濾欄 |
 | ![Guided Search After](guided-search-after.png) | **引導式搜尋（翻新後）** — 進階過濾面板 + 即時勝率計算器 |
 | ![Guided Search After 2](guided-search-after-2.png) | **引導式搜尋（法律概念過濾）** — 概念選擇器 + 共現矩陣整合 |
+| ![Analytics Page](docs/screenshots/analytics-page.png) | **Analytics** — 篩選範圍、勝率估算、結果趨勢與概念分析 |
+| ![Case Detail Page](docs/screenshots/case-detail-page.png) | **案件詳情** — 中繼資料、法條概念、全文 ToC 與相似案件 |
+| ![Judge Profile Page](docs/screenshots/judge-profile-page.png) | **法官個人頁** — 傳記、任職時間軸、勝率趨勢與近期案件 |
 
 ### 2.2 Image Manifest
 
@@ -70,11 +73,11 @@ It built the labyrinth.
 | `guided-search-after.png` | 引導式搜尋翻新後 | 核心 UX 流程 |
 | `guided-search-before-2.png` | 引導式搜尋翻新前（詳細） | 對比分析 |
 | `guided-search-after-2.png` | 引導式搜尋翻新後（法律概念層） | 進階功能展示 |
-| `docs/screenshots/TODO_analytics.png` | Analytics 頁面（待截圖） | 法官分析 / 勝率計算器 |
-| `docs/screenshots/TODO_case_detail.png` | 案件詳情頁（待截圖） | 全文 ToC 導航 + 語意相似案件 |
-| `docs/screenshots/TODO_judge_profile.png` | 法官個人頁（待截圖） | 任職時間軸 + 勝率圖 |
+| `docs/screenshots/analytics-page.png` | Analytics 頁面基線 | 法官分析 / 勝率計算器 |
+| `docs/screenshots/case-detail-page.png` | 案件詳情頁基線 | 全文 ToC 導航 + 語意相似案件 |
+| `docs/screenshots/judge-profile-page.png` | 法官個人頁基線 | 任職時間軸 + 勝率圖 |
 
-> Assumption: `docs/screenshots/TODO_*.png` 尚未截取；其餘圖片位於專案根目錄。
+> 視覺基線已於 2026-03-15 自正式入口 `/` 拍攝；其餘圖片位於專案根目錄。
 
 ---
 
@@ -130,12 +133,21 @@ cp .env.example .env
 | Key | Required | Default | Description |
 |-----|:--------:|---------|-------------|
 | `BACKEND_PORT` | ✗ | `8080` | Flask 服務埠號（注意：5000 與 macOS AirPlay 衝突） |
+| `SECRET_KEY` | 生產必填 | 開發模式自動生成 | Flask session / CSRF 簽章金鑰 |
+| `APP_ENV` | ✗ | `development` | 設為 `production` 或 `staging` 會啟用嚴格安全模式 |
+| `TRUST_PROXY_HEADERS` | ✗ | `false` | 只有部署在可信任反向代理後方時才設為 `true`，允許安全地讀取 `X-Forwarded-For` |
 | `SUPABASE_URL` | 條件 | — | Supabase 專案 URL（使用 `--backend supabase` 時必填） |
 | `SUPABASE_SERVICE_ROLE_KEY` | 條件 | — | Supabase Service Role Key（伺服器端操作用） |
 | `SUPABASE_ANON_KEY` | 條件 | — | Supabase Anon Key（前端讀取用） |
 | `ANTHROPIC_API_KEY` | 條件 | — | LLM 萃取腳本使用（`extract_structured_fields_llm.py`） |
 | `OPENAI_API_KEY` | 條件 | — | OpenAI 嵌入向量生成（`backfill_case_embeddings.py`） |
 | `BACKEND_HOST` | ✗ | `127.0.0.1` | Flask 綁定 IP（對外服務改為 `0.0.0.0`） |
+
+安全基線：
+- 當 `APP_ENV`、`IMMI_ENV` 或 `FLASK_ENV` 為 `production` / `staging` 時，`SECRET_KEY` 必須明確提供；開發 / 測試模式才允許自動生成臨時值。
+- Session cookie 預設為 `HttpOnly` + `SameSite=Lax`；在 production-like 環境會自動啟用 `Secure`。
+- 高風險 `POST` 端點已啟用 CSRF 防護與 rate limiting；自訂前端請帶 `X-CSRFToken` 或 `X-CSRF-Token`。
+- `TRUST_PROXY_HEADERS` 預設為 `false`，避免直連部署時被偽造 `X-Forwarded-For` 繞過限流；只有在 Nginx、Cloudflare、負載平衡器等可信任代理會覆寫來源 IP 的情境下才應開啟。
 
 ### 4.4 Run（Dev）
 
@@ -151,8 +163,10 @@ python web.py --port 8080 &
 cd frontend && npm run dev     # 代理到 :8080
 
 # 瀏覽器開啟
-open http://localhost:8080/app/
+open http://localhost:8080/
 ```
+
+舊的 `/app/*` 深層連結仍保留相容，但正式入口統一為 `/`。
 
 ### 4.5 Test
 
@@ -171,7 +185,32 @@ make test-py
 make test-fe
 ```
 
-### 4.6 Build / Deploy
+### 4.6 Visual Regression Baseline
+
+最小視覺驗證流程：
+
+```bash
+# 1. 啟動正式入口
+python web.py --port 8080
+
+# 2. 手動檢查正式入口與關鍵頁面
+open http://localhost:8080/
+open http://localhost:8080/analytics
+open http://localhost:8080/cases/a659e9a31d5c
+open http://localhost:8080/judge-profiles/KENDALL
+```
+
+基線截圖檔：
+- `docs/screenshots/analytics-page.png`
+- `docs/screenshots/case-detail-page.png`
+- `docs/screenshots/judge-profile-page.png`
+
+驗收重點：
+- 正式入口固定為 `/`，不應再出現 `No routes matched location`
+- `/analytics`、`/cases/:id`、`/judge-profiles/:name` 都必須可直接重整載入
+- README 截圖 manifest 與實際檔案必須一致
+
+### 4.7 Build / Deploy
 
 ```bash
 # React SPA 生產版本 → immi_case_downloader/static/react/

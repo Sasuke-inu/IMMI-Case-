@@ -40,7 +40,8 @@ from ...visa_registry import (
     VISA_REGISTRY,
 )
 from ..helpers import get_repo, get_output_dir, safe_int, _filter_cases, EDITABLE_FIELDS
-from ..jobs import _job_lock, _job_status, _run_download_job
+from ..jobs import _run_download_job, job_manager
+from ..security import rate_limit
 logger = logging.getLogger(__name__)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
@@ -2072,6 +2073,7 @@ def get_case(case_id):
 
 
 @api_bp.route("/cases", methods=["POST"])
+@rate_limit(30, 60, scope="cases-create")
 def create_case():
     data = request.get_json(silent=True) or {}
     if not data.get("title") and not data.get("citation"):
@@ -2125,6 +2127,7 @@ def delete_case(case_id):
 # ── Batch Operations ────────────────────────────────────────────────────
 
 @api_bp.route("/cases/batch", methods=["POST"])
+@rate_limit(10, 60, scope="cases-batch")
 def batch_cases():
     data = request.get_json(silent=True) or {}
     action = data.get("action", "")
@@ -2690,18 +2693,26 @@ def export_json():
 
 @api_bp.route("/job-status")
 def job_status():
-    with _job_lock:
-        snapshot = dict(_job_status)
-    return jsonify(snapshot)
+    return jsonify(job_manager.snapshot())
 
 
 # ── Download Job ────────────────────────────────────────────────────────
 
 @api_bp.route("/download/start", methods=["POST"])
+@rate_limit(5, 60, scope="download-start")
 def start_download():
-    with _job_lock:
-        if _job_status["running"]:
-            return _error("A job is already running")
+    if not job_manager.reserve(
+        {
+            "running": True,
+            "type": "download",
+            "progress": "Preparing download job...",
+            "total": 0,
+            "completed": 0,
+            "errors": [],
+            "results": [],
+        },
+    ):
+        return _error("A job is already running")
 
     data = request.get_json(silent=True) or {}
     court_filter = data.get("court", "")
@@ -2713,7 +2724,11 @@ def start_download():
         kwargs={"output_dir": get_output_dir(), "repo": get_repo()},
         daemon=True,
     )
-    thread.start()
+    try:
+        thread.start()
+    except Exception:
+        job_manager.reset()
+        raise
     return jsonify({"started": True})
 
 
@@ -2726,6 +2741,7 @@ def pipeline_status():
 
 
 @api_bp.route("/pipeline-action", methods=["POST"])
+@rate_limit(10, 60, scope="pipeline-action")
 def pipeline_action():
     from ...pipeline import request_pipeline_stop, get_pipeline_status
     from ...pipeline import PipelineConfig, start_pipeline
@@ -2741,9 +2757,8 @@ def pipeline_action():
         ps = get_pipeline_status()
         if ps.get("running"):
             return _error("Pipeline is already running")
-        with _job_lock:
-            if _job_status["running"]:
-                return _error("Another job is running")
+        if job_manager.is_running():
+            return _error("Another job is running")
 
         config = PipelineConfig(
             databases=data.get("databases", ["AATA", "ARTA", "FCA"]),
@@ -4132,6 +4147,7 @@ def taxonomy_countries():
 
 
 @api_bp.route("/taxonomy/guided-search", methods=["POST"])
+@rate_limit(20, 60, scope="guided-search")
 def taxonomy_guided_search():
     """Multi-step guided search flow for common research tasks.
 
@@ -4320,6 +4336,7 @@ def llm_council_health():
     return jsonify(payload)
 
 @api_bp.route("/llm-council/run", methods=["POST"])
+@rate_limit(5, 60, scope="llm-council-run")
 def llm_council_run():
     """Run the multi-model IMMI council and return ranked/synthesized output."""
     data = request.get_json(silent=True) or {}

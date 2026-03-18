@@ -63,6 +63,68 @@ class TestThreadSafety:
         assert "running" in data
         assert "progress" in data
 
+    def test_job_manager_snapshot_is_deep_copy(self):
+        """Snapshot mutations must not leak back into the shared job state."""
+        from immi_case_downloader.web.jobs import job_manager
+
+        job_manager.reset()
+        job_manager.update(running=True, progress="Testing")
+        job_manager.append("errors", "transient")
+        snapshot = job_manager.snapshot()
+        snapshot["errors"].append("mutated copy")
+        snapshot["progress"] = "Changed outside manager"
+
+        fresh = job_manager.snapshot()
+        assert fresh["errors"] == ["transient"]
+        assert fresh["progress"] == "Testing"
+
+    def test_job_manager_reset_preserves_legacy_status_dict_identity(self):
+        """Legacy imports of _job_status should keep pointing at the same dict object."""
+        from immi_case_downloader.web.jobs import job_manager, _job_status
+
+        legacy_id = id(_job_status)
+        job_manager.update(running=True, progress="Before reset")
+        job_manager.reset()
+
+        assert id(_job_status) == legacy_id
+        assert _job_status["running"] is False
+        assert _job_status["progress"] == ""
+
+    def test_job_manager_reserve_blocks_second_start(self):
+        """reserve() should atomically claim the slot exactly once."""
+        from immi_case_downloader.web.job_manager import JobManager
+
+        manager = JobManager(
+            lambda: {
+                "running": False,
+                "type": None,
+                "progress": "",
+                "errors": [],
+                "results": [],
+            },
+        )
+
+        assert manager.reserve(
+            {
+                "running": True,
+                "type": "download",
+                "progress": "Queued",
+                "errors": [],
+                "results": [],
+            },
+        )
+        assert manager.snapshot()["type"] == "download"
+        assert manager.reserve(
+            {
+                "running": True,
+                "type": "search",
+                "progress": "Should not win",
+                "errors": [],
+                "results": [],
+            },
+        ) is False
+        assert manager.snapshot()["type"] == "download"
+
 
 # ── Issue 1.2: Input Validation ────────────────────────────────────────────
 

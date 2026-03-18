@@ -22,7 +22,12 @@ from ..config import OUTPUT_DIR
 from ..storage import ensure_output_dirs
 
 load_dotenv()
-from .security import csrf, add_security_headers
+from .security import (
+    csrf,
+    add_security_headers,
+    configure_session_security,
+    require_secret_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +45,14 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
         static_folder=os.path.join(pkg_dir, "static"),
     )
 
-    # Secret key: prefer env var, fall back to random per-process key with warning
+    # Secret key: required in production-like environments, lenient in dev/test.
     _secret = os.environ.get("SECRET_KEY")
     if not _secret:
+        if require_secret_key():
+            raise RuntimeError(
+                "SECRET_KEY must be set when APP_ENV/IMMI_ENV/FLASK_ENV is "
+                "production or staging.",
+            )
         warnings.warn(
             "SECRET_KEY not set! Using random key (sessions won't persist across restarts).",
             RuntimeWarning,
@@ -50,6 +60,8 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
         )
         _secret = secrets.token_hex(32)
     app.secret_key = _secret
+
+    configure_session_security(app)
 
     # CSRF protection
     csrf.init_app(app)

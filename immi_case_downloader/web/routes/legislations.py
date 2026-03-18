@@ -20,6 +20,8 @@ from typing import Any
 from flask import Blueprint, jsonify, request
 
 from ...sources.legislation_scraper import KNOWN_LAWS, LegislationScraper
+from ..job_manager import JobManager
+from ..security import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -30,18 +32,22 @@ legislations_bp = Blueprint("legislations", __name__, url_prefix="/api/v1/legisl
 # Cache for legislations data (invalidated after a successful scrape)
 _legislations_cache: list[dict[str, Any]] | None = None
 
-# Background job status dict — single job at a time
-_job_status: dict[str, Any] = {
-    "running": False,
-    "law_id": None,       # which law is currently being scraped
-    "current": 0,
-    "total": 0,
-    "section_id": "",
-    "completed_laws": [],
-    "failed_laws": [],
-    "error": None,
-}
-_job_lock = threading.Lock()
+def _default_legislation_job_status() -> dict[str, Any]:
+    return {
+        "running": False,
+        "law_id": None,       # which law is currently being scraped
+        "current": 0,
+        "total": 0,
+        "section_id": "",
+        "completed_laws": [],
+        "failed_laws": [],
+        "error": None,
+    }
+
+
+legislation_job_manager = JobManager(_default_legislation_job_status)
+_job_status = legislation_job_manager.state
+_job_lock = legislation_job_manager.lock
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -209,6 +215,7 @@ def get_legislation(legislation_id: str):
 
 
 @legislations_bp.route("/update", methods=["POST"])
+@rate_limit(5, 60, scope="legislations-update")
 def start_update():
     """Start a background scrape job for one or all laws.
 
@@ -218,43 +225,45 @@ def start_update():
 
     Returns 409 if a job is already running.
     """
-    with _job_lock:
-        if _job_status["running"]:
-            return jsonify({
-                "success": False,
-                "error": "A scrape job is already running",
-                "status": _job_status,
-            }), 409
+    body = request.get_json(silent=True) or {}
+    law_id = body.get("law_id")
 
-        body = request.get_json(silent=True) or {}
-        law_id = body.get("law_id")
+    if law_id and law_id not in KNOWN_LAWS:
+        return _error(f"Unknown law_id: {law_id}. Available: {list(KNOWN_LAWS)}")
 
-        if law_id and law_id not in KNOWN_LAWS:
-            return _error(f"Unknown law_id: {law_id}. Available: {list(KNOWN_LAWS)}")
+    law_ids = [law_id] if law_id else list(KNOWN_LAWS.keys())
 
-        law_ids = [law_id] if law_id else list(KNOWN_LAWS.keys())
-
-        # Reset status
-        _job_status.update({
+    if not legislation_job_manager.reserve(
+        {
             "running": True,
-            "law_id": None,
+            "law_id": law_id,
             "current": 0,
             "total": 0,
             "section_id": "",
             "completed_laws": [],
             "failed_laws": [],
             "error": None,
-        })
+        },
+    ):
+        return jsonify({
+            "success": False,
+            "error": "A scrape job is already running",
+            "status": legislation_job_manager.snapshot(),
+        }), 409
 
     thread = threading.Thread(target=_run_scrape_job, args=(law_ids,), daemon=True)
-    thread.start()
+    try:
+        thread.start()
+    except Exception:
+        legislation_job_manager.reset()
+        raise
     return jsonify({"success": True, "message": "Scrape job started", "laws": law_ids})
 
 
 @legislations_bp.route("/update/status", methods=["GET"])
 def update_status():
     """Poll the current scrape job status."""
-    return jsonify({"success": True, "status": dict(_job_status)})
+    return jsonify({"success": True, "status": legislation_job_manager.snapshot()})
 
 
 def _run_scrape_job(law_ids: list[str]) -> None:
@@ -262,12 +271,12 @@ def _run_scrape_job(law_ids: list[str]) -> None:
     scraper = LegislationScraper()
 
     def progress(law_id: str, current: int, total: int, section_id: str) -> None:
-        _job_status.update({
-            "law_id": law_id,
-            "current": current,
-            "total": total,
-            "section_id": section_id,
-        })
+        legislation_job_manager.update(
+            law_id=law_id,
+            current=current,
+            total=total,
+            section_id=section_id,
+        )
 
     try:
         # Load existing data to merge into
@@ -284,10 +293,10 @@ def _run_scrape_job(law_ids: list[str]) -> None:
             result = scraper.scrape_one(law_id, progress_callback=progress)
             if result:
                 existing_by_id[law_id] = result
-                _job_status["completed_laws"].append(law_id)
+                legislation_job_manager.append("completed_laws", law_id)
                 logger.info(f"Scrape complete: {law_id} ({result['sections_count']} sections)")
             else:
-                _job_status["failed_laws"].append(law_id)
+                legislation_job_manager.append("failed_laws", law_id)
                 logger.error(f"Scrape failed: {law_id}")
 
         # Preserve canonical law order when writing
@@ -309,10 +318,10 @@ def _run_scrape_job(law_ids: list[str]) -> None:
         logger.info(f"Legislations saved: {len(all_laws)} laws")
 
     except Exception as e:
-        _job_status["error"] = str(e)
+        legislation_job_manager.update(error=str(e))
         logger.error(f"Scrape job failed: {e}", exc_info=True)
     finally:
-        _job_status["running"] = False
+        legislation_job_manager.update(running=False)
 
 
 # ── App registration ──────────────────────────────────────────────────────────

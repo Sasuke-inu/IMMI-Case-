@@ -2,7 +2,7 @@
 """Start the IMMI-Case web interface.
 
 Usage:
-    python web.py                    # Start (BACKEND_PORT env or 5000)
+    python web.py                    # Start (BACKEND_PORT env or 8080)
     python web.py --port 8080        # Custom port (overrides env)
     python web.py --output mydata    # Custom data directory
 """
@@ -18,25 +18,25 @@ def _get_env_default_port() -> int:
     """Read backend port from environment with safe fallback."""
     raw = os.environ.get("BACKEND_PORT")
     if not raw:
-        return 5000
+        return 8080
 
     try:
         port = int(raw)
     except ValueError:
         warnings.warn(
-            f"Invalid BACKEND_PORT={raw!r}; falling back to 5000.",
+            f"Invalid BACKEND_PORT={raw!r}; falling back to 8080.",
             RuntimeWarning,
             stacklevel=2,
         )
-        return 5000
+        return 8080
 
     if not 1 <= port <= 65535:
         warnings.warn(
-            f"BACKEND_PORT out of range ({port}); falling back to 5000.",
+            f"BACKEND_PORT out of range ({port}); falling back to 8080.",
             RuntimeWarning,
             stacklevel=2,
         )
-        return 5000
+        return 8080
 
     return port
 

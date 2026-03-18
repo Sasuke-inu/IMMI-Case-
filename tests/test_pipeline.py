@@ -301,6 +301,29 @@ class TestPublicHelpers:
         result = start_pipeline(config)
         assert result is True
 
+    @patch("immi_case_downloader.pipeline.threading.Thread")
+    @patch("immi_case_downloader.pipeline.SmartPipeline")
+    def test_start_pipeline_marks_running_before_worker_executes(self, mock_cls, mock_thread_cls):
+        """The pipeline slot should be reserved before the background thread runs."""
+        with _pipeline_lock:
+            _pipeline_status["running"] = False
+            _pipeline_status["phase_progress"] = ""
+
+        config = PipelineConfig()
+        result = start_pipeline(config)
+        assert result is True
+
+        with _pipeline_lock:
+            assert _pipeline_status["running"] is True
+            assert _pipeline_status["phase_progress"] == "Starting pipeline..."
+
+        second = start_pipeline(config)
+        assert second is False
+
+        with _pipeline_lock:
+            _pipeline_status["running"] = False
+            _pipeline_status["phase_progress"] = ""
+
     def test_start_pipeline_rejects_when_running(self):
         """start_pipeline returns False when pipeline is already running."""
         with _pipeline_lock:

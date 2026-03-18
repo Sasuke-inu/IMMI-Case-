@@ -1,7 +1,8 @@
 """Background job state and runner functions.
 
-All job functions mutate _job_status IN-PLACE (via clear()+update()) to
-preserve references held by the webapp.py shim and test code.
+All public compatibility points still expose ``_job_lock`` and ``_job_status``,
+but lifecycle operations now flow through ``job_manager`` for clearer state
+ownership and safer snapshots.
 
 Jobs accept an optional ``repo`` parameter (a CaseRepository instance).
 When provided, data is persisted through the repository; otherwise a
@@ -9,34 +10,59 @@ CsvRepository is created as a fallback.
 """
 
 import os
-import threading
 import logging
 
 from ..config import AUSTLII_DATABASES, IMMIGRATION_KEYWORDS, END_YEAR
 from ..storage import ensure_output_dirs
-from .helpers import get_output_dir, safe_float, safe_int
+from .job_manager import JobManager
+from .helpers import get_output_dir
 
 logger = logging.getLogger(__name__)
 
 
 # ── Global job state (protected by _job_lock) ────────────────────────────
 
-_job_lock = threading.Lock()
-_job_status = {
-    "running": False,
-    "type": None,
-    "progress": "",
-    "total": 0,
-    "completed": 0,
-    "errors": [],
-    "results": [],
-}
+
+def _default_job_status() -> dict:
+    return {
+        "running": False,
+        "type": None,
+        "progress": "",
+        "total": 0,
+        "completed": 0,
+        "errors": [],
+        "results": [],
+    }
+
+
+job_manager = JobManager(_default_job_status)
+_job_lock = job_manager.lock
+_job_status = job_manager.state
 
 
 def _reset_job_status(new_status: dict):
-    """Replace _job_status contents in-place, preserving the dict identity."""
-    _job_status.clear()
-    _job_status.update(new_status)
+    """Replace the shared job status contents in-place."""
+    job_manager.replace(new_status)
+
+
+def _set_job_fields(**fields):
+    job_manager.update(**fields)
+
+
+def _append_result(message: str):
+    job_manager.append("results", message)
+
+
+def _append_error(message: str):
+    job_manager.append("errors", message)
+
+
+def _increment_completed() -> int:
+    return job_manager.increment("completed")
+
+
+def _completed_plus_one() -> int:
+    return int(job_manager.get("completed", 0)) + 1
 
 
 def _notify_cache_invalidation() -> None:
@@ -88,7 +114,11 @@ def _run_search_job(databases, start_year, end_year, max_results, search_fedcour
 
         scraper = AustLIIScraper(delay=1.0)
         for db_code in databases:
-            _job_status["progress"] = f"Searching {AUSTLII_DATABASES.get(db_code, {}).get('name', db_code)}..."
+            _set_job_fields(
+                progress=(
+                    f"Searching {AUSTLII_DATABASES.get(db_code, {}).get('name', db_code)}..."
+                ),
+            )
             try:
                 cases = scraper.search_cases(
                     databases=[db_code],
@@ -97,15 +127,13 @@ def _run_search_job(databases, start_year, end_year, max_results, search_fedcour
                     max_results_per_db=max_results,
                 )
                 all_cases.extend(cases)
-                _job_status["results"].append(
-                    f"{db_code}: {len(cases)} cases"
-                )
+                _append_result(f"{db_code}: {len(cases)} cases")
             except Exception as e:
-                _job_status["errors"].append(f"{db_code}: {e}")
-            _job_status["completed"] += 1
+                _append_error(f"{db_code}: {e}")
+            _increment_completed()
 
         if search_fedcourt:
-            _job_status["progress"] = "Searching Federal Court..."
+            _set_job_fields(progress="Searching Federal Court...")
             try:
                 from ..sources.federal_court import FederalCourtScraper
 
@@ -114,10 +142,10 @@ def _run_search_job(databases, start_year, end_year, max_results, search_fedcour
                 existing_urls = {c.url for c in all_cases}
                 new = [c for c in cases if c.url not in existing_urls]
                 all_cases.extend(new)
-                _job_status["results"].append(f"Federal Court: {len(new)} cases")
+                _append_result(f"Federal Court: {len(new)} cases")
             except Exception as e:
-                _job_status["errors"].append(f"Federal Court: {e}")
-            _job_status["completed"] += 1
+                _append_error(f"Federal Court: {e}")
+            _increment_completed()
 
         # Assign IDs and deduplicate against existing
         for case in all_cases:
@@ -138,15 +166,17 @@ def _run_search_job(databases, start_year, end_year, max_results, search_fedcour
         except Exception:
             pass
 
-        _job_status["progress"] = (
-            f"Done! Found {len(all_cases)} total, {len(new_cases)} new cases added."
+        _set_job_fields(
+            progress=(
+                f"Done! Found {len(all_cases)} total, {len(new_cases)} new cases added."
+            ),
         )
 
     except Exception as e:
-        _job_status["errors"].append(f"Fatal: {e}")
-        _job_status["progress"] = f"Failed: {e}"
+        _append_error(f"Fatal: {e}")
+        _set_job_fields(progress=f"Failed: {e}")
 
-    _job_status["running"] = False
+    _set_job_fields(running=False)
 
 
 def _run_download_job(court_filter, limit, output_dir=None, repo=None):
@@ -181,9 +211,11 @@ def _run_download_job(court_filter, limit, output_dir=None, repo=None):
         ok = 0
         updated = []
         for case in targets:
-            _job_status["progress"] = (
-                f"[{_job_status['completed']+1}/{len(targets)}] "
-                f"{case.citation or case.title[:50]}"
+            _set_job_fields(
+                progress=(
+                    f"[{_completed_plus_one()}/{len(targets)}] "
+                    f"{case.citation or case.title[:50]}"
+                ),
             )
             try:
                 if case.source == "Federal Court":
@@ -196,28 +228,24 @@ def _run_download_job(court_filter, limit, output_dir=None, repo=None):
                     updated.append(case)
                     ok += 1
                 else:
-                    _job_status["errors"].append(
-                        f"{case.citation or case.case_id}: no content"
-                    )
+                    _append_error(f"{case.citation or case.case_id}: no content")
             except Exception as e:
-                _job_status["errors"].append(
-                    f"{case.citation or case.case_id}: {e}"
-                )
-            _job_status["completed"] += 1
+                _append_error(f"{case.citation or case.case_id}: {e}")
+            _increment_completed()
 
         # Persist updated full_text_path via upsert
         if updated:
             repo.save_many(updated)
             _notify_cache_invalidation()
 
-        _job_status["progress"] = f"Done! Downloaded {ok}/{len(targets)} cases."
-        _job_status["results"].append(f"Downloaded: {ok}, Failed: {len(targets)-ok}")
+        _set_job_fields(progress=f"Done! Downloaded {ok}/{len(targets)} cases.")
+        _append_result(f"Downloaded: {ok}, Failed: {len(targets)-ok}")
 
     except Exception as e:
-        _job_status["errors"].append(f"Fatal: {e}")
-        _job_status["progress"] = f"Failed: {e}"
+        _append_error(f"Fatal: {e}")
+        _set_job_fields(progress=f"Failed: {e}")
 
-    _job_status["running"] = False
+    _set_job_fields(running=False)
 
 
 def _run_update_job(mode, databases=None, start_year=None, end_year=None,
@@ -258,13 +286,13 @@ def _run_update_job(mode, databases=None, start_year=None, end_year=None,
 
         for db_code in databases:
             if db_code not in AUSTLII_DATABASES:
-                _job_status["errors"].append(f"Unknown database: {db_code}")
+                _append_error(f"Unknown database: {db_code}")
                 continue
 
             db_info = AUSTLII_DATABASES[db_code]
 
             for year in years:
-                _job_status["progress"] = f"Crawling {db_code} {year}..."
+                _set_job_fields(progress=f"Crawling {db_code} {year}...")
                 try:
                     cases = scraper._browse_year(
                         db_code, db_info, year, IMMIGRATION_KEYWORDS
@@ -276,28 +304,24 @@ def _run_update_job(mode, databases=None, start_year=None, end_year=None,
                             all_new.append(case)
                             existing_urls.add(case.url)
                             added += 1
-                    _job_status["results"].append(
-                        f"{db_code} {year}: {len(cases)} found, {added} new"
-                    )
+                    _append_result(f"{db_code} {year}: {len(cases)} found, {added} new")
                 except Exception as e:
-                    _job_status["errors"].append(f"{db_code} {year}: {e}")
+                    _append_error(f"{db_code} {year}: {e}")
 
-                _job_status["completed"] += 1
+                _increment_completed()
 
         # Save all new cases via repository
         if all_new:
             repo.save_many(all_new)
             _notify_cache_invalidation()
 
-        _job_status["progress"] = (
-            f"Done! Added {len(all_new)} new cases."
-        )
+        _set_job_fields(progress=f"Done! Added {len(all_new)} new cases.")
 
     except Exception as e:
-        _job_status["errors"].append(f"Fatal: {e}")
-        _job_status["progress"] = f"Failed: {e}"
+        _append_error(f"Fatal: {e}")
+        _set_job_fields(progress=f"Failed: {e}")
 
-    _job_status["running"] = False
+    _set_job_fields(running=False)
 
 
 def _run_bulk_download_job(court_filter, limit, delay, output_dir, repo=None):
@@ -334,9 +358,11 @@ def _run_bulk_download_job(court_filter, limit, delay, output_dir, repo=None):
         updated_batch = []
 
         for case in targets:
-            _job_status["progress"] = (
-                f"[{_job_status['completed']+1}/{len(targets)}] "
-                f"{case.citation or case.title[:50]}"
+            _set_job_fields(
+                progress=(
+                    f"[{_completed_plus_one()}/{len(targets)}] "
+                    f"{case.citation or case.title[:50]}"
+                ),
             )
             try:
                 text = scraper.download_case_detail(case)
@@ -349,14 +375,12 @@ def _run_bulk_download_job(court_filter, limit, delay, output_dir, repo=None):
             except Exception as e:
                 fail += 1
                 if fail <= 20:
-                    _job_status["errors"].append(
-                        f"{case.citation or case.case_id}: {e}"
-                    )
-            _job_status["completed"] += 1
+                    _append_error(f"{case.citation or case.case_id}: {e}")
+            _increment_completed()
 
             # Checkpoint save every 200 successful downloads
             if ok > 0 and ok % 200 == 0 and updated_batch:
-                _job_status["results"].append(f"Checkpoint: {ok} downloaded so far")
+                _append_result(f"Checkpoint: {ok} downloaded so far")
                 repo.save_many(updated_batch)
                 updated_batch.clear()
 
@@ -367,11 +391,11 @@ def _run_bulk_download_job(court_filter, limit, delay, output_dir, repo=None):
         if ok > 0:
             _notify_cache_invalidation()
 
-        _job_status["progress"] = f"Done! Downloaded {ok}/{len(targets)} cases."
-        _job_status["results"].append(f"Total: {ok} downloaded, {fail} failed")
+        _set_job_fields(progress=f"Done! Downloaded {ok}/{len(targets)} cases.")
+        _append_result(f"Total: {ok} downloaded, {fail} failed")
 
     except Exception as e:
-        _job_status["errors"].append(f"Fatal: {e}")
-        _job_status["progress"] = f"Failed: {e}"
+        _append_error(f"Fatal: {e}")
+        _set_job_fields(progress=f"Failed: {e}")
 
-    _job_status["running"] = False
+    _set_job_fields(running=False)

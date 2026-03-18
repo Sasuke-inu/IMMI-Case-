@@ -7,6 +7,7 @@ POST /api/v1/collections/export
 
 from flask import Blueprint, Response, request, jsonify
 from ..helpers import get_repo
+from ..security import rate_limit
 
 bookmarks_bp = Blueprint("bookmarks", __name__, url_prefix="/api/v1/collections")
 
@@ -162,6 +163,7 @@ def _generate_html_report(
 
 
 @bookmarks_bp.route("/export", methods=["POST"])
+@rate_limit(10, 60, scope="collections-export")
 def export_collection():
     """Export a collection as a downloadable HTML report."""
     data = request.get_json(silent=True) or {}
