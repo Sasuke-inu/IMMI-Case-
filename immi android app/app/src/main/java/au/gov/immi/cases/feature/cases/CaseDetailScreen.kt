@@ -77,7 +77,7 @@ fun CaseDetailScreen(
                     item {
                         Text(
                             text = "Similar Cases",
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleLarge
                         )
                     }
                     items(
