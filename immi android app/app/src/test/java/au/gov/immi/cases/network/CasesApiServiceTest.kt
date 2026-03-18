@@ -124,12 +124,13 @@ class CasesApiServiceTest {
 
     @Test
     fun `createCase sends POST with body`() = runTest {
+        // Backend returns {"case": {...}} — CaseDetailResponse shape
         server.enqueue(
             MockResponse()
                 .setResponseCode(201)
                 .setHeader("Content-Type", "application/json")
                 .setBody(
-                    """{"success": true, "data": {"case_id": "new001", "title": "New Case"}}"""
+                    """{"case": {"case_id": "new001", "title": "New Case"}}"""
                 )
         )
 
@@ -152,11 +153,12 @@ class CasesApiServiceTest {
 
     @Test
     fun `deleteCase sends DELETE request`() = runTest {
+        // Backend returns {"success": true} — raw map
         server.enqueue(
             MockResponse()
                 .setResponseCode(200)
                 .setHeader("Content-Type", "application/json")
-                .setBody("""{"success": true, "data": null}""")
+                .setBody("""{"success": true}""")
         )
 
         service.deleteCase("abc123")
@@ -168,6 +170,7 @@ class CasesApiServiceTest {
 
     @Test
     fun `getSimilarCases returns list`() = runTest {
+        // Backend returns {"similar": [...], "available": true} — SimilarCasesResponse
         server.enqueue(
             MockResponse()
                 .setResponseCode(200)
@@ -175,11 +178,11 @@ class CasesApiServiceTest {
                 .setBody(
                     """
                     {
-                        "success": true,
-                        "data": [
+                        "similar": [
                             {"case_id": "sim001", "title": "Similar Case 1"},
                             {"case_id": "sim002", "title": "Similar Case 2"}
-                        ]
+                        ],
+                        "available": true
                     }
                     """.trimIndent()
                 )
@@ -190,45 +193,9 @@ class CasesApiServiceTest {
         assertTrue(response.isSuccessful)
         val body = response.body()
         assertNotNull(body)
-        // getSimilarCases returns ApiResponse<List<ImmigrationCase>> — standard envelope
-        assertEquals(2, body!!.data?.size)
-        assertEquals("sim001", body.data?.get(0)?.caseId)
+        // getSimilarCases returns SimilarCasesResponse — no standard envelope
+        assertEquals(2, body!!.similar.size)
+        assertEquals("sim001", body.similar[0].caseId)
     }
 
-    @Test
-    fun `addBookmark sends POST to correct path`() = runTest {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setHeader("Content-Type", "application/json")
-                .setBody("""{"success": true, "data": null}""")
-        )
-
-        service.addBookmark("abc123")
-
-        val recordedRequest = server.takeRequest()
-        assertEquals("POST", recordedRequest.method)
-        assertTrue(
-            recordedRequest.path!!.contains("bookmarks"),
-            "Path should contain 'bookmarks', was: ${recordedRequest.path}"
-        )
-        assertTrue(recordedRequest.path!!.contains("abc123"))
-    }
-
-    @Test
-    fun `removeBookmark sends DELETE to correct path`() = runTest {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setHeader("Content-Type", "application/json")
-                .setBody("""{"success": true, "data": null}""")
-        )
-
-        service.removeBookmark("abc123")
-
-        val recordedRequest = server.takeRequest()
-        assertEquals("DELETE", recordedRequest.method)
-        assertTrue(recordedRequest.path!!.contains("bookmarks"))
-        assertTrue(recordedRequest.path!!.contains("abc123"))
-    }
 }

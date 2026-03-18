@@ -226,29 +226,61 @@ class SystemApiServiceTest {
     }
 
     @Test
-    fun `getJobs returns job status map`() = runTest {
+    fun `getJobStatus returns raw status map`() = runTest {
+        // /api/v1/job-status returns job_manager.snapshot() — raw map, no envelope
         server.enqueue(
             MockResponse()
                 .setResponseCode(200)
                 .setHeader("Content-Type", "application/json")
                 .setBody(
-                    """
-                    {
-                        "success": true,
-                        "data": {
-                            "pipeline": {"status": "idle"},
-                            "download": {"status": "idle"}
-                        }
-                    }
-                    """.trimIndent()
+                    """{"running": false, "type": null, "progress": null}"""
                 )
         )
 
-        val response = service.getJobs()
+        val response = service.getJobStatus()
 
         assertTrue(response.isSuccessful)
         val body = response.body()
         assertNotNull(body)
-        assertTrue(body!!.success)
+        assertEquals(false, body!!["running"])
+    }
+
+    @Test
+    fun `CsrfInterceptor skips empty token on POST`() {
+        // CSRF endpoint returns no token — interceptor should not send empty header
+        val baseUrl = server.url("/").toString().dropLast(1)
+
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("""{"success": true, "data": {}}""")
+        )
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("""{"success": true}""")
+        )
+
+        val csrfInterceptor = CsrfInterceptor(baseUrl)
+        val client = OkHttpClient.Builder()
+            .addInterceptor(csrfInterceptor)
+            .build()
+
+        val jsonBody = """{}""".toRequestBody("application/json".toMediaType())
+        client.newCall(
+            Request.Builder()
+                .url("$baseUrl/api/v1/pipeline/start")
+                .post(jsonBody)
+                .build()
+        ).execute()
+
+        // First request: CSRF token fetch
+        server.takeRequest()
+        // Second request: POST — should NOT have X-CSRFToken since token was empty
+        val postRequest = server.takeRequest()
+        val csrfHeader = postRequest.getHeader("X-CSRFToken")
+        assertNull(csrfHeader, "POST should NOT have X-CSRFToken when token fetch returned empty")
     }
 }

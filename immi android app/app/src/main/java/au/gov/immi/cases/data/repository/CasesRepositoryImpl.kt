@@ -49,7 +49,11 @@ class CasesRepositoryImpl @Inject constructor(
 
     override suspend fun createCase(case: ImmigrationCase): Result<ImmigrationCase> = runCatching {
         val response = api.createCase(case)
-        response.body()?.data ?: error("Failed to create case")
+        if (!response.isSuccessful) {
+            error("Failed to create case (HTTP ${response.code()})")
+        }
+        // Backend returns {"case": {...}} — same shape as CaseDetailResponse
+        response.body()?.case ?: error("Failed to create case: empty response")
     }
 
     override suspend fun updateCase(
@@ -57,16 +61,27 @@ class CasesRepositoryImpl @Inject constructor(
         case: ImmigrationCase
     ): Result<ImmigrationCase> = runCatching {
         val response = api.updateCase(caseId, case)
-        response.body()?.data ?: error("Failed to update case: $caseId")
+        if (!response.isSuccessful) {
+            error("Failed to update case: $caseId (HTTP ${response.code()})")
+        }
+        // Backend returns {"case": {...}} — same shape as CaseDetailResponse
+        response.body()?.case ?: error("Failed to update case: $caseId — empty response")
     }
 
     override suspend fun deleteCase(caseId: String): Result<Unit> = runCatching {
-        api.deleteCase(caseId)
+        val response = api.deleteCase(caseId)
+        if (!response.isSuccessful) {
+            error("Failed to delete case: $caseId (HTTP ${response.code()})")
+        }
     }
 
     override suspend fun getSimilarCases(caseId: String): Result<List<ImmigrationCase>> =
         runCatching {
             val response = api.getSimilarCases(caseId)
-            response.body()?.data ?: emptyList()
+            if (!response.isSuccessful) {
+                error("Failed to get similar cases (HTTP ${response.code()})")
+            }
+            // Backend returns {"similar": [...], "available": bool}
+            response.body()?.similar ?: emptyList()
         }
 }
