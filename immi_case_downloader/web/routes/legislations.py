@@ -94,7 +94,7 @@ def _strip_sections(leg: dict) -> dict:
 
 
 def _error(msg: str, status: int = 400):
-    return jsonify({"error": msg}), status
+    return jsonify({"success": False, "error": msg}), status
 
 
 # ── List ──────────────────────────────────────────────────────────────────────
