@@ -1611,7 +1611,7 @@ def debug():
     from flask import current_app
     backend = current_app.config.get("BACKEND", "unknown")
     # Version marker — confirms which container image is running
-    _img_version = "v11-60s-retry"
+    _img_version = "v12-hosts-runtime"
 
     # Read DNS config files to verify what the container sees at runtime
     def _read_file(path):
@@ -1625,7 +1625,7 @@ def debug():
         "_v": _img_version,
         "backend": backend,
         "resolv_conf": _read_file("/etc/resolv.conf"),
-        "etc_hosts_tail": _read_file("/etc/hosts").splitlines()[-5:],
+        "etc_hosts_tail": _read_file("/etc/hosts").splitlines()[-10:],
         "env": {},
         "http_test": {},
         "db_test": {},

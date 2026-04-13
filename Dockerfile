@@ -18,6 +18,7 @@ EXPOSE 8080
 ENV APP_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Diagnostic build: revert CMD to the exact form that worked in flask-v5 to confirm
-# whether the container crash is caused by CMD or Python code changes.
-CMD ["/bin/sh", "-c", "printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf 2>/dev/null || true && exec python web.py --host 0.0.0.0 --port 8080 --backend supabase"]
+# Cloudflare Containers block DNS at network level (UDP 53 is filtered) — resolv.conf fixes
+# are useless. /etc/hosts takes precedence over DNS and CAN be written at runtime.
+# Write pre-resolved Supabase anycast IPs at container startup so httpx can connect.
+CMD ["/bin/sh", "-c", "printf '104.18.38.10 urntbuqczarkuoaosjxd.supabase.co\\n172.64.149.246 urntbuqczarkuoaosjxd.supabase.co\\n' >> /etc/hosts 2>/dev/null; exec python web.py --host 0.0.0.0 --port 8080 --backend supabase"]
