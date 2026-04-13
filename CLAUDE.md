@@ -283,3 +283,59 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 - Security headers (CSP, X-Frame-Options, etc.) set via `@app.after_request`
 - Default host is `127.0.0.1` (localhost only); use `--host 0.0.0.0` to expose externally
 - React SPA build: `cd frontend && npm run build` → outputs to `immi_case_downloader/static/react/`
+
+## Design Context
+
+> 由 `/teach-impeccable` 技能於 2026-04-12 生成，結合程式碼探索與使用者訪談。
+
+### Users
+
+**主要使用者：移民申請人（自助申請者）**
+
+非法律專業人士，正在經歷移民申請或審查程序，有時是自我代理（self-represented）。他們在壓力情境下使用此工具——試圖理解與自己案件相似的判例，評估勝算，或了解某位法官的審判傾向。
+
+- **工作任務**：找到與自身情況相似的案件，理解結果背後的原因
+- **知識水平**：對澳洲移民法律不熟悉，需要清晰的標籤、說明和引導
+- **情感狀態**：焦慮、對結果高度敏感；工具的可信度直接影響他們的信心
+
+**次要使用者**：移民律師/顧問（快速查閱判例）、法學研究者（趨勢分析）
+
+### Brand Personality
+
+**三個關鍵詞：權威（Authoritative）、精準（Precise）、學術（Academic）**
+
+如同一本設計精良的法律典籍——讓非專業讀者也能建立信任感。語氣應沉著、中立、客觀，不使用行銷話術。資訊層次清晰，數據永遠優先於裝飾。
+
+### Aesthetic Direction
+
+**已確認方向：「法律典籍」美學（Legal Codex）**
+
+- 暖米白背景（`#f5f4f1`）+ 深海軍藍（`#1b2838`）+ 琥珀金 accent（`#d4a017`）——保持不變
+- Crimson Text（標題 serif）保持——給予學術權威感
+- 法庭專屬色彩編碼（9 種）——保持，是核心 information design
+- 深色模式（深海軍藍夜色）——保持，主題切換動畫速度**不得改變**
+
+**需要提升的方向：**
+
+1. **細節精緻度與一致性**：現有組件在 padding、間距、邊框粗細上略有不一致，應系統性對齊 design tokens
+2. **Analytics / 圖表頁採用 Data Dashboard 視覺語言**：圖表密度、色彩對比、數值標籤應接近 Grafana / Metabase 風格——數據優先、網格清晰、圖例簡潔
+3. **Merriweather 內文字體在密集列表中偏重**：在 Cases 列表、分析面板等資訊密集區域，可考慮切換至 DM Sans 或 IBM Plex Sans（已 import）以提升可讀性
+
+**反例（不應像）**：消費者 app（Instagram、Airbnb）、行銷網站、過度圓潤或卡通化的設計
+
+### Design Principles
+
+1. **信任優先於美觀**（Trust Before Beauty）
+   非專業使用者的第一需求是相信資料正確可靠。任何裝飾性元素若增加認知負荷，都應移除。資料來源、案件 ID、法庭色彩編碼必須始終清晰可見。
+
+2. **深度理解感**（Depth Over Summary）
+   一個案件頁面應讓使用者感到「我理解了全貌」——法官背景、相關法條、相似案件、結果原因都在視線範圍內。避免過度截斷或隱藏關鍵資訊於折疊區。
+
+3. **分析頁是數據主角**（Analytics as First-Class Citizen）
+   `/analytics`、`/judge-profiles`、`/court-lineage` 等頁面應有更高的資訊密度和對比度。圖表配色應比一般 UI 更鮮明，軸線標籤更清晰，不應被一般卡片樣式稀釋。
+
+4. **效率感貫穿全局**（Efficiency as UX）
+   快捷鍵、預取（prefetch）、Keep Previous Data 等技術層優化必須在視覺層也有所體現——載入狀態設計輕巧，過渡動畫 ≤ 150ms，避免佔位符閃爍。
+
+5. **系統性一致性**（Systematic Consistency）
+   所有間距、陰影、圓角必須從 `tokens.json` 取值，不得出現魔法數字。組件變體透過 `class-variance-authority` 統一管理，不得用內聯 style 覆蓋。

@@ -45,7 +45,7 @@ function GlobalSearchDialog({ onClose }: GlobalSearchDialogProps) {
   return (
     <>
       <div
-        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-50 bg-[#111820]/65 backdrop-blur-sm"
         onClick={onClose}
       />
       <div className="fixed inset-x-0 top-[15vh] z-50 mx-auto w-full max-w-lg px-4">

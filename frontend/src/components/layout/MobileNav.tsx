@@ -33,7 +33,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
       {/* Backdrop */}
       <button
         type="button"
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+        className="fixed inset-0 z-40 bg-[#111820]/65 backdrop-blur-sm lg:hidden"
         onClick={onClose}
         aria-label={t("common.close_menu")}
       />

@@ -85,7 +85,8 @@
     "searching": "Searching...",
     "menu": "Toggle menu",
     "next": "Next",
-    "close_menu": "Close menu"
+    "close_menu": "Close menu",
+    "skip_to_content": "Skip to main content"
   },
   "buttons": {
     "browse_cases": "Browse Cases",
@@ -782,7 +783,11 @@
     "confirm_action": "Are you sure you want to proceed?",
     "edit_case": "Edit Case",
     "add_case": "Add New Case",
-    "compare_cases": "Compare Cases"
+    "compare_cases": "Compare Cases",
+    "tag_input_title": "Add Tag to Cases",
+    "tag_input_message": "Apply a tag to the {{count}} selected case(s).",
+    "tag_input_placeholder": "e.g. asylum, review, urgent",
+    "tag_input_confirm": "Apply Tag"
   },
   "errors": {
     "api_error": "API Error",
@@ -977,7 +982,11 @@
       "success": "Case created",
       "error": "Failed to create case",
       "save_button": "Create Case",
-      "creating": "Creating..."
+      "creating": "Creating...",
+      "section_identity": "Case Identity",
+      "section_tribunal": "Tribunal Details",
+      "section_visa": "Visa & Outcome",
+      "section_admin": "Administrative"
     }
   },
   "bookmarks": {

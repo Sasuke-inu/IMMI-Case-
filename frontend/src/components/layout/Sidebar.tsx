@@ -117,11 +117,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border p-3">
-        {!collapsed && (
-          <p className="text-xs text-muted-text">{t("dashboard.subtitle")}</p>
-        )}
-      </div>
+      <div className="border-t border-border p-3" />
     </aside>
   );
 }

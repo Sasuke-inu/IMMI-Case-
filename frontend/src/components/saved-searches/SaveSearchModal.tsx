@@ -128,7 +128,7 @@ function SaveSearchModalContent({
       role="dialog"
       aria-modal="true"
     >
-      <div className="fixed inset-0 bg-black/40" onClick={onCancel} />
+      <div className="fixed inset-0 bg-[#111820]/65" onClick={onCancel} />
       <div className="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
         <form onSubmit={handleSubmit}>
           <div className="flex items-start gap-3">

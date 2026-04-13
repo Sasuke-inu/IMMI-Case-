@@ -25,6 +25,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
+import { TagInputModal } from "@/components/shared/TagInputModal";
 import { SaveSearchModal } from "@/components/saved-searches/SaveSearchModal";
 import { SavedSearchPanel } from "@/components/saved-searches/SavedSearchPanel";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -60,6 +61,7 @@ export function CasesPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [focusedIdx, setFocusedIdx] = useState(-1);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [tagModalOpen, setTagModalOpen] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
@@ -137,19 +139,13 @@ export function CasesPage() {
     }
   }, [data, selected.size]);
 
-  const handleBatch = useCallback(
-    async (action: string) => {
-      if (selected.size === 0) return;
-      const tag =
-        action === "tag"
-          ? prompt(t("cases.add_tag") || "Enter tag:")
-          : undefined;
-      if (action === "tag" && !tag) return;
+  const runBatch = useCallback(
+    async (action: string, tag?: string) => {
       try {
         const result = await batchMutation.mutateAsync({
           action,
           ids: Array.from(selected),
-          tag: tag ?? undefined,
+          tag,
         });
         toast.success(t("cases.batch_updated", { count: result.affected }));
         setSelected(new Set());
@@ -159,6 +155,26 @@ export function CasesPage() {
       }
     },
     [selected, batchMutation, t],
+  );
+
+  const handleBatch = useCallback(
+    async (action: string) => {
+      if (selected.size === 0) return;
+      if (action === "tag") {
+        setTagModalOpen(true);
+        return;
+      }
+      await runBatch(action);
+    },
+    [selected.size, runBatch],
+  );
+
+  const handleTagConfirm = useCallback(
+    (tag: string) => {
+      setTagModalOpen(false);
+      runBatch("tag", tag);
+    },
+    [runBatch],
   );
 
   const exportCsv = useCallback(() => {
@@ -1008,6 +1024,14 @@ export function CasesPage() {
         variant="danger"
         onConfirm={() => handleBatch("delete")}
         onCancel={() => setDeleteConfirm(false)}
+      />
+
+      {/* Tag input modal */}
+      <TagInputModal
+        open={tagModalOpen}
+        count={selected.size}
+        onConfirm={handleTagConfirm}
+        onCancel={() => setTagModalOpen(false)}
       />
 
       {/* Save Search modal */}

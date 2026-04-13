@@ -113,7 +113,7 @@ function renderSmartLines(text: string): React.ReactNode {
         result.push(
           <div
             key={i}
-            className="my-0.5 border-l-2 border-info/40 bg-surface/40 pl-3 py-0.5 rounded-r font-sans text-xs text-foreground whitespace-pre-wrap"
+            className="my-0.5 border border-border/50 bg-surface/60 px-3 py-1 rounded font-sans text-xs text-foreground whitespace-pre-wrap"
           >
             {line}
           </div>,

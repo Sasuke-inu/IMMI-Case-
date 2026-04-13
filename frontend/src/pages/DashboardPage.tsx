@@ -858,13 +858,13 @@ export function DashboardPage() {
         </div>
         <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            className="h-full border-l-4 border-l-accent"
+            className="h-full"
             title={t("dashboard.total_cases")}
             value={stats.total_cases}
             icon={<FileText className="h-5 w-5" />}
           />
           <StatCard
-            className="h-full border-l-4 border-l-info"
+            className="h-full"
             title={t("dashboard.with_full_text")}
             value={stats.with_full_text}
             icon={<BookOpen className="h-5 w-5" />}
@@ -876,13 +876,13 @@ export function DashboardPage() {
             })}
           />
           <StatCard
-            className="h-full border-l-4 border-l-success"
+            className="h-full"
             title={t("dashboard.courts_tribunals")}
             value={Object.keys(courtDistribution).length}
             icon={<Database className="h-5 w-5" />}
           />
           <StatCard
-            className="h-full border-l-4 border-l-warning"
+            className="h-full"
             title={t("dashboard.case_categories")}
             value={natureCount}
             icon={<Layers className="h-5 w-5" />}

@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { CourtBadge } from "@/components/shared/CourtBadge";
 import { OutcomeBadge } from "@/components/shared/OutcomeBadge";
 import { BookmarkButton } from "@/components/shared/BookmarkButton";
-import { getCourtColor } from "@/tokens/tokens";
 import { cn } from "@/lib/utils";
 import type { ImmigrationCase } from "@/types/case";
 
@@ -17,15 +16,12 @@ interface CaseCardProps {
 function CaseCardInner({ case_: c, onClick, className }: CaseCardProps) {
   // i18n support ready; currently all metadata comes from case data props
   useTranslation();
-  const accentColor = getCourtColor(c.court_code) ?? "#6b7585";
-
   return (
     <div className={cn("relative h-full", className)}>
       <button
         type="button"
         onClick={onClick}
         className="group flex h-full min-h-[190px] w-full flex-col rounded-lg border border-border bg-card text-left shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
-        style={{ borderLeftWidth: "3px", borderLeftColor: accentColor }}
       >
         <div className="flex flex-1 flex-col p-4">
           {/* Top row: court badge + outcome */}

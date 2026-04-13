@@ -39,6 +39,12 @@ export default defineConfig(({ mode }) => {
             vendor: ["react", "react-dom", "react-router-dom"],
             query: ["@tanstack/react-query"],
             charts: ["recharts"],
+            dnd: [
+              "@dnd-kit/core",
+              "@dnd-kit/modifiers",
+              "@dnd-kit/sortable",
+              "@dnd-kit/utilities",
+            ],
           },
         },
       },

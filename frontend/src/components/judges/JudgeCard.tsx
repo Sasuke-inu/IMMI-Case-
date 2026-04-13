@@ -1,7 +1,6 @@
 import { Briefcase, Scale } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CourtBadge } from "@/components/shared/CourtBadge";
-import { getCourtColor } from "@/tokens/tokens";
 import { cn } from "@/lib/utils";
 import { approvalBadgeClass } from "./constants";
 import type { JudgeLeaderboardEntry } from "@/types/case";
@@ -21,7 +20,6 @@ export function JudgeCard({
 }: JudgeCardProps) {
   const { t } = useTranslation();
   const displayName = judge.display_name ?? judge.name;
-  const accentColor = getCourtColor(judge.primary_court ?? "") ?? "#6b7585";
   const yearsLabel =
     judge.active_years.first && judge.active_years.last
       ? judge.active_years.first === judge.active_years.last
@@ -46,7 +44,6 @@ export function JudgeCard({
       }}
       aria-label={`${displayName} ${t("judges.judge_member")}`}
       className="group flex min-h-[180px] flex-col rounded-lg border border-border bg-card text-left shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      style={{ borderLeftWidth: "3px", borderLeftColor: accentColor }}
     >
       <div className="flex flex-1 flex-col p-4">
         {/* Top row: court badges + approval rate */}

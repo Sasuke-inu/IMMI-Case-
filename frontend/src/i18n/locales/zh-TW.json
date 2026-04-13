@@ -85,7 +85,8 @@
     "searching": "搜尋中⋯",
     "menu": "切換選單",
     "next": "下一步",
-    "close_menu": "關閉選單"
+    "close_menu": "關閉選單",
+    "skip_to_content": "跳到主要內容"
   },
   "buttons": {
     "browse_cases": "瀏覽案例",
@@ -782,7 +783,11 @@
     "confirm_action": "確定要繼續執行？",
     "edit_case": "編輯案件",
     "add_case": "新增案例",
-    "compare_cases": "案例比較"
+    "compare_cases": "案例比較",
+    "tag_input_title": "為案例新增標籤",
+    "tag_input_message": "將標籤套用到已選的 {{count}} 件案例。",
+    "tag_input_placeholder": "例如：庇護、審查、緊急",
+    "tag_input_confirm": "套用標籤"
   },
   "errors": {
     "api_error": "API 錯誤",
@@ -977,7 +982,11 @@
       "success": "案件已建立",
       "error": "案件建立失敗",
       "save_button": "建立案件",
-      "creating": "建立中⋯"
+      "creating": "建立中⋯",
+      "section_identity": "案件識別",
+      "section_tribunal": "法庭詳情",
+      "section_visa": "簽證與結果",
+      "section_admin": "管理資訊"
     }
   },
   "bookmarks": {

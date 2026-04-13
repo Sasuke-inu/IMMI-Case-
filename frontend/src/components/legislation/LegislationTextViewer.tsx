@@ -277,7 +277,7 @@ function renderStatuteLine(
       return (
         <div
           key={key}
-          className="my-2 ml-4 rounded-r border-l-2 border-info/40 bg-info/5 px-3 py-2 text-sm italic text-muted-text"
+          className="my-2 ml-4 rounded border border-info/25 bg-info/5 px-3 py-2 text-sm italic text-muted-text"
         >
           {linkifyText(line, sectionMap, onJump)}
         </div>
@@ -287,7 +287,7 @@ function renderStatuteLine(
       return (
         <div
           key={key}
-          className="my-2 ml-4 rounded-r border-l-2 border-warning/50 bg-warning/5 px-3 py-2 text-sm font-semibold text-warning"
+          className="my-2 ml-4 rounded border border-warning/40 bg-warning/5 px-3 py-2 text-sm font-semibold text-warning"
         >
           {linkifyText(line, sectionMap, onJump)}
         </div>
@@ -297,7 +297,7 @@ function renderStatuteLine(
       return (
         <div
           key={key}
-          className="my-2 ml-4 rounded-r border-l-2 border-success/40 bg-success/5 px-3 py-2 text-sm text-muted-text"
+          className="my-2 ml-4 rounded border border-success/30 bg-success/5 px-3 py-2 text-sm text-muted-text"
         >
           {linkifyText(line, sectionMap, onJump)}
         </div>

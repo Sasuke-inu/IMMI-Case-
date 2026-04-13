@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react"
 import { Outlet } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { Sidebar } from "./Sidebar"
 import { Topbar } from "./Topbar"
 import { MobileNav } from "./MobileNav"
@@ -8,6 +9,7 @@ import { useKeyboard } from "@/hooks/use-keyboard"
 import "@/hooks/use-theme-preset" // eagerly apply stored theme preset on load
 
 export function AppLayout() {
+  const { t } = useTranslation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
 
@@ -24,7 +26,7 @@ export function AppLayout() {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-accent focus:px-3 focus:py-1.5 focus:text-sm focus:font-medium focus:text-white"
       >
-        跳到主要內容
+        {t("common.skip_to_content", "Skip to main content")}
       </a>
       {/* Desktop sidebar */}
       <div className="hidden lg:block">
