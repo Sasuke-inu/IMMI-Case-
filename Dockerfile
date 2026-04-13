@@ -18,10 +18,8 @@ EXPOSE 8080
 ENV APP_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Cloudflare Containers override /etc/resolv.conf at startup, so we can't fix DNS there.
-# Instead, pre-resolve Supabase hostnames to IPs during the build (when DNS works) and
-# write them into /etc/hosts. The container runtime appends to /etc/hosts but never
-# overwrites it, so these entries survive and httpx can connect without DNS.
-RUN python3 -c "import socket; h='urntbuqczarkuoaosjxd.supabase.co'; ip=socket.gethostbyname(h); open('/etc/hosts','a').write(f'{ip} {h}\n'); print(f'hosts: {ip} {h}')"
-
-CMD ["python", "web.py", "--host", "0.0.0.0", "--port", "8080", "--backend", "supabase"]
+# Cloudflare Containers have no DNS resolver. /etc/resolv.conf is overridden at runtime
+# and /etc/hosts is read-only during Docker build. Fix: at container startup (CMD),
+# write the pre-resolved Supabase IPs into /etc/hosts so httpx can connect without DNS.
+# IPs are Cloudflare anycast (supabase.co REST API is served through Cloudflare CDN).
+CMD ["/bin/sh", "-c", "echo '104.18.38.10 urntbuqczarkuoaosjxd.supabase.co' >> /etc/hosts 2>/dev/null; echo '172.64.149.246 urntbuqczarkuoaosjxd.supabase.co' >> /etc/hosts 2>/dev/null; exec python web.py --host 0.0.0.0 --port 8080 --backend supabase"]
