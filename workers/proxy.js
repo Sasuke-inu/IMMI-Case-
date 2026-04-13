@@ -24,6 +24,10 @@ export class FlaskBackend extends DurableObject {
             SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY,
             SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY,
             APP_ENV: "production",
+            // Inject Hyperdrive connection string so the warmup thread (which
+            // runs outside request context) can use psycopg2 directly instead
+            // of the slow supabase-py REST pagination over 149K rows.
+            HYPERDRIVE_DATABASE_URL: env.HYPERDRIVE ? env.HYPERDRIVE.connectionString : "",
           },
         });
       }
