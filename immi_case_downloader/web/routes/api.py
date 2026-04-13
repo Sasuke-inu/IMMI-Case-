@@ -1599,6 +1599,61 @@ def get_csrf_token():
     return jsonify({"csrf_token": generate_csrf()})
 
 
+# ── Connectivity Diagnostics (temporary — remove after debugging) ────────
+
+@api_bp.route("/debug")
+def debug():
+    """Diagnostic endpoint: checks Supabase connectivity from inside the container."""
+    import traceback
+    import urllib.request
+    import urllib.error
+
+    result: dict = {"env": {}, "http_test": {}, "supabase_test": {}}
+
+    # 1. Env var presence (first 8 chars only — not enough to authenticate)
+    for var in (
+        "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY",
+        "HYPERDRIVE_DATABASE_URL", "APP_ENV", "SECRET_KEY",
+    ):
+        val = os.environ.get(var, "")
+        result["env"][var] = (val[:10] + "…") if len(val) > 10 else ("SET" if val else "MISSING")
+
+    # 2. Raw HTTP ping to Supabase REST root (bypasses supabase-py)
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if supabase_url and service_key:
+        try:
+            req = urllib.request.Request(
+                f"{supabase_url}/rest/v1/",
+                headers={"apikey": service_key, "Authorization": f"Bearer {service_key}"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                result["http_test"] = {"status": resp.status, "ok": True}
+        except urllib.error.HTTPError as e:
+            result["http_test"] = {"ok": False, "http_status": e.code, "error": str(e)}
+        except Exception as e:
+            result["http_test"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    else:
+        result["http_test"] = {"ok": False, "error": "SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing"}
+
+    # 3. supabase-py count_cases (fast HEAD-style count, avoids full RPC)
+    try:
+        repo = get_repo()
+        if hasattr(repo, "count_cases"):
+            count = repo.count_cases(count_mode="planned")
+            result["supabase_test"] = {"count": int(count), "ok": True}
+        else:
+            result["supabase_test"] = {"ok": False, "error": "repo has no count_cases — not SupabaseRepository"}
+    except Exception as e:
+        result["supabase_test"] = {
+            "ok": False,
+            "error": f"{type(e).__name__}: {e}",
+            "trace": traceback.format_exc()[-800:],
+        }
+
+    return jsonify(result)
+
+
 # ── Dashboard Stats ─────────────────────────────────────────────────────
 
 @api_bp.route("/stats")
