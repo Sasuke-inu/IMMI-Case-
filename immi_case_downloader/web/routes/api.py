@@ -1610,13 +1610,26 @@ def debug():
 
     from flask import current_app
     backend = current_app.config.get("BACKEND", "unknown")
-    # Read /etc/resolv.conf to verify DNS config inside the container
-    try:
-        with open("/etc/resolv.conf") as _rf:
-            resolv_conf = _rf.read().strip()
-    except Exception as _e:
-        resolv_conf = f"ERROR: {_e}"
-    result: dict = {"backend": backend, "resolv_conf": resolv_conf, "env": {}, "http_test": {}, "db_test": {}}
+    # Version marker — confirms which container image is running
+    _img_version = "v7-hosts-fix"
+
+    # Read DNS config files to verify what the container sees at runtime
+    def _read_file(path):
+        try:
+            with open(path) as _f:
+                return _f.read().strip()
+        except Exception as _e:
+            return f"ERROR: {_e}"
+
+    result: dict = {
+        "_v": _img_version,
+        "backend": backend,
+        "resolv_conf": _read_file("/etc/resolv.conf"),
+        "etc_hosts_tail": _read_file("/etc/hosts").splitlines()[-5:],
+        "env": {},
+        "http_test": {},
+        "db_test": {},
+    }
 
     # 1. Env var presence (first 10 chars only — not enough to authenticate)
     for var in (

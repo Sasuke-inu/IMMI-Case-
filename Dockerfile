@@ -18,9 +18,24 @@ EXPOSE 8080
 ENV APP_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Pre-bake DNS into the image layer so it survives regardless of runtime resolv.conf handling.
-# Cloudflare Containers start with no working resolver; 1.1.1.1 lets outbound HTTPS reach Supabase.
-# *.hyperdrive.local still can't be resolved via public DNS (that's OK — SupabaseRepository uses REST).
-RUN printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
+# Cloudflare Containers override /etc/resolv.conf at startup, so we can't fix DNS there.
+# Instead, pre-resolve Supabase hostnames to IPs during the build (when DNS works) and
+# write them into /etc/hosts. The container runtime appends to /etc/hosts but never
+# overwrites it, so these entries survive and httpx can connect without DNS.
+RUN python3 -c "
+import socket
+hosts = ['urntbuqczarkuoaosjxd.supabase.co']
+lines = []
+for h in hosts:
+    try:
+        ip = socket.gethostbyname(h)
+        lines.append(f'{ip} {h}')
+        print(f'Resolved {h} -> {ip}')
+    except Exception as e:
+        print(f'WARN: could not resolve {h}: {e}')
+if lines:
+    with open('/etc/hosts', 'a') as f:
+        f.write('\n'.join(lines) + '\n')
+"
 
 CMD ["python", "web.py", "--host", "0.0.0.0", "--port", "8080", "--backend", "supabase"]
