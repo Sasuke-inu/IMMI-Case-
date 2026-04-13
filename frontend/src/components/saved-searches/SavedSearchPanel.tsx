@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark, Search, AlertCircle } from "lucide-react";
+import { Bookmark, Search, AlertCircle, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSavedSearches } from "@/hooks/use-saved-searches";
 import { SavedSearchCard } from "./SavedSearchCard";
@@ -22,6 +22,7 @@ export function SavedSearchPanel({
   const { savedSearches, deleteSearch, executeSearch, count, limitReached } =
     useSavedSearches();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isExpanded, setIsExpanded] = useState(count > 0);
 
   // Filter saved searches by search query
   const filteredSearches = useMemo(() => {
@@ -47,25 +48,42 @@ export function SavedSearchPanel({
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-3 space-y-3">
-      {/* Header with count */}
-      <div className="flex items-center justify-between">
+    <div className="rounded-lg border border-border bg-card">
+      {/* Header — always visible, toggles expand/collapse */}
+      <button
+        type="button"
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className="flex w-full items-center justify-between px-3 py-2.5 text-left"
+        aria-expanded={isExpanded}
+      >
         <div className="flex items-center gap-2">
           <Bookmark className="h-4 w-4 text-muted-text" />
           <h2 className="text-sm font-semibold text-foreground">
             {t("saved_searches.title", { defaultValue: "Saved Searches" })}
           </h2>
         </div>
-        <span
-          data-testid="saved-search-count"
-          className={cn(
-            "text-xs font-medium",
-            limitReached ? "text-amber-600 dark:text-amber-400" : "text-muted-text"
-          )}
-        >
-          {count}/50
-        </span>
-      </div>
+        <div className="flex items-center gap-2">
+          <span
+            data-testid="saved-search-count"
+            className={cn(
+              "text-xs font-medium",
+              limitReached ? "text-amber-600 dark:text-amber-400" : "text-muted-text"
+            )}
+          >
+            {count}/50
+          </span>
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 text-muted-text transition-transform duration-150",
+              isExpanded && "rotate-180",
+            )}
+          />
+        </div>
+      </button>
+
+      {/* Collapsible body */}
+      {isExpanded && (
+      <div className="border-t border-border px-3 pb-3 pt-2.5 space-y-3">
 
       {/* Limit warning */}
       {limitReached && (
@@ -154,6 +172,8 @@ export function SavedSearchPanel({
             />
           ))}
         </div>
+      )}
+      </div>
       )}
     </div>
   );

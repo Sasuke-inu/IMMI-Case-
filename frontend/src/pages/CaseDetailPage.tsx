@@ -208,12 +208,12 @@ export function CaseDetailPage() {
           />
           <MetaField
             label={t("cases.visa_subclass")}
-            value={c.visa_subclass}
+            value={c.visa_subclass?.replace(/\.0$/, "") || undefined}
             mono
           />
           <MetaField
             label={t("cases.subclass_no") || "Subclass No."}
-            value={c.visa_subclass_number}
+            value={c.visa_subclass_number?.replace(/\.0$/, "") || undefined}
             mono
           />
           <MetaField

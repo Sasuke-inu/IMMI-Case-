@@ -110,7 +110,7 @@ function JudgeLeaderboardTable({
                   {row.active_years.last ?? "-"}
                 </td>
                 <td className="px-3 py-2 text-muted-text">
-                  {row.courts.join(", ") || "-"}
+                  {[...new Set(row.courts)].join(", ") || "-"}
                 </td>
                 <td className="px-3 py-2 text-muted-text">
                   {row.top_visa_subclasses[0]
