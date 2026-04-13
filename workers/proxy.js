@@ -40,20 +40,22 @@ export class FlaskBackend extends DurableObject {
 
   async fetch(request) {
     // Forward request to Flask running on port 8080 inside the container.
-    // Retry until Flask is ready (cold start can take 5-15s for Python imports).
+    // Retry until Flask is ready. Cold start: image pull + Python imports can take 30-60s.
+    // Also retry on "container not running" in case start() resolved before Flask bound.
     const url = new URL(request.url);
     const containerUrl = `http://container${url.pathname}${url.search}`;
-    const port = this.ctx.container.getTcpPort(8080);
 
-    const MAX_ATTEMPTS = 30;
+    const MAX_ATTEMPTS = 120; // 60 seconds total (120 × 500ms)
     const RETRY_DELAY_MS = 500;
     let lastError;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       try {
+        const port = this.ctx.container.getTcpPort(8080);
         return await port.fetch(new Request(containerUrl, request));
       } catch (err) {
-        if (err?.message?.includes("not listening")) {
+        const msg = err?.message ?? "";
+        if (msg.includes("not listening") || msg.includes("not running")) {
           lastError = err;
           await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
           continue;
@@ -76,7 +78,7 @@ export default {
 
     // Proxy API and SPA routes to Flask container
     if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/app/")) {
-      const id = env.FlaskBackend.idFromName("flask-v10");
+      const id = env.FlaskBackend.idFromName("flask-v11");
       const container = env.FlaskBackend.get(id);
 
       // Inject Hyperdrive connection string so Flask can use direct psycopg2.
