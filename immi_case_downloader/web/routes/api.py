@@ -1603,14 +1603,16 @@ def get_csrf_token():
 
 @api_bp.route("/debug")
 def debug():
-    """Diagnostic endpoint: checks Supabase connectivity from inside the container."""
+    """Diagnostic endpoint: checks database connectivity from inside the container."""
     import traceback
     import urllib.request
     import urllib.error
 
-    result: dict = {"env": {}, "http_test": {}, "supabase_test": {}}
+    from flask import current_app
+    backend = current_app.config.get("BACKEND", "unknown")
+    result: dict = {"backend": backend, "env": {}, "http_test": {}, "db_test": {}}
 
-    # 1. Env var presence (first 8 chars only — not enough to authenticate)
+    # 1. Env var presence (first 10 chars only — not enough to authenticate)
     for var in (
         "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY",
         "HYPERDRIVE_DATABASE_URL", "APP_ENV", "SECRET_KEY",
@@ -1618,7 +1620,7 @@ def debug():
         val = os.environ.get(var, "")
         result["env"][var] = (val[:10] + "…") if len(val) > 10 else ("SET" if val else "MISSING")
 
-    # 2. Raw HTTP ping to Supabase REST root (bypasses supabase-py)
+    # 2. Raw HTTP ping to Supabase REST (shows whether external DNS works)
     supabase_url = os.environ.get("SUPABASE_URL", "")
     service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     if supabase_url and service_key:
@@ -1636,16 +1638,16 @@ def debug():
     else:
         result["http_test"] = {"ok": False, "error": "SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing"}
 
-    # 3. supabase-py count_cases (fast HEAD-style count, avoids full RPC)
+    # 3. Database count via active repository backend (Hyperdrive or Supabase REST)
     try:
         repo = get_repo()
         if hasattr(repo, "count_cases"):
             count = repo.count_cases(count_mode="planned")
-            result["supabase_test"] = {"count": int(count), "ok": True}
+            result["db_test"] = {"count": int(count), "ok": True, "via": backend}
         else:
-            result["supabase_test"] = {"ok": False, "error": "repo has no count_cases — not SupabaseRepository"}
+            result["db_test"] = {"ok": False, "error": "repo has no count_cases method"}
     except Exception as e:
-        result["supabase_test"] = {
+        result["db_test"] = {
             "ok": False,
             "error": f"{type(e).__name__}: {e}",
             "trace": traceback.format_exc()[-800:],
