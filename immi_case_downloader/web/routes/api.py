@@ -1610,7 +1610,13 @@ def debug():
 
     from flask import current_app
     backend = current_app.config.get("BACKEND", "unknown")
-    result: dict = {"backend": backend, "env": {}, "http_test": {}, "db_test": {}}
+    # Read /etc/resolv.conf to verify DNS config inside the container
+    try:
+        with open("/etc/resolv.conf") as _rf:
+            resolv_conf = _rf.read().strip()
+    except Exception as _e:
+        resolv_conf = f"ERROR: {_e}"
+    result: dict = {"backend": backend, "resolv_conf": resolv_conf, "env": {}, "http_test": {}, "db_test": {}}
 
     # 1. Env var presence (first 10 chars only — not enough to authenticate)
     for var in (

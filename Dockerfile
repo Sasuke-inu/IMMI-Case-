@@ -18,6 +18,9 @@ EXPOSE 8080
 ENV APP_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Fix DNS (Cloudflare Containers have no resolver configured) and start Flask.
-# Using inline sh -c avoids path-resolution issues with entrypoint scripts.
-CMD ["/bin/sh", "-c", "printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf 2>/dev/null || true && exec python web.py --host 0.0.0.0 --port 8080 --backend supabase"]
+# Pre-bake DNS into the image layer so it survives regardless of runtime resolv.conf handling.
+# Cloudflare Containers start with no working resolver; 1.1.1.1 lets outbound HTTPS reach Supabase.
+# *.hyperdrive.local still can't be resolved via public DNS (that's OK — SupabaseRepository uses REST).
+RUN printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
+
+CMD ["python", "web.py", "--host", "0.0.0.0", "--port", "8080", "--backend", "supabase"]
