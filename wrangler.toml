@@ -1,8 +1,10 @@
 name = "immi-case"
 compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
 
-# Cloudflare Pages handles the React SPA static files.
-# This Worker proxies API calls to the Flask Container.
+# Read path: Worker handles GET /api/v1/{cases,stats,filter-options} natively via Hyperdrive → Supabase PostgreSQL.
+# Write path: POST/PUT/DELETE and complex analytics are proxied to the Flask Container.
+# React SPA at /app/* is also served via the Flask Container.
 main = "workers/proxy.js"
 
 [[hyperdrive]]
