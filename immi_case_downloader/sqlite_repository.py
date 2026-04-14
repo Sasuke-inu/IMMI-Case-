@@ -109,6 +109,8 @@ class SqliteRepository:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self._local = threading.local()
+        self._all_conns: list[sqlite3.Connection] = []
+        self._all_conns_lock = threading.Lock()
         self.initialize()
 
     def _conn(self) -> sqlite3.Connection:
@@ -121,14 +123,19 @@ class SqliteRepository:
             conn.execute("PRAGMA foreign_keys=ON")
             conn.row_factory = sqlite3.Row
             self._local.conn = conn
+            with self._all_conns_lock:
+                self._all_conns.append(conn)
         return conn
 
     def close(self):
-        """Close the current thread-local connection if one exists."""
-        conn = getattr(self._local, "conn", None)
-        if conn is None:
-            return
-        conn.close()
+        """Close all connections across all threads."""
+        with self._all_conns_lock:
+            for conn in self._all_conns:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+            self._all_conns.clear()
         self._local.conn = None
 
     def __del__(self):
@@ -427,9 +434,13 @@ class SqliteRepository:
         tag: str = "",
         nature: str = "",
         keyword: str = "",
-        count_mode: str = "planned",
+        count_mode: str = "planned",  # accepted for interface compatibility; SQLite COUNT(*) is always exact
     ) -> int:
-        """Return the exact count for the matching SQLite rows."""
+        """Return the exact count for the matching SQLite rows.
+
+        ``count_mode`` is ignored: SQLite COUNT(*) is always exact regardless of mode.
+        """
+        _ = count_mode
         conn = self._conn()
         where_clause, params = self._build_case_filters(
             court=court,
