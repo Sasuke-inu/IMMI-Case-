@@ -18,7 +18,7 @@ class TestDataDictionaryPage:
         react_navigate(react_page, "/data-dictionary")
         wait_for_loading_gone(react_page)
         # 5 group tables share the same headers; check first occurrence
-        for col in ["Field", "Type", "Description", "Example"]:
+        for col in ["Field Name", "Type", "Description", "Example"]:
             assert react_page.locator("th").get_by_text(col, exact=True).first.is_visible()
 
     def test_table_has_fields(self, react_page):

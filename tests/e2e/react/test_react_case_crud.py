@@ -39,11 +39,10 @@ def _navigate_to_edit(page):
     """Navigate to the edit page from the case detail page."""
     _navigate_to_first_case(page)
     main = page.locator("main")
-    with page.expect_response(
-        lambda r: "/api/v1/cases/" in r.url and r.request.method == "GET",
-        timeout=15000,
-    ):
-        main.get_by_role("link", name="Edit").click()
+    main.get_by_role("link", name="Edit").click()
+    # Wait for URL to include /edit — don't use expect_response because
+    # TanStack Query serves from cache (no new network request fires).
+    page.wait_for_url("**/**/edit", timeout=10000)
     page.wait_for_timeout(500)
     wait_for_loading_gone(page)
 
@@ -54,8 +53,9 @@ class TestCreateCase:
     def test_add_page_has_form(self, react_page, skip_if_live):
         react_navigate(react_page, "/cases/add")
         wait_for_loading_gone(react_page)
-        assert react_page.locator("main").get_by_role("heading", name="Add Case").is_visible()
-        assert react_page.locator("label").get_by_text("Title", exact=True).is_visible()
+        assert react_page.locator("main").get_by_role("heading", name="New Case").is_visible()
+        # Label renders as "Title *" (required indicator appended); use partial match
+        assert react_page.locator("label").get_by_text("Title", exact=False).first.is_visible()
 
     def test_create_case_success(self, react_page, skip_if_live):
         """Fill form and create a case, verify toast and redirect."""

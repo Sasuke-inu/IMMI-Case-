@@ -22,12 +22,12 @@ class TestStatCards:
     def test_courts_card(self, react_page):
         react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_text("Courts", exact=True).is_visible()
+        assert react_page.get_by_text("Courts / Tribunals", exact=True).is_visible()
 
     def test_case_categories_card(self, react_page):
         react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
-        assert react_page.get_by_text("Case Categories", exact=True).is_visible()
+        assert react_page.get_by_text("Case Categories", exact=True).first.is_visible()
 
     def test_stat_card_shows_numeric_value(self, react_page):
         """Total Cases card should display a numeric value from seed data."""

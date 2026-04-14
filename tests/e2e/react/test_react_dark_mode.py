@@ -33,7 +33,7 @@ class TestDarkModeDashboard:
         react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
         _enable_dark_mode(react_page)
-        for card_title in ["Total Cases", "With Full Text", "Courts"]:
+        for card_title in ["Total Cases", "With Full Text", "Courts / Tribunals"]:
             assert react_page.get_by_text(card_title, exact=True).first.is_visible()
 
     def test_charts_render_svg_dark(self, react_page):

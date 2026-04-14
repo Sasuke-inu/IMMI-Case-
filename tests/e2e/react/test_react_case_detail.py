@@ -87,7 +87,7 @@ class TestMetadataGrid:
 
     def test_metadata_has_legislation(self, react_page):
         _navigate_to_seed_case(react_page)
-        assert react_page.get_by_text("Legislation", exact=True).first.is_visible()
+        assert react_page.get_by_text("Legislation Cited", exact=True).first.is_visible()
 
 
 class TestFullTextToggle:

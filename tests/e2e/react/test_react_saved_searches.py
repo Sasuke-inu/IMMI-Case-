@@ -14,10 +14,20 @@ def _saved_searches_heading(page: Page):
 
 
 def _saved_searches_panel(page: Page):
-    """Return the parent container for the Saved Searches section."""
-    return _saved_searches_heading(page).locator(
+    """Return the parent container for the Saved Searches section.
+
+    The panel collapses when count=0 at mount time. After saving a search
+    the React state doesn't auto-expand, so we click the toggle if collapsed.
+    """
+    panel = _saved_searches_heading(page).locator(
         "xpath=ancestor::div[contains(@class,'rounded-lg') and contains(@class,'bg-card')][1]"
     )
+    # Expand the collapsible body if it is currently collapsed
+    toggle = panel.locator("button[aria-expanded='false']").first
+    if toggle.count() > 0:
+        toggle.click()
+        page.wait_for_timeout(200)
+    return panel
 
 
 def _apply_filter_for_savable_search(page: Page, court: str = "FCA"):

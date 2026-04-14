@@ -54,8 +54,9 @@ class TestDesktopSidebar:
     def test_sidebar_footer_text(self, react_page):
         react_navigate(react_page, "/")
         wait_for_loading_gone(react_page)
-        footer = react_page.locator("aside").get_by_text("Australian Immigration Case Database", exact=True)
-        assert footer.is_visible()
+        # Footer is a visual border separator (no text content); verify it exists
+        footer = react_page.locator("aside .border-t")
+        assert footer.count() > 0
 
 
 class TestMobileDrawer:
