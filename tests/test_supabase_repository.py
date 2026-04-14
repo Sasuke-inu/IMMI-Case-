@@ -108,8 +108,13 @@ class TestLoadAll:
         table = MagicMock()
         mock_client.table.return_value = table
         table.select.return_value = table
-        table.range.return_value = table
-        table.execute.return_value = _mock_response(data=rows)
+        table.order.return_value = table
+        table.limit.return_value = table
+        table.gt.return_value = table
+        table.execute.side_effect = [
+            _mock_response(data=[_case_row(case_id="schema")]),
+            _mock_response(data=rows),
+        ]
 
         cases = repo.load_all()
         assert len(cases) == 3
@@ -123,21 +128,32 @@ class TestLoadAll:
         table = MagicMock()
         mock_client.table.return_value = table
         table.select.return_value = table
-        table.range.return_value = table
+        table.order.return_value = table
+        table.limit.return_value = table
+        table.gt.return_value = table
         table.execute.side_effect = [
+            _mock_response(data=[_case_row(case_id="schema")]),
             _mock_response(data=full_page),
             _mock_response(data=partial),
         ]
 
         cases = repo.load_all()
         assert len(cases) == PAGE_MAX + 1
+        assert table.range.call_count == 0
+        assert table.order.call_count >= 1
+        assert table.gt.call_count == 1
 
     def test_empty_db(self, repo, mock_client):
         table = MagicMock()
         mock_client.table.return_value = table
         table.select.return_value = table
-        table.range.return_value = table
-        table.execute.return_value = _mock_response(data=[])
+        table.order.return_value = table
+        table.limit.return_value = table
+        table.gt.return_value = table
+        table.execute.side_effect = [
+            _mock_response(data=[_case_row(case_id="schema")]),
+            _mock_response(data=[]),
+        ]
 
         assert repo.load_all() == []
 
@@ -695,8 +711,13 @@ class TestLoadAnalyticsCasesHyperdrive:
         rows = [_case_row(case_id="rest1")]
         table = MagicMock()
         table.select.return_value = table
-        table.range.return_value = table
-        table.execute.return_value = _mock_response(data=rows)
+        table.order.return_value = table
+        table.limit.return_value = table
+        table.gt.return_value = table
+        table.execute.side_effect = [
+            _mock_response(data=[_case_row(case_id="schema")]),
+            _mock_response(data=rows),
+        ]
         mock_client.table.return_value = table
 
         with patch("immi_case_downloader.supabase_repository._get_hyperdrive_conn",
@@ -705,6 +726,9 @@ class TestLoadAnalyticsCasesHyperdrive:
 
         assert len(result) == 1
         assert result[0].case_id == "rest1"
+        assert table.range.call_count == 0
+        assert table.order.call_count >= 1
+        assert table.gt.call_count == 0
 
 
 class TestLoadAnalyticsViaPg:

@@ -97,20 +97,9 @@ class SupabaseRepository:
     # ── Core CRUD ────────────────────────────────────────────────────
 
     def load_all(self) -> list[ImmigrationCase]:
-        """Load all cases via paginated requests (PAGE_MAX per call)."""
+        """Load all cases via keyset pagination (case_id cursor)."""
         cols = ",".join(self._get_table_columns())
-        cases: list[ImmigrationCase] = []
-        offset = 0
-        while True:
-            resp = self._fetch_page(cols, offset)
-            data: list[dict] = resp.data or []  # type: ignore[union-attr, assignment]
-            if not data:
-                break
-            cases.extend(self._row_to_case(r) for r in data)
-            if len(data) < PAGE_MAX:
-                break
-            offset += PAGE_MAX
-        return cases
+        return self._load_cases_via_keyset(cols)
 
     def load_analytics_cases(self) -> list[ImmigrationCase]:
         """Load minimal analytics columns (7 vs 31) for ~4x faster loading.
@@ -120,26 +109,45 @@ class SupabaseRepository:
         full-table scan that Hyperdrive can cache at the edge.
 
         Falls back to Supabase REST API when Hyperdrive is not configured.
-        Returns ImmigrationCase objects with only the fields required by
-        analytics aggregation endpoints.  All other fields will be empty/None.
+        The REST fallback includes ``case_id`` as a pagination cursor, so it
+        selects 8 columns total (7 analytics columns + case_id).  Returns
+        ImmigrationCase objects with only the fields required by analytics
+        aggregation endpoints. All other fields will be empty/None.
         """
         conn = _get_hyperdrive_conn()
         if conn:
             return self._load_analytics_via_pg(conn)
 
         available = set(self._get_table_columns())
-        cols = ",".join(c for c in ANALYTICS_COLS if c in available)
+        cols = ["case_id"]
+        cols.extend(c for c in ANALYTICS_COLS if c in available and c != "case_id")
+        return self._load_cases_via_keyset(",".join(cols))
+
+    def _load_cases_via_keyset(self, cols: str) -> list[ImmigrationCase]:
+        """Fetch all rows using case_id as a stable pagination cursor.
+
+        PostgREST translates ``gt(case_id, last_seen)`` into keyset pagination,
+        which keeps each page cost roughly constant regardless of table size.
+        This avoids the OFFSET scan that grows linearly with page depth.
+        """
         cases: list[ImmigrationCase] = []
-        offset = 0
+        last_case_id: str | None = None
+
         while True:
-            resp = self._fetch_page(cols, offset)
+            resp = self._fetch_keyset_page(cols, last_case_id)
             page_data: list[dict] = resp.data or []  # type: ignore[union-attr, assignment]
             if not page_data:
                 break
+
             cases.extend(self._row_to_case(r) for r in page_data)
             if len(page_data) < PAGE_MAX:
                 break
-            offset += PAGE_MAX
+
+            last_row = page_data[-1]
+            last_case_id = str(last_row.get("case_id", "")).strip() or None
+            if not last_case_id:
+                raise ValueError("Keyset pagination requires case_id on every row")
+
         return cases
 
     def _load_analytics_via_pg(self, conn) -> list[ImmigrationCase]:
@@ -163,25 +171,28 @@ class SupabaseRepository:
         finally:
             conn.close()
 
-    def _fetch_page(self, cols: str, offset: int):
-        """Fetch one page of rows from Supabase with one retry on ReadError.
+    def _fetch_keyset_page(self, cols: str, after_case_id: str | None):
+        """Fetch one page of rows from Supabase with a stable case_id cursor.
 
         This helper centralises the retry logic for paginated loads so both
         load_all() and load_analytics_cases() benefit without code duplication.
         """
         for attempt in range(2):
             try:
-                return (
+                query = (
                     self._client.table(TABLE)
                     .select(cols)
-                    .range(offset, offset + PAGE_MAX - 1)
-                    .execute()
+                    .order("case_id")
+                    .limit(PAGE_MAX)
                 )
+                if after_case_id:
+                    query = query.gt("case_id", after_case_id)
+                return query.execute()
             except Exception as exc:
                 if attempt == 0 and "ReadError" in type(exc).__name__:
                     logger.warning(
-                        "Page fetch ReadError at offset=%d (attempt %d), retrying in 0.4s…",
-                        offset, attempt + 1,
+                        "Page fetch ReadError after case_id=%s (attempt %d), retrying in 0.4s…",
+                        after_case_id or "<start>", attempt + 1,
                     )
                     time.sleep(0.4)
                     continue
