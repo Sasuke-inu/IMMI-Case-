@@ -97,7 +97,7 @@ def _strip_sections(leg: dict) -> dict:
 # ── List ──────────────────────────────────────────────────────────────────────
 
 
-@legislations_bp.route("", methods=["GET"])
+@legislations_bp.route("", methods=["GET"], strict_slashes=False)
 def list_legislations():
     """List all legislations with pagination. sections[] is excluded.
 
@@ -143,7 +143,7 @@ def list_legislations():
 # ── Search ────────────────────────────────────────────────────────────────────
 
 
-@legislations_bp.route("/search", methods=["GET"])
+@legislations_bp.route("/search", methods=["GET"], strict_slashes=False)
 def search_legislations():
     """Search legislations by query string. sections[] is excluded.
 
@@ -189,7 +189,7 @@ def search_legislations():
 # ── Detail ────────────────────────────────────────────────────────────────────
 
 
-@legislations_bp.route("/<legislation_id>", methods=["GET"])
+@legislations_bp.route("/<legislation_id>", methods=["GET"], strict_slashes=False)
 def get_legislation(legislation_id: str):
     """Get a specific legislation by ID, including full sections[] array."""
     try:
@@ -211,7 +211,7 @@ def get_legislation(legislation_id: str):
 # ── Update (background scrape job) ────────────────────────────────────────────
 
 
-@legislations_bp.route("/update", methods=["POST"])
+@legislations_bp.route("/update", methods=["POST"], strict_slashes=False)
 @rate_limit(5, 60, scope="legislations-update")
 def start_update():
     """Start a background scrape job for one or all laws.
@@ -257,7 +257,7 @@ def start_update():
     return jsonify({"success": True, "message": "Scrape job started", "laws": law_ids})
 
 
-@legislations_bp.route("/update/status", methods=["GET"])
+@legislations_bp.route("/update/status", methods=["GET"], strict_slashes=False)
 def update_status():
     """Poll the current scrape job status."""
     return jsonify({"success": True, "status": legislation_job_manager.snapshot()})

@@ -68,6 +68,7 @@ vi.mock("@/lib/dashboard-insights", () => ({
     activeYearCount: 10,
     scope: { court: null, yearFrom: 2000, yearTo: 2026 },
   })),
+  normalizeVisaSubclassKeys: vi.fn((obj: Record<string, number>) => obj),
 }));
 vi.mock("@/lib/trends", () => ({
   normalizeTrendEntries: vi.fn(() => []),

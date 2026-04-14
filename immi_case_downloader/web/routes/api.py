@@ -1140,8 +1140,8 @@ def _fill_all_cases_cache() -> None:
         with _all_cases_lock:
             _all_cases_cache = cases
             _all_cases_ts = time.time()
-    except Exception:
-        pass  # warmup failure is silent — browser request will fill it
+    except Exception as exc:
+        logger.warning("Warmup failed in _fill_all_cases_cache: %s", exc)
 
 
 def _get_analytics_cases() -> list[ImmigrationCase]:
@@ -1179,8 +1179,8 @@ def _fill_analytics_cases_cache() -> None:
         with _analytics_cases_lock:
             _analytics_cases_cache = cases
             _analytics_cases_ts = time.time()
-    except Exception:
-        pass  # warmup failure is silent
+    except Exception as exc:
+        logger.warning("Warmup failed in _fill_analytics_cases_cache: %s", exc)
 
 
 def _fill_analytics_cache(app) -> None:  # type: ignore[type-arg]
@@ -1196,6 +1196,7 @@ def _fill_analytics_cache(app) -> None:  # type: ignore[type-arg]
         "/api/v1/analytics/judges",
         "/api/v1/analytics/legal-concepts",
         "/api/v1/analytics/nature-outcome",
+        "/api/v1/analytics/judge-leaderboard",
     ]
     try:
         with app.test_client() as tc:
