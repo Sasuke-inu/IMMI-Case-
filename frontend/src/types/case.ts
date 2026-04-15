@@ -42,6 +42,8 @@ export interface CaseFilters {
   sort_dir?: "asc" | "desc";
   page?: number;
   page_size?: number;
+  /** Opaque base64url token returned by the backend for cursor-based pagination. */
+  cursor?: string;
 }
 
 export interface PaginatedCases {
@@ -50,6 +52,8 @@ export interface PaginatedCases {
   page: number;
   page_size: number;
   total_pages: number;
+  /** Opaque base64url token for fetching the next page via cursor pagination. Null when no further pages exist. */
+  next_cursor: string | null;
 }
 
 export interface DashboardStats {

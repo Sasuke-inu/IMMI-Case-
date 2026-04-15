@@ -888,7 +888,7 @@ export function CasesPage() {
                     data-testid="cases-row"
                     data-case-id={c.case_id}
                     className={cn(
-                      "border-b border-border-light transition-colors cursor-pointer",
+                      "border-b border-border-light transition-colors cursor-pointer font-[var(--font-data)]",
                       clampedFocusedIdx === i
                         ? "bg-accent-muted"
                         : "hover:bg-surface/50",

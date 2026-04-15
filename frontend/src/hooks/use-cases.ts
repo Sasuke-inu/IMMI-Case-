@@ -28,13 +28,19 @@ export function useCases(
     "queryKey" | "queryFn"
   >,
 ) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ["cases", filters],
     queryFn: () => fetchCases(filters),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...options,
   });
+
+  return {
+    ...query,
+    /** Opaque cursor token for the next page, or null if there are no more pages. */
+    nextCursor: query.data?.next_cursor ?? null,
+  };
 }
 
 export function useCaseCount(

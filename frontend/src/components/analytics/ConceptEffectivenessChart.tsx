@@ -4,6 +4,7 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
@@ -44,6 +45,11 @@ function ConceptEffectivenessChartInner({
         layout="vertical"
         margin={{ top: 0, right: 10, left: 10, bottom: 0 }}
       >
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="var(--color-border-light)"
+          horizontal={false}
+        />
         <XAxis
           type="number"
           tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
@@ -76,7 +82,11 @@ function ConceptEffectivenessChartInner({
           {chartData.map((entry) => (
             <Cell
               key={entry.name}
-              fill={entry.liftDelta >= 0 ? "#1f8a4d" : "#b64040"}
+              fill={
+                entry.liftDelta >= 0
+                  ? "var(--color-semantic-success, var(--color-chart-3))"
+                  : "var(--color-semantic-danger, var(--color-chart-5))"
+              }
             />
           ))}
         </Bar>

@@ -2,6 +2,7 @@ import { memo } from "react";
 import {
   BarChart,
   Bar,
+  CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
@@ -65,6 +66,11 @@ function TopJudgesChartInner({ data }: TopJudgesChartProps) {
           layout="vertical"
           margin={{ top: 0, right: 45, bottom: 0, left: 5 }}
         >
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="var(--color-border-light)"
+            horizontal={false}
+          />
           <XAxis type="number" hide />
           <YAxis
             type="category"

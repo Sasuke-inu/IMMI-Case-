@@ -2,6 +2,7 @@ import { memo } from "react";
 import {
   BarChart,
   Bar,
+  CartesianGrid,
   Cell,
   XAxis,
   YAxis,
@@ -29,9 +30,9 @@ interface LegalConceptsChartProps {
  */
 function getConceptColor(winRate: number | undefined): string {
   if (winRate === undefined) return "var(--color-accent)";
-  if (winRate >= 60) return "#1f8a4d";
-  if (winRate >= 40) return "#b9770e";
-  return "#a93226";
+  if (winRate >= 60) return "var(--color-semantic-success, var(--color-chart-3))";
+  if (winRate >= 40) return "var(--color-semantic-warning, var(--color-chart-5))";
+  return "var(--color-semantic-danger, var(--color-chart-2))";
 }
 
 function LegalConceptsChartInner({ data }: LegalConceptsChartProps) {
@@ -54,6 +55,11 @@ function LegalConceptsChartInner({ data }: LegalConceptsChartProps) {
           layout="vertical"
           margin={{ top: 0, right: 45, bottom: 0, left: 5 }}
         >
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="var(--color-border-light)"
+            horizontal={false}
+          />
           <XAxis type="number" hide />
           <YAxis
             type="category"

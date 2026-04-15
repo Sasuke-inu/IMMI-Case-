@@ -1,5 +1,5 @@
 /* Auto-generated from tokens.json — do not edit manually */
-/* Generated: 2026-04-14T10:20:14.608Z */
+/* Generated: 2026-04-15T08:17:53.711Z */
 
 export const tokens = {
   "color": {
@@ -116,6 +116,12 @@ export const tokens = {
         "Merriweather",
         "Georgia",
         "serif"
+      ],
+      "data": [
+        "DM Sans",
+        "IBM Plex Sans",
+        "system-ui",
+        "sans-serif"
       ],
       "mono": [
         "SF Mono",

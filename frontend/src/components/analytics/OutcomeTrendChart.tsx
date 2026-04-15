@@ -51,12 +51,12 @@ function OutcomeTrendChartInner({ data }: OutcomeTrendChartProps) {
           >
           <defs>
             <linearGradient id="affirmedGrad-trend" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#2d7d46" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#2d7d46" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--color-chart-3)" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="var(--color-chart-3)" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="applicantGrad-trend" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#2a6496" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#2a6496" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--color-chart-4)" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="var(--color-chart-4)" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid
@@ -121,21 +121,21 @@ function OutcomeTrendChartInner({ data }: OutcomeTrendChartProps) {
             type="monotone"
             dataKey="affirmedRate"
             name={t("analytics.affirmed_rate")}
-            stroke="#2d7d46"
+            stroke="var(--color-chart-3)"
             strokeWidth={2}
             fill="url(#affirmedGrad-trend)"
-            dot={{ r: 2, fill: "#2d7d46", strokeWidth: 0 }}
-            activeDot={{ r: 4, fill: "#2d7d46", strokeWidth: 2, stroke: "#fff" }}
+            dot={{ r: 2, fill: "var(--color-chart-3)", strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: "var(--color-chart-3)", strokeWidth: 2, stroke: "var(--color-background-card)" }}
           />
           <Area
             type="monotone"
             dataKey="applicantWinRate"
             name={t("analytics.applicant_win_rate")}
-            stroke="#2a6496"
+            stroke="var(--color-chart-4)"
             strokeWidth={2}
             fill="url(#applicantGrad-trend)"
-            dot={{ r: 2, fill: "#2a6496", strokeWidth: 0 }}
-            activeDot={{ r: 4, fill: "#2a6496", strokeWidth: 2, stroke: "#fff" }}
+            dot={{ r: 2, fill: "var(--color-chart-4)", strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: "var(--color-chart-4)", strokeWidth: 2, stroke: "var(--color-background-card)" }}
           />
           </AreaChart>
         </ResponsiveContainer>

@@ -199,7 +199,13 @@ function FlowSankeyChartInner({ data }: FlowSankeyChartProps) {
             link={{ stroke: "var(--color-primary)", opacity: 0.3 }}
             margin={{ top: 10, right: 120, bottom: 10, left: 10 }}
           >
-            <Tooltip />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "var(--color-background-card)",
+                border: "1px solid var(--color-border-light)",
+                color: "var(--color-text)",
+              }}
+            />
           </Sankey>
         </div>
       )}
