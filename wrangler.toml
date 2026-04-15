@@ -32,8 +32,9 @@ bindings = [
 tag = "v1"
 new_sqlite_classes = ["FlaskBackend"]
 
-[[custom_domains]]
-pattern = "immi.trackit.today"
+[[routes]]
+pattern = "immi.trackit.today/*"
+zone_name = "trackit.today"
 
 [[containers]]
 class_name = "FlaskBackend"
