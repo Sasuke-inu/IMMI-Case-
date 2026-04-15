@@ -41,7 +41,10 @@ def client():
     app = create_app()
     app.config["TESTING"] = True
     app.config["WTF_CSRF_ENABLED"] = False
-    return app.test_client()
+    yield app.test_client()
+    repo = app.config.get("REPO")
+    if repo and hasattr(repo, "close"):
+        repo.close()
 
 
 @pytest.fixture
