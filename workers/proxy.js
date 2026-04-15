@@ -432,10 +432,12 @@ export default {
     }
 
     // ── Flask Container proxy path ────────────────────────────────────────────
-    if (path.startsWith("/api/") || path.startsWith("/app/")) {
-      return proxyToFlask(request, env);
-    }
-
-    return new Response("Not Found", { status: 404 });
+    // Everything that wasn't handled natively above goes to the Flask
+    // container. Flask's SPA catch-all serves index.html for unknown
+    // paths, so React Router can handle client-side routes like / and
+    // /cases/:id. The legacy /app/* mount still works because Flask
+    // serves the SPA from that prefix too (resolveRouterBasename()
+    // auto-detects which mount it is running under).
+    return proxyToFlask(request, env);
   },
 };
