@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from immi_case_downloader.models import ImmigrationCase
-import immi_case_downloader.web.routes.api as api_module
+import immi_case_downloader.web.routes.api_pipeline as api_pipeline_module
 
 
 def test_llm_council_rejects_missing_question(client):
@@ -20,7 +20,7 @@ def test_llm_council_health_defaults_to_config_only_probe(client, monkeypatch):
         observed["live"] = live
         return {"ok": True, "live_probe": live, "providers": {}}
 
-    monkeypatch.setattr(api_module, "validate_council_connectivity", _fake_validate)
+    monkeypatch.setattr(api_pipeline_module, "validate_council_connectivity", _fake_validate)
 
     resp = client.get("/api/v1/llm-council/health")
     assert resp.status_code == 200
@@ -37,7 +37,7 @@ def test_llm_council_health_accepts_live_query_flag(client, monkeypatch):
         observed["live"] = live
         return {"ok": True, "live_probe": live, "providers": {}}
 
-    monkeypatch.setattr(api_module, "validate_council_connectivity", _fake_validate)
+    monkeypatch.setattr(api_pipeline_module, "validate_council_connectivity", _fake_validate)
 
     resp = client.get("/api/v1/llm-council/health?live=1")
     assert resp.status_code == 200
@@ -61,7 +61,7 @@ def test_llm_council_rejects_missing_case(client, monkeypatch):
         def get_by_id(self, _case_id):
             return None
 
-    monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+    monkeypatch.setattr(api_pipeline_module, "get_repo", lambda: _Repo())
 
     resp = client.post(
         "/api/v1/llm-council/run",
@@ -102,8 +102,8 @@ def test_llm_council_runs_and_passes_compact_case_context(client, monkeypatch):
             "moderator": {"success": True, "ranking": []},
         }
 
-    monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
-    monkeypatch.setattr(api_module, "run_immi_council", _fake_run)
+    monkeypatch.setattr(api_pipeline_module, "get_repo", lambda: _Repo())
+    monkeypatch.setattr(api_pipeline_module, "run_immi_council", _fake_run)
 
     resp = client.post(
         "/api/v1/llm-council/run",
@@ -154,8 +154,8 @@ def test_llm_council_includes_retrieved_precedents(client, monkeypatch):
             "moderator": {"success": True, "ranking": []},
         }
 
-    monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
-    monkeypatch.setattr(api_module, "run_immi_council", _fake_run)
+    monkeypatch.setattr(api_pipeline_module, "get_repo", lambda: _Repo())
+    monkeypatch.setattr(api_pipeline_module, "run_immi_council", _fake_run)
 
     resp = client.post(
         "/api/v1/llm-council/run",

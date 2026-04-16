@@ -20,12 +20,10 @@ export function TagInputModal({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) {
-      setValue("");
-      // Defer focus so the modal is fully mounted first
-      const id = setTimeout(() => inputRef.current?.focus(), 0);
-      return () => clearTimeout(id);
-    }
+    if (!open) return;
+    // Defer focus so the modal is fully mounted first
+    const id = setTimeout(() => inputRef.current?.focus(), 0);
+    return () => clearTimeout(id);
   }, [open]);
 
   useEffect(() => {

@@ -134,6 +134,22 @@ def create_app(output_dir: str = OUTPUT_DIR, backend: str = "auto"):
     from .routes.bookmarks import bookmarks_bp
     app.register_blueprint(bookmarks_bp)
 
+    # Register Export API blueprint (cq-001 Phase A — extracted from api.py)
+    from .routes.api_export import api_export_bp
+    app.register_blueprint(api_export_bp)
+
+    # Register Pipeline + LLM Council API blueprint (cq-001 Phase B)
+    from .routes.api_pipeline import api_pipeline_bp
+    app.register_blueprint(api_pipeline_bp)
+
+    # Register Taxonomy + Court Lineage API blueprint (cq-001 Phase C)
+    from .routes.api_taxonomy import api_taxonomy_bp
+    app.register_blueprint(api_taxonomy_bp)
+
+    # Register Cases CRUD + Search + Filter-options blueprint (cq-001 Phase D1)
+    from .routes.api_cases import api_cases_bp
+    app.register_blueprint(api_cases_bp)
+
     # React SPA catch-all: serve all non-API requests from the React build.
     # /api/* is handled by the blueprints above; everything else gets index.html.
     react_dir = os.path.join(pkg_dir, "static", "react")

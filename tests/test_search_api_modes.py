@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import immi_case_downloader.web.routes.api as api_module
+import immi_case_downloader.web.routes.api_cases as api_cases_module
 
 
 def test_search_default_mode_is_lexical(client):
@@ -50,7 +50,7 @@ def test_search_hybrid_falls_back_to_lexical_when_rerank_fails(client, monkeypat
     def _raise_runtime_error(*_args, **_kwargs):
         raise RuntimeError("simulated embedding failure")
 
-    monkeypatch.setattr(api_module, "_semantic_rerank_cases", _raise_runtime_error)
+    monkeypatch.setattr(api_cases_module, "_semantic_rerank_cases", _raise_runtime_error)
     resp = client.get("/api/v1/search?q=Applicant&mode=hybrid&limit=3")
     assert resp.status_code == 200
     data = resp.get_json()
@@ -66,7 +66,7 @@ def test_search_semantic_uses_reranked_results_when_available(client, monkeypatc
         assert provider in {"openai", "gemini"}
         return list(reversed(candidates))[:limit], "openai", "test-embedding-model"
 
-    monkeypatch.setattr(api_module, "_semantic_rerank_cases", _fake_rerank)
+    monkeypatch.setattr(api_cases_module, "_semantic_rerank_cases", _fake_rerank)
     resp = client.get("/api/v1/search?q=Applicant&mode=semantic&limit=2")
     assert resp.status_code == 200
     data = resp.get_json()

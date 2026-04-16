@@ -105,7 +105,7 @@ class TestSecretKey:
             # Should not be the old hardcoded value
             assert app.secret_key != "immi-case-dev-key-change-in-prod"
             # Should be a non-empty string
-            assert len(app.secret_key) >= 32
+            assert app.secret_key is not None and len(app.secret_key) >= 32
 
     def test_secret_key_required_in_production(self, populated_dir):
         """Production-like environments must provide SECRET_KEY explicitly."""
@@ -320,3 +320,39 @@ class TestRateLimiting:
             assert fresh_bucket.status_code == 200
         finally:
             client.application.config["TRUST_PROXY_HEADERS"] = False
+
+
+# ── sec-001: Debug endpoint removed ───────────────────────────────────────
+
+
+class TestDebugEndpointRemoved:
+    """Regression tests for sec-001: /api/v1/debug must not exist.
+
+    The endpoint previously leaked SECRET_KEY, SUPABASE_SERVICE_ROLE_KEY,
+    HYPERDRIVE_DATABASE_URL, /etc/resolv.conf, and /etc/hosts to any
+    unauthenticated caller.  These tests ensure it is permanently gone.
+    """
+
+    def test_debug_endpoint_returns_404(self, client):
+        """GET /api/v1/debug must return 404 in all environments."""
+        resp = client.get("/api/v1/debug")
+        assert resp.status_code == 404, (
+            f"Expected 404 (endpoint removed), got {resp.status_code}. "
+            "The /api/v1/debug route must not be registered."
+        )
+
+    def test_debug_endpoint_does_not_leak_env_keys(self, client):
+        """Even on 404, the response body must not contain env var fragments."""
+        resp = client.get("/api/v1/debug")
+        body = resp.get_data(as_text=True).lower()
+        for forbidden in ("secret_key", "service_role", "hyperdrive", "resolv.conf"):
+            assert forbidden not in body, (
+                f"Response body contains '{forbidden}' — sensitive data still leaking."
+            )
+
+    def test_debug_endpoint_post_also_404(self, client):
+        """POST to /api/v1/debug must also return 404 (no method-routing gap)."""
+        resp = client.post("/api/v1/debug", json={})
+        assert resp.status_code in (404, 405), (
+            f"Expected 404 or 405 for POST /api/v1/debug, got {resp.status_code}."
+        )

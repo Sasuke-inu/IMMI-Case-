@@ -6,6 +6,7 @@ import time
 import pytest
 
 import immi_case_downloader.web.routes.api as api_module
+import immi_case_downloader.web.routes.api_cases as api_cases_module
 import immi_case_downloader.web.routes.legislations as legislations_module
 from immi_case_downloader.models import ImmigrationCase
 
@@ -123,7 +124,7 @@ class TestApiRoutes:
                 return []
 
         repo = _Repo()
-        monkeypatch.setattr(api_module, "get_repo", lambda: repo)
+        monkeypatch.setattr(api_cases_module, "get_repo", lambda: repo)
         resp = client.get("/api/v1/cases?sort_by=year&sort_dir=desc&page=1&page_size=1")
         assert resp.status_code == 200
         data = resp.get_json()
@@ -157,7 +158,7 @@ class TestApiRoutes:
                 return [case]
 
         repo = _Repo()
-        monkeypatch.setattr(api_module, "get_repo", lambda: repo)
+        monkeypatch.setattr(api_cases_module, "get_repo", lambda: repo)
         resp = client.get("/api/v1/cases?sort_by=year&q=Minister&page=1&page_size=1")
         assert resp.status_code == 200
         assert repo.seek_calls == 0
@@ -285,7 +286,7 @@ class TestApiRoutes:
                 return 7
 
         repo = _Repo()
-        monkeypatch.setattr(api_module, "get_repo", lambda: repo)
+        monkeypatch.setattr(api_cases_module, "get_repo", lambda: repo)
 
         resp = client.get("/api/v1/cases?page=1&page_size=1")
         assert resp.status_code == 200
@@ -302,7 +303,7 @@ class TestApiRoutes:
             def count_cases(self, **_kwargs):
                 return 0
 
-        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+        monkeypatch.setattr(api_cases_module, "get_repo", lambda: _Repo())
         resp = client.get("/api/v1/cases?count_mode=bad")
         assert resp.status_code == 400
         assert "Invalid count_mode" in resp.get_json()["error"]
@@ -321,7 +322,7 @@ class TestApiRoutes:
                     raise RuntimeError("statement timeout")
                 return 42
 
-        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+        monkeypatch.setattr(api_cases_module, "get_repo", lambda: _Repo())
         monkeypatch.setattr(api_module, "_call_with_timeout", lambda fn, **_kwargs: fn())
 
         resp = client.get("/api/v1/cases?count_mode=exact&page=1&page_size=1")
@@ -337,7 +338,7 @@ class TestApiRoutes:
                     raise RuntimeError("statement timeout")
                 return 13
 
-        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
+        monkeypatch.setattr(api_cases_module, "get_repo", lambda: _Repo())
         monkeypatch.setattr(api_module, "_call_with_timeout", lambda fn, **_kwargs: fn())
 
         resp = client.get("/api/v1/cases/count?count_mode=exact")
@@ -362,9 +363,9 @@ class TestApiRoutes:
             def list_cases_fast(self, **_kwargs):
                 return [_Case()]
 
-        monkeypatch.setattr(api_module, "get_repo", lambda: _Repo())
-        monkeypatch.setattr(api_module, "_filter_options_cache_payload", None)
-        monkeypatch.setattr(api_module, "_filter_options_cache_ts", 0.0)
+        monkeypatch.setattr(api_cases_module, "get_repo", lambda: _Repo())
+        monkeypatch.setattr(api_cases_module, "_filter_options_cache_payload", None)
+        monkeypatch.setattr(api_cases_module, "_filter_options_cache_ts", 0.0)
 
         resp = client.get("/api/v1/filter-options")
         assert resp.status_code == 200

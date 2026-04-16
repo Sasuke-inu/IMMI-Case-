@@ -1,25 +1,9 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  List,
-  LayoutGrid,
-  Trash2,
-  Tag,
-  Download,
-  GitCompare,
-  Search,
-  ChevronDown,
-  ChevronUp,
-  FileText,
-  Bookmark,
-} from "lucide-react";
+import { List, LayoutGrid, FileText } from "lucide-react";
 import { useCases, useFilterOptions, useBatchCases } from "@/hooks/use-cases";
 import { useSavedSearches } from "@/hooks/use-saved-searches";
-import { CourtBadge } from "@/components/shared/CourtBadge";
-import { OutcomeBadge } from "@/components/shared/OutcomeBadge";
-import { NatureBadge } from "@/components/shared/NatureBadge";
-import { CaseCard } from "@/components/cases/CaseCard";
 import { FilterPill } from "@/components/shared/FilterPill";
 import { Pagination } from "@/components/shared/Pagination";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -30,20 +14,12 @@ import { SaveSearchModal } from "@/components/saved-searches/SaveSearchModal";
 import { SavedSearchPanel } from "@/components/saved-searches/SavedSearchPanel";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageLoader } from "@/components/shared/PageLoader";
+import { CasesFilters } from "@/components/cases/CasesFilters";
+import { CasesTable } from "@/components/cases/CasesTable";
+import { CasesBulkActions } from "@/components/cases/CasesBulkActions";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { CaseFilters, ImmigrationCase } from "@/types/case";
-
-function formatDateCompact(date: string): string {
-  if (!date) return "";
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return date;
-  return d.toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 export function CasesPage() {
   const { t } = useTranslation();
@@ -155,18 +131,6 @@ export function CasesPage() {
       }
     },
     [selected, batchMutation, t],
-  );
-
-  const handleBatch = useCallback(
-    async (action: string) => {
-      if (selected.size === 0) return;
-      if (action === "tag") {
-        setTagModalOpen(true);
-        return;
-      }
-      await runBatch(action);
-    },
-    [selected.size, runBatch],
   );
 
   const handleTagConfirm = useCallback(
@@ -390,15 +354,6 @@ export function CasesPage() {
     return result;
   }, [filters, t]);
 
-  const sortLabel =
-    filters.sort_by === "date"
-      ? t("filters.date") || "Date"
-      : filters.sort_by === "year"
-        ? t("units.year")
-        : filters.sort_by === "title"
-          ? t("cases.title")
-          : t("filters.court");
-
   const hasActiveFilterSet = activeFilters.length > 0;
 
   return (
@@ -473,131 +428,16 @@ export function CasesPage() {
         }
       />
 
-      {/* Primary Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={filters.court ?? ""}
-          onChange={(e) => updateFilter("court", e.target.value)}
-          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
-          aria-label={t("filters.court")}
-        >
-          <option value="">{t("filters.all_courts")}</option>
-          {filterOpts?.courts?.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select
-          value={filters.year?.toString() ?? ""}
-          onChange={(e) => updateFilter("year", e.target.value)}
-          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
-          aria-label={t("units.year")}
-        >
-          <option value="">{t("filters.year_from")}</option>
-          {filterOpts?.years?.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-        <select
-          value={filters.nature ?? ""}
-          onChange={(e) => updateFilter("nature", e.target.value)}
-          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
-          aria-label={t("cases.nature")}
-        >
-          <option value="">{t("filters.all_natures")}</option>
-          {filterOpts?.natures?.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-text" />
-          <input
-            key={filters.keyword ?? ""}
-            ref={keywordInputRef}
-            type="text"
-            placeholder={t("common.search_placeholder")}
-            defaultValue={filters.keyword ?? ""}
-            onBlur={(e) => updateFilter("keyword", e.target.value.trim())}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                updateFilter("keyword", e.currentTarget.value.trim());
-              }
-              if (e.key === "Escape") {
-                e.currentTarget.value = filters.keyword ?? "";
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-            className="rounded-md border border-border bg-card py-1.5 pl-8 pr-3 text-sm text-foreground placeholder:text-muted-text"
-            aria-label={t("common.search_cases")}
-            aria-keyshortcuts="/"
-            title={t("cases.search_shortcut_hint")}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-muted-text hover:text-foreground"
-          aria-expanded={showAdvanced}
-          aria-controls="cases-advanced-filters"
-        >
-          {t("filters.filter")}
-          {showAdvanced ? (
-            <ChevronUp className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowSaveModal(true)}
-          className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-muted-text hover:text-foreground"
-          title={t("saved_searches.save_description")}
-        >
-          <Bookmark className="h-3.5 w-3.5" />
-          {t("saved_searches.save_button")}
-        </button>
-
-        {/* Sort */}
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="text-xs text-muted-text">
-            {t("judges.sort_label")}:
-          </span>
-          <select
-            value={filters.sort_by ?? "date"}
-            onChange={(e) => updateFilter("sort_by", e.target.value)}
-            className="rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground"
-            aria-label={t("judges.sort_label")}
-          >
-            <option value="date">{t("cases.date")}</option>
-            <option value="year">{t("units.year")}</option>
-            <option value="title">{t("cases.title")}</option>
-            <option value="court">{t("filters.court")}</option>
-          </select>
-          <button
-            type="button"
-            onClick={() =>
-              updateFilter(
-                "sort_dir",
-                filters.sort_dir === "asc" ? "desc" : "asc",
-              )
-            }
-            className="rounded-md border border-border p-1.5 text-muted-text hover:text-foreground"
-            title={`${t("cases.sorted")} ${sortLabel} ${filters.sort_dir === "asc" ? t("cases.ascending") : t("cases.descending")}`}
-            aria-label={`${t("cases.sorted")} ${sortLabel} ${filters.sort_dir === "asc" ? t("cases.ascending") : t("cases.descending")}`}
-          >
-            {filters.sort_dir === "asc" ? (
-              <ChevronUp className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronDown className="h-3.5 w-3.5" />
-            )}
-          </button>
-        </div>
-      </div>
+      {/* Filters */}
+      <CasesFilters
+        filters={filters}
+        filterOpts={filterOpts}
+        showAdvanced={showAdvanced}
+        onUpdateFilter={updateFilter}
+        onToggleAdvanced={() => setShowAdvanced((v) => !v)}
+        onSaveSearch={() => setShowSaveModal(true)}
+        keywordInputRef={keywordInputRef}
+      />
 
       {isFilterOptionsError && (
         <ApiErrorState
@@ -623,54 +463,6 @@ export function CasesPage() {
             {t("cases.keyboard_shortcuts")}
           </div>
         )}
-
-      {/* Advanced Filters */}
-      {showAdvanced && (
-        <div
-          id="cases-advanced-filters"
-          className="flex flex-wrap gap-2 rounded-md border border-border-light bg-surface p-3"
-        >
-          <select
-            value={filters.visa_type ?? ""}
-            onChange={(e) => updateFilter("visa_type", e.target.value)}
-            className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
-            aria-label={t("cases.visa_subclass")}
-          >
-            <option value="">{t("filters.all_visa_types")}</option>
-            {filterOpts?.visa_types?.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filters.source ?? ""}
-            onChange={(e) => updateFilter("source", e.target.value)}
-            className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
-            aria-label={t("cases.source", { defaultValue: "Source" })}
-          >
-            <option value="">{t("filters.all_sources")}</option>
-            {filterOpts?.sources?.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filters.tag ?? ""}
-            onChange={(e) => updateFilter("tag", e.target.value)}
-            className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
-            aria-label={t("common.tags", { defaultValue: "Tags" })}
-          >
-            <option value="">{t("filters.all_tags")}</option>
-            {filterOpts?.tags?.map((tag) => (
-              <option key={tag} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
 
       {/* Filter Pills */}
       {activeFilters.length > 0 && (
@@ -701,60 +493,13 @@ export function CasesPage() {
       />
 
       {/* Batch bar */}
-      {selected.size > 0 && (
-        <div
-          data-testid="cases-batch-bar"
-          className="flex items-center gap-3 rounded-md bg-accent-muted px-4 py-2 text-sm"
-        >
-          <span className="font-medium text-accent">
-            {selected.size} {t("cases.selected") || "selected"}
-          </span>
-          <button
-            type="button"
-            onClick={() => handleBatch("tag")}
-            className="flex items-center gap-1 text-accent hover:text-accent-light"
-          >
-            <Tag className="h-3.5 w-3.5" /> {t("case_detail.tags")}
-          </button>
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="flex items-center gap-1 text-accent hover:text-accent-light"
-          >
-            <Download className="h-3.5 w-3.5" /> {t("buttons.export_csv")}
-          </button>
-          {selected.size >= 2 && selected.size <= 5 && (
-            <button
-              type="button"
-              data-testid="cases-compare-button"
-              onClick={() => {
-                const ids = Array.from(selected);
-                const params = new URLSearchParams();
-                ids.forEach((id) => params.append("ids", id));
-                navigate(`/cases/compare?${params}`);
-              }}
-              className="flex items-center gap-1 text-accent hover:text-accent-light"
-            >
-              <GitCompare className="h-3.5 w-3.5" />{" "}
-              {t("buttons.compare_cases")}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setDeleteConfirm(true)}
-            className="flex items-center gap-1 text-danger hover:text-danger/80"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelected(new Set())}
-            className="ml-auto text-muted-text hover:text-foreground"
-          >
-            {t("filters.clear_filters")}
-          </button>
-        </div>
-      )}
+      <CasesBulkActions
+        selected={selected}
+        onBatchTag={() => setTagModalOpen(true)}
+        onExportCsv={exportCsv}
+        onDeleteRequest={() => setDeleteConfirm(true)}
+        onClearSelection={() => setSelected(new Set())}
+      />
 
       {/* Data load error */}
       {isCasesError && !data && (
@@ -815,199 +560,18 @@ export function CasesPage() {
         />
       )}
 
-      {/* Table view */}
-      {!isLoading && cases.length > 0 && viewMode === "table" && (
-        <>
-          <div className="md:hidden rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-text">
-            {t("cases.mobile_table_note", {
-              defaultValue:
-                "Table view is optimized for larger screens. Showing card view on mobile for easier reading.",
-            })}
-          </div>
-          <div className="grid auto-rows-fr gap-4 md:hidden">
-            {cases.map((c) => (
-              <CaseCard
-                key={c.case_id}
-                case_={c}
-                onClick={() => navigate(`/cases/${c.case_id}`)}
-                className="h-full"
-              />
-            ))}
-          </div>
-          <div className="hidden overflow-x-auto rounded-lg border border-border bg-card md:block">
-            <table data-testid="cases-table" className="w-full min-w-[1100px] text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface">
-                  <th className="w-10 px-2 py-2.5 text-left">
-                    <input
-                      data-testid="cases-select-all"
-                      type="checkbox"
-                      checked={
-                        selected.size === cases.length && cases.length > 0
-                      }
-                      onChange={toggleAll}
-                      className="rounded"
-                      aria-label={t("cases.select_all", {
-                        defaultValue: "Select all visible cases",
-                      })}
-                    />
-                  </th>
-                  <th className="px-2 py-2.5 text-left font-medium text-muted-text">
-                    {t("cases.case_title")}
-                  </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
-                    {t("cases.citation")}
-                  </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
-                    {t("cases.court")}
-                  </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
-                    <span className="block leading-tight">
-                      {t("cases.date")}
-                    </span>
-                    <span className="block text-[9px] font-normal text-muted-text leading-tight">
-                      {t("cases.date", { defaultValue: "decision" })} /{" "}
-                      {t("cases.hearing_date")}
-                    </span>
-                  </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
-                    {t("cases.country_of_origin")}
-                  </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
-                    {t("cases.outcome")}
-                  </th>
-                  <th className="whitespace-nowrap px-2 py-2.5 text-left font-medium text-muted-text">
-                    {t("cases.nature")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody ref={tableRef}>
-                {cases.map((c, i) => (
-                  <tr
-                    key={c.case_id}
-                    data-testid="cases-row"
-                    data-case-id={c.case_id}
-                    className={cn(
-                      "border-b border-border-light transition-colors cursor-pointer font-[var(--font-data)]",
-                      clampedFocusedIdx === i
-                        ? "bg-accent-muted"
-                        : "hover:bg-surface/50",
-                      selected.has(c.case_id) && "bg-accent-muted/50",
-                    )}
-                    onClick={() => navigate(`/cases/${c.case_id}`)}
-                    onFocus={() => setFocusedIdx(i)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        navigate(`/cases/${c.case_id}`);
-                      }
-                    }}
-                    tabIndex={0}
-                    aria-selected={selected.has(c.case_id)}
-                  >
-                    <td
-                      className="relative w-10 px-2 py-2"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Link
-                        to={`/cases/${c.case_id}`}
-                        aria-label={`Open case ${c.citation || c.case_id}`}
-                        className="absolute inset-0 z-0"
-                        tabIndex={-1}
-                      />
-                      <input
-                        data-testid="cases-row-checkbox"
-                        data-case-id={c.case_id}
-                        type="checkbox"
-                        checked={selected.has(c.case_id)}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={() => toggleSelect(c.case_id)}
-                        className="relative z-10 rounded"
-                        aria-label={t("cases.select_case", {
-                          defaultValue: "Select case {{citation}}",
-                          citation: c.citation || c.case_id,
-                        })}
-                      />
-                    </td>
-                    <td
-                      data-testid="cases-row-title"
-                      data-case-id={c.case_id}
-                      className="max-w-xs px-2 py-2"
-                    >
-                      <span
-                        className="block truncate font-medium text-foreground"
-                        title={c.title || c.citation}
-                      >
-                        {c.title || c.citation}
-                      </span>
-                      {(c.applicant_name || c.judges) && (
-                        <span
-                          className="block truncate text-xs text-muted-text"
-                          title={c.applicant_name || c.judges}
-                        >
-                          {c.applicant_name
-                            ? `${t("cases.applicant")}: ${c.applicant_name}`
-                            : c.judges}
-                        </span>
-                      )}
-                    </td>
-                    <td
-                      data-testid="cases-row-citation"
-                      data-case-id={c.case_id}
-                      className="whitespace-nowrap px-2 py-2 text-xs text-muted-text"
-                      title={c.citation}
-                    >
-                      {c.citation}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2">
-                      <CourtBadge court={c.court_code} />
-                    </td>
-                    <td
-                      className="whitespace-nowrap px-2 py-2 text-xs text-muted-text"
-                      title={
-                        c.hearing_date && c.hearing_date !== c.date
-                          ? `${t("cases.date")}: ${c.date}\n${t("cases.hearing_date")}: ${c.hearing_date}`
-                          : c.date
-                      }
-                    >
-                      <span className="block leading-tight">
-                        {formatDateCompact(c.date)}
-                      </span>
-                      {c.hearing_date && c.hearing_date !== c.date && (
-                        <span className="block text-[9px] leading-tight text-muted-text/70">
-                          ↳ {formatDateCompact(c.hearing_date)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-text">
-                      {c.country_of_origin || ""}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2">
-                      <OutcomeBadge outcome={c.outcome} />
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2">
-                      <NatureBadge nature={c.case_nature} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {/* Cards view */}
-      {!isLoading && cases.length > 0 && viewMode === "cards" && (
-        <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {cases.map((c) => (
-            <CaseCard
-              key={c.case_id}
-              case_={c}
-              onClick={() => navigate(`/cases/${c.case_id}`)}
-              className="h-full"
-            />
-          ))}
-        </div>
+      {/* Table / Cards view */}
+      {!isLoading && cases.length > 0 && (
+        <CasesTable
+          cases={cases}
+          viewMode={viewMode}
+          selected={selected}
+          clampedFocusedIdx={clampedFocusedIdx}
+          tableRef={tableRef}
+          onToggleSelect={toggleSelect}
+          onToggleAll={toggleAll}
+          onSetFocusedIdx={setFocusedIdx}
+        />
       )}
 
       {/* Pagination */}
@@ -1028,12 +592,13 @@ export function CasesPage() {
         })}
         confirmLabel={t("common.delete")}
         variant="danger"
-        onConfirm={() => handleBatch("delete")}
+        onConfirm={() => runBatch("delete")}
         onCancel={() => setDeleteConfirm(false)}
       />
 
       {/* Tag input modal */}
       <TagInputModal
+        key={String(tagModalOpen)}
         open={tagModalOpen}
         count={selected.size}
         onConfirm={handleTagConfirm}

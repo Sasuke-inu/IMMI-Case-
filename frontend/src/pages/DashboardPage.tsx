@@ -241,15 +241,6 @@ export function DashboardPage() {
           : { status: "empty", dataset: "none", pointCount: 0 },
     };
 
-    console.info("[Dashboard] chart source snapshot", {
-      filters: {
-        court: filters.court ?? "all",
-        yearFrom: filters.yearFrom,
-        yearTo: filters.yearTo,
-      },
-      charts: snapshot,
-    });
-
     const degradedCharts = Object.entries(snapshot).filter(
       ([, source]) => source.status !== "raw",
     );

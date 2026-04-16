@@ -46,7 +46,7 @@ async function fetchCsrfToken(): Promise<string> {
   return csrfToken!;
 }
 
-interface ApiRequestOptions extends RequestInit {
+export interface ApiRequestOptions extends RequestInit {
   timeoutMs?: number;
 }
 
@@ -54,7 +54,7 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-async function apiFetch<T>(
+export async function apiFetch<T>(
   url: string,
   options: ApiRequestOptions = {},
 ): Promise<T> {

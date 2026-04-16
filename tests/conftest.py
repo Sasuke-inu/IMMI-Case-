@@ -65,20 +65,24 @@ def reset_pipeline_state():
 def reset_analytics_caches():
     """Prevent in-memory analytics/stats caches from leaking across tests."""
     from immi_case_downloader.web.routes import api as api_mod
+    from immi_case_downloader.web.routes import api_cases as api_cases_mod
+    from immi_case_downloader.web.routes import api_taxonomy as api_taxonomy_mod
     from immi_case_downloader.cases_pagination import clear_cases_anchor_cache
 
     def _clear():
         api_mod._stats_cache_payload = None
         api_mod._stats_cache_ts = 0.0
-        api_mod._filter_options_cache_payload = None
-        api_mod._filter_options_cache_ts = 0.0
-        api_mod._lineage_cache_payload = None
-        api_mod._lineage_cache_ts = 0.0
+        # lineage cache moved to api_taxonomy.py (cq-001 Phase C)
+        api_taxonomy_mod._lineage_cache_payload = None
+        api_taxonomy_mod._lineage_cache_ts = 0.0
         api_mod._all_cases_cache.clear()
         api_mod._all_cases_ts = 0.0
         api_mod._analytics_cases_cache.clear()
         api_mod._analytics_cases_ts = 0.0
         api_mod._analytics_cache_obj.invalidate()
+        # filter-options cache moved to api_cases.py (cq-001 Phase D1)
+        api_cases_mod._filter_options_cache_payload = None
+        api_cases_mod._filter_options_cache_ts = 0.0
         clear_cases_anchor_cache()
 
     _clear()
