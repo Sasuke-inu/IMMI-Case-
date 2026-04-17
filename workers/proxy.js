@@ -25,6 +25,9 @@
  *   GET /api/v1/cases/:id/similar             → Hyperdrive → search_cases_semantic() pgvector RPC
  *   GET /api/v1/taxonomy/countries            → Hyperdrive → GROUP BY country_of_origin
  *   GET /api/v1/taxonomy/judges/autocomplete  → Hyperdrive → LATERAL unnest judges + ILIKE
+ *   GET /api/v1/taxonomy/visa-lookup          → Hyperdrive → registry match + SQL count (replaces 149K scan)
+ *   GET /api/v1/legislations                  → static JS const (metadata only, max-age=3600)
+ *   GET /api/v1/legislations/search           → static JS const (in-memory search, max-age=3600)
  *
  * Write / complex path (Flask Container):
  *   POST/PUT/DELETE /api/v1/*    → Flask Container (write operations)
@@ -229,6 +232,16 @@ const DATA_DICTIONARY_FIELDS = [
   { name: "visa_class_code",type: "string",  description: "Visa class code letter",                                   example: "XA" },
   { name: "case_nature",    type: "string",  description: "Nature/category of the case (LLM-extracted)",              example: "Protection visa refusal" },
   { name: "legal_concepts", type: "string",  description: "Key legal concepts (LLM-extracted)",                       example: "well-founded fear, complementary protection" },
+];
+
+// Legislation metadata (no sections) — mirrors immi_case_downloader/data/legislations.json
+// Sections (3 MB) are served by Flask; list/search use this lightweight inline const.
+const LEGISLATIONS_META = [
+  { id: "migration-act-1958", title: "Migration Act 1958", austlii_id: "consol_act/ma1958118", shortcode: "MA1958", type: "Act", jurisdiction: "Commonwealth", description: "The primary legislation governing migration to, from and within Australia. Establishes visa framework, deportation procedures, and rights of non-citizens.", sections_count: 940, last_amended: "", last_scraped: "2026-02-23T01:31:14.777025+00:00" },
+  { id: "migration-regulations-1994", title: "Migration Regulations 1994", austlii_id: "consol_reg/mr1994227", shortcode: "MR1994", type: "Regulation", jurisdiction: "Commonwealth", description: "Subordinate legislation made under the Migration Act 1958. Sets out detailed criteria for visa applications and processing.", sections_count: 394, last_amended: "", last_scraped: "2026-02-23T01:37:57.011519+00:00" },
+  { id: "australian-citizenship-act-2007", title: "Australian Citizenship Act 2007", austlii_id: "consol_act/aca2007254", shortcode: "ACA2007", type: "Act", jurisdiction: "Commonwealth", description: "Governs the acquisition, loss, and cessation of Australian citizenship. Establishes pathways to citizenship and criteria for maintaining citizenship status.", sections_count: 84, last_amended: "", last_scraped: "2026-02-23T01:39:22.320048+00:00" },
+  { id: "australian-border-force-act-2015", title: "Australian Border Force Act 2015", austlii_id: "consol_act/abfa2015225", shortcode: "ABFA2015", type: "Act", jurisdiction: "Commonwealth", description: "Establishes the Australian Border Force (ABF) and its functions. Governs border enforcement, customs, and immigration compliance operations.", sections_count: 60, last_amended: "", last_scraped: "2026-02-23T01:40:43.535717+00:00" },
+  { id: "administrative-review-tribunal-act-2024", title: "Administrative Review Tribunal Act 2024", austlii_id: "consol_act/arta2024336", shortcode: "ARTA2024", type: "Act", jurisdiction: "Commonwealth", description: "Establishes the Administrative Review Tribunal (ART), replacing the AAT from October 2024 for merits review of migration decisions.", sections_count: 318, last_amended: "", last_scraped: "2026-02-23T02:11:45.133872+00:00" },
 ];
 
 // ── WHERE clause builder ──────────────────────────────────────────────────────
@@ -1447,6 +1460,83 @@ function handleVisaRegistry() {
   return jsonOk(VISA_REGISTRY_API, "public, max-age=86400");
 }
 
+/** GET /api/v1/taxonomy/visa-lookup?q=&limit=N — subclass search using static registry + SQL counts */
+async function handleTaxonomyVisaLookup(url, env) {
+  const query = (url.searchParams.get("q") || "").trim();
+  const limit = safeInt(url.searchParams.get("limit"), 20, 1, 50);
+  if (!query) return jsonErr("q parameter is required");
+
+  const q_lower = query.toLowerCase();
+  const q_is_numeric = /^\d+$/.test(query);
+
+  // Step 1: match against static registry (no DB needed for this pass)
+  const candidates = [];
+  for (const [subclass, [name, family]] of Object.entries(VISA_REGISTRY_RAW)) {
+    let matched = false, is_exact = false;
+    if (q_is_numeric) {
+      if (subclass === query)              { matched = true; is_exact = true; }
+      else if (subclass.startsWith(query)) { matched = true; }
+    } else {
+      const nl = name.toLowerCase();
+      if (nl.includes(q_lower)) { matched = true; is_exact = (nl === q_lower); }
+    }
+    if (matched) candidates.push({ subclass, name, family, is_exact });
+  }
+
+  // Step 2: SQL count for matching subclasses only (replaces full-table Python scan)
+  const codes = candidates.map(c => c.subclass);
+  const countMap = {};
+  if (codes.length > 0) {
+    const sql = getSql(env);
+    const rows = await sql`
+      SELECT regexp_replace(visa_subclass, '\\.0$', '') AS sub, COUNT(*)::int AS cnt
+      FROM ${sql(TABLE)}
+      WHERE visa_subclass ~ '^\\d{1,4}(\\.0)?$'
+        AND regexp_replace(visa_subclass, '\\.0$', '') = ANY(${codes})
+      GROUP BY 1
+    `;
+    await sql.end();
+    for (const r of rows) countMap[r.sub] = r.cnt;
+  }
+
+  // Step 3: merge counts, sort (exact first then by count), trim
+  const data = candidates
+    .map(c => ({ subclass: c.subclass, name: c.name, family: c.family, case_count: countMap[c.subclass] || 0, _x: c.is_exact }))
+    .sort((a, b) => (Number(b._x) - Number(a._x)) || (b.case_count - a.case_count))
+    .slice(0, limit)
+    .map(({ _x, ...rest }) => rest);
+
+  return jsonOk({ success: true, data, meta: { query, total_results: candidates.length, limit } });
+}
+
+/** GET /api/v1/legislations?page=&limit= — list all legislations (metadata only, sections excluded) */
+function handleLegislationsList(url) {
+  const page  = Math.max(1, safeInt(url.searchParams.get("page"),  1, 1, 9999));
+  const limit = Math.min(100, Math.max(1, safeInt(url.searchParams.get("limit"), 10, 1, 100)));
+  const total = LEGISLATIONS_META.length;
+  const pages = Math.ceil(total / limit);
+  if (page > pages) return jsonErr(`page must be <= ${pages}`);
+  const data = LEGISLATIONS_META.slice((page - 1) * limit, page * limit);
+  return jsonOk({ success: true, data, meta: { total, page, limit, pages } }, "public, max-age=3600");
+}
+
+/** GET /api/v1/legislations/search?q=&limit= — full-text search over title/description/shortcode/id */
+function handleLegislationsSearch(url) {
+  const query = (url.searchParams.get("q") || "").trim();
+  const limit = Math.min(100, Math.max(1, safeInt(url.searchParams.get("limit"), 20, 1, 100)));
+  if (!query || query.length < 2) return jsonErr("q must be at least 2 characters");
+  const q = query.toLowerCase();
+  const data = [];
+  let total_results = 0;
+  for (const leg of LEGISLATIONS_META) {
+    if ([leg.title, leg.description, leg.shortcode, leg.id].some(f => f.toLowerCase().includes(q))) {
+      total_results++;
+      if (data.length < limit) data.push(leg);
+    }
+  }
+  return jsonOk({ success: true, data, meta: { query, total_results, limit } }, "public, max-age=3600");
+}
+
 // ── Cases sub-resource handlers ───────────────────────────────────────────────
 
 /** GET /api/v1/cases/compare?ids=a&ids=b&ids=c — batch case fetch */
@@ -1755,6 +1845,12 @@ export default {
           res = await handleTaxonomyCountries(url, env);
         } else if (path === "/api/v1/taxonomy/judges/autocomplete") {
           res = await handleTaxonomyJudgesAutocomplete(url, env);
+        } else if (path === "/api/v1/taxonomy/visa-lookup") {
+          res = await handleTaxonomyVisaLookup(url, env);
+        } else if (path === "/api/v1/legislations" || path === "/api/v1/legislations/") {
+          res = handleLegislationsList(url);
+        } else if (path === "/api/v1/legislations/search") {
+          res = handleLegislationsSearch(url);
         } else {
           // Match /api/v1/cases/:id (exactly 12 lowercase hex chars)
           const m = path.match(/^\/api\/v1\/cases\/([0-9a-f]{12})$/);
