@@ -158,6 +158,9 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
 - **Use `.toSorted()` not `.sort()`** — never mutate arrays in React; `.toSorted()` returns a new array (ES2023, requires `"lib": ["ES2023"]` in `frontend/tsconfig.app.json`)
 - **animate-spin on wrapper div** — put `animate-spin` on a `<div>` wrapper, NOT on `<Loader2>` or `<RefreshCw>` directly; SVG elements are not hardware-accelerated for CSS animations
 - **useCallback deps must include `t`** — `const { t } = useTranslation()` — `t` must be in the dependency array of all `useCallback`/`useMemo` that call it
+- **Tailwind v4 `@layer base` 必要** — `index.css` 全域 heading 樣式必須在 `@layer base {}` 內。未分層的 CSS 優先於所有 `@layer` 樣式，導致 `h1 { font-size: 3rem }` 覆蓋所有 `text-[clamp(...)]` utility 類別。
+- **響應式 flex-wrap 防孤立** — filter row 相關元素（separator + 下拉選單）需包在同一 `<div>` 一起換行；裝飾性分隔符用 `hidden sm:inline`；輸入框用 `flex-1 min-w-[X]` 防止寬度歸零。
+- **JudgeLeaderboard 雙視圖** — `md:hidden` 手機卡片視圖 + `hidden md:block overflow-x-auto` 桌面表格，是整個 app 響應式表格的標準模式。
 
 ## Legislations Feature (NEW - 2026-02-20)
 
