@@ -1714,10 +1714,14 @@ def analytics_outcomes():
             _rpc_ok = True
         except (FuturesTimeoutError, Exception):
             logger.warning("analytics_outcomes RPC failed/timed out, falling back to Python")
-    if not _rpc_ok:
-        # Fallback: load cases into Python, apply filters, aggregate locally.
+    # Skip Python fallback for Supabase repos — if the RPC timed out, the
+    # fallback (which also queries Supabase) will also timeout, wasting another
+    # 20 seconds and blowing the Cloudflare Worker 30 s wall-clock limit.
+    _supabase_backend = hasattr(repo, "count_cases")
+    if not _rpc_ok and not _supabase_backend:
+        # Fallback: load cases into Python (only for CSV/SQLite backends).
         try:
-            cases = _call_with_timeout(_get_analytics_cases, timeout_seconds=20.0)
+            cases = _call_with_timeout(_get_analytics_cases, timeout_seconds=15.0)
             for c in _apply_filters(cases):
                 norm = _normalise_outcome(c.outcome)
                 if c.court_code:
@@ -1778,9 +1782,10 @@ def analytics_judges():
             _rpc_ok = True
         except (FuturesTimeoutError, Exception):
             logger.warning("analytics_judges RPC failed/timed out, falling back to Python")
-    if not _rpc_ok:
+    _supabase_backend = hasattr(repo, "count_cases")
+    if not _rpc_ok and not _supabase_backend:
         try:
-            cases = _call_with_timeout(_get_analytics_cases, timeout_seconds=20.0)
+            cases = _call_with_timeout(_get_analytics_cases, timeout_seconds=15.0)
             for c in _apply_filters(cases):
                 for raw_name in _split_judges(c.judges):
                     canonical_name, display_name = _judge_identity(raw_name, c.court_code, c.year)
@@ -1835,9 +1840,10 @@ def analytics_legal_concepts():
             _rpc_ok = True
         except (FuturesTimeoutError, Exception):
             logger.warning("analytics_legal_concepts RPC failed/timed out, falling back to Python")
-    if not _rpc_ok:
+    _supabase_backend = hasattr(repo, "count_cases")
+    if not _rpc_ok and not _supabase_backend:
         try:
-            cases = _call_with_timeout(_get_analytics_cases, timeout_seconds=20.0)
+            cases = _call_with_timeout(_get_analytics_cases, timeout_seconds=15.0)
             for c in _apply_filters(cases):
                 for concept in _split_concepts(c.legal_concepts):
                     concept_counter[concept] += 1
@@ -1877,9 +1883,10 @@ def analytics_nature_outcome():
             _rpc_ok = True
         except (FuturesTimeoutError, Exception):
             logger.warning("analytics_nature_outcome RPC failed/timed out, falling back to Python")
-    if not _rpc_ok:
+    _supabase_backend = hasattr(repo, "count_cases")
+    if not _rpc_ok and not _supabase_backend:
         try:
-            cases = _call_with_timeout(_get_analytics_cases, timeout_seconds=20.0)
+            cases = _call_with_timeout(_get_analytics_cases, timeout_seconds=15.0)
             for c in _apply_filters(cases):
                 if not c.case_nature:
                     continue
