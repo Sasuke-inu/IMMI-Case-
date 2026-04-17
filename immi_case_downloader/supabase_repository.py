@@ -5,6 +5,7 @@ import os
 import time
 from typing import cast
 
+import httpx
 from dotenv import load_dotenv
 from supabase import create_client, Client, ClientOptions
 
@@ -91,11 +92,16 @@ class SupabaseRepository:
                 "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set "
                 "(via env vars or constructor args)."
             )
-        # postgrest_client_timeout bounds the httpx HTTP call so stale threads
-        # terminate ~3 s after the ThreadPoolExecutor timeout fires (28 > 25).
+        # Explicit httpx.Client: disable HTTP/2 (avoids ReadError EAGAIN in
+        # Cloudflare Container network) and add connect+read timeouts so threads
+        # terminate cleanly ~3 s after the ThreadPoolExecutor timeout (28 > 25).
+        _http_client = httpx.Client(
+            http2=False,
+            timeout=httpx.Timeout(connect=10.0, read=28.0, write=10.0, pool=5.0),
+        )
         self._client: Client = create_client(
             url, key,
-            options=ClientOptions(postgrest_client_timeout=28),
+            options=ClientOptions(httpx_client=_http_client),
         )
         self._output_dir = output_dir or os.environ.get(
             "OUTPUT_DIR", "downloaded_cases"
