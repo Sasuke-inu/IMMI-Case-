@@ -7,8 +7,8 @@
  *   GET /api/v1/cases/:id        → Hyperdrive → Supabase PostgreSQL
  *   GET /api/v1/stats            → Hyperdrive → Supabase PostgreSQL (parallel aggregates)
  *   GET /api/v1/filter-options   → Hyperdrive → Supabase PostgreSQL (DISTINCT values)
- *   GET /api/v1/analytics/*      → Hyperdrive → Supabase PostgreSQL (RPC functions + JS normalisation)
- *   GET /api/v1/stats/trends     → Hyperdrive → get_court_year_trends() RPC
+ *   GET /api/v1/analytics/*              → Hyperdrive → Supabase PostgreSQL (RPC functions + JS normalisation)
+ *   GET /api/v1/stats/trends             → Hyperdrive → get_court_year_trends() RPC
  *   GET /api/v1/analytics/filter-options → Hyperdrive → DISTINCT SQL aggregation
  *   GET /api/v1/analytics/monthly-trends → Hyperdrive → date_sort GROUP BY + JS win logic
  *   GET /api/v1/analytics/flow-matrix    → Hyperdrive → court/nature/outcome GROUP BY
@@ -17,6 +17,11 @@
  *   GET /api/v1/analytics/success-rate   → Hyperdrive → parameterized SQL + JS aggregation
  *   GET /api/v1/analytics/concept-*      → Hyperdrive → LATERAL unnest + JS canonicalization
  *   GET /api/v1/analytics/judge-*        → Hyperdrive → LATERAL unnest judges + JS profile
+ *   GET /api/v1/data-dictionary          → static JS const (no DB)
+ *   GET /api/v1/visa-registry            → static JS const (no DB)
+ *   GET /api/v1/cases/compare            → Hyperdrive → batch SELECT WHERE case_id = ANY(...)
+ *   GET /api/v1/cases/:id/related        → Hyperdrive → find_related_cases() RPC
+ *   GET /api/v1/taxonomy/countries       → Hyperdrive → GROUP BY country_of_origin
  *
  * Write / complex path (Flask Container):
  *   POST/PUT/DELETE /api/v1/*    → Flask Container (write operations)
@@ -92,6 +97,136 @@ function jsonOk(data, cacheControl = "no-cache") {
 function jsonErr(msg, status = 400) {
   return Response.json({ error: msg }, { status });
 }
+
+// ── Static data (ported from Python) ─────────────────────────────────────────
+
+const VISA_FAMILIES = {
+  Protection: "Refugee and humanitarian protection visas",
+  Skilled:    "Skilled migration and employer-sponsored visas",
+  Student:    "Student and education visas",
+  Partner:    "Partner, spouse, and de facto visas",
+  Parent:     "Parent and family reunion visas",
+  Visitor:    "Tourist, visitor, and temporary activity visas",
+  Business:   "Business innovation and investment visas",
+  Bridging:   "Bridging visas (temporary stay while substantive visa processed)",
+  Other:      "Other visa categories",
+};
+
+// Maps subclass → [name, family] — mirrors immi_case_downloader/visa_registry.py
+const VISA_REGISTRY_RAW = {
+  "866": ["Protection", "Protection"],
+  "785": ["Temporary Protection", "Protection"],
+  "790": ["Safe Haven Enterprise", "Protection"],
+  "200": ["Refugee (Permanent)", "Protection"],
+  "201": ["In-Country Special Humanitarian (Permanent)", "Protection"],
+  "202": ["Global Special Humanitarian (Permanent)", "Protection"],
+  "203": ["Emergency Rescue", "Protection"],
+  "204": ["Woman at Risk", "Protection"],
+  "786": ["Temporary (Humanitarian Concern)", "Protection"],
+  "449": ["Humanitarian Stay (Temporary)", "Protection"],
+  "189": ["Skilled Independent", "Skilled"],
+  "190": ["Skilled Nominated", "Skilled"],
+  "191": ["Permanent Residence (Skilled Regional)", "Skilled"],
+  "186": ["Employer Nomination Scheme", "Skilled"],
+  "187": ["Regional Sponsored Migration Scheme", "Skilled"],
+  "457": ["Temporary Work (Skilled)", "Skilled"],
+  "482": ["Temporary Skill Shortage", "Skilled"],
+  "494": ["Skilled Employer Sponsored Regional (Provisional)", "Skilled"],
+  "491": ["Skilled Work Regional (Provisional)", "Skilled"],
+  "476": ["Skilled - Recognised Graduate", "Skilled"],
+  "485": ["Temporary Graduate", "Skilled"],
+  "489": ["Skilled Regional (Provisional)", "Skilled"],
+  "407": ["Training", "Skilled"],
+  "408": ["Temporary Activity", "Skilled"],
+  "500": ["Student", "Student"],
+  "590": ["Student Guardian", "Student"],
+  "570": ["Independent ELICOS Sector", "Student"],
+  "571": ["Schools Sector", "Student"],
+  "572": ["Vocational Education and Training Sector", "Student"],
+  "573": ["Higher Education Sector", "Student"],
+  "574": ["Postgraduate Research Sector", "Student"],
+  "575": ["Non-award Sector", "Student"],
+  "576": ["AusAID or Defence Sector", "Student"],
+  "309": ["Partner (Provisional)", "Partner"],
+  "820": ["Partner (Temporary)", "Partner"],
+  "801": ["Partner (Permanent)", "Partner"],
+  "100": ["Partner (Migrant)", "Partner"],
+  "300": ["Prospective Marriage", "Partner"],
+  "461": ["New Zealand Citizen Family Relationship (Temporary)", "Partner"],
+  "103": ["Parent", "Parent"],
+  "143": ["Contributory Parent", "Parent"],
+  "173": ["Contributory Parent (Temporary)", "Parent"],
+  "804": ["Aged Parent", "Parent"],
+  "884": ["Contributory Aged Parent (Temporary)", "Parent"],
+  "864": ["Contributory Aged Parent", "Parent"],
+  "600": ["Visitor", "Visitor"],
+  "601": ["Electronic Travel Authority", "Visitor"],
+  "651": ["eVisitor", "Visitor"],
+  "400": ["Temporary Work (Short Stay Activity)", "Visitor"],
+  "417": ["Working Holiday", "Visitor"],
+  "462": ["Work and Holiday", "Visitor"],
+  "188": ["Business Innovation and Investment (Provisional)", "Business"],
+  "888": ["Business Innovation and Investment (Permanent)", "Business"],
+  "132": ["Business Talent (Permanent)", "Business"],
+  "891": ["Investor", "Business"],
+  "892": ["State/Territory Sponsored Business Owner", "Business"],
+  "893": ["State/Territory Sponsored Senior Executive", "Business"],
+  "010": ["Bridging A", "Bridging"],
+  "020": ["Bridging B", "Bridging"],
+  "030": ["Bridging C", "Bridging"],
+  "040": ["Bridging D", "Bridging"],
+  "050": ["Bridging (General)", "Bridging"],
+  "051": ["Bridging (Protection Visa Applicant)", "Bridging"],
+  "060": ["Bridging E", "Bridging"],
+  "070": ["Bridging (Removal Pending)", "Bridging"],
+  "080": ["Bridging (Crew)", "Bridging"],
+  "101": ["Child", "Other"],
+  "102": ["Adoption", "Other"],
+  "802": ["Child", "Other"],
+  "445": ["Dependent Child", "Other"],
+  "155": ["Resident Return", "Other"],
+  "157": ["Resident Return (5 years)", "Other"],
+  "444": ["Special Category (New Zealand citizen)", "Other"],
+  "116": ["Carer", "Other"],
+  "117": ["Orphan Relative", "Other"],
+  "114": ["Aged Dependent Relative", "Other"],
+  "115": ["Remaining Relative", "Other"],
+  "836": ["Carer", "Other"],
+  "856": ["Employer Nomination Scheme (ENS)", "Other"],
+  "858": ["Distinguished Talent", "Other"],
+};
+
+// Pre-built API response format (mirrors get_registry_for_api())
+const VISA_REGISTRY_API = {
+  entries: Object.entries(VISA_REGISTRY_RAW).map(([subclass, [name, family]]) => ({ subclass, name, family })),
+  families: VISA_FAMILIES,
+};
+
+// Mirrors DATA_DICTIONARY_FIELDS in immi_case_downloader/web/routes/api.py
+const DATA_DICTIONARY_FIELDS = [
+  { name: "case_id",        type: "string",  description: "SHA-256 hash (first 12 chars) of citation/URL/title",  example: "a1b2c3d4e5f6" },
+  { name: "citation",       type: "string",  description: "Official case citation",                                 example: "[2024] AATA 1234" },
+  { name: "title",          type: "string",  description: "Case title / party names",                               example: "Smith v Minister for Immigration" },
+  { name: "court",          type: "string",  description: "Full court/tribunal name",                               example: "Administrative Appeals Tribunal" },
+  { name: "court_code",     type: "string",  description: "Short court identifier",                                 example: "AATA" },
+  { name: "date",           type: "string",  description: "Decision date (DD Month YYYY)",                          example: "15 March 2024" },
+  { name: "year",           type: "integer", description: "Decision year",                                          example: "2024" },
+  { name: "url",            type: "string",  description: "AustLII or Federal Court URL",                           example: "https://www.austlii.edu.au/..." },
+  { name: "judges",         type: "string",  description: "Judge(s) or tribunal member(s)",                         example: "Deputy President S Smith" },
+  { name: "catchwords",     type: "string",  description: "Key legal topics from the case",                          example: "MIGRATION - visa cancellation..." },
+  { name: "outcome",        type: "string",  description: "Decision outcome",                                        example: "Dismissed" },
+  { name: "visa_type",      type: "string",  description: "Visa subclass or category",                               example: "Subclass 866 Protection" },
+  { name: "legislation",    type: "string",  description: "Referenced legislation",                                   example: "Migration Act 1958 (Cth) s 501" },
+  { name: "text_snippet",   type: "string",  description: "Short excerpt from case text",                             example: "The Tribunal finds that..." },
+  { name: "full_text_path", type: "string",  description: "Path to downloaded full text file",                        example: "downloaded_cases/case_texts/a1b2c3d4e5f6.txt" },
+  { name: "source",         type: "string",  description: "Data source identifier",                                   example: "austlii" },
+  { name: "user_notes",     type: "string",  description: "User-added notes",                                         example: "Important precedent for..." },
+  { name: "tags",           type: "string",  description: "Comma-separated user tags",                                example: "review, important" },
+  { name: "visa_subclass",  type: "string",  description: "Visa subclass number",                                     example: "866" },
+  { name: "visa_class_code",type: "string",  description: "Visa class code letter",                                   example: "XA" },
+  { name: "case_nature",    type: "string",  description: "Nature/category of the case (LLM-extracted)",              example: "Protection visa refusal" },
+  { name: "legal_concepts", type: "string",  description: "Key legal concepts (LLM-extracted)",                       example: "well-founded fear, complementary protection" },
+];
 
 // ── WHERE clause builder ──────────────────────────────────────────────────────
 
@@ -1297,6 +1432,89 @@ export class FlaskBackend extends DurableObject {
   }
 }
 
+// ── Static-data handlers (no DB needed) ──────────────────────────────────────
+
+/** GET /api/v1/data-dictionary — static field definitions */
+function handleDataDictionary() {
+  return jsonOk({ fields: DATA_DICTIONARY_FIELDS }, "public, max-age=86400");
+}
+
+/** GET /api/v1/visa-registry — static visa subclass registry */
+function handleVisaRegistry() {
+  return jsonOk(VISA_REGISTRY_API, "public, max-age=86400");
+}
+
+// ── Cases sub-resource handlers ───────────────────────────────────────────────
+
+/** GET /api/v1/cases/compare?ids=a&ids=b&ids=c — batch case fetch */
+async function handleCompareCases(url, env) {
+  const MAX_COMPARE = 4;
+  const ids = url.searchParams.getAll("ids").filter(id => HEX_ID_RE.test(id));
+  if (ids.length < 2) return jsonErr("At least 2 valid case IDs required");
+  if (ids.length > MAX_COMPARE) return jsonErr(`Maximum ${MAX_COMPARE} cases can be compared`);
+
+  const sql  = getSql(env);
+  const cols = sql(CASE_LIST_COLS);
+  const rows = await sql`SELECT ${cols} FROM ${sql(TABLE)} WHERE case_id = ANY(${ids}) LIMIT ${MAX_COMPARE}`;
+  await sql.end();
+
+  if (rows.length < 2) return jsonErr("Could not find enough cases", 404);
+  return jsonOk({ cases: rows });
+}
+
+/** GET /api/v1/cases/:id/related?limit=N — related cases via Supabase RPC */
+async function handleRelatedCases(caseId, url, env) {
+  const limit = safeInt(url.searchParams.get("limit"), 5, 1, 20);
+  const sql   = getSql(env);
+
+  // Fetch the anchor case to get required RPC params
+  const [anchor] = await sql`
+    SELECT case_id, case_nature, visa_type, court_code
+    FROM ${sql(TABLE)}
+    WHERE case_id = ${caseId}
+    LIMIT 1
+  `;
+  if (!anchor) {
+    await sql.end();
+    return jsonErr("Case not found", 404);
+  }
+
+  const rows = await sql`
+    SELECT * FROM find_related_cases(
+      p_case_id    := ${caseId},
+      p_case_nature:= ${anchor.case_nature ?? ""},
+      p_visa_type  := ${anchor.visa_type   ?? ""},
+      p_court_code := ${anchor.court_code  ?? ""},
+      p_limit      := ${limit}
+    )
+  `;
+  await sql.end();
+  return jsonOk({ cases: rows });
+}
+
+/** GET /api/v1/taxonomy/countries?limit=N — country counts via SQL GROUP BY */
+async function handleTaxonomyCountries(url, env) {
+  const limit = safeInt(url.searchParams.get("limit"), 30, 1, 200);
+  const sql   = getSql(env);
+
+  const rows = await sql`
+    SELECT country_of_origin AS country, COUNT(*)::int AS case_count
+    FROM ${sql(TABLE)}
+    WHERE country_of_origin IS NOT NULL AND country_of_origin <> ''
+    GROUP BY country_of_origin
+    ORDER BY case_count DESC
+    LIMIT ${limit}
+  `;
+  await sql.end();
+
+  const countries = rows.map(r => ({ country: r.country, name: r.country, case_count: r.case_count }));
+  return jsonOk({
+    success: true,
+    countries,
+    meta: { total_countries: countries.length, returned_results: countries.length, limit },
+  });
+}
+
 // ── Flask proxy helper ────────────────────────────────────────────────────────
 
 async function proxyToFlask(request, env) {
@@ -1376,10 +1594,21 @@ export default {
           res = await handleAnalyticsJudgeProfile(url, env);
         } else if (path === "/api/v1/analytics/judge-compare") {
           res = await handleAnalyticsJudgeCompare(url, env);
+        } else if (path === "/api/v1/data-dictionary") {
+          res = handleDataDictionary();
+        } else if (path === "/api/v1/visa-registry") {
+          res = handleVisaRegistry();
+        } else if (path === "/api/v1/cases/compare") {
+          res = await handleCompareCases(url, env);
+        } else if (path === "/api/v1/taxonomy/countries") {
+          res = await handleTaxonomyCountries(url, env);
         } else {
           // Match /api/v1/cases/:id (exactly 12 lowercase hex chars)
           const m = path.match(/^\/api\/v1\/cases\/([0-9a-f]{12})$/);
           if (m) res = await handleGetCase(m[1], env);
+          // Match /api/v1/cases/:id/related
+          const rel = path.match(/^\/api\/v1\/cases\/([0-9a-f]{12})\/related$/);
+          if (rel) res = await handleRelatedCases(rel[1], url, env);
         }
 
         if (res !== null) return res;
