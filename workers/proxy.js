@@ -609,7 +609,19 @@ async function handleAnalyticsLegalConcepts(url, env) {
   const limit = safeInt(url.searchParams.get("limit"), 20, 1, 100);
   const sql   = getSql(env);
 
-  const rows = await sql`SELECT concept_raw, cnt::int FROM get_analytics_concepts_raw()`;
+  // Use direct SQL with LIMIT instead of the RPC function — the function has no LIMIT
+  // and the LATERAL unnest over legal_concepts can produce thousands of rows, causing timeout.
+  const rows = await sql`
+    SELECT trim(c) AS concept_raw, COUNT(*)::int AS cnt
+    FROM immigration_cases ic,
+      LATERAL unnest(
+        string_to_array(regexp_replace(ic.legal_concepts, ';', ',', 'g'), ',')
+      ) AS c
+    WHERE ic.legal_concepts IS NOT NULL AND ic.legal_concepts <> '' AND trim(c) <> ''
+    GROUP BY trim(c)
+    ORDER BY cnt DESC
+    LIMIT 2000
+  `;
 
   const counter = new Map();
   for (const r of rows) {
