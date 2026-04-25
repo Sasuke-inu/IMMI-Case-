@@ -171,8 +171,9 @@ class TestDefaultHost:
     def test_debug_with_public_host_warns(self):
         """Using debug mode with 0.0.0.0 should produce a warning."""
         import subprocess
+        import sys
         result = subprocess.run(
-            ["python3", "-c", """
+            [sys.executable, "-c", """
 import warnings
 import sys
 sys.argv = ['web.py', '--host', '0.0.0.0', '--debug', '--port', '0']
