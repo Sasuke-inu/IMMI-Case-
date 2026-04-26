@@ -40,3 +40,9 @@ custom_domain = true
 class_name = "FlaskBackend"
 image = "./Dockerfile"
 max_instances = 2
+
+# Per .omc/plans/hyperdrive-full-migration.md §Phase 1 #9 streaming export.
+# 30s CPU cap is too tight for 50K-row cursor batches; bump to 60s. Network
+# wall-time on streamed responses is unbounded (Cloudflare exception).
+[limits]
+cpu_ms = 60000
