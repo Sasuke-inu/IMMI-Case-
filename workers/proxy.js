@@ -104,6 +104,78 @@ function jsonErr(msg, status = 400) {
   return Response.json({ error: msg }, { status });
 }
 
+// ── CSRF (stateless double-submit HMAC) ──────────────────────────────────────
+// Per .omc/plans/hyperdrive-full-migration.md §Phase 1 CSRF Design.
+// Token = base64url(payload) + "." + base64url(HMAC_SHA256(env.CSRF_SECRET, payload))
+// where payload = "<random_id_16hex>.<expiry_unix_ms>". Cookie + header carry the
+// same token (double-submit). Worker verifies HMAC + expiry + cookie==header match.
+//
+// Cookie attrs: __Host-csrf=<token>; Path=/; SameSite=Lax; Secure; Max-Age=3600
+// HttpOnly intentionally OFF — SPA reads document.cookie and copies into header.
+// Set CSRF_SECRET via: wrangler secret put CSRF_SECRET
+//
+// NOT WIRED INTO ROUTING YET — additive infrastructure only. Routing wire-up
+// will follow in a subsequent commit alongside the first write endpoint.
+
+const CSRF_TTL_MS = 60 * 60 * 1000;
+const CSRF_COOKIE = "__Host-csrf";
+
+function b64url(bytes) {
+  return btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function b64urlDecode(s) {
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+}
+
+async function importHmacKey(secret) {
+  return crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"],
+  );
+}
+
+async function getCsrfToken(env) {
+  if (!env.CSRF_SECRET) return jsonErr("csrf_secret_not_configured", 500);
+  const rand = crypto.getRandomValues(new Uint8Array(16));
+  const randHex = [...rand].map(b => b.toString(16).padStart(2, "0")).join("");
+  const payload = `${randHex}.${Date.now() + CSRF_TTL_MS}`;
+  const key = await importHmacKey(env.CSRF_SECRET);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  const token = `${b64url(new TextEncoder().encode(payload))}.${b64url(sig)}`;
+  const cookie = `${CSRF_COOKIE}=${token}; Path=/; SameSite=Lax; Secure; Max-Age=${CSRF_TTL_MS / 1000}`;
+  return new Response(JSON.stringify({ csrf_token: token }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Set-Cookie": cookie,
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+async function requireCsrf(request, env) {
+  if (!env.CSRF_SECRET) return jsonErr("csrf_secret_not_configured", 500);
+  const header = request.headers.get("X-CSRF-Token") || request.headers.get("X-CSRFToken");
+  const cookieHeader = request.headers.get("Cookie") || "";
+  const cookie = cookieHeader.split(/;\s*/)
+    .find(c => c.startsWith(`${CSRF_COOKIE}=`))?.slice(CSRF_COOKIE.length + 1);
+  if (!header || !cookie || header !== cookie) return jsonErr("csrf", 403);
+  const [payloadB64, macB64] = header.split(".");
+  if (!payloadB64 || !macB64) return jsonErr("csrf", 403);
+  const payload = new TextDecoder().decode(b64urlDecode(payloadB64));
+  const [, expiryStr] = payload.split(".");
+  if (!expiryStr || Number(expiryStr) < Date.now()) return jsonErr("csrf_expired", 403);
+  const key = await importHmacKey(env.CSRF_SECRET);
+  const ok = await crypto.subtle.verify(
+    "HMAC", key, b64urlDecode(macB64), new TextEncoder().encode(payload),
+  );
+  return ok ? null : jsonErr("csrf", 403);
+}
+
 // ── Static data (ported from Python) ─────────────────────────────────────────
 
 const VISA_FAMILIES = {
