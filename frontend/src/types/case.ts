@@ -200,9 +200,9 @@ export interface JudgeLeaderboardEntry {
   approval_rate: number;
   courts: string[];
   primary_court: string | null;
-  top_visa_subclasses: Array<{ subclass: string; count: number }>;
+  top_visa_subclasses?: Array<{ subclass: string; count: number }>;
   active_years: { first: number | null; last: number | null };
-  outcome_summary: Record<string, number>;
+  outcome_summary?: Record<string, number>;
 }
 
 export interface NotableCase {

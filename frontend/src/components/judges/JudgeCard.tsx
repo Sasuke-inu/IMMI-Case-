@@ -20,6 +20,9 @@ export function JudgeCard({
 }: JudgeCardProps) {
   const { t } = useTranslation();
   const displayName = judge.display_name ?? judge.name;
+  const courts = judge.courts ?? [];
+  const topVisaSubclasses = judge.top_visa_subclasses ?? [];
+  const topVisa = topVisaSubclasses[0];
   const yearsLabel =
     judge.active_years?.first && judge.active_years?.last
       ? judge.active_years.first === judge.active_years.last
@@ -48,7 +51,7 @@ export function JudgeCard({
       <div className="flex flex-1 flex-col p-4">
         {/* Top row: court badges + approval rate */}
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
-          {judge.courts.map((c) => (
+          {courts.map((c) => (
             <CourtBadge key={c} court={c} />
           ))}
           <span
@@ -82,13 +85,13 @@ export function JudgeCard({
                 <Scale className="h-3 w-3 shrink-0" />
                 {judge.total_cases.toLocaleString()} {t("judges.cases")}
               </span>
-              {judge.top_visa_subclasses[0] && (
+              {topVisa && (
                 <span
                   className="inline-flex items-center gap-1 truncate"
-                  title={judge.top_visa_subclasses[0].subclass}
+                  title={topVisa.subclass}
                 >
                   <Briefcase className="h-3 w-3 shrink-0" />
-                  {judge.top_visa_subclasses[0].subclass}
+                  {topVisa.subclass}
                 </span>
               )}
             </div>

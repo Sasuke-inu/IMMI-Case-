@@ -59,7 +59,7 @@ function JudgeLeaderboardTable({
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground truncate">{displayName}</p>
                   <p className="text-xs text-muted-text mt-0.5">
-                    {[...new Set(row.courts)].join(", ") || "-"} · {row.active_years?.first ?? "-"}–{row.active_years?.last ?? "-"}
+                    {[...new Set(row.courts ?? [])].join(", ") || "-"} · {row.active_years?.first ?? "-"}–{row.active_years?.last ?? "-"}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
@@ -168,12 +168,13 @@ function JudgeLeaderboardTable({
                   {row.active_years?.last ?? "-"}
                 </td>
                 <td className="px-3 py-2 text-muted-text">
-                  {[...new Set(row.courts)].join(", ") || "-"}
+                  {[...new Set(row.courts ?? [])].join(", ") || "-"}
                 </td>
                 <td className="px-3 py-2 text-muted-text">
-                  {row.top_visa_subclasses[0]
-                    ? `${row.top_visa_subclasses[0].subclass} (${row.top_visa_subclasses[0].count})`
-                    : "-"}
+                  {(() => {
+                    const top = row.top_visa_subclasses?.[0];
+                    return top ? `${top.subclass} (${top.count})` : "-";
+                  })()}
                 </td>
               </tr>
             );

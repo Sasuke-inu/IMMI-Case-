@@ -1335,18 +1335,20 @@ async function handleAnalyticsJudgeLeaderboard(url, env) {
   const minCases = safeInt(p.get("min_cases"),  1, 1, 100000);
   if (!["cases","approval_rate","name"].includes(sortBy)) return jsonErr("Invalid sort_by. Allowed: approval_rate, cases, name");
 
-  const [rows, yearRows] = await Promise.all([
+  const [rows, yearRows, visaRows] = await Promise.all([
     sql`SELECT trim(j) AS judge_raw, ic.court_code, ic.outcome, COUNT(*)::int AS cnt FROM immigration_cases ic, LATERAL unnest(string_to_array(regexp_replace(ic.judges,';',',','g'),',')) AS j WHERE ic.judges IS NOT NULL AND ic.judges <> '' AND trim(j) <> '' GROUP BY 1,2,3 ORDER BY cnt DESC LIMIT 10000`,
-    sql`SELECT trim(j) AS judge_raw, MIN(ic.year)::int AS first_year, MAX(ic.year)::int AS last_year FROM immigration_cases ic, LATERAL unnest(string_to_array(regexp_replace(ic.judges,';',',','g'),',')) AS j WHERE ic.judges IS NOT NULL AND ic.judges <> '' AND trim(j) <> '' AND ic.year IS NOT NULL GROUP BY 1`
+    sql`SELECT trim(j) AS judge_raw, MIN(ic.year)::int AS first_year, MAX(ic.year)::int AS last_year FROM immigration_cases ic, LATERAL unnest(string_to_array(regexp_replace(ic.judges,';',',','g'),',')) AS j WHERE ic.judges IS NOT NULL AND ic.judges <> '' AND trim(j) <> '' AND ic.year IS NOT NULL GROUP BY 1`,
+    sql`SELECT trim(j) AS judge_raw, ic.visa_subclass, COUNT(*)::int AS cnt FROM immigration_cases ic, LATERAL unnest(string_to_array(regexp_replace(ic.judges,';',',','g'),',')) AS j WHERE ic.judges IS NOT NULL AND ic.judges <> '' AND trim(j) <> '' AND ic.visa_subclass IS NOT NULL AND ic.visa_subclass <> '' GROUP BY 1,2`
   ]);
 
-  const judgeTotal={}, judgeWins={}, judgeCourts={}, judgeCanon={};
+  const judgeTotal={}, judgeWins={}, judgeCourts={}, judgeCanon={}, judgeOutcomes={};
   for (const r of rows) {
     const name=normaliseJudgeName(r.judge_raw); if(!name||!isRealJudgeName(name)||_JUDGE_BLOCKLIST.has(name.toLowerCase())) continue;
     const key=name.toLowerCase(); judgeCanon[key]??=name;
     const won=isWin(normaliseOutcome(r.outcome),r.court_code||"");
     judgeTotal[key]=(judgeTotal[key]||0)+r.cnt; if(won) judgeWins[key]=(judgeWins[key]||0)+r.cnt;
     if(r.court_code){ if(!judgeCourts[key]) judgeCourts[key]=new Set(); judgeCourts[key].add(r.court_code); }
+    if(r.outcome){ const o=normaliseOutcome(r.outcome)||r.outcome; if(!judgeOutcomes[key]) judgeOutcomes[key]={}; judgeOutcomes[key][o]=(judgeOutcomes[key][o]||0)+r.cnt; }
   }
   const yearMap={};
   for (const r of yearRows) {
@@ -1355,9 +1357,20 @@ async function handleAnalyticsJudgeLeaderboard(url, env) {
     if(!yearMap[key]) yearMap[key]={first:r.first_year,last:r.last_year};
     else { if(r.first_year!==null&&(yearMap[key].first===null||r.first_year<yearMap[key].first)) yearMap[key].first=r.first_year; if(r.last_year!==null&&(yearMap[key].last===null||r.last_year>yearMap[key].last)) yearMap[key].last=r.last_year; }
   }
+  const judgeVisas={};
+  for (const r of visaRows) {
+    const name=normaliseJudgeName(r.judge_raw); if(!name||!isRealJudgeName(name)||_JUDGE_BLOCKLIST.has(name.toLowerCase())) continue;
+    const key=name.toLowerCase();
+    if(!judgeVisas[key]) judgeVisas[key]=new Map();
+    judgeVisas[key].set(r.visa_subclass, (judgeVisas[key].get(r.visa_subclass)||0)+r.cnt);
+  }
+  const topVisasFor=(key)=>{
+    const m=judgeVisas[key]; if(!m) return [];
+    return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([subclass,count])=>({subclass,count}));
+  };
   let judges=Object.entries(judgeTotal)
     .filter(([key,cnt])=>cnt>=minCases&&(!nameQ||key.includes(nameQ)||judgeCanon[key].toLowerCase().includes(nameQ)))
-    .map(([key,total])=>({ name:judgeCanon[key], display_name:judgeCanon[key], total_cases:total, approval_rate:roundRate(judgeWins[key]||0,total), courts:[...(judgeCourts[key]||[])].sort(), primary_court:judgeCourts[key]?[...judgeCourts[key]][0]:null, active_years:yearMap[key]??{first:null,last:null} }));
+    .map(([key,total])=>({ name:judgeCanon[key], display_name:judgeCanon[key], total_cases:total, approval_rate:roundRate(judgeWins[key]||0,total), courts:[...(judgeCourts[key]||[])].sort(), primary_court:judgeCourts[key]?[...judgeCourts[key]][0]:null, top_visa_subclasses:topVisasFor(key), active_years:yearMap[key]??{first:null,last:null}, outcome_summary:judgeOutcomes[key]||{} }));
 
   if(sortBy==="approval_rate") judges.sort((a,b)=>b.approval_rate-a.approval_rate||b.total_cases-a.total_cases);
   else if(sortBy==="name")     judges.sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
