@@ -40,7 +40,7 @@ const DASHBOARD_TRENDS_CACHE_KEY = "immi:dashboard:trends:v2";
 
 async function fetchCsrfToken(): Promise<string> {
   if (csrfToken) return csrfToken;
-  const res = await fetch("/api/v1/csrf-token");
+  const res = await fetch("/api/v1/csrf-token", { credentials: "include" });
   const data = await res.json();
   csrfToken = data.csrf_token;
   return csrfToken!;
@@ -92,6 +92,7 @@ export async function apiFetch<T>(
   let res: Response;
   try {
     res = await fetch(url, {
+      credentials: "include",
       ...requestOptions,
       headers,
       signal: controller.signal,
@@ -1142,6 +1143,7 @@ export interface LlmCouncilResponse {
     openai: LlmCouncilModelConfig;
     gemini_pro: LlmCouncilModelConfig;
     anthropic: LlmCouncilModelConfig;
+    qwen?: LlmCouncilModelConfig;
     gemini_flash: LlmCouncilModelConfig;
   };
   opinions: LlmCouncilOpinion[];
@@ -1172,12 +1174,14 @@ export interface LlmCouncilHealthResponse {
     openai: LlmCouncilHealthProviderStatus;
     gemini_pro: LlmCouncilHealthProviderStatus;
     anthropic: LlmCouncilHealthProviderStatus;
+    qwen?: LlmCouncilHealthProviderStatus;
     gemini_flash: LlmCouncilHealthProviderStatus;
   };
   probe_results?: {
     openai?: LlmCouncilOpinion;
     gemini_pro?: LlmCouncilOpinion;
     anthropic?: LlmCouncilOpinion;
+    qwen?: LlmCouncilOpinion;
   };
 }
 
