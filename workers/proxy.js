@@ -302,6 +302,116 @@ async function handleBatchCases(request, env) {
   return jsonErr(`Unknown action: ${action}`);
 }
 
+// ── Streaming export helpers + handlers ──────────────────────────────────────
+// Per .omc/plans/hyperdrive-full-migration.md §Phase 1 #9 + Critic B4 fix.
+// Uses a DEDICATED postgres client (NOT shared getSql) with idle_timeout: 0
+// so long-running streams aren't dropped mid-flight. Worker has 30s CPU cap
+// but streamed responses get unbounded wall time (Cloudflare exception).
+
+// Full case columns matching ImmigrationCase dataclass (models.py:11-41).
+const EXPORT_FIELDS = [
+  "case_id", "citation", "title", "court", "court_code", "date", "year",
+  "url", "judges", "catchwords", "outcome", "visa_type", "legislation",
+  "text_snippet", "full_text_path", "source", "user_notes", "tags",
+  "case_nature", "legal_concepts", "visa_subclass", "visa_class_code",
+  "applicant_name", "respondent", "country_of_origin",
+  "visa_subclass_number", "hearing_date", "is_represented", "representative",
+  "visa_outcome_reason",
+];
+
+const EXPORT_MAX_ROWS = 50000;
+const EXPORT_CURSOR_BATCH = 500;
+
+function csvCell(v) {
+  const s = v === null || v === undefined ? "" : String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function safeFilename(s) {
+  return String(s).replace(/[^\w.-]/g, "_").slice(0, 100) || "export";
+}
+
+function ymd() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`;
+}
+
+async function streamExport(url, env, format) {
+  const filters = parseCaseFilters(url.searchParams);
+  if (filters.tag) return null;            // tag filter falls through to Flask
+  // Dedicated client (NOT shared getSql) — idle_timeout 0 + max 1 connection.
+  const sql = postgres(env.HYPERDRIVE.connectionString, {
+    max: 1, idle_timeout: 0, connect_timeout: 5, fetch_types: false,
+  });
+  let closed = false;
+  const safeEnd = async () => {
+    if (closed) return;
+    closed = true;
+    try { await sql.end({ timeout: 1 }); } catch { /* swallow */ }
+  };
+
+  const where = buildCasesWhere(sql, filters);
+  if (!where) { await safeEnd(); return null; }
+  const cursor = sql`
+    SELECT ${sql(EXPORT_FIELDS)} FROM ${sql(TABLE)} WHERE ${where}
+    ORDER BY year DESC NULLS LAST LIMIT ${EXPORT_MAX_ROWS}
+  `.cursor(EXPORT_CURSOR_BATCH);
+
+  const enc = new TextEncoder();
+  const filename = `immigration_cases_${ymd()}.${format}`;
+  let cancelled = false;
+  let firstRow = true;
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      if (format === "csv") {
+        controller.enqueue(enc.encode("﻿"));   // UTF-8 BOM (matches Python utf-8-sig)
+        controller.enqueue(enc.encode(EXPORT_FIELDS.map(csvCell).join(",") + "\n"));
+      } else {
+        controller.enqueue(enc.encode(`{"cases":[`));
+      }
+    },
+    async pull(controller) {
+      try {
+        for await (const batch of cursor) {
+          if (cancelled) break;
+          let chunk = "";
+          for (const row of batch) {
+            if (format === "csv") {
+              chunk += EXPORT_FIELDS.map(f => csvCell(row[f])).join(",") + "\n";
+            } else {
+              chunk += (firstRow ? "" : ",") + JSON.stringify(row);
+              firstRow = false;
+            }
+          }
+          if (chunk) controller.enqueue(enc.encode(chunk));
+        }
+        if (format === "json") controller.enqueue(enc.encode(`]}`));
+        controller.close();
+        await safeEnd();
+      } catch (e) {
+        controller.error(e);
+        await safeEnd();
+      }
+    },
+    cancel() { cancelled = true; safeEnd().catch(() => {}); },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": format === "csv"
+        ? "text/csv; charset=utf-8"
+        : "application/json; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${safeFilename(filename)}"`,
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+async function handleExportCsv(url, env)  { return streamExport(url, env, "csv"); }
+async function handleExportJson(url, env) { return streamExport(url, env, "json"); }
+
 // ── Static data (ported from Python) ─────────────────────────────────────────
 
 const VISA_FAMILIES = {
@@ -2053,6 +2163,10 @@ export default {
           res = await handleGetCases(url, env);
         } else if (path === "/api/v1/cases/count") {
           res = await handleGetCasesCount(url, env);
+        } else if (path === "/api/v1/export/csv") {
+          res = await handleExportCsv(url, env);
+        } else if (path === "/api/v1/export/json") {
+          res = await handleExportJson(url, env);
         } else if (path === "/api/v1/stats") {
           res = await handleGetStats(url, env);
         } else if (path === "/api/v1/filter-options") {
