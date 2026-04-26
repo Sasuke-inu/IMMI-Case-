@@ -1,12 +1,23 @@
-"""LLM Council orchestration for multi-provider legal reasoning.
+"""LLM Council orchestration via Cloudflare AI Gateway Unified Billing.
 
-This module executes a 3-model council:
-1) OpenAI (web search enabled, medium reasoning)
-2) Google Gemini Pro (Google grounding enabled, medium reasoning)
-3) Anthropic Sonnet (web search enabled, high reasoning)
+All 4 LLM calls (3 experts + Gemini Flash moderator) route through a single
+Cloudflare AI Gateway compat endpoint:
 
-Then asks Gemini Flash to act as the judging/composition model and
-produce ranking, critiques, votes, and a synthesized answer.
+    POST {cf_gateway_url}
+    Header: cf-aig-authorization: Bearer {CF_AIG_TOKEN}
+    Body:   OpenAI Chat Completions format with provider-prefixed model names
+
+Model names use provider prefix routing:
+    openai/<model>             → OpenAI (gpt-5 family supported via param remap)
+    anthropic/<model>          → Anthropic
+    google-ai-studio/<model>   → Google AI Studio (Gemini Pro / Flash)
+
+Council composition:
+1) openai expert (gpt-5-mini)
+2) google-ai-studio Gemini Pro expert
+3) anthropic Sonnet expert
+Then Gemini Flash acts as judge/composer producing ranking, critiques, votes,
+and synthesized answer.
 """
 
 from __future__ import annotations
@@ -14,17 +25,21 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from itertools import combinations
 from typing import Any
 
+_council_semaphore = threading.BoundedSemaphore(3)
+
 import requests
 
-OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
-ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages"
+CF_GATEWAY_DEFAULT_URL = (
+    "https://gateway.ai.cloudflare.com/v1/30ffcfbf8c4103048bc38a5398b7ec99"
+    "/immi-council/compat/chat/completions"
+)
 
 URL_RE = re.compile(r"https?://[^\s)>\"]+")
 FULL_LAW_CITE_RE = re.compile(
@@ -96,6 +111,35 @@ DEFAULT_MODERATOR_SYSTEM_PROMPT = (
 )
 
 
+_THINK_CLOSE_RE = re.compile(r"</think\s*>", flags=re.IGNORECASE)
+_THINK_BLOCK_RE = re.compile(r"<think\s*>.*?</think\s*>", flags=re.IGNORECASE | re.DOTALL)
+
+
+def _strip_reasoning_artifacts(text: str) -> str:
+    """Drop reasoning-model `<think>...</think>` chain-of-thought from output.
+
+    Handles two shapes:
+    1. Properly fenced: `<think>...</think>actual answer` → return only the answer.
+    2. QwQ-style (no opening tag, just trailing close): `reasoning text </think>actual answer`
+       — find the LAST `</think>` and discard everything before it.
+
+    This protects the moderator and the user from seeing raw reasoning-model
+    chain-of-thought, which would otherwise pollute downstream JSON judgement
+    and the rendered widget.
+    """
+    if not text:
+        return text
+    # Step 1: remove any well-fenced think blocks anywhere in the text
+    cleaned = _THINK_BLOCK_RE.sub("", text)
+    # Step 2: if a stray `</think>` remains (QwQ-style with no opening tag),
+    # treat everything before the last close-tag as reasoning and drop it.
+    matches = list(_THINK_CLOSE_RE.finditer(cleaned))
+    if matches:
+        last = matches[-1]
+        cleaned = cleaned[last.end():]
+    return cleaned.strip()
+
+
 def _env_int(name: str, default: int, *, minimum: int = 0, maximum: int = 10_000_000) -> int:
     raw = os.environ.get(name, "").strip()
     if not raw:
@@ -116,20 +160,15 @@ def _trim(text: str, max_len: int = 400) -> str:
 
 @dataclass(frozen=True)
 class CouncilConfig:
+    cf_aig_token: str
+    cf_gateway_url: str
     openai_model: str
     gemini_pro_model: str
     anthropic_model: str
     gemini_flash_model: str
-    openai_reasoning_effort: str
-    gemini_thinking_budget: int
-    anthropic_thinking_budget: int
     max_output_tokens: int
+    moderator_max_output_tokens: int
     timeout_seconds: int
-    openai_api_key: str
-    gemini_api_key: str
-    anthropic_api_key: str
-    anthropic_version: str
-    anthropic_web_search_beta: str
     openai_system_prompt: str
     gemini_pro_system_prompt: str
     anthropic_system_prompt: str
@@ -137,25 +176,38 @@ class CouncilConfig:
 
     @classmethod
     def from_env(cls) -> "CouncilConfig":
-        gemini_key = (
-            os.environ.get("GEMINI_API_KEY", "").strip()
-            or os.environ.get("GOOGLE_API_KEY", "").strip()
-        )
         return cls(
-            openai_model=os.environ.get("LLM_COUNCIL_OPENAI_MODEL", "chatgpt-5.2").strip() or "chatgpt-5.2",
-            gemini_pro_model=os.environ.get("LLM_COUNCIL_GEMINI_PRO_MODEL", "gemini-3.0-pro").strip() or "gemini-3.0-pro",
-            anthropic_model=os.environ.get("LLM_COUNCIL_ANTHROPIC_MODEL", "claude-sonnet-4-6").strip() or "claude-sonnet-4-6",
-            gemini_flash_model=os.environ.get("LLM_COUNCIL_GEMINI_FLASH_MODEL", "gemini-3.0-flash").strip() or "gemini-3.0-flash",
-            openai_reasoning_effort=os.environ.get("LLM_COUNCIL_OPENAI_REASONING", "medium").strip() or "medium",
-            gemini_thinking_budget=_env_int("LLM_COUNCIL_GEMINI_THINKING_BUDGET", 1024, minimum=0),
-            anthropic_thinking_budget=_env_int("LLM_COUNCIL_ANTHROPIC_THINKING_BUDGET", 4096, minimum=0),
-            max_output_tokens=_env_int("LLM_COUNCIL_MAX_OUTPUT_TOKENS", 1600, minimum=256, maximum=8192),
-            timeout_seconds=_env_int("LLM_COUNCIL_TIMEOUT_SECONDS", 70, minimum=10, maximum=240),
-            openai_api_key=os.environ.get("OPENAI_API_KEY", "").strip(),
-            gemini_api_key=gemini_key,
-            anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", "").strip(),
-            anthropic_version=os.environ.get("ANTHROPIC_VERSION", "2023-06-01").strip() or "2023-06-01",
-            anthropic_web_search_beta=os.environ.get("ANTHROPIC_WEB_SEARCH_BETA", "web-search-2025-03-05").strip() or "web-search-2025-03-05",
+            cf_aig_token=os.environ.get("CF_AIG_TOKEN", "").strip(),
+            cf_gateway_url=(
+                os.environ.get("LLM_COUNCIL_CF_GATEWAY_URL", "").strip()
+                or CF_GATEWAY_DEFAULT_URL
+            ),
+            # 3-LLM council via CF Gateway, defaults verified 2026-04-26:
+            #   openai/gpt-5-mini-2025-08-07         — gpt-5 reasoning model
+            #   anthropic/claude-sonnet-4-6
+            #   google-ai-studio/gemini-3.1-pro-preview
+            # Moderator: google-ai-studio/gemini-2.5-flash
+            # gpt-5 family auto-handled in _gateway_chat_completion (param remap).
+            openai_model=os.environ.get("LLM_COUNCIL_OPENAI_MODEL", "openai/gpt-5-mini-2025-08-07").strip() or "openai/gpt-5-mini-2025-08-07",
+            gemini_pro_model=os.environ.get("LLM_COUNCIL_GEMINI_PRO_MODEL", "google-ai-studio/gemini-3.1-pro-preview").strip() or "google-ai-studio/gemini-3.1-pro-preview",
+            anthropic_model=os.environ.get("LLM_COUNCIL_ANTHROPIC_MODEL", "anthropic/claude-sonnet-4-6").strip() or "anthropic/claude-sonnet-4-6",
+            gemini_flash_model=os.environ.get("LLM_COUNCIL_GEMINI_FLASH_MODEL", "google-ai-studio/gemini-2.5-flash").strip() or "google-ai-studio/gemini-2.5-flash",
+            # 4096 budget verified via direct gateway probes:
+            #   - 2400 → gemini-2.5-pro completion=0 (reasoning eats all)
+            #   - 4096 → gemini-2.5-pro completion=1360 visible chars (truncated but usable)
+            #   - 8192 → gemini-2.5-pro completion=3102 visible chars (full natural stop)
+            # 4096 is the reliability/cost sweet spot for reasoning models.
+            max_output_tokens=_env_int("LLM_COUNCIL_MAX_OUTPUT_TOKENS", 4096, minimum=256, maximum=8192),
+            # Moderator emits a 14-field JSON (rankings, critiques per expert,
+            # vote_summary, agreement/conflict points, provider_law_sections,
+            # mock_judgment, composed_answer, follow_up_questions). At 4096
+            # this gets truncated mid-JSON. 8192 leaves headroom for Gemini
+            # Flash's reasoning + complete structured output.
+            moderator_max_output_tokens=_env_int("LLM_COUNCIL_MODERATOR_MAX_TOKENS", 8192, minimum=512, maximum=8192),
+            # gpt-5-mini reasoning model under full council prompt takes 30-60s;
+            # Anthropic Sonnet with thinking takes 50-90s; Gemini 3.1 pro preview
+            # ~10-30s. 120s gives slack without hanging the request indefinitely.
+            timeout_seconds=_env_int("LLM_COUNCIL_TIMEOUT_SECONDS", 120, minimum=10, maximum=240),
             openai_system_prompt=(
                 os.environ.get("LLM_COUNCIL_SYSTEM_PROMPT_OPENAI", "").strip()
                 or DEFAULT_OPENAI_SYSTEM_PROMPT
@@ -447,174 +499,167 @@ def _build_user_prompt(question: str, case_context: str) -> str:
     )
 
 
-def _extract_openai_text(payload: dict[str, Any]) -> str:
-    text_chunks: list[str] = []
-    direct = payload.get("output_text")
-    if isinstance(direct, str) and direct.strip():
-        text_chunks.append(direct.strip())
+def _normalize_gateway_model(model: str, default_prefix: str) -> str:
+    """Ensure model name carries a CF Gateway provider prefix.
 
-    output = payload.get("output")
-    if isinstance(output, list):
-        for item in output:
-            if not isinstance(item, dict):
-                continue
-            content = item.get("content")
-            if not isinstance(content, list):
-                continue
-            for part in content:
-                if not isinstance(part, dict):
-                    continue
-                if part.get("type") in {"output_text", "text"} and isinstance(part.get("text"), str):
-                    text_chunks.append(part["text"].strip())
-    return "\n\n".join(chunk for chunk in text_chunks if chunk).strip()
+    The compat endpoint requires `<provider>/<model>` form. Bare model names
+    (e.g. legacy env values like `claude-sonnet-4-6`) get auto-prefixed.
+    """
+    name = (model or "").strip()
+    if "/" in name:
+        return name
+    return f"{default_prefix}/{name}" if name else name
 
 
-def _extract_gemini_text(payload: dict[str, Any]) -> str:
-    candidates = payload.get("candidates")
-    if not isinstance(candidates, list) or not candidates:
+def _extract_chat_completion_text(payload: dict[str, Any]) -> str:
+    """Parse OpenAI Chat Completions response: choices[0].message.content."""
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
         return ""
-    first = candidates[0]
+    first = choices[0]
     if not isinstance(first, dict):
         return ""
-    content = first.get("content", {})
-    if not isinstance(content, dict):
+    message = first.get("message", {})
+    if not isinstance(message, dict):
         return ""
-    parts = content.get("parts")
-    if not isinstance(parts, list):
-        return ""
-    texts = [
-        part.get("text", "").strip()
-        for part in parts
-        if isinstance(part, dict) and isinstance(part.get("text"), str)
-    ]
-    return "\n\n".join(t for t in texts if t).strip()
+    content = message.get("content", "")
+    if isinstance(content, list):
+        # Some providers return content as parts list
+        parts: list[str] = []
+        for part in content:
+            if isinstance(part, dict):
+                text = part.get("text") or part.get("content") or ""
+                if isinstance(text, str):
+                    parts.append(text)
+            elif isinstance(part, str):
+                parts.append(part)
+        content = "\n\n".join(p for p in parts if p)
+    return (content or "").strip()
 
 
-def _extract_gemini_sources(payload: dict[str, Any]) -> list[str]:
-    candidates = payload.get("candidates")
-    if not isinstance(candidates, list) or not candidates:
-        return []
-    first = candidates[0]
-    if not isinstance(first, dict):
-        return []
-    grounding = first.get("groundingMetadata", {})
-    if not isinstance(grounding, dict):
-        return []
-    chunks = grounding.get("groundingChunks")
-    if not isinstance(chunks, list):
-        return []
-    out: list[str] = []
-    for chunk in chunks:
-        if not isinstance(chunk, dict):
-            continue
-        web = chunk.get("web")
-        if not isinstance(web, dict):
-            continue
-        uri = web.get("uri")
-        if isinstance(uri, str) and uri.strip():
-            out.append(uri.strip())
-    return _dedupe(out)
+def _is_gpt5_reasoning_model(model: str) -> bool:
+    """gpt-5 family models reject `max_tokens` and `temperature != 1`.
+
+    Verified via gateway probe 2026-04-26:
+      openai/gpt-5-mini-2025-08-07 + max_tokens     → HTTP 400 (unsupported)
+      openai/gpt-5-mini-2025-08-07 + temperature=0  → HTTP 400 (unsupported)
+      openai/gpt-5-mini-2025-08-07 + max_completion_tokens + temperature=1 → 200 OK
+
+    Covers `openai/gpt-5`, `openai/gpt-5-mini`, future gpt-5 variants.
+    """
+    return (model or "").lower().startswith("openai/gpt-5")
 
 
-def _extract_anthropic_text(payload: dict[str, Any]) -> str:
-    content = payload.get("content")
-    if not isinstance(content, list):
-        return ""
-    texts: list[str] = []
-    for item in content:
-        if not isinstance(item, dict):
-            continue
-        if item.get("type") == "text" and isinstance(item.get("text"), str):
-            texts.append(item["text"].strip())
-    return "\n\n".join(t for t in texts if t).strip()
+def _gateway_chat_completion(
+    *,
+    cfg: CouncilConfig,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int | None = None,
+    temperature: float = 0.2,
+) -> dict[str, Any]:
+    """POST to CF AI Gateway compat endpoint with Unified Billing.
+
+    Auth uses `cf-aig-authorization: Bearer <CF_AIG_TOKEN>` so credits are
+    drawn from the Cloudflare account associated with the gateway. The
+    response is OpenAI Chat Completions format regardless of upstream
+    provider.
+
+    Model-aware param remap:
+      - gpt-5 family: rename `max_tokens` → `max_completion_tokens`, force
+        `temperature=1` (the only value those reasoning models accept).
+    """
+    if not cfg.cf_aig_token:
+        raise RuntimeError("Missing CF_AIG_TOKEN")
+    if not cfg.cf_gateway_url:
+        raise RuntimeError("Missing CF gateway URL")
+
+    messages: list[dict[str, str]] = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_prompt})
+
+    budget = max_tokens if max_tokens is not None else cfg.max_output_tokens
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+    }
+    if _is_gpt5_reasoning_model(model):
+        payload["max_completion_tokens"] = budget
+        payload["temperature"] = 1
+    else:
+        payload["max_tokens"] = budget
+        payload["temperature"] = temperature
+
+    headers = {
+        "cf-aig-authorization": f"Bearer {cfg.cf_aig_token}",
+        "Content-Type": "application/json",
+    }
+    return _post_json(
+        cfg.cf_gateway_url,
+        headers=headers,
+        payload=payload,
+        timeout=cfg.timeout_seconds,
+    )
 
 
-def _extract_anthropic_sources(payload: dict[str, Any]) -> list[str]:
-    content = payload.get("content")
-    if not isinstance(content, list):
-        return []
-    urls: list[str] = []
-    for item in content:
-        if not isinstance(item, dict):
-            continue
-        text = item.get("text")
-        if isinstance(text, str):
-            urls.extend(_extract_urls(text))
-        citations = item.get("citations")
-        if isinstance(citations, list):
-            for citation in citations:
-                if not isinstance(citation, dict):
-                    continue
-                url = citation.get("url")
-                if isinstance(url, str):
-                    urls.append(url)
-    return _dedupe(urls)
-
-
-def _run_openai(
+def _run_gateway_expert(
+    *,
+    provider_key: str,
+    provider_label: str,
+    model_raw: str,
+    default_prefix: str,
     question: str,
     case_context: str,
     cfg: CouncilConfig,
-    *,
-    system_prompt: str | None = None,
+    system_prompt: str,
+    raw_prompt: bool = False,
+    max_tokens: int | None = None,
 ) -> CouncilOpinion:
-    provider_key = "openai"
-    label = "OpenAI ChatGPT"
+    """Single shared runner for every council expert.
+
+    All providers go through the same CF AI Gateway compat endpoint; only the
+    model name (with its provider prefix) differs.
+    """
+    model = _normalize_gateway_model(model_raw, default_prefix)
     start = time.perf_counter()
-    if not cfg.openai_api_key:
+
+    if not cfg.cf_aig_token:
         return CouncilOpinion(
             provider_key=provider_key,
-            provider_label=label,
-            model=cfg.openai_model,
+            provider_label=provider_label,
+            model=model,
             success=False,
-            error="Missing OPENAI_API_KEY",
+            error="Missing CF_AIG_TOKEN (Unified Billing token required)",
         )
 
-    user_prompt = _build_user_prompt(question, case_context)
-    payload = {
-        "model": cfg.openai_model,
-        "reasoning": {"effort": cfg.openai_reasoning_effort},
-        "tools": [{"type": "web_search_preview"}],
-        "max_output_tokens": cfg.max_output_tokens,
-        "input": [
-            {
-                "role": "system",
-                "content": [{"type": "input_text", "text": system_prompt or cfg.openai_system_prompt}],
-            },
-            {
-                "role": "user",
-                "content": [{"type": "input_text", "text": user_prompt}],
-            },
-        ],
-    }
-    headers = {
-        "Authorization": f"Bearer {cfg.openai_api_key}",
-        "Content-Type": "application/json",
-    }
+    user_prompt = question.strip() if raw_prompt else _build_user_prompt(question, case_context)
 
     try:
-        data = _post_json(
-            OPENAI_RESPONSES_URL,
-            headers=headers,
-            payload=payload,
-            timeout=cfg.timeout_seconds,
+        data = _gateway_chat_completion(
+            cfg=cfg,
+            model=model,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=max_tokens,
         )
-        answer = _extract_openai_text(data)
+        answer = _strip_reasoning_artifacts(_extract_chat_completion_text(data))
         sources = _extract_urls(answer)
         elapsed = int((time.perf_counter() - start) * 1000)
         if not answer:
             return CouncilOpinion(
                 provider_key=provider_key,
-                provider_label=label,
-                model=cfg.openai_model,
+                provider_label=provider_label,
+                model=model,
                 success=False,
-                error="OpenAI response did not include text output",
+                error=f"{provider_label} response did not include text output",
                 latency_ms=elapsed,
             )
         return CouncilOpinion(
             provider_key=provider_key,
-            provider_label=label,
-            model=cfg.openai_model,
+            provider_label=provider_label,
+            model=model,
             success=True,
             answer=answer,
             sources=sources,
@@ -624,12 +669,31 @@ def _run_openai(
         elapsed = int((time.perf_counter() - start) * 1000)
         return CouncilOpinion(
             provider_key=provider_key,
-            provider_label=label,
-            model=cfg.openai_model,
+            provider_label=provider_label,
+            model=model,
             success=False,
-            error=f"OpenAI request failed: {_trim(str(exc), 700)}",
+            error=f"{provider_label} request failed: {_trim(str(exc), 700)}",
             latency_ms=elapsed,
         )
+
+
+def _run_openai(
+    question: str,
+    case_context: str,
+    cfg: CouncilConfig,
+    *,
+    system_prompt: str | None = None,
+) -> CouncilOpinion:
+    return _run_gateway_expert(
+        provider_key="openai",
+        provider_label="OpenAI",
+        model_raw=cfg.openai_model,
+        default_prefix="openai",
+        question=question,
+        case_context=case_context,
+        cfg=cfg,
+        system_prompt=system_prompt or cfg.openai_system_prompt,
+    )
 
 
 def _run_gemini_expert(
@@ -640,73 +704,22 @@ def _run_gemini_expert(
     question: str,
     case_context: str,
     cfg: CouncilConfig,
-    with_grounding: bool,
+    with_grounding: bool = False,  # retained for signature compat; unused
     system_prompt: str | None = None,
     raw_prompt: bool = False,
 ) -> CouncilOpinion:
-    start = time.perf_counter()
-    if not cfg.gemini_api_key:
-        return CouncilOpinion(
-            provider_key=provider_key,
-            provider_label=provider_label,
-            model=model,
-            success=False,
-            error="Missing GEMINI_API_KEY (or GOOGLE_API_KEY)",
-        )
-
-    user_prompt = question.strip() if raw_prompt else _build_user_prompt(question, case_context)
-    endpoint = f"{GEMINI_API_BASE}/models/{model}:generateContent"
-    payload: dict[str, Any] = {
-        "systemInstruction": {"parts": [{"text": system_prompt or cfg.gemini_pro_system_prompt}]},
-        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-        "generationConfig": {
-            "temperature": 0.2,
-            "maxOutputTokens": cfg.max_output_tokens,
-        },
-    }
-    if cfg.gemini_thinking_budget > 0:
-        payload["thinkingConfig"] = {"thinkingBudget": cfg.gemini_thinking_budget}
-    if with_grounding:
-        payload["tools"] = [{"google_search": {}}]
-
-    try:
-        data = _post_json(
-            f"{endpoint}?key={cfg.gemini_api_key}",
-            headers={"Content-Type": "application/json"},
-            payload=payload,
-            timeout=cfg.timeout_seconds,
-        )
-        answer = _extract_gemini_text(data)
-        sources = _extract_gemini_sources(data)
-        elapsed = int((time.perf_counter() - start) * 1000)
-        if not answer:
-            return CouncilOpinion(
-                provider_key=provider_key,
-                provider_label=provider_label,
-                model=model,
-                success=False,
-                error="Gemini response did not include text output",
-                latency_ms=elapsed,
-            )
-        return CouncilOpinion(
-            provider_key=provider_key,
-            provider_label=provider_label,
-            model=model,
-            success=True,
-            answer=answer,
-            sources=sources,
-            latency_ms=elapsed,
-        )
-    except Exception as exc:
-        elapsed = int((time.perf_counter() - start) * 1000)
-        return CouncilOpinion(
-            provider_key=provider_key,
-            provider_label=provider_label,
-            model=model,
-            success=False,
-            error=f"Gemini request failed: {_trim(str(exc), 700)}",
-            latency_ms=elapsed,
-        )
+    del with_grounding  # Unified API does not surface Google grounding tools.
+    return _run_gateway_expert(
+        provider_key=provider_key,
+        provider_label=provider_label,
+        model_raw=model,
+        default_prefix="google-ai-studio",
+        question=question,
+        case_context=case_context,
+        cfg=cfg,
+        system_prompt=system_prompt or cfg.gemini_pro_system_prompt,
+        raw_prompt=raw_prompt,
+    )
 
 
 def _run_anthropic(
@@ -716,83 +729,108 @@ def _run_anthropic(
     *,
     system_prompt: str | None = None,
 ) -> CouncilOpinion:
-    provider_key = "anthropic"
-    label = "Anthropic Sonnet"
-    start = time.perf_counter()
-    if not cfg.anthropic_api_key:
-        return CouncilOpinion(
-            provider_key=provider_key,
-            provider_label=label,
-            model=cfg.anthropic_model,
-            success=False,
-            error="Missing ANTHROPIC_API_KEY",
-        )
+    return _run_gateway_expert(
+        provider_key="anthropic",
+        provider_label="Anthropic",
+        model_raw=cfg.anthropic_model,
+        default_prefix="anthropic",
+        question=question,
+        case_context=case_context,
+        cfg=cfg,
+        system_prompt=system_prompt or cfg.anthropic_system_prompt,
+    )
 
-    user_prompt = _build_user_prompt(question, case_context)
-    payload: dict[str, Any] = {
-        "model": cfg.anthropic_model,
-        "system": system_prompt or cfg.anthropic_system_prompt,
-        "max_tokens": cfg.max_output_tokens,
-        "messages": [{"role": "user", "content": user_prompt}],
-        "tools": [{"type": "web_search_20250305", "name": "web_search"}],
-    }
-    if cfg.anthropic_thinking_budget > 0:
-        payload["thinking"] = {
-            "type": "enabled",
-            "budget_tokens": cfg.anthropic_thinking_budget,
-        }
 
-    headers = {
-        "x-api-key": cfg.anthropic_api_key,
-        "anthropic-version": cfg.anthropic_version,
-        "anthropic-beta": cfg.anthropic_web_search_beta,
-        "content-type": "application/json",
-    }
+def _repair_truncated_json(text: str) -> str:
+    """Best-effort close of LLM-truncated JSON so it parses.
 
-    try:
-        data = _post_json(
-            ANTHROPIC_MESSAGES_URL,
-            headers=headers,
-            payload=payload,
-            timeout=cfg.timeout_seconds,
-        )
-        answer = _extract_anthropic_text(data)
-        sources = _extract_anthropic_sources(data)
-        elapsed = int((time.perf_counter() - start) * 1000)
-        if not answer:
-            return CouncilOpinion(
-                provider_key=provider_key,
-                provider_label=label,
-                model=cfg.anthropic_model,
-                success=False,
-                error="Anthropic response did not include text output",
-                latency_ms=elapsed,
-            )
-        return CouncilOpinion(
-            provider_key=provider_key,
-            provider_label=label,
-            model=cfg.anthropic_model,
-            success=True,
-            answer=answer,
-            sources=sources,
-            latency_ms=elapsed,
-        )
-    except Exception as exc:
-        elapsed = int((time.perf_counter() - start) * 1000)
-        return CouncilOpinion(
-            provider_key=provider_key,
-            provider_label=label,
-            model=cfg.anthropic_model,
-            success=False,
-            error=f"Anthropic request failed: {_trim(str(exc), 700)}",
-            latency_ms=elapsed,
-        )
+    LLMs with finite `max_tokens` can hit the cap mid-string mid-array,
+    leaving payloads like `{"a":1, "b":["x", "incomp...`. This walks the
+    stream tracking string/escape/brace/bracket state, truncates back to
+    the last complete value, then appends matching close characters in
+    reverse stack order. Lossy: incomplete trailing fields are discarded.
+    Returns the repaired body (no leading prose), or the original text if
+    no opening `{` is found.
+    """
+    if not text:
+        return text
+    start = text.find("{")
+    if start < 0:
+        return text
+    body = text[start:]
+
+    stack: list[str] = []  # tracks unclosed '{' or '['
+    in_str = False
+    escape = False
+    last_safe = 0  # index right after the last complete top-level value
+    stack_at_last_safe: list[str] = []  # snapshot of `stack` at `last_safe`
+
+    for i, ch in enumerate(body):
+        if escape:
+            escape = False
+            continue
+        if in_str:
+            if ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append(ch)
+        elif ch in "}]":
+            if stack and (
+                (ch == "}" and stack[-1] == "{")
+                or (ch == "]" and stack[-1] == "[")
+            ):
+                stack.pop()
+                last_safe = i + 1
+                stack_at_last_safe = list(stack)
+                if not stack:
+                    return body[:last_safe]
+        elif ch == "," and not in_str:
+            last_safe = i  # before this comma is a complete value
+            stack_at_last_safe = list(stack)
+
+    # Truncated input — walk back to the last clean checkpoint regardless
+    # of whether we ended mid-string or mid-key (e.g. `..."x":` end-of-input).
+    if stack:
+        body = body[:last_safe] if last_safe > 0 else body
+    # Drop trailing whitespace, commas, and colons (orphan key separators)
+    body = body.rstrip(",:\n\r\t ")
+    # Close containers that were open AT last_safe (not at end of input —
+    # any container opened after last_safe was inside a truncated field
+    # which we just sliced off, so closing it now would add a stray `]/}`).
+    while stack_at_last_safe:
+        opener = stack_at_last_safe.pop()
+        body += "}" if opener == "{" else "]"
+    return body
 
 
 def _extract_first_json_object(text: str) -> dict[str, Any] | None:
+    """Parse the first JSON object out of a possibly noisy LLM response.
+
+    Tries (in order):
+    1. Direct json.loads on the stripped text.
+    2. Strip markdown ```json fence (Gemini Flash wraps output this way).
+    3. Brace-balancing extraction — walks from the first `{` and tracks
+       brace depth (string/escape aware) to find the matching `}`.
+       This survives trailing prose after the JSON.
+    4. Greedy regex fallback for legacy edge cases.
+
+    Returns None if no valid JSON object can be parsed.
+    """
     if not text:
         return None
     stripped = text.strip()
+
+    # 2. Strip ```json ... ``` fence if present
+    fence_match = re.match(r"```(?:json)?\s*(.*?)```", stripped, flags=re.DOTALL | re.IGNORECASE)
+    if fence_match:
+        stripped = fence_match.group(1).strip()
+
+    # 1. Direct parse on the (possibly de-fenced) text
     try:
         payload = json.loads(stripped)
         if isinstance(payload, dict):
@@ -800,6 +838,52 @@ def _extract_first_json_object(text: str) -> dict[str, Any] | None:
     except Exception:
         pass
 
+    # 3. Brace-balanced walk: find first `{` and the matching `}` even when
+    # the JSON is followed by trailing prose. Honors string/escape rules.
+    start = stripped.find("{")
+    if start >= 0:
+        depth = 0
+        in_str = False
+        escape = False
+        for idx in range(start, len(stripped)):
+            ch = stripped[idx]
+            if escape:
+                escape = False
+                continue
+            if in_str:
+                if ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = stripped[start:idx + 1]
+                    try:
+                        payload = json.loads(candidate)
+                        if isinstance(payload, dict):
+                            return payload
+                    except Exception:
+                        break
+
+    # 4. Truncation repair: close any unclosed strings/arrays/objects at the
+    # end. Gemini Flash often truncates mid-output when max_tokens is hit;
+    # this recovers everything up to the last complete field.
+    repaired = _repair_truncated_json(stripped)
+    if repaired and repaired != stripped:
+        try:
+            payload = json.loads(repaired)
+            if isinstance(payload, dict):
+                return payload
+        except Exception:
+            pass
+
+    # 5. Legacy greedy regex (rarely useful, kept as last resort)
     match = re.search(r"\{.*\}", stripped, flags=re.DOTALL)
     if not match:
         return None
@@ -1010,16 +1094,17 @@ def _run_moderator(
         "- Do not add unsupported legal claims, and do not output markdown or prose outside JSON.\n"
     )
 
-    mod_opinion = _run_gemini_expert(
+    mod_opinion = _run_gateway_expert(
         provider_key="gemini_flash",
         provider_label="Google Gemini Flash (Moderator)",
-        model=cfg.gemini_flash_model,
+        model_raw=cfg.gemini_flash_model,
+        default_prefix="google-ai-studio",
         question=moderator_prompt,
         case_context="",
         cfg=cfg,
-        with_grounding=False,
         system_prompt=cfg.moderator_system_prompt,
         raw_prompt=True,
+        max_tokens=cfg.moderator_max_output_tokens,
     )
     elapsed = int((time.perf_counter() - start) * 1000)
 
@@ -1245,7 +1330,7 @@ def _run_moderator(
 
 
 def run_immi_council(question: str, case_context: str = "") -> dict[str, Any]:
-    """Run the 3-model council and produce judge/rank/vote synthesis with Gemini Flash."""
+    """Run the 4-model council and produce judge/rank/vote synthesis with Gemini Flash."""
     question = (question or "").strip()
     if not question:
         raise ValueError("question is required")
@@ -1276,31 +1361,29 @@ def run_immi_council(question: str, case_context: str = "") -> dict[str, Any]:
     return {
         "question": question,
         "case_context": case_context or "",
+        "gateway": {
+            "url": cfg.cf_gateway_url,
+            "auth": "cf-aig-authorization (Unified Billing)",
+        },
         "models": {
             "openai": {
-                "provider": "OpenAI",
-                "model": cfg.openai_model,
-                "reasoning": cfg.openai_reasoning_effort,
-                "web_search": True,
+                "provider": "OpenAI (via CF Gateway)",
+                "model": _normalize_gateway_model(cfg.openai_model, "openai"),
                 "system_prompt": cfg.openai_system_prompt,
             },
             "gemini_pro": {
-                "provider": "Google",
-                "model": cfg.gemini_pro_model,
-                "reasoning_budget": cfg.gemini_thinking_budget,
-                "grounding_google_search": True,
+                "provider": "Google AI Studio (via CF Gateway)",
+                "model": _normalize_gateway_model(cfg.gemini_pro_model, "google-ai-studio"),
                 "system_prompt": cfg.gemini_pro_system_prompt,
             },
             "anthropic": {
-                "provider": "Anthropic",
-                "model": cfg.anthropic_model,
-                "reasoning_budget": cfg.anthropic_thinking_budget,
-                "web_search": True,
+                "provider": "Anthropic (via CF Gateway)",
+                "model": _normalize_gateway_model(cfg.anthropic_model, "anthropic"),
                 "system_prompt": cfg.anthropic_system_prompt,
             },
             "gemini_flash": {
-                "provider": "Google",
-                "model": cfg.gemini_flash_model,
+                "provider": "Google AI Studio (via CF Gateway)",
+                "model": _normalize_gateway_model(cfg.gemini_flash_model, "google-ai-studio"),
                 "role": "judge_rank_vote_and_composer",
                 "system_prompt": cfg.moderator_system_prompt,
             },
@@ -1311,79 +1394,108 @@ def run_immi_council(question: str, case_context: str = "") -> dict[str, Any]:
 
 
 def validate_council_connectivity(*, live: bool = False) -> dict[str, Any]:
-    """Validate model/provider configuration and optionally perform live probe calls."""
+    """Validate gateway/model configuration and optionally perform live probe calls.
+
+    With Unified Billing the only secret needed is `CF_AIG_TOKEN` — every
+    upstream provider authenticates through the same gateway token.
+    """
     cfg = CouncilConfig.from_env()
-    base = {
+    token_present = bool(cfg.cf_aig_token)
+    base: dict[str, Any] = {
         "live_probe": bool(live),
+        "gateway": {
+            "url": cfg.cf_gateway_url,
+            "cf_aig_token_present": token_present,
+        },
         "providers": {
             "openai": {
-                "model": cfg.openai_model,
-                "api_key_present": bool(cfg.openai_api_key),
+                "model": _normalize_gateway_model(cfg.openai_model, "openai"),
+                "cf_aig_token_present": token_present,
                 "system_prompt_preview": _trim(cfg.openai_system_prompt, 140),
             },
             "gemini_pro": {
-                "model": cfg.gemini_pro_model,
-                "api_key_present": bool(cfg.gemini_api_key),
+                "model": _normalize_gateway_model(cfg.gemini_pro_model, "google-ai-studio"),
+                "cf_aig_token_present": token_present,
                 "system_prompt_preview": _trim(cfg.gemini_pro_system_prompt, 140),
             },
             "anthropic": {
-                "model": cfg.anthropic_model,
-                "api_key_present": bool(cfg.anthropic_api_key),
+                "model": _normalize_gateway_model(cfg.anthropic_model, "anthropic"),
+                "cf_aig_token_present": token_present,
                 "system_prompt_preview": _trim(cfg.anthropic_system_prompt, 140),
             },
             "gemini_flash": {
-                "model": cfg.gemini_flash_model,
-                "api_key_present": bool(cfg.gemini_api_key),
+                "model": _normalize_gateway_model(cfg.gemini_flash_model, "google-ai-studio"),
+                "cf_aig_token_present": token_present,
                 "system_prompt_preview": _trim(cfg.moderator_system_prompt, 140),
             },
         },
         "errors": [],
     }
 
-    if not cfg.openai_api_key:
-        base["errors"].append("Missing OPENAI_API_KEY")
-    if not cfg.gemini_api_key:
-        base["errors"].append("Missing GEMINI_API_KEY or GOOGLE_API_KEY")
-    if not cfg.anthropic_api_key:
-        base["errors"].append("Missing ANTHROPIC_API_KEY")
+    if not token_present:
+        base["errors"].append("Missing CF_AIG_TOKEN (Unified Billing token required)")
+    if not cfg.cf_gateway_url:
+        base["errors"].append("Missing LLM_COUNCIL_CF_GATEWAY_URL")
 
     if not live:
         base["ok"] = len(base["errors"]) == 0
         return base
 
-    probe_question = "Connectivity probe: reply exactly with OK."
-    openai_probe = _run_openai(
-        probe_question,
-        "",
-        cfg,
-        system_prompt=cfg.openai_system_prompt,
-    )
-    gemini_probe = _run_gemini_expert(
-        provider_key="gemini_pro",
-        provider_label="Google Gemini Pro",
-        model=cfg.gemini_pro_model,
+    # Minimal probe: bypass the council's legal-research system prompt so each
+    # provider only emits a short "OK" response instead of writing a full
+    # structured legal memo. max_tokens=256 leaves headroom for reasoning
+    # models (gemini-2.5-pro, QwQ-32B) that consume internal thinking tokens
+    # before emitting visible content. Keeps the live health check fast
+    # (~12-20s total vs ~100s if we used the full council prompts).
+    probe_system = "You are a connectivity probe. Reply with the single word: OK"
+    probe_question = "OK"
+    probe_kwargs = dict(
         question=probe_question,
         case_context="",
         cfg=cfg,
-        with_grounding=True,
-        system_prompt=cfg.gemini_pro_system_prompt,
+        system_prompt=probe_system,
+        raw_prompt=True,
+        max_tokens=256,
     )
-    anthropic_probe = _run_anthropic(
-        probe_question,
-        "",
-        cfg,
-        system_prompt=cfg.anthropic_system_prompt,
+    openai_probe = _run_gateway_expert(
+        provider_key="openai",
+        provider_label="OpenAI",
+        model_raw=cfg.openai_model,
+        default_prefix="openai",
+        **probe_kwargs,
+    )
+    gemini_probe = _run_gateway_expert(
+        provider_key="gemini_pro",
+        provider_label="Google Gemini Pro",
+        model_raw=cfg.gemini_pro_model,
+        default_prefix="google-ai-studio",
+        **probe_kwargs,
+    )
+    anthropic_probe = _run_gateway_expert(
+        provider_key="anthropic",
+        provider_label="Anthropic",
+        model_raw=cfg.anthropic_model,
+        default_prefix="anthropic",
+        **probe_kwargs,
+    )
+    flash_probe = _run_gateway_expert(
+        provider_key="gemini_flash",
+        provider_label="Google Gemini Flash (Moderator)",
+        model_raw=cfg.gemini_flash_model,
+        default_prefix="google-ai-studio",
+        **probe_kwargs,
     )
 
-    probe_results = {
+    base["probe_results"] = {
         "openai": openai_probe.to_dict(),
         "gemini_pro": gemini_probe.to_dict(),
         "anthropic": anthropic_probe.to_dict(),
+        "gemini_flash": flash_probe.to_dict(),
     }
-    base["probe_results"] = probe_results
     base["ok"] = (
         openai_probe.success
         and gemini_probe.success
         and anthropic_probe.success
+        and flash_probe.success
     )
     return base

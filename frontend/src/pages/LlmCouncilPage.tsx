@@ -22,26 +22,20 @@ import { humanizeIdentifier } from "@/lib/display";
 
 const DEFAULT_MODELS: LlmCouncilResponse["models"] = {
   openai: {
-    provider: "OpenAI",
-    model: "chatgpt-5.2",
-    reasoning: "medium",
-    web_search: true,
+    provider: "OpenAI (via CF Gateway)",
+    model: "openai/gpt-5-mini-2025-08-07",
   },
   gemini_pro: {
-    provider: "Google",
-    model: "gemini-3.0-pro",
-    reasoning_budget: 1024,
-    grounding_google_search: true,
+    provider: "Google AI Studio (via CF Gateway)",
+    model: "google-ai-studio/gemini-3.1-pro-preview",
   },
   anthropic: {
-    provider: "Anthropic",
-    model: "claude-sonnet-4-6",
-    reasoning_budget: 4096,
-    web_search: true,
+    provider: "Anthropic (via CF Gateway)",
+    model: "anthropic/claude-sonnet-4-6",
   },
   gemini_flash: {
-    provider: "Google",
-    model: "gemini-3.0-flash",
+    provider: "Google AI Studio (via CF Gateway)",
+    model: "google-ai-studio/gemini-2.5-flash",
     role: "judge_rank_vote_and_composer",
   },
 };
@@ -118,6 +112,25 @@ function likelihoodTone(label: string) {
   if (normalized === "medium") return "text-amber-700 dark:text-amber-300";
   if (normalized === "low") return "text-rose-700 dark:text-rose-300";
   return "text-muted-text";
+}
+
+function likelihoodBarBg(label: string) {
+  const normalized = (label || "").toLowerCase();
+  if (normalized === "high") return "bg-emerald-500";
+  if (normalized === "medium") return "bg-amber-500";
+  if (normalized === "low") return "bg-rose-500";
+  return "bg-border";
+}
+
+function likelihoodBadge(label: string) {
+  const normalized = (label || "").toLowerCase();
+  if (normalized === "high")
+    return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
+  if (normalized === "medium")
+    return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300";
+  if (normalized === "low")
+    return "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300";
+  return "bg-surface text-muted-text";
 }
 
 function confidenceTone(score: number) {
@@ -262,7 +275,7 @@ export function LlmCouncilPage() {
       }),
       description: t("llm_council.workflow_step_3_desc", {
         defaultValue:
-          "OpenAI, Gemini Pro, and Anthropic answer independently, then Gemini Flash critiques and votes.",
+          "OpenAI (gpt-5-mini), Gemini 3.1 Pro, and Claude Sonnet 4.6 answer independently, then Gemini 2.5 Flash critiques and votes.",
       }),
     },
     {
@@ -498,7 +511,7 @@ export function LlmCouncilPage() {
               <p className="text-xs text-muted-text">
                 {t("llm_council.runtime_note", {
                   defaultValue:
-                    "This runs 3 expert models, then Gemini Flash for ranking/critique/voting/synthesis, so response time may be longer.",
+                    "This runs 3 expert models (OpenAI gpt-5-mini, Gemini 3.1 Pro, Claude Sonnet 4.6), then Gemini 2.5 Flash for ranking/critique/voting/synthesis, so response time may be longer.",
                 })}
               </p>
             </aside>
@@ -789,8 +802,8 @@ export function LlmCouncilPage() {
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-md border border-border bg-surface p-3">
-                    <div className="mb-1 flex items-center gap-1 text-xs uppercase tracking-wide text-muted-text">
+                  <div className="rounded-md border border-border bg-surface p-4">
+                    <div className="mb-2 flex items-center gap-1 text-xs uppercase tracking-wide text-muted-text">
                       {t("llm_council.outcome_likelihood_label", {
                         defaultValue: "Outcome Likelihood",
                       })}
@@ -804,19 +817,31 @@ export function LlmCouncilPage() {
                         <Info className="h-3.5 w-3.5 text-muted-text" />
                       </span>
                     </div>
-                    <p
-                      className={`text-base font-semibold ${likelihoodTone(
-                        result.moderator.outcome_likelihood_label,
-                      )}`}
-                    >
-                      {result.moderator.outcome_likelihood_percent ?? 0}%
-                    </p>
-                    <p className="mt-1 text-xs uppercase tracking-wide text-muted-text">
-                      {(
-                        result.moderator.outcome_likelihood_label || "unknown"
-                      ).toUpperCase()}
-                    </p>
-                    <p className="mt-2 text-xs text-muted-text">
+                    <div className="mb-3 flex items-baseline gap-2">
+                      <span
+                        className={`text-3xl font-bold tabular-nums ${likelihoodTone(
+                          result.moderator.outcome_likelihood_label,
+                        )}`}
+                      >
+                        {result.moderator.outcome_likelihood_percent ?? 0}%
+                      </span>
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${likelihoodBadge(
+                          result.moderator.outcome_likelihood_label,
+                        )}`}
+                      >
+                        {(result.moderator.outcome_likelihood_label || "unknown").toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="mb-3 h-2 w-full overflow-hidden rounded-full bg-border">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${likelihoodBarBg(
+                          result.moderator.outcome_likelihood_label,
+                        )}`}
+                        style={{ width: `${result.moderator.outcome_likelihood_percent ?? 0}%` }}
+                      />
+                    </div>
+                    <p className="text-xs leading-relaxed text-muted-text">
                       {result.moderator.outcome_likelihood_reason || "—"}
                     </p>
                   </div>
@@ -892,7 +917,7 @@ export function LlmCouncilPage() {
                 <div className="rounded-md border border-border bg-surface p-3">
                   <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
                     {t("llm_council.shared_law_sections_label", {
-                      defaultValue: "Shared Law Sections (All 3 Models)",
+                      defaultValue: "Shared Law Sections (All Expert Models)",
                     })}
                   </p>
                   <div className="mb-2 rounded border border-border bg-card p-2">
@@ -913,7 +938,7 @@ export function LlmCouncilPage() {
                       {result.moderator.shared_law_sections_confidence_reason ||
                         t("llm_council.shared_law_confidence_note", {
                           defaultValue:
-                            "Score is estimated from overlap consistency across the three expert model citations.",
+                            "Score is estimated from overlap consistency across expert model citations.",
                         })}
                     </p>
                   </div>
@@ -927,7 +952,7 @@ export function LlmCouncilPage() {
                     <p className="text-sm text-muted-text">
                       {t("llm_council.shared_law_sections_requires_three", {
                         defaultValue:
-                          "Need all three expert model responses to compute shared sections.",
+                          "Need at least 3 expert model responses to compute shared sections.",
                       })}
                     </p>
                   ) : sharedLawSections.length > 0 ? (
@@ -950,7 +975,7 @@ export function LlmCouncilPage() {
                     <p className="text-sm text-muted-text">
                       {t("llm_council.shared_law_sections_empty", {
                         defaultValue:
-                          "No section is jointly cited by all three model answers.",
+                          "No section is jointly cited across all expert model answers.",
                       })}
                     </p>
                   )}

@@ -1139,11 +1139,14 @@ export interface LlmCouncilModeratorResult {
 export interface LlmCouncilResponse {
   question: string;
   case_context: string;
+  gateway?: {
+    url: string;
+    auth: string;
+  };
   models: {
     openai: LlmCouncilModelConfig;
     gemini_pro: LlmCouncilModelConfig;
     anthropic: LlmCouncilModelConfig;
-    qwen?: LlmCouncilModelConfig;
     gemini_flash: LlmCouncilModelConfig;
   };
   opinions: LlmCouncilOpinion[];
@@ -1162,7 +1165,10 @@ export interface LlmCouncilResponse {
 
 export interface LlmCouncilHealthProviderStatus {
   model: string;
-  api_key_present: boolean;
+  /** Backend now uses cf_aig_token_present (Unified Billing). Legacy field
+   *  api_key_present kept optional for back-compat with older payloads. */
+  cf_aig_token_present?: boolean;
+  api_key_present?: boolean;
   system_prompt_preview: string;
 }
 
@@ -1170,18 +1176,21 @@ export interface LlmCouncilHealthResponse {
   ok: boolean;
   live_probe: boolean;
   errors: string[];
+  gateway?: {
+    url: string;
+    cf_aig_token_present: boolean;
+  };
   providers: {
     openai: LlmCouncilHealthProviderStatus;
     gemini_pro: LlmCouncilHealthProviderStatus;
     anthropic: LlmCouncilHealthProviderStatus;
-    qwen?: LlmCouncilHealthProviderStatus;
     gemini_flash: LlmCouncilHealthProviderStatus;
   };
   probe_results?: {
     openai?: LlmCouncilOpinion;
     gemini_pro?: LlmCouncilOpinion;
     anthropic?: LlmCouncilOpinion;
-    qwen?: LlmCouncilOpinion;
+    gemini_flash?: LlmCouncilOpinion;
   };
 }
 
