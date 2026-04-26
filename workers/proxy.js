@@ -412,6 +412,49 @@ async function streamExport(url, env, format) {
 async function handleExportCsv(url, env)  { return streamExport(url, env, "csv"); }
 async function handleExportJson(url, env) { return streamExport(url, env, "json"); }
 
+// ── Lexical full-text search (Phase 1 #8) ────────────────────────────────────
+// Uses the GIN-indexed `fts` tsvector column from migration
+// 20260218000000_initial_schema.sql:50 + websearch_to_tsquery for safe
+// user-input parsing (handles quoted phrases, OR, - exclusion natively).
+// Semantic + hybrid modes fall through to Flask until Phase 2 ships them.
+
+async function handleSearch(url, env) {
+  const q = (url.searchParams.get("q") ?? "").trim();
+  const mode = (url.searchParams.get("mode") ?? "lexical").toLowerCase();
+  const limit = safeInt(url.searchParams.get("limit"), 20, 1, 100);
+  if (!q) return jsonOk({ cases: [], mode });
+  if (q.length < 2) return jsonErr("query too short");
+  if (mode !== "lexical") return null;     // → Flask (semantic/hybrid)
+  const sql = getSql(env);
+  const rows = await sql`
+    SELECT ${sql(CASE_LIST_COLS)},
+           ts_rank_cd(fts, websearch_to_tsquery('english', ${q})) AS rank
+    FROM ${sql(TABLE)}
+    WHERE fts @@ websearch_to_tsquery('english', ${q})
+    ORDER BY rank DESC LIMIT ${limit}
+  `;
+  return jsonOk({ cases: rows, mode: "lexical" });
+}
+
+// ── Cache invalidate (Phase 1 #5) ────────────────────────────────────────────
+// Worker is stateless — has no shared in-memory caches today. Returns
+// success so existing SPA call sites stop forwarding to Flask Container.
+// CDN edge cache is per-URL Cache-Control max-age (already short TTL).
+
+async function handleCacheInvalidate() {
+  return new Response(
+    JSON.stringify({ invalidated: true, timestamp: Date.now() / 1000 }),
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "CDN-Cache-Control": "no-store",
+        "Cache-Control": "no-store",
+      },
+    },
+  );
+}
+
 // ── Static data (ported from Python) ─────────────────────────────────────────
 
 const VISA_FAMILIES = {
@@ -2128,6 +2171,7 @@ export default {
       env.CSRF_SECRET && env.HYPERDRIVE &&
       (method === "POST" || method === "PUT" || method === "DELETE") &&
       (path === "/api/v1/cases" || path === "/api/v1/cases/batch" ||
+       path === "/api/v1/cache/invalidate" ||
        /^\/api\/v1\/cases\/[0-9a-f]{12}$/.test(path))
     ) {
       try {
@@ -2138,6 +2182,9 @@ export default {
         }
         if (path === "/api/v1/cases/batch" && method === "POST") {
           return await handleBatchCases(request, env);
+        }
+        if (path === "/api/v1/cache/invalidate" && method === "POST") {
+          return await handleCacheInvalidate();
         }
         const idMatch = path.match(/^\/api\/v1\/cases\/([0-9a-f]{12})$/);
         if (idMatch && method === "PUT") {
@@ -2167,6 +2214,8 @@ export default {
           res = await handleExportCsv(url, env);
         } else if (path === "/api/v1/export/json") {
           res = await handleExportJson(url, env);
+        } else if (path === "/api/v1/search") {
+          res = await handleSearch(url, env);
         } else if (path === "/api/v1/stats") {
           res = await handleGetStats(url, env);
         } else if (path === "/api/v1/filter-options") {
