@@ -176,6 +176,132 @@ async function requireCsrf(request, env) {
   return ok ? null : jsonErr("csrf", 403);
 }
 
+// ── Cases write helpers ──────────────────────────────────────────────────────
+// EDITABLE_FIELDS mirrors immi_case_downloader/web/helpers.py:13-20 verbatim.
+// case_id is server-computed (SHA-256-12 of citation/url/title) — never accepted
+// from client body to prevent forgery.
+
+const EDITABLE_FIELDS = [
+  "citation", "title", "court", "court_code", "date", "year", "url", "source",
+  "judges", "catchwords", "outcome", "visa_type", "legislation",
+  "user_notes", "tags", "case_nature", "legal_concepts",
+  "visa_subclass", "visa_class_code",
+  "applicant_name", "respondent", "country_of_origin",
+  "visa_subclass_number", "hearing_date", "is_represented", "representative",
+];
+
+const COERCION = {
+  year: (v) => { const n = Number(v); return Number.isInteger(n) ? n : null; },
+  is_represented: (v) =>
+    v === true || v === "true" || v === 1 || v === "1" ? true
+    : v === false || v === "false" || v === 0 || v === "0" ? false
+    : null,
+};
+
+function pickEditableFields(data, overrides = {}) {
+  const out = { ...overrides };
+  for (const f of EDITABLE_FIELDS) {
+    if (data[f] === undefined || data[f] === null) continue;
+    out[f] = COERCION[f] ? COERCION[f](data[f]) : String(data[f]);
+    if (out[f] === null) delete out[f];
+  }
+  return out;
+}
+
+async function sha12(key) {
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(key)));
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 12);
+}
+
+async function safeJson(request) {
+  try {
+    const len = Number(request.headers.get("content-length") || "0");
+    if (len > 32768) return null;          // 32 KB cap on JSON body
+    return await request.json();
+  } catch { return null; }
+}
+
+// ── Cases write handlers ─────────────────────────────────────────────────────
+
+async function handlePostCase(request, env) {
+  const data = await safeJson(request);
+  if (!data) return jsonErr("invalid json");
+  if (!data.title && !data.citation) return jsonErr("Title or citation is required");
+  const caseId = await sha12(data.citation || data.url || data.title);
+  const row = pickEditableFields(data, { case_id: caseId });
+  const sql = getSql(env);
+  const cols = Object.keys(row);
+  const updateCols = cols.filter(c => c !== "case_id");
+  const [inserted] = await sql`
+    INSERT INTO ${sql(TABLE)} ${sql(row, cols)}
+    ON CONFLICT (case_id) DO UPDATE SET ${sql(row, updateCols)}
+    RETURNING *
+  `;
+  return Response.json({ case: inserted }, { status: 201 });
+}
+
+async function handlePutCase(caseId, request, env) {
+  if (!HEX_ID_RE.test(caseId)) return jsonErr("Invalid case ID");
+  const data = await safeJson(request);
+  if (!data) return jsonErr("invalid json");
+  const updates = pickEditableFields(data);
+  delete updates.case_id;                  // never client-supplied for PUT
+  if (!Object.keys(updates).length) return jsonErr("no editable fields");
+  const sql = getSql(env);
+  const [updated] = await sql`
+    UPDATE ${sql(TABLE)}
+    SET ${sql(updates, Object.keys(updates))}
+    WHERE case_id = ${caseId}
+    RETURNING *
+  `;
+  if (!updated) return jsonErr("Case not found", 404);
+  return Response.json({ case: updated });
+}
+
+async function handleDeleteCase(caseId, env) {
+  if (!HEX_ID_RE.test(caseId)) return jsonErr("Invalid case ID");
+  const sql = getSql(env);
+  const result = await sql`DELETE FROM ${sql(TABLE)} WHERE case_id = ${caseId}`;
+  if (result.count === 0) return jsonErr("Case not found", 404);
+  return Response.json({ success: true });
+}
+
+async function handleBatchCases(request, env) {
+  const data = await safeJson(request);
+  if (!data) return jsonErr("invalid json");
+  const action = String(data.action ?? "");
+  let ids = Array.isArray(data.case_ids) ? data.case_ids : null;
+  if (!ids) return jsonErr("case_ids must be a list");
+  ids = ids.filter(i => typeof i === "string" && HEX_ID_RE.test(i));
+  if (!ids.length) return jsonErr("No valid case IDs provided");
+  if (ids.length > 200) return jsonErr("Batch limited to 200 cases");
+  const sql = getSql(env);
+  if (action === "delete") {
+    const result = await sql`DELETE FROM ${sql(TABLE)} WHERE case_id = ANY(${ids})`;
+    return Response.json({ affected: result.count });
+  }
+  if (action === "tag") {
+    const tag = String(data.tag ?? "").replace(/[,<>]/g, "").trim();
+    if (!tag) return jsonErr("No tag provided");
+    if (tag.length > 64) return jsonErr("Tag must be 64 characters or less");
+    // Atomic merge: split existing comma-delimited tags, add new tag, dedupe, rejoin.
+    const result = await sql`
+      UPDATE ${sql(TABLE)}
+      SET tags = (
+        SELECT string_agg(t, ', ' ORDER BY t)
+        FROM (
+          SELECT DISTINCT trim(t) AS t
+          FROM unnest(string_to_array(coalesce(tags, ''), ',') || ARRAY[${tag}]) AS t
+          WHERE trim(t) <> ''
+        ) sub
+      )
+      WHERE case_id = ANY(${ids})
+    `;
+    return Response.json({ affected: result.count });
+  }
+  return jsonErr(`Unknown action: ${action}`);
+}
+
 // ── Static data (ported from Python) ─────────────────────────────────────────
 
 const VISA_FAMILIES = {
@@ -1877,6 +2003,43 @@ export default {
     // Edge health check — no container needed
     if (path === "/health") {
       return Response.json({ status: "ok", worker: "immi-case", layer: "edge+hyperdrive" });
+    }
+
+    // ── CSRF token endpoint ───────────────────────────────────────────────────
+    // Stateless double-submit HMAC. Set wrangler secret CSRF_SECRET first.
+    if (path === "/api/v1/csrf-token" && method === "GET") {
+      return getCsrfToken(env);
+    }
+
+    // ── Cases write path (POST/PUT/DELETE/batch) ──────────────────────────────
+    // CSRF gated. Throws → outer try/catch falls through to Flask. Returns
+    // explicit Response on success or expected client errors.
+    if (
+      env.CSRF_SECRET && env.HYPERDRIVE &&
+      (method === "POST" || method === "PUT" || method === "DELETE") &&
+      (path === "/api/v1/cases" || path === "/api/v1/cases/batch" ||
+       /^\/api\/v1\/cases\/[0-9a-f]{12}$/.test(path))
+    ) {
+      try {
+        const csrfFail = await requireCsrf(request, env);
+        if (csrfFail) return csrfFail;
+        if (path === "/api/v1/cases" && method === "POST") {
+          return await handlePostCase(request, env);
+        }
+        if (path === "/api/v1/cases/batch" && method === "POST") {
+          return await handleBatchCases(request, env);
+        }
+        const idMatch = path.match(/^\/api\/v1\/cases\/([0-9a-f]{12})$/);
+        if (idMatch && method === "PUT") {
+          return await handlePutCase(idMatch[1], request, env);
+        }
+        if (idMatch && method === "DELETE") {
+          return await handleDeleteCase(idMatch[1], env);
+        }
+      } catch (writeErr) {
+        console.error("[native-write] handler error — falling back to Flask:", writeErr?.message);
+        // fall through to Flask container
+      }
     }
 
     // ── Native Hyperdrive read path ───────────────────────────────────────────
