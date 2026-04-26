@@ -455,6 +455,138 @@ async function handleCacheInvalidate() {
   );
 }
 
+// ── Collections export (Phase 1 #6, was bookmarks in plan) ───────────────────
+// Path: POST /api/v1/collections/export (Flask url_prefix=/api/v1/collections,
+// route=/export — bookmarks.py:12). Renders an HTML report bundle of up to
+// 200 cases with optional per-case notes. Direct port of Python template.
+
+function htmlEscape(s) {
+  const str = String(s ?? "");
+  return str.replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[ch]);
+}
+
+function bookmarksField(label, value) {
+  if (!value) return "";
+  return `<tr><td class='label'>${htmlEscape(label)}</td><td>${htmlEscape(String(value))}</td></tr>`;
+}
+
+function bookmarksConcepts(conceptsStr) {
+  if (!conceptsStr) return "";
+  const items = String(conceptsStr).split(";").map(s => s.trim()).filter(Boolean);
+  const badges = items.map(c => `<span class='concept'>${htmlEscape(c)}</span>`).join("");
+  return `<div class='concepts'>${badges}</div>`;
+}
+
+function renderBookmarksHtml(name, cases, notes) {
+  const today = new Date().toISOString().slice(0, 10);
+  const blocks = cases.map(c => {
+    const note = notes[c.case_id] || "";
+    return `
+    <div class="case-block">
+      <div class="case-header">
+        <span class="court-badge">${htmlEscape(c.court_code)}</span>
+        <span class="citation">${htmlEscape(c.citation || c.title)}</span>
+      </div>
+      <table class="meta">
+        ${bookmarksField('Citation', c.citation)}
+        ${bookmarksField('Court', c.court)}
+        ${bookmarksField('Date', c.date)}
+        ${bookmarksField('Outcome', c.outcome)}
+        ${bookmarksField('Judge(s)', c.judges)}
+        ${bookmarksField('Case Nature', c.case_nature)}
+        ${bookmarksField('Visa Type', c.visa_type)}
+        ${bookmarksField('URL', c.url)}
+      </table>
+      ${bookmarksConcepts(c.legal_concepts)}
+      ${note ? `<div class="note"><strong>Note:</strong> ${htmlEscape(note)}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  // CSS block ported verbatim from bookmarks.py:88-149.
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${htmlEscape(name)} — IMMI-Case Report</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px; color: #1a1a2e; background: #fff;
+      padding: 32px; max-width: 860px; margin: 0 auto;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 4px; }
+    .subtitle { color: #666; margin-bottom: 24px; font-size: 12px; }
+    .case-block {
+      border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 16px; margin-bottom: 16px; break-inside: avoid;
+    }
+    .case-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .court-badge {
+      background: #e8f0fe; color: #1a56db; border-radius: 4px;
+      padding: 2px 8px; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; white-space: nowrap;
+    }
+    .citation { font-weight: 600; font-size: 14px; }
+    table.meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    table.meta td { padding: 2px 4px; vertical-align: top; }
+    td.label { color: #666; font-weight: 500; width: 120px; white-space: nowrap; }
+    .concepts { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .concept {
+      background: #f1f5f9; border-radius: 12px; padding: 1px 8px;
+      font-size: 11px; color: #475569;
+    }
+    .note {
+      margin-top: 10px; padding: 8px 12px; background: #fffbeb;
+      border-left: 3px solid #f59e0b; border-radius: 0 4px 4px 0;
+      font-size: 12px; color: #78350f;
+    }
+    @media print { body { padding: 16px; } .case-block { page-break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <h1>${htmlEscape(name)}</h1>
+  <p class="subtitle">
+    IMMI-Case Export &nbsp;·&nbsp; ${cases.length} case(s) &nbsp;·&nbsp; Generated ${today}
+  </p>
+  ${blocks}
+</body>
+</html>`;
+}
+
+async function handleCollectionExport(request, env) {
+  const data = await safeJson(request);
+  if (!data) return jsonErr("invalid json");
+  const ids = Array.isArray(data.case_ids)
+    ? data.case_ids.filter(i => typeof i === "string" && HEX_ID_RE.test(i))
+    : [];
+  if (!ids.length) return jsonErr("case_ids is required");
+  if (ids.length > 200) return jsonErr("Maximum 200 cases per export");
+
+  const name = String(data.collection_name ?? "Collection").slice(0, 200);
+  const notes = (typeof data.case_notes === "object" && data.case_notes) || {};
+
+  const sql = getSql(env);
+  const rows = await sql`
+    SELECT case_id, citation, title, court, court_code, date, outcome,
+           judges, case_nature, visa_type, url, legal_concepts
+    FROM ${sql(TABLE)} WHERE case_id = ANY(${ids})
+  `;
+  if (!rows.length) return jsonErr("No valid cases found", 404);
+
+  const html = renderBookmarksHtml(name, rows, notes);
+  return new Response(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${safeFilename(name)}.html"`,
+    },
+  });
+}
+
 // ── Taxonomy guided-search (Phase 1 #7) ──────────────────────────────────────
 // Two flows:
 //   find-precedents: filter cases by visa_subclass / country / legal_concepts
@@ -2245,6 +2377,7 @@ export default {
       (path === "/api/v1/cases" || path === "/api/v1/cases/batch" ||
        path === "/api/v1/cache/invalidate" ||
        path === "/api/v1/taxonomy/guided-search" ||
+       path === "/api/v1/collections/export" ||
        /^\/api\/v1\/cases\/[0-9a-f]{12}$/.test(path))
     ) {
       try {
@@ -2261,6 +2394,9 @@ export default {
         }
         if (path === "/api/v1/taxonomy/guided-search" && method === "POST") {
           return await handleGuidedSearch(request, env);
+        }
+        if (path === "/api/v1/collections/export" && method === "POST") {
+          return await handleCollectionExport(request, env);
         }
         const idMatch = path.match(/^\/api\/v1\/cases\/([0-9a-f]{12})$/);
         if (idMatch && method === "PUT") {
