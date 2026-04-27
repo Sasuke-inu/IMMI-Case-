@@ -83,7 +83,7 @@
       "id": "US-003",
       "title": "Phase 1.2 \u2014 Worker LLM Council main runner (runCouncil + history injection)",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "agent_tier": "sonnet",
       "phase": "Phase 1 \u2014 Worker Runner",
       "estimated_hours": 3,
@@ -109,7 +109,8 @@
       "verification_commands": [
         "ls workers/llm-council/runner.js",
         "npx vitest run workers/__tests__/llm-council-runner.test.js"
-      ]
+      ],
+      "completion_notes": "DONE 2026-04-28: workers/llm-council/runner.js (910 LOC, full port of run_immi_council + _run_moderator) + 22 vitest tests. All 4 worker test files green (103/103). Lead fixed 2 test filters (subagent had filter-by-message-count which collided with moderator using same shape)."
     },
     {
       "id": "US-004",

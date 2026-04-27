@@ -76,3 +76,13 @@ name = "RL_GUIDED_SEARCH"
 type = "ratelimit"
 namespace_id = "1103"
 simple = { limit = 30, period = 60 }
+
+# LLM Council per-IP rate limit — prevents runaway cost when an attacker
+# (or buggy client) loops through `/api/v1/llm-council/sessions` and
+# `/sessions/:id/turns`. 30 turns/min is generous for legitimate users
+# (a real conversation rarely exceeds 1 turn / 5s).
+[[unsafe.bindings]]
+name = "RL_COUNCIL_TURN"
+type = "ratelimit"
+namespace_id = "1104"
+simple = { limit = 30, period = 60 }
