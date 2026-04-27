@@ -1,0 +1,117 @@
+{
+  "version": "1.0",
+  "title": "IMMI-Case- Three-Epic Sprint",
+  "created": "2026-04-15",
+  "description": "UI/UX refinement, api.py test coverage increase, and cursor pagination implementation",
+  "stories": [
+    {
+      "id": "US-001",
+      "epic": "E1-UIX",
+      "title": "Add 'data' font family to design tokens for dense list areas",
+      "priority": 1,
+      "passes": true,
+      "acceptanceCriteria": [
+        "tokens.json has typography.fontFamily.data set to ['DM Sans', 'IBM Plex Sans', 'system-ui', 'sans-serif']",
+        "tokens.css and tokens.ts are regenerated (run build-tokens script) and include --font-data CSS variable",
+        "tailwind.config.js / CSS exposes font-data utility class",
+        "Unit test in frontend/__tests__ verifies tokens.ts exports fontFamily.data"
+      ]
+    },
+    {
+      "id": "US-002",
+      "epic": "E1-UIX",
+      "title": "Apply data font to CasesPage list rows for dense-list readability",
+      "priority": 2,
+      "passes": true,
+      "acceptanceCriteria": [
+        "CasesPage.tsx case row elements use font-data class (or equivalent CSS var) instead of default body font",
+        "Vitest snapshot / unit test confirms CasesPage renders with data font class on list items",
+        "No TypeScript errors after change (npx tsc --noEmit passes)",
+        "Frontend build passes (npm run build)"
+      ]
+    },
+    {
+      "id": "US-003",
+      "epic": "E1-UIX",
+      "title": "Analytics chart visual language: Grafana-style data dashboard improvements",
+      "priority": 3,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Recharts components in analytics sections use chart color tokens (color.chart.*) consistently with no hardcoded hex values",
+        "All Tooltip contentStyle includes color: 'var(--color-text)' for dark-mode readability",
+        "CartesianGrid strokeDasharray is applied to all bar/line charts for gridline clarity",
+        "At least one Vitest test confirms chart component renders with correct color token class",
+        "No TypeScript errors (npx tsc --noEmit passes)"
+      ]
+    },
+    {
+      "id": "US-004",
+      "epic": "E2-Coverage",
+      "title": "Tests for analytics judge endpoints (judge-leaderboard, judge-profile, judge-compare, judge-bio)",
+      "priority": 4,
+      "passes": true,
+      "acceptanceCriteria": [
+        "tests/test_analytics_judge_api.py exists with >= 20 tests covering /analytics/judge-leaderboard, /analytics/judge-profile, /analytics/judge-compare, /analytics/judge-bio",
+        "Tests cover: 200 success, empty data, invalid params, missing required params",
+        "Each test fails deliberately when wrong value asserted (red-green verification done)",
+        "python3 -m pytest tests/test_analytics_judge_api.py passes 100%",
+        "Coverage for judge-related code blocks in api.py increases (measurable via --cov)"
+      ]
+    },
+    {
+      "id": "US-005",
+      "epic": "E2-Coverage",
+      "title": "Tests for concept analytics endpoints (concept-effectiveness, concept-cooccurrence, concept-trends, flow-matrix, monthly-trends)",
+      "priority": 5,
+      "passes": true,
+      "acceptanceCriteria": [
+        "tests/test_analytics_concepts_api.py exists with >= 15 tests",
+        "Covers: /analytics/concept-effectiveness, /concept-cooccurrence, /concept-trends, /analytics/flow-matrix, /analytics/monthly-trends",
+        "Tests cover: 200 success path, empty repo, filter params",
+        "python3 -m pytest tests/test_analytics_concepts_api.py passes 100%",
+        "Red-green verification documented in test file docstring"
+      ]
+    },
+    {
+      "id": "US-006",
+      "epic": "E2-Coverage",
+      "title": "Tests for export, search, and helper utility functions in api.py",
+      "priority": 6,
+      "passes": true,
+      "acceptanceCriteria": [
+        "tests/test_api_helpers.py exists with >= 15 tests covering _normalise_judge_name, _is_real_judge_name, _normalise_outcome, _normalise_concept, _split_concepts, _split_judges, _valid_case_id, _parse_case_date",
+        "tests/test_export_search_api.py exists with >= 10 tests covering /export/csv, /export/json, /search endpoint",
+        "All tests pass with python3 -m pytest tests/test_api_helpers.py tests/test_export_search_api.py",
+        "Coverage of api.py helper functions reaches >= 60%"
+      ]
+    },
+    {
+      "id": "US-007",
+      "epic": "E3-Cursor",
+      "title": "Backend: expose next_cursor token in /api/v1/cases response",
+      "priority": 7,
+      "passes": true,
+      "acceptanceCriteria": [
+        "GET /api/v1/cases response JSON includes next_cursor field (base64url-encoded SeekAnchor or null if no next page)",
+        "next_cursor is null when on the last page or when seek pagination is not available (offset_fallback)",
+        "GET /api/v1/cases?cursor=<token> accepts the cursor and returns the correct next page",
+        "Existing tests in tests/test_cases_api.py still pass (no regression)",
+        "New tests in tests/test_cursor_pagination.py cover: cursor present when has-next-page, cursor null on last page, cursor round-trip (use cursor to fetch next page)"
+      ]
+    },
+    {
+      "id": "US-008",
+      "epic": "E3-Cursor",
+      "title": "Frontend: update use-cases.ts hook to support cursor-based pagination",
+      "priority": 8,
+      "passes": true,
+      "acceptanceCriteria": [
+        "useCases hook in frontend/src/hooks/use-cases.ts accepts optional cursor param",
+        "When cursor is provided, it is sent as ?cursor=<token> to /api/v1/cases",
+        "CasesPage.tsx can use next_cursor from response for 'load more' or efficient page navigation",
+        "No TypeScript errors (npx tsc --noEmit passes)",
+        "Frontend Vitest test in frontend/__tests__/use-cases.test.ts covers cursor-fetch scenario"
+      ]
+    }
+  ]
+}

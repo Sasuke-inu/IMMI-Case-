@@ -1,0 +1,424 @@
+{
+  "project": "llm-council-worker-migration",
+  "version": "2.0",
+  "createdAt": "2026-04-28",
+  "previousPrdArchived": ".omc/prd-archive/2026-04-15-three-epic-sprint.json",
+  "spec_source": ".omc/plans/llm-council-worker-migration.md",
+  "progress_log": ".omc/progress.txt",
+  "max_total_iterations": 20,
+  "per_story_max_attempts": 3,
+  "goal": "Migrate LLM Council from Flask Container to Cloudflare Worker; add multi-turn (max 15) sessions with persistence; ship behind a 1-week soak before deleting Container code.",
+  "test_integrity_rules": [
+    "console.log/manual inspection do NOT count as proof — only automated assertions",
+    "Every logic change MUST include automated tests covering the modified behavior",
+    "Anti-false-positive: force test to fail (red), restore, run again (green) — demonstrate cycle in output",
+    "Forbidden: expect(x).toBe(x), tests with no assertions, tests with only console.log",
+    "Test data: real fixtures or clearly labelled mocks only",
+    "Reviewer rejects on: test cannot fail, weak assertions, no test for logic change, no red-green cycle",
+    "Guiding principle: A test that cannot fail is not a test — it is an illusion"
+  ],
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Phase 0 — Database schema migration for council sessions and turns",
+      "priority": 1,
+      "passes": false,
+      "agent_tier": "sonnet",
+      "phase": "Phase 0 — Schema",
+      "estimated_hours": 1.5,
+      "files_to_create": [
+        "supabase/migrations/20260428_council_sessions.sql",
+        "tests/test_council_schema.py"
+      ],
+      "files_to_modify": [],
+      "subagent_prompt": "Create a Supabase migration file at supabase/migrations/20260428_council_sessions.sql implementing the council_sessions and council_turns tables defined in .omc/plans/llm-council-worker-migration.md §6. Apply via `supabase db push` or `make migrate`. Add a Python pytest at tests/test_council_schema.py that connects via SupabaseRepository, INSERTs a fake session + turn, SELECTs them back asserting field values match, then DELETEs the session and asserts cascade on turns. The test MUST follow the Test Integrity Rules in .omc/plans/llm-council-worker-migration.md §4 — demonstrate red-green cycle by first making the assertion wrong, confirming RED, fixing assertion, confirming GREEN. Paste both run outputs in your final report. Do NOT mark story complete unless red-green cycle was demonstrated.",
+      "acceptanceCriteria": [
+        "File supabase/migrations/20260428_council_sessions.sql exists with CREATE TABLE for both council_sessions and council_turns",
+        "Tables include CHECK constraints for status enum, total_turns 0-15, turn_index 0-15",
+        "FOREIGN KEY ON DELETE CASCADE from council_turns to council_sessions",
+        "UNIQUE constraint on (session_id, turn_index)",
+        "Indexes idx_council_turns_session and idx_council_sessions_updated created",
+        "make migrate or supabase db push completes without error",
+        "Test file tests/test_council_schema.py exists and asserts CRUD against the live deployed schema",
+        "Test demonstrates red-green cycle (paste RED output and GREEN output in completion report)"
+      ],
+      "verification_commands": [
+        "ls supabase/migrations/20260428_council_sessions.sql",
+        "make migrate || supabase db push",
+        "python3 -m pytest tests/test_council_schema.py -v"
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Phase 1.1 — Worker LLM Council pure-helper utilities (JS port)",
+      "priority": 2,
+      "passes": false,
+      "agent_tier": "sonnet",
+      "phase": "Phase 1 — Worker Runner",
+      "estimated_hours": 2,
+      "files_to_create": [
+        "workers/llm-council/runner-helpers.js",
+        "workers/__tests__/llm-council-runner-helpers.test.js"
+      ],
+      "files_to_modify": [],
+      "subagent_prompt": "Port pure-utility helpers from immi_case_downloader/llm_council.py to JS at workers/llm-council/runner-helpers.js. Required exports: normalizeGatewayModel, extractChatCompletionText, stripReasoningArtifacts, repairTruncatedJson, extractFirstJsonObject, isGpt5ReasoningModel. Match Python behavior 1:1 including edge cases. Write vitest tests at workers/__tests__/llm-council-runner-helpers.test.js mirroring tests/test_llm_council_module.py. CRITICAL: For EACH test, demonstrate red-green cycle (flip expected → RED → restore → GREEN). Paste both runs. Test integrity rules from .omc/plans/llm-council-worker-migration.md §4 are non-negotiable. NO `expect(x).toBe(x)`. Set up Worker-side vitest config (e.g. workers/vitest.config.js) and document the choice.",
+      "acceptanceCriteria": [
+        "workers/llm-council/runner-helpers.js exports 6 functions matching Python signatures",
+        "Tests cover EACH exported function with at least 2 cases (happy path + edge case)",
+        "QwQ-style stripReasoningArtifacts test passes (input with trailing </think>, no opening tag)",
+        "repairTruncatedJson test passes for mid-string truncation, mid-array, nested objects",
+        "extractFirstJsonObject test passes for ```json fenced, brace-balance, truncation-repair",
+        "isGpt5ReasoningModel returns true for openai/gpt-5*, false for gpt-4o/anthropic/etc",
+        "Red-green cycle demonstrated for at least one assertion per function",
+        "vitest run shows all tests pass (output pasted)"
+      ],
+      "verification_commands": [
+        "ls workers/llm-council/runner-helpers.js workers/__tests__/llm-council-runner-helpers.test.js",
+        "npx vitest run workers/__tests__/llm-council-runner-helpers.test.js"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Phase 1.2 — Worker LLM Council main runner (runCouncil + history injection)",
+      "priority": 3,
+      "passes": false,
+      "agent_tier": "sonnet",
+      "phase": "Phase 1 — Worker Runner",
+      "estimated_hours": 3,
+      "files_to_create": [
+        "workers/llm-council/runner.js",
+        "workers/__tests__/llm-council-runner.test.js"
+      ],
+      "files_to_modify": [],
+      "depends_on": ["US-002"],
+      "subagent_prompt": "Implement workers/llm-council/runner.js exporting: gatewayChatCompletion, runExpert, runCouncil({env, question, caseContext, history, prevTurns}). Use helpers from US-002. history = array of {user_message, assistant_message} pairs from prior turns; buildHistoryMessages produces OpenAI [{role,content},...] format. Each expert prompt: [system, ...history, user(currentTurn)]. gpt-5 family auto-handled (max_completion_tokens, temperature=1). Promise.all for 3 experts then sequential moderator. Mock fetch with vi.fn(); verify outgoing payload shape per provider, gpt-5 param remap, history concatenation. Test integrity §4 mandatory.",
+      "acceptanceCriteria": [
+        "workers/llm-council/runner.js exports runCouncil, runExpert, gatewayChatCompletion",
+        "runCouncil returns shape {opinions, moderator, models}",
+        "buildHistoryMessages converts prior turns into [{role, content}, ...] format",
+        "Each expert receives [system, ...history, user] messages array",
+        "gpt-5 model name triggers max_completion_tokens + temperature=1 (test asserts)",
+        "Test mocks fetch, asserts each provider call shape, history included from turn 2+",
+        "Red-green cycle demonstrated for at least 3 different test cases",
+        "vitest run all green"
+      ],
+      "verification_commands": [
+        "ls workers/llm-council/runner.js",
+        "npx vitest run workers/__tests__/llm-council-runner.test.js"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Phase 1.3 — Worker storage layer (Postgres CRUD via Hyperdrive)",
+      "priority": 4,
+      "passes": false,
+      "agent_tier": "sonnet",
+      "phase": "Phase 1 — Worker Runner",
+      "estimated_hours": 2.5,
+      "files_to_create": [
+        "workers/llm-council/storage.js",
+        "workers/__tests__/llm-council-storage.test.js"
+      ],
+      "files_to_modify": [],
+      "depends_on": ["US-001"],
+      "subagent_prompt": "Implement workers/llm-council/storage.js exporting: createSession, addTurn (using INSERT ... ON CONFLICT DO NOTHING RETURNING — race-safe), getSession, listSessions, deleteSession, loadHistory (returns array of {user_message, assistant_message}). Use postgres package; getSql(env) creates per-request client (NEVER module-level singleton — Worker I/O context errors per CLAUDE.md). Tests mock the postgres template-tag client; verify SQL shape and parameterization. Test integrity §4 mandatory.",
+      "acceptanceCriteria": [
+        "workers/llm-council/storage.js exports 6 functions",
+        "addTurn uses INSERT ... ON CONFLICT (session_id, turn_index) DO NOTHING RETURNING",
+        "loadHistory returns [{user_message, assistant_message}] from turns + payload.moderator.composed_answer",
+        "getSql(env) creates per-request postgres client (per CLAUDE.md)",
+        "Tests mock postgres tag-template; assert SQL string + params for each function",
+        "Race-condition test: addTurn called twice with same turn_index returns null on second",
+        "Red-green cycle demonstrated for at least 3 different test cases",
+        "vitest output all green"
+      ],
+      "verification_commands": [
+        "ls workers/llm-council/storage.js",
+        "npx vitest run workers/__tests__/llm-council-storage.test.js"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Phase 2.1 — HMAC session token auth (mint + verify)",
+      "priority": 5,
+      "passes": false,
+      "agent_tier": "opus",
+      "phase": "Phase 2 — API endpoints",
+      "estimated_hours": 1.5,
+      "files_to_create": [
+        "workers/llm-council/auth.js",
+        "workers/__tests__/llm-council-auth.test.js"
+      ],
+      "files_to_modify": [],
+      "subagent_prompt": "Implement workers/llm-council/auth.js: mintToken(env, sessionId) → base64url(HMAC-SHA256(env.CSRF_SECRET, sessionId)); verifyToken(env, sessionId, token) using constant-time comparison via crypto.subtle. Also nanoid21() for session_id and turn_id. Vitest tests MUST include: mint+verify roundtrip succeeds, tampered token rejected, wrong session_id rejected, missing token rejected, timing-safe comparison. Test integrity §4 mandatory — tampered-token test must demonstrate it actually rejects. Architecture-sensitive: opus tier.",
+      "acceptanceCriteria": [
+        "workers/llm-council/auth.js exports mintToken, verifyToken, nanoid21",
+        "mintToken returns base64url string",
+        "verifyToken uses constant-time comparison",
+        "Test: tampered token (1 byte flipped) is rejected",
+        "Test: wrong session_id with valid-format token rejected",
+        "Test: empty/null token rejected",
+        "Red-green cycle demonstrated",
+        "vitest output all green"
+      ],
+      "verification_commands": [
+        "ls workers/llm-council/auth.js",
+        "npx vitest run workers/__tests__/llm-council-auth.test.js"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Phase 2.2 — API endpoint handlers (5 handlers + legacy /run wrapper)",
+      "priority": 6,
+      "passes": false,
+      "agent_tier": "sonnet",
+      "phase": "Phase 2 — API endpoints",
+      "estimated_hours": 3,
+      "files_to_create": [
+        "workers/llm-council/handlers.js",
+        "workers/__tests__/llm-council-handlers.test.js"
+      ],
+      "files_to_modify": [],
+      "depends_on": ["US-003", "US-004", "US-005"],
+      "subagent_prompt": "Implement workers/llm-council/handlers.js with 6 handlers: handleCreateSession, handleAddTurn, handleGetSession, handleListSessions, handleDeleteSession, handleLegacyRun. Each: parse → validate (max 5K message, valid case_id 12-hex) → auth (verifyToken, except create/list which only need RL_COUNCIL_TURN binding) → DB read → call runCouncil → DB write → JSON Response. Tests mock env + storage + runner; assert error codes (400/403/404/409/429/200). Test integrity §4 mandatory.",
+      "acceptanceCriteria": [
+        "workers/llm-council/handlers.js exports 6 handler functions",
+        "Each handler validates body and returns 400 on bad input",
+        "handleAddTurn returns 403 on missing/invalid X-Session-Token",
+        "handleAddTurn returns 409 if total_turns >= 15",
+        "handleCreateSession returns {session_id, session_token, turn, total_turns: 1}",
+        "handleLegacyRun matches existing /run response shape (backward compat)",
+        "Tests mock env + storage + runner; assert each error path",
+        "Red-green cycle demonstrated for at least 3 error paths",
+        "vitest all green"
+      ],
+      "verification_commands": [
+        "ls workers/llm-council/handlers.js",
+        "npx vitest run workers/__tests__/llm-council-handlers.test.js"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Phase 2.3 — Wire handlers into proxy.js router + local wrangler dev verification",
+      "priority": 7,
+      "passes": false,
+      "agent_tier": "opus",
+      "phase": "Phase 2 — API endpoints",
+      "estimated_hours": 2,
+      "files_to_create": [
+        "workers/__tests__/proxy-routing.test.js"
+      ],
+      "files_to_modify": [
+        "workers/proxy.js"
+      ],
+      "depends_on": ["US-006"],
+      "subagent_prompt": "Modify workers/proxy.js main router to dispatch /api/v1/llm-council/* to new handlers BEFORE proxyToFlask. Path matching for: POST /sessions, POST /sessions/:id/turns, GET /sessions/:id, GET /sessions, DELETE /sessions/:id, POST /run (legacy). /llm-council/health stays Flask. Verify locally with `npx wrangler dev` + curl. Architecture-sensitive: opus tier. Routing test asserts each path → correct handler. Red-green cycle mandatory.",
+      "acceptanceCriteria": [
+        "workers/proxy.js routes /api/v1/llm-council/sessions* to new handlers",
+        "Health endpoint stays Flask (proxyToFlask)",
+        "Local wrangler dev returns expected codes (paste curl outputs)",
+        "Routing test asserts path → handler mapping",
+        "Red-green cycle demonstrated",
+        "Existing tests still pass (no regression)"
+      ],
+      "verification_commands": [
+        "grep -n 'llm-council' workers/proxy.js",
+        "npx vitest run workers/__tests__/proxy-routing.test.js",
+        "curl -X POST http://localhost:8787/api/v1/llm-council/sessions -H 'Content-Type: application/json' -d '{\"message\":\"test\"}'"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Phase 3.1 — Frontend API + types for sessions",
+      "priority": 8,
+      "passes": false,
+      "agent_tier": "sonnet",
+      "phase": "Phase 3 — Frontend",
+      "estimated_hours": 2,
+      "files_to_create": [
+        "frontend/src/lib/api-llm-council.ts",
+        "frontend/__tests__/api-llm-council.test.ts"
+      ],
+      "files_to_modify": [
+        "frontend/src/lib/api.ts"
+      ],
+      "depends_on": ["US-007"],
+      "subagent_prompt": "Create frontend/src/lib/api-llm-council.ts with types LlmCouncilSession, LlmCouncilSessionList, LlmCouncilTurn + 5 fetcher functions: createSession, addTurn, getSession, listSessions, deleteSession. Each takes X-Session-Token from localStorage (key llm-council-token-${sessionId}). Vitest tests mock fetch; verify URL/method/body/headers per call, response parsing, error handling. Test integrity §4 mandatory.",
+      "acceptanceCriteria": [
+        "frontend/src/lib/api-llm-council.ts exports 5 functions + 3 types",
+        "createSession persists session_token to localStorage",
+        "addTurn reads X-Session-Token from localStorage",
+        "deleteSession removes localStorage entry",
+        "Tests mock fetch; assert URL/method/body/headers",
+        "Red-green cycle demonstrated for at least 3 cases",
+        "vitest all green"
+      ],
+      "verification_commands": [
+        "ls frontend/src/lib/api-llm-council.ts",
+        "cd frontend && npx vitest run __tests__/api-llm-council.test.ts"
+      ]
+    },
+    {
+      "id": "US-009",
+      "title": "Phase 3.2 — TanStack Query hooks for sessions",
+      "priority": 9,
+      "passes": false,
+      "agent_tier": "sonnet",
+      "phase": "Phase 3 — Frontend",
+      "estimated_hours": 2,
+      "files_to_create": [
+        "frontend/src/hooks/use-llm-council-sessions.ts",
+        "frontend/__tests__/use-llm-council-sessions.test.ts"
+      ],
+      "files_to_modify": [],
+      "depends_on": ["US-008"],
+      "subagent_prompt": "Create frontend/src/hooks/use-llm-council-sessions.ts with TanStack Query hooks: useLlmCouncilSession, useLlmCouncilSessions, useCreateSession, useAddTurn, useDeleteSession. Cache keys ['council-session', sessionId] and ['council-sessions']. Mutations invalidate appropriate queries. Tests use renderHook + QueryClient wrapper. Red-green cycle mandatory.",
+      "acceptanceCriteria": [
+        "frontend/src/hooks/use-llm-council-sessions.ts exports 5 hooks",
+        "Mutations invalidate correct query keys",
+        "Tests assert query state transitions",
+        "Test asserts useAddTurn invalidates ['council-session', sessionId]",
+        "Red-green cycle demonstrated",
+        "vitest all green"
+      ],
+      "verification_commands": [
+        "ls frontend/src/hooks/use-llm-council-sessions.ts",
+        "cd frontend && npx vitest run __tests__/use-llm-council-sessions.test.ts"
+      ]
+    },
+    {
+      "id": "US-010",
+      "title": "Phase 3.3 — Rework LlmCouncilPage to thread UI",
+      "priority": 10,
+      "passes": false,
+      "agent_tier": "sonnet",
+      "phase": "Phase 3 — Frontend",
+      "estimated_hours": 4,
+      "files_to_create": [
+        "frontend/src/components/llm-council/TurnCard.tsx",
+        "frontend/__tests__/llm-council-thread.test.tsx"
+      ],
+      "files_to_modify": [
+        "frontend/src/pages/LlmCouncilPage.tsx",
+        "frontend/__tests__/llm-council-page.test.tsx"
+      ],
+      "depends_on": ["US-009"],
+      "subagent_prompt": "Rework LlmCouncilPage.tsx to render thread of turns: scrollable list of TurnCard (extract to frontend/src/components/llm-council/TurnCard.tsx), input at bottom, 'Turn N/15' badge, Send disabled when total_turns >= 15. Use useLlmCouncilSession + useAddTurn from US-009. Tests cover: empty state, 3-turn render, 15/15 disabled, useAddTurn.mutate called on submit. Test integrity §4 mandatory — red-green cycle for ALL modified or new assertions.",
+      "acceptanceCriteria": [
+        "TurnCard renders user message + opinions + moderator section",
+        "LlmCouncilPage renders list of TurnCard from session.turns",
+        "Send disabled when total_turns >= 15",
+        "Test renders 0/3/15 turn states with assertions on visibility/disabled",
+        "Existing tests pass (no regression)",
+        "Red-green cycle demonstrated for at least 4 assertions",
+        "vitest all green"
+      ],
+      "verification_commands": [
+        "ls frontend/src/components/llm-council/TurnCard.tsx",
+        "cd frontend && npx vitest run __tests__/llm-council-page.test.tsx __tests__/llm-council-thread.test.tsx"
+      ]
+    },
+    {
+      "id": "US-011",
+      "title": "Phase 3.4 — Sessions sidebar / list page",
+      "priority": 11,
+      "passes": false,
+      "agent_tier": "sonnet",
+      "phase": "Phase 3 — Frontend",
+      "estimated_hours": 2.5,
+      "files_to_create": [
+        "frontend/src/pages/LlmCouncilSessionsPage.tsx",
+        "frontend/src/components/llm-council/SessionListItem.tsx",
+        "frontend/__tests__/llm-council-sessions-page.test.tsx"
+      ],
+      "files_to_modify": [
+        "frontend/src/App.tsx",
+        "frontend/src/lib/prefetch.ts"
+      ],
+      "depends_on": ["US-010"],
+      "subagent_prompt": "Create LlmCouncilSessionsPage.tsx as list view: sidebar of past sessions (SessionListItem with title/total_turns/updated_at), current session detail on right. Click session navigates. New session button creates and navigates. Wire routes /llm-council/sessions and /llm-council/sessions/:id in App.tsx + prefetch.ts. Tests cover: 3-item list render, click nav, new session button. Red-green cycle mandatory.",
+      "acceptanceCriteria": [
+        "LlmCouncilSessionsPage renders sidebar + detail layout",
+        "SessionListItem shows title, total_turns count, relative time",
+        "Routes wired in App.tsx + prefetch.ts",
+        "Tests assert sidebar list count + click navigation + delete from sidebar",
+        "Red-green cycle demonstrated",
+        "vitest all green"
+      ],
+      "verification_commands": [
+        "ls frontend/src/pages/LlmCouncilSessionsPage.tsx frontend/src/components/llm-council/SessionListItem.tsx",
+        "cd frontend && npx vitest run __tests__/llm-council-sessions-page.test.tsx",
+        "cd frontend && npx tsc --noEmit"
+      ]
+    },
+    {
+      "id": "US-012",
+      "title": "Phase 4 — Production deploy + automated browser visual test",
+      "priority": 12,
+      "passes": false,
+      "agent_tier": "opus",
+      "phase": "Phase 4 — Production verification",
+      "estimated_hours": 2,
+      "files_to_create": [
+        "tests/e2e/playwright/test_council_thread_visual.py"
+      ],
+      "files_to_modify": [],
+      "depends_on": ["US-011"],
+      "subagent_prompt": "Final deploy + automated browser visual test. (1) Verify CI green; commit + push; wait for GHA deploy-worker workflow success. (2) Use mcp__plugin_everything-claude-code_playwright__browser_* MCP tools against https://immi.trackit.today: a) Navigate /llm-council/sessions; b) Click 'New Council Session'; c) Type test message; d) Click Send, wait up to 120s for turn 1 with 3 expert cards + moderator; e) browser_take_screenshot 'turn-1.png'; f) Reload; sidebar; click session; verify turn 1 visible (persistence); g) Type follow-up; h) Send; wait turn 2; verify '2/15'; i) screenshot 'turn-2.png'; j) Delete from sidebar; verify removed. (3) browser_console_messages: assert no error-level. (4) Save reproducible Python pytest at tests/e2e/playwright/test_council_thread_visual.py. Red-green cycle MUST be demonstrated by breaking API URL temporarily. FINAL gate.",
+      "acceptanceCriteria": [
+        "Production /api/v1/llm-council/sessions returns 200 for valid POST",
+        "Browser e2e completes 7-step scenario without console errors",
+        "Screenshot turn-1.png shows 3 expert cards + moderator",
+        "Screenshot turn-2.png shows '2/15' turn count",
+        "After reload, session persists",
+        "Delete from sidebar removes session",
+        "tests/e2e/playwright/test_council_thread_visual.py runs end-to-end on local pytest",
+        "Red-green cycle on the e2e test demonstrated"
+      ],
+      "verification_commands": [
+        "git log --oneline -5",
+        "gh run list --workflow=deploy-worker.yml --limit 1 --json status,conclusion",
+        "curl -sS https://immi.trackit.today/api/v1/llm-council/sessions -X POST -H 'Content-Type: application/json' -d '{\"message\":\"smoke test\"}' -w '\\nHTTP %{http_code}\\n'",
+        "python3 -m pytest tests/e2e/playwright/test_council_thread_visual.py -v"
+      ]
+    },
+    {
+      "id": "US-013",
+      "title": "Phase 5 — Cleanup: remove Python LLM council code (after 1-week soak)",
+      "priority": 13,
+      "passes": false,
+      "agent_tier": "haiku",
+      "phase": "Phase 5 — Cleanup",
+      "estimated_hours": 1,
+      "files_to_create": [],
+      "files_to_modify": [
+        "immi_case_downloader/llm_council.py",
+        "immi_case_downloader/web/routes/api_pipeline.py",
+        "tests/test_llm_council_module.py",
+        "tests/test_llm_council_api.py",
+        "workers/proxy.js",
+        ".env.example",
+        ".env"
+      ],
+      "depends_on": ["US-012"],
+      "skip_until": "1 week after US-012 passes",
+      "subagent_prompt": "ONLY run AFTER US-012 deployed for 1 week with green production probes daily. Delete: immi_case_downloader/llm_council.py, /api/v1/llm-council/run + /health Flask handlers in api_pipeline.py, tests/test_llm_council_module.py, tests/test_llm_council_api.py. In workers/proxy.js: remove LLM_COUNCIL_* env forwarding to Container (keep CF_AIG_TOKEN going to Worker only). In .env / .env.example: remove LLM_COUNCIL_* model overrides. Run full Python pytest + frontend vitest + tsc; verify no broken refs. Test integrity §4: removing tests OK if logic also removed AND US-012 e2e regression net still passes.",
+      "acceptanceCriteria": [
+        "immi_case_downloader/llm_council.py deleted",
+        "/llm-council/run + /health Flask handlers removed from api_pipeline.py",
+        "tests/test_llm_council_module.py + tests/test_llm_council_api.py deleted",
+        "workers/proxy.js no longer forwards LLM_COUNCIL_* to Container env",
+        "Python pytest suite passes",
+        "Frontend vitest passes",
+        "tsc --noEmit clean",
+        "US-012 e2e test still passes (regression net intact)"
+      ],
+      "verification_commands": [
+        "test ! -f immi_case_downloader/llm_council.py && echo 'DELETED OK'",
+        "python3 -m pytest tests/ --ignore=tests/e2e -q",
+        "cd frontend && npx vitest run && npx tsc --noEmit",
+        "python3 -m pytest tests/e2e/playwright/test_council_thread_visual.py -v"
+      ]
+    }
+  ]
+}

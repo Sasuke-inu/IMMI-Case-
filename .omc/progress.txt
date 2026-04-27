@@ -1,0 +1,60 @@
+# IMMI-Case- Sprint Progress Log
+# Iteration tracking for RALPH loop
+
+# ═════════════════════════════════════════════════════════════════════════
+# PROJECT: llm-council-worker-migration
+# Started: 2026-04-28
+# Spec: .omc/plans/llm-council-worker-migration.md
+# PRD: .omc/prd.json (13 stories)
+# Predecessor PRD archived: .omc/prd-archive/2026-04-15-three-epic-sprint.json
+# ═════════════════════════════════════════════════════════════════════════
+
+## Architecture context (carried over from prior production work)
+
+- LLM Council currently lives in immi_case_downloader/llm_council.py (Flask Container, Python)
+- Production architecture: Browser → Worker → DurableObject "flask-v15" → Container → CF Gateway
+- Container quota max_instances=3 (just bumped from 2 to unblock flask-v15 cold-start)
+- CF Gateway URL: https://gateway.ai.cloudflare.com/v1/30ffcfbf8c4103048bc38a5398b7ec99/immi-council/compat/chat/completions
+- All 9 wrangler secrets set: CF_AIG_TOKEN + LLM_COUNCIL_OPENAI/GEMINI_PRO/ANTHROPIC/GEMINI_FLASH_MODEL + 4 legacy
+- Production verified: 4/4 council probes succeed (12.8s total, gpt-5-mini-2025-08-07 + gemini-3.1-pro-preview + claude-sonnet-4-6 + gemini-2.5-flash)
+- Last commit on main: 0660369 (test fix for old council UI)
+
+## Key learnings to carry forward
+
+- Cloudflare Containers don't auto-restart on image refresh — must bump idFromName() suffix
+- Cloudflare Containers max_instances quota — multiple bumped DO instances compete
+- Worker secrets must be EXPLICITLY forwarded to Container via DurableObject.start({env}) — they don't auto-propagate
+- gpt-5 family models reject max_tokens, require max_completion_tokens + temperature=1
+- alibaba/* prefix not supported by Unified Billing; use workers-ai/@cf/qwen/* if needed (we dropped Qwen)
+- Reasoning models (gemini-2.5-pro, QwQ) consume internal tokens; need 4096+ budget for visible output
+- Gemini Flash moderator output often gets truncated mid-JSON at 8192 budget — _repairTruncatedJson is REQUIRED
+- Worker postgres client: getSql(env) creates per-request, never module-level (I/O context binding errors)
+
+## Iteration 1 (LLM Council) — pending
+
+Next: Pick US-001 (Phase 0 schema migration). Spawn fresh sonnet executor subagent with the
+subagent_prompt from prd.json. Reviewer: oh-my-claudecode:critic or :code-reviewer.
+
+# ═════════════════════════════════════════════════════════════════════════
+# Below: legacy Three-Epic Sprint progress (2026-04-15) — completed, archived
+# ═════════════════════════════════════════════════════════════════════════
+
+## Iteration 1 — Starting
+
+### Architecture decisions
+- US-001/002: Add `data` font to tokens.json, regenerate tokens, apply to CasesPage
+- US-007: Expose next_cursor in /api/v1/cases response using SeekAnchor base64url encoding
+- US-006: Write tests for api.py helper functions (isolated, no Flask app needed for pure functions)
+- US-004/005/008: Queued for iteration 2+
+
+### Key file locations
+- Design tokens: frontend/src/tokens/tokens.json (build via scripts/build-tokens.ts)
+- Cases hook: frontend/src/hooks/use-cases.ts
+- Cases page: frontend/src/pages/CasesPage.tsx
+- API routes: immi_case_downloader/web/routes/api.py (line 2287: /api/v1/cases)
+- Pagination: immi_case_downloader/cases_pagination.py (SeekAnchor dataclass)
+- Existing cases tests: tests/test_cases_api.py (451 lines, 43 tests)
+
+### Token pipeline
+- tokens.json → scripts/build-tokens.ts → tokens.css + tokens.ts
+- Run: cd frontend && npx tsx scripts/build-tokens.ts
