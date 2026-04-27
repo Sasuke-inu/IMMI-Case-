@@ -39,7 +39,9 @@ custom_domain = true
 [[containers]]
 class_name = "FlaskBackend"
 image = "./Dockerfile"
-max_instances = 2
+# Bumped 2→3 to allow rolling DO instance bumps (flask-v13/v14/v15) without
+# quota lockout when forcing cold-start to pick up new container images.
+max_instances = 3
 
 # Per .omc/plans/hyperdrive-full-migration.md §Phase 1 #9 streaming export.
 # 30s CPU cap is too tight for 50K-row cursor batches; bump to 60s. Network
