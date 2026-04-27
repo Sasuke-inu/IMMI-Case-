@@ -28,6 +28,11 @@ downloaded_cases/
 # OS
 .DS_Store
 Thumbs.db
+Icon
+Icon?
+
+# Cloudflare Wrangler local cache (D1/KV/Hyperdrive dev state)
+.wrangler/
 
 # Node
 node_modules/
