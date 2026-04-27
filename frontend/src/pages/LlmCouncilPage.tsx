@@ -16,7 +16,7 @@
  */
 
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Loader2, Scale, Send, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -110,7 +110,7 @@ function NewSessionForm() {
         >
           {createSession.isPending ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <div className="animate-spin"><Loader2 className="h-4 w-4" /></div>
               {t("llm_council.running_btn", {
                 defaultValue: "Running Council...",
               })}
@@ -207,7 +207,7 @@ function ThreadView({ sessionId }: ThreadViewProps) {
       {/* Pending indicator while addTurn is in flight */}
       {addTurn.isPending ? (
         <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-card p-4 text-sm text-muted-text shadow-sm">
-          <Loader2 className="h-4 w-4 animate-spin text-accent" />
+          <div className="animate-spin"><Loader2 className="h-4 w-4 text-accent" /></div>
           {t("llm_council.running_hint", {
             defaultValue:
               "Council is running. Waiting for all expert opinions and composition.",
@@ -262,7 +262,7 @@ function ThreadView({ sessionId }: ThreadViewProps) {
           >
             {addTurn.isPending ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <div className="animate-spin"><Loader2 className="h-4 w-4" /></div>
                 {t("llm_council.running_btn", {
                   defaultValue: "Running Council...",
                 })}
@@ -298,6 +298,11 @@ function ThreadView({ sessionId }: ThreadViewProps) {
 export function LlmCouncilPage() {
   const { t } = useTranslation();
   const { sessionId } = useParams<{ sessionId?: string }>();
+
+  // Guard: /llm-council/sessions/new is a dead-end — redirect to new-session form
+  if (sessionId === "new") {
+    return <Navigate to="/llm-council" replace />;
+  }
 
   return (
     <div className="space-y-8">

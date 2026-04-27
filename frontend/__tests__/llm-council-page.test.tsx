@@ -7,9 +7,13 @@
  *  - New-session view (no sessionId): page title, form, send button, idle hint
  *  - Thread view (sessionId present): loads via useLlmCouncilSession,
  *    renders TurnCards, shows turn badge, disables Send at limit
+ *  - sessionId="new" guard: redirects to /llm-council
+ *  - addTurn input clear after success
+ *  - 404/null data → "Session not found"
  *
  * Mock strategy:
  *  - vi.mock("@/hooks/use-llm-council-sessions") — hooks replaced with vi.fn()
+ *  - vi.mock("react-router-dom") — useNavigate replaced with navigateMock
  *  - Wrapped in QueryClientProvider + MemoryRouter (useParams needs Router)
  */
 
@@ -24,10 +28,12 @@ const {
   mockUseLlmCouncilSession,
   mockUseCreateSession,
   mockUseAddTurn,
+  navigateMock,
 } = vi.hoisted(() => ({
   mockUseLlmCouncilSession: vi.fn(),
   mockUseCreateSession: vi.fn(),
   mockUseAddTurn: vi.fn(),
+  navigateMock: vi.fn(),
 }));
 
 vi.mock("@/hooks/use-llm-council-sessions", () => ({
@@ -43,6 +49,11 @@ vi.mock("@/hooks/use-llm-council-sessions", () => ({
     isPending: false,
   }),
 }));
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return { ...actual, useNavigate: () => navigateMock };
+});
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -184,6 +195,7 @@ function renderThreadSession(
 describe("LlmCouncilPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    navigateMock.mockClear();
     mockUseCreateSession.mockReturnValue(idleMutation());
     mockUseAddTurn.mockReturnValue(idleMutation());
     mockUseLlmCouncilSession.mockReturnValue({
@@ -285,8 +297,8 @@ describe("LlmCouncilPage", () => {
     ).toBeInTheDocument();
   });
 
-  // 13. createSession called with the typed message
-  it("calls createSession.mutateAsync on form submit with message text", async () => {
+  // 13. createSession called with the typed message AND navigate called with correct URL
+  it("calls createSession.mutateAsync on form submit with message text and navigates to new session URL", async () => {
     const mutateAsync = vi.fn().mockResolvedValue({
       session_id: "new-session-123",
     });
@@ -306,6 +318,12 @@ describe("LlmCouncilPage", () => {
         expect.objectContaining({
           message: "Is procedural fairness required?",
         }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith(
+        "/llm-council/sessions/new-session-123",
       );
     });
   });
@@ -328,6 +346,69 @@ describe("LlmCouncilPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Token missing/i)).toBeInTheDocument();
+    });
+  });
+
+  // 15. sessionId="new" redirects to /llm-council (item 2 guard)
+  it("redirects to /llm-council when sessionId is 'new'", () => {
+    // We need a route to land on so the Navigate has somewhere to go
+    render(
+      <QueryClientProvider client={makeQC()}>
+        <MemoryRouter initialEntries={["/llm-council/sessions/new"]}>
+          <Routes>
+            <Route path="/llm-council" element={<div data-testid="new-session-page">New Session</div>} />
+            <Route
+              path="/llm-council/sessions/:sessionId"
+              element={<LlmCouncilPage />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByTestId("new-session-page")).toBeInTheDocument();
+  });
+
+  // 16. addTurn clears input after success (item 4)
+  it("clears the textarea after addTurn succeeds", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue({});
+    mockUseAddTurn.mockReturnValue(idleMutation({ mutateAsync }));
+    renderThreadSession("abc123def456", 1, [makeTurn(1)]);
+
+    const textarea = screen.getByPlaceholderText(/Ask a follow-up question/i);
+    fireEvent.change(textarea, { target: { value: "Follow-up question text" } });
+    expect(textarea).toHaveValue("Follow-up question text");
+
+    fireEvent.submit(textarea.closest("form")!);
+
+    await waitFor(() => {
+      expect(textarea).toHaveValue("");
+    });
+  });
+
+  // 17. getSession 404 → null data shows "Session not found" (item 5)
+  it("shows 'Session not found' when useLlmCouncilSession returns null data", async () => {
+    mockUseLlmCouncilSession.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    render(
+      <QueryClientProvider client={makeQC()}>
+        <MemoryRouter initialEntries={["/llm-council/sessions/abc123def456"]}>
+          <Routes>
+            <Route
+              path="/llm-council/sessions/:sessionId"
+              element={<LlmCouncilPage />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Session not found/i)).toBeInTheDocument();
     });
   });
 });
