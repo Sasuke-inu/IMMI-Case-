@@ -179,7 +179,7 @@
       "id": "US-006",
       "title": "Phase 2.2 \u2014 API endpoint handlers (5 handlers + legacy /run wrapper)",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "agent_tier": "sonnet",
       "phase": "Phase 2 \u2014 API endpoints",
       "estimated_hours": 3,
@@ -208,7 +208,8 @@
       "verification_commands": [
         "ls workers/llm-council/handlers.js",
         "npx vitest run workers/__tests__/llm-council-handlers.test.js"
-      ]
+      ],
+      "completion_notes": "DONE 2026-04-28: workers/llm-council/handlers.js (530 LOC: handleCreateSession/handleAddTurn/handleGetSession/handleListSessions/handleDeleteSession/handleLegacyRun) + 40 vitest tests. Validates body/auth/rate-limit/error codes (400/403/404/409/429/200). All 5 worker test files green (143/143)."
     },
     {
       "id": "US-007",
