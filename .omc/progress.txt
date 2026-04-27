@@ -30,10 +30,36 @@
 - Gemini Flash moderator output often gets truncated mid-JSON at 8192 budget — _repairTruncatedJson is REQUIRED
 - Worker postgres client: getSql(env) creates per-request, never module-level (I/O context binding errors)
 
-## Iteration 1 (LLM Council) — pending
+## Iteration 1 (LLM Council) — US-001 PARTIAL ✅
 
-Next: Pick US-001 (Phase 0 schema migration). Spawn fresh sonnet executor subagent with the
-subagent_prompt from prd.json. Reviewer: oh-my-claudecode:critic or :code-reviewer.
+### What was done (lead session, 2026-04-28)
+- supabase/migrations/20260428_council_sessions.sql written (matches plan §6 exactly)
+- tests/test_council_schema.py written: 8 offline shape tests + 3 live CRUD tests
+- Red-green cycle demonstrated:
+  - RED: flipped `total_turns <= 15` regex to `<= 99` → 1 failed in 0.40s
+  - GREEN: restored regex → 8 passed, 3 skipped (live tests skip when tables absent)
+
+### Outstanding for US-001 — schema apply blocker
+Migration file is ready but cannot be applied locally:
+- `make migrate` → SASL auth fails (DB password rotated since `.env` was set)
+- `psql` not installed locally
+- `psycopg2 + direct host` → DNS doesn't resolve `db.urntbuqczarkuoaosjxd.supabase.co`
+- Supabase MCP needs interactive OAuth (user-blocking)
+
+Owner action required: Apply SQL via Supabase Dashboard SQL Editor:
+  1. Open https://urntbuqczarkuoaosjxd.supabase.co (Supabase Dashboard)
+  2. SQL Editor → New query → paste contents of supabase/migrations/20260428_council_sessions.sql
+  3. Run
+  4. Re-run pytest tests/test_council_schema.py — 11 tests should pass (no skips)
+
+### Files for next subagent context
+- supabase/migrations/20260428_council_sessions.sql
+- tests/test_council_schema.py
+
+### Next iteration (after US-001 fully closed)
+Pick US-002: Worker LLM Council pure-helper utilities (JS port).
+Subagent: oh-my-claudecode:executor (sonnet).
+Reviewer: oh-my-claudecode:code-reviewer or :critic.
 
 # ═════════════════════════════════════════════════════════════════════════
 # Below: legacy Three-Epic Sprint progress (2026-04-15) — completed, archived
