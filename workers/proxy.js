@@ -2614,12 +2614,23 @@ export default {
     // Worker-native sessions API (workers/llm-council/handlers.js). Returns
     // null for /api/v1/llm-council/health and unknown sub-paths so they
     // fall through to the Flask container (legacy behaviour preserved).
+    //
+    // We do NOT fall through to Flask on handler errors: by the time a
+    // handler throws (e.g. missing CSRF_SECRET, Hyperdrive bind error), the
+    // request body has already been consumed and proxyToFlask would 500
+    // with "Cannot reconstruct a Request with a used body". The handlers
+    // already convert *expected* failures to errorResponse(...) themselves;
+    // anything that escapes is a real misconfiguration.
     if (path.startsWith(LLM_COUNCIL_PREFIX)) {
       try {
         const llmRes = await dispatchLlmCouncil(request, env, url, path, method);
         if (llmRes !== null) return llmRes;
       } catch (llmErr) {
-        console.error("[llm-council] handler error — falling back to Flask:", llmErr?.message);
+        console.error("[llm-council] handler error:", llmErr?.message);
+        return new Response(
+          JSON.stringify({ error: "LLM Council unavailable", detail: llmErr?.message || "unknown" }),
+          { status: 503, headers: { "Content-Type": "application/json" } },
+        );
       }
     }
 

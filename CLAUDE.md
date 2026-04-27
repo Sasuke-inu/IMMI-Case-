@@ -144,6 +144,7 @@ Request → Cloudflare Worker (proxy.js)
 │   ├── /api/v1/stats                          → handleGetStats
 │   ├── /api/v1/stats/trends                   → handleStatsTrends
 │   ├── /api/v1/filter-options                 → handleGetFilterOptions
+│   ├── /api/v1/court-lineage                  → handleCourtLineage       (get_court_year_trends RPC + JS structure)
 │   ├── /api/v1/data-dictionary                → handleDataDictionary     (static JS const, no DB)
 │   ├── /api/v1/visa-registry                  → handleVisaRegistry       (static JS const, no DB)
 │   ├── /api/v1/taxonomy/countries             → handleTaxonomyCountries  (GROUP BY SQL)
