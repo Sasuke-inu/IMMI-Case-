@@ -245,15 +245,23 @@ describe("LlmCouncilPage", () => {
   });
 
   // 6. After expanding advanced panel, provider model cards are shown with model names
-  it("shows all four provider model cards when advanced panel is expanded", () => {
+  it("shows all three expert model cards plus moderator when advanced panel is expanded", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /Advanced Controls/i }));
 
-    // DEFAULT_MODELS contains these model names
-    expect(screen.getByText("chatgpt-5.2")).toBeInTheDocument();
-    expect(screen.getByText("gemini-3.0-pro")).toBeInTheDocument();
-    expect(screen.getByText("claude-sonnet-4-6")).toBeInTheDocument();
-    expect(screen.getByText("gemini-3.0-flash")).toBeInTheDocument();
+    // DEFAULT_MODELS values from LlmCouncilPage.tsx (gateway-prefixed)
+    expect(
+      screen.getByText("openai/gpt-5-mini-2025-08-07"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("google-ai-studio/gemini-3.1-pro-preview"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("anthropic/claude-sonnet-4-6"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("google-ai-studio/gemini-2.5-flash"),
+    ).toBeInTheDocument();
   });
 
   // 7. Health check button is present inside advanced panel
