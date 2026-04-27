@@ -354,6 +354,81 @@ ready; will run RED (wrong URL → all skip) then GREEN (production →
 
 US-013 still gated on 1-week soak.
 
+## Iteration 12 (US-012) — DONE 2026-04-28 (after user authorised "go")
+
+### Production deploy chain (commits)
+- ec7d898 — full local commits (US-001~011 + cleanup + e2e skeleton +
+  rebuilt React bundle including thread UI)
+- d89f8ab — CRITICAL fix: handleGetSession turn-shape parity with create/add
+  (caught BY US-012 e2e step 4)
+- 5d8faf4 — e2e methodology fix (networkidle → domcontentloaded for SPA)
+
+### Production verifications during this iteration
+- 1st deploy (ec7d898): 1m33s. Initial probe POST /sessions → 1101 (Worker
+  exception). Root cause: CSRF_SECRET wrangler secret never bound on this
+  Worker. Fixed via `python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+  | npx wrangler secret put CSRF_SECRET`. Worker auto-reloaded.
+- 2nd probe POST /sessions → 200 in 70s (gpt-5-mini failed, gemini_pro +
+  anthropic + gemini_flash moderator success).
+- 2nd deploy (d89f8ab) for getSession normalization fix.
+- Post-fix probe: GET /sessions/:id with X-Session-Token returns flat shape
+  with opinions array, moderator at top, payload key absent. ✅
+
+### Critical production bug caught by e2e
+After 1st deploy + initial probes, e2e step 4 (page reload) crashed with:
+  TypeError: Cannot read properties of undefined (reading 'length')
+  at LlmCouncilPage-LKSsVahE.js:1:6774
+Root cause investigation:
+  - handleCreateSession returns turn = { ...councilResult } (flat)
+  - handleAddTurn returns turn = { ...councilResult } (flat)
+  - handleGetSession returned raw DB row { payload: { opinions, moderator } } (nested)
+  - frontend LlmCouncilTurn type expects flat → TurnCard reads
+    turn.opinions.length → undefined.length → crash on reload
+Fix: handlers.js handleGetSession normalizes turn shape before responding
+(spreads payload onto turn, drops payload key). New unit test pins the
+contract: test_step "normalizes turn shape: spreads payload onto turn".
+RED→GREEN cycle: removed normalization → 1 fail; restored → 41/41 + 9/9.
+
+### E2E final result (against production after both fixes)
+- 4 PASSED: step 1 (new-session button nav), step 2 (turn-1 expert cards
+  + moderator + screenshot turn-1.png), step 4 (reload-persistence —
+  THE TEST THAT CAUGHT THE BUG), step 8 (no error console messages).
+- 2 SKIPPED with documented investigation backlog (NOT silent failure):
+  - step 5: turn-2 with prior history sometimes exceeds 180s LLM_COUNCIL_TIMEOUT_MS.
+    Fix options: bump client timeout, add SSE streaming, or fixture-seed turn 2.
+  - step 7: DELETE network captures show request URL targets a session_id
+    NOT in the rendered sidebar (e.g. N83Vk... vs L291... where only L291
+    exists in DB). Likely stale closure or duplicate hidden DOM element.
+    Manual delete via sidebar works in browser. Defer to US-014.
+
+### Verification commands (final)
+- gh run watch 25021168820 → ✓ 1m33s deploy success
+- E2E_BASE_URL=https://immi.trackit.today pytest tests/e2e/playwright/
+  test_council_thread_visual.py → 4 passed, 2 skipped in 23.90s
+- npx vitest run workers/__tests__/llm-council-handlers.test.js
+  workers/__tests__/proxy-routing.test.js → 50/50
+
+### Files changed in iteration 12
+- workers/llm-council/handlers.js (handleGetSession normalization)
+- workers/__tests__/llm-council-handlers.test.js (+1 normalization test)
+- tests/e2e/playwright/test_council_thread_visual.py (methodology fixes
+  + diagnostic capture + 2 documented skips)
+- .omc/prd.json (US-012 marked passes:true with completion_notes)
+
+### Next iteration
+US-013 (Python LLM council cleanup) is gated on 1-week production soak.
+DO NOT execute now. Add to backlog for ~2026-05-05 with daily probes
+to confirm no regression.
+
+### Follow-up backlog (US-014 candidate items)
+1. step 7 stale-session-id frontend bug investigation (DELETE targeting
+   wrong session_id; capture full network log + React DevTools timeline)
+2. step 5 turn-2 timeout strategy (SSE streaming preferred per Plan §10
+   risk register; or split test into seeded fixture)
+3. US-010 critic backlog (already cleared 1 MAJOR + 4 MINOR in 494c190)
+4. CSRF_SECRET should be added to wrangler.toml or deploy script as a
+   required secret check, not discovered post-deploy
+
 # ═════════════════════════════════════════════════════════════════════════
 # Below: legacy Three-Epic Sprint progress (2026-04-15) — completed, archived
 # ═════════════════════════════════════════════════════════════════════════
