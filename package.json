@@ -1,7 +1,13 @@
 {
   "name": "immi-case",
   "type": "module",
+  "scripts": {
+    "test:workers": "vitest run --config workers/vitest.config.js"
+  },
   "dependencies": {
     "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
   }
 }
