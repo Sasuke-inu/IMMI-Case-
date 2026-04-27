@@ -1,0 +1,333 @@
+"""
+US-012 — LLM Council end-to-end visual test skeleton.
+
+Target: https://immi.trackit.today  (production, post-deploy)
+
+Red-green cycle (lead executes after production deploy):
+  RED  : Set E2E_BASE_URL=https://immi.trackit.today.WRONG.example.com
+         → pytest --collect-only passes (syntax OK)
+         → pytest run → _verify_base_url skips all tests (health-check fails)
+  GREEN: Set E2E_BASE_URL=https://immi.trackit.today (or unset for default)
+         → tests proceed against live production and pass
+
+How to run (lead):
+  pip install pytest-playwright
+  playwright install chromium
+  E2E_BASE_URL=https://immi.trackit.today python3 -m pytest \
+      tests/e2e/playwright/test_council_thread_visual.py -v --timeout=180
+
+Framework: pytest-playwright (sync API, matching project convention in
+tests/e2e/react/ which uses playwright.sync_api via the `browser` fixture).
+
+Note: This file does NOT inherit from tests/e2e/conftest.py (which spins up a
+local Flask server for fixture-mode tests). Council endpoints are Worker-native
+and only exist in production — there is no local fixture mode for US-012.
+"""
+
+import os
+import re
+import time
+
+import pytest
+from playwright.sync_api import Browser, expect
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+BASE_URL: str = os.environ.get("E2E_BASE_URL", "https://immi.trackit.today").rstrip("/")
+
+# SPA basename: production serves React at /app/ per CLAUDE.md §Production
+REACT_BASE: str = f"{BASE_URL}/app"
+
+# Test message text (generic legal phrasing — no PII)
+TURN_1_MSG: str = "What are the strongest grounds for jurisdictional review?"
+TURN_2_MSG: str = "How does s.424A interact with these grounds?"
+
+SCREENSHOT_DIR: str = os.path.join(os.path.dirname(__file__), "screenshots")
+
+
+# ---------------------------------------------------------------------------
+# Session-scoped: skip ALL tests if base URL is unreachable
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _verify_base_url() -> None:
+    """Skip all tests in this module if the health endpoint is unreachable."""
+    import requests  # deferred to allow pytest --collect-only without network
+
+    health_url = f"{BASE_URL}/api/v1/llm-council/health"
+    try:
+        r = requests.get(health_url, timeout=5)
+        if r.status_code != 200:
+            pytest.skip(
+                f"LLM Council health check failed for {BASE_URL}: "
+                f"HTTP {r.status_code}. Deploy first, then re-run."
+            )
+    except Exception as exc:
+        pytest.skip(
+            f"Base URL unreachable: {BASE_URL} ({exc}). "
+            "Set E2E_BASE_URL to the deployed Worker URL and re-run."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Per-test browser page fixture (desktop 1280x800)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def council_page(browser: Browser):
+    """1280x800 Chromium page with console-error collection."""
+    context = browser.new_context(
+        viewport={"width": 1280, "height": 800},
+    )
+    pg = context.new_page()
+    # Collect only "error"-level console messages (warnings are ok)
+    pg._console_errors: list = []
+    pg.on(
+        "console",
+        lambda msg: pg._console_errors.append(msg.text)
+        if msg.type == "error"
+        else None,
+    )
+    yield pg
+    context.close()
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _screenshot(page, name: str) -> str:
+    """Save a timestamped screenshot and return its path."""
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+    ts = int(time.time())
+    path = os.path.join(SCREENSHOT_DIR, f"{name}-{ts}.png")
+    page.screenshot(path=path, full_page=True)
+    return path
+
+
+def _extract_session_id_from_url(url: str) -> str:
+    """Parse session_id from /app/llm-council/sessions/<session_id>."""
+    match = re.search(r"/llm-council/sessions/([^/?#]+)", url)
+    assert match, f"Could not extract session_id from URL: {url}"
+    return match.group(1)
+
+
+def _create_turn_1(page) -> None:
+    """Navigate to /llm-council, fill TURN_1_MSG, click Send, wait for turn-card."""
+    page.goto(f"{REACT_BASE}/llm-council")
+    page.wait_for_load_state("networkidle")
+
+    textarea = page.locator("textarea").first
+    expect(textarea).to_be_visible(timeout=10_000)
+    textarea.fill(TURN_1_MSG)
+
+    page.get_by_role("button", name="Send").click()
+
+    # Wait for navigation to /llm-council/sessions/:id
+    page.wait_for_url(
+        re.compile(r".*/llm-council/sessions/[^/]+$"),
+        timeout=30_000,
+    )
+    # Wait for turn card to render (LLM calls take 12-90s in production)
+    expect(page.get_by_test_id("turn-card").first).to_be_visible(timeout=120_000)
+
+
+# ---------------------------------------------------------------------------
+# Test class: full council thread flow
+# ---------------------------------------------------------------------------
+
+
+class TestCouncilThreadFlow:
+    """
+    Full council session lifecycle — 7-step scenario from US-012 plan §11:
+
+      1. Navigate to sessions list → click "New Council Session" → /llm-council
+      2. Send turn 1 → wait for 3 expert opinion cards + moderator section
+      3. Screenshot turn-1-{timestamp}.png
+      4. Reload → URL stays at sessions/:id → turn 1 content restored
+      5. Send turn 2 → verify "Turn 2/15" badge
+      6. Screenshot turn-2-{timestamp}.png
+      7. Sessions list → find session → delete icon → confirm modal → session gone
+      8. Assert no console error messages throughout
+    """
+
+    def test_step1_new_session_button_navigates_to_council_form(self, council_page):
+        """
+        Step 1: Sessions list → click "New Council Session" → lands on /llm-council.
+        """
+        council_page.goto(f"{REACT_BASE}/llm-council/sessions")
+        council_page.wait_for_load_state("networkidle")
+
+        # Sidebar renders
+        expect(council_page.get_by_test_id("sessions-sidebar")).to_be_visible(
+            timeout=15_000
+        )
+
+        # Click the "New Council Session" button (data-testid="new-session-btn")
+        new_btn = council_page.get_by_test_id("new-session-btn")
+        expect(new_btn).to_be_visible(timeout=10_000)
+        new_btn.click()
+
+        # Should land on /app/llm-council (new-session form)
+        council_page.wait_for_url(
+            f"{REACT_BASE}/llm-council",
+            timeout=15_000,
+        )
+
+        # NewSessionForm textarea is visible
+        expect(council_page.locator("textarea").first).to_be_visible(timeout=10_000)
+
+    def test_step2_turn_1_renders_expert_cards_and_moderator(self, council_page):
+        """
+        Steps 2-3: Send turn 1 → wait ≤120s → 3 OpinionCard articles visible
+        + ModeratorSection visible → screenshot saved.
+        """
+        _create_turn_1(council_page)
+
+        # 3 expert OpinionCards rendered (each is an <article> inside turn-card)
+        opinion_cards = council_page.locator("[data-testid='turn-card'] article")
+        card_count = opinion_cards.count()
+        assert card_count >= 3, (
+            f"Expected ≥3 expert opinion cards, found {card_count}"
+        )
+
+        # ModeratorSection rendered (data-testid="moderator-section")
+        expect(
+            council_page.get_by_test_id("moderator-section")
+        ).to_be_visible(timeout=120_000)
+
+        # Step 3: Screenshot
+        path = _screenshot(council_page, "turn-1")
+        assert os.path.exists(path), f"Screenshot not saved: {path}"
+
+    def test_step4_session_persists_after_page_reload(self, council_page):
+        """
+        Step 4: After turn 1 renders, reload → URL stays at sessions/:id
+        → turn 1 content (user message text) restored from server.
+        """
+        _create_turn_1(council_page)
+
+        session_url = council_page.url
+        session_id = _extract_session_id_from_url(session_url)
+
+        # Reload the page
+        council_page.reload()
+        council_page.wait_for_load_state("networkidle")
+
+        # URL must still be sessions/:id
+        assert council_page.url == session_url, (
+            f"After reload URL changed: {session_url!r} → {council_page.url!r}"
+        )
+
+        # Turn 1 card restored
+        expect(
+            council_page.get_by_test_id("turn-card").first
+        ).to_be_visible(timeout=30_000)
+
+        # User message text visible in page
+        expect(
+            council_page.get_by_text(TURN_1_MSG, exact=False)
+        ).to_be_visible(timeout=10_000)
+
+        assert session_id, "session_id must be non-empty after extraction"
+
+    def test_step5_turn_2_shows_turn_count_badge(self, council_page):
+        """
+        Steps 5-6: On existing session (after turn 1), send turn 2 → turn-count-badge
+        shows "2" and "15" → screenshot saved.
+        """
+        _create_turn_1(council_page)
+
+        # Follow-up textarea is the last textarea on the thread view
+        follow_up = council_page.locator("textarea").last
+        expect(follow_up).to_be_visible(timeout=10_000)
+        follow_up.fill(TURN_2_MSG)
+
+        # The last Send button (follow-up form)
+        council_page.get_by_role("button", name="Send").last.click()
+
+        # Wait for turn 2 card (nth(1) = second turn-card)
+        expect(
+            council_page.get_by_test_id("turn-card").nth(1)
+        ).to_be_visible(timeout=120_000)
+
+        # Turn count badge: data-testid="turn-count-badge", text should contain "2" and "15"
+        badge = council_page.get_by_test_id("turn-count-badge")
+        expect(badge).to_be_visible(timeout=10_000)
+        badge_text = badge.inner_text()
+        assert "2" in badge_text and "15" in badge_text, (
+            f"Turn count badge expected to contain '2' and '15', got: {badge_text!r}"
+        )
+
+        # Step 6: Screenshot
+        path = _screenshot(council_page, "turn-2")
+        assert os.path.exists(path), f"Screenshot not saved: {path}"
+
+    def test_step7_delete_session_removes_it_from_sidebar(self, council_page):
+        """
+        Step 7: Sessions list → hover first session → click delete icon
+        → ConfirmModal → click "Delete" → session removed from sidebar.
+        """
+        # Create a session so there is something to delete
+        _create_turn_1(council_page)
+
+        # Navigate back to sessions list
+        council_page.goto(f"{REACT_BASE}/llm-council/sessions")
+        council_page.wait_for_load_state("networkidle")
+
+        sessions_list = council_page.get_by_test_id("sessions-list")
+        expect(sessions_list).to_be_visible(timeout=15_000)
+
+        items_before = council_page.get_by_test_id("session-list-item").count()
+        assert items_before >= 1, "Need ≥1 session to test deletion"
+
+        # Hover over first session to reveal the delete button (opacity-0 → visible)
+        first_item = council_page.get_by_test_id("session-list-item").first
+        first_item.hover()
+
+        # Click the delete icon (data-testid="session-delete-btn")
+        delete_btn = council_page.get_by_test_id("session-delete-btn").first
+        expect(delete_btn).to_be_visible(timeout=5_000)
+        delete_btn.click()
+
+        # ConfirmModal appears — click the "Delete" confirm button (confirmLabel="Delete")
+        confirm_btn = council_page.get_by_role("button", name="Delete")
+        expect(confirm_btn).to_be_visible(timeout=5_000)
+        confirm_btn.click()
+
+        # Wait for mutation to settle then assert item count decreased
+        council_page.wait_for_timeout(2_000)
+        items_after = council_page.get_by_test_id("session-list-item").count()
+        assert items_after == items_before - 1, (
+            f"Expected {items_before - 1} sessions after delete, found {items_after}"
+        )
+
+    def test_step8_no_console_errors_during_navigation(self, council_page):
+        """
+        Step 8: Navigate sessions list and new session form — no error-severity
+        console messages. (Send is not triggered here to keep this test fast.)
+        """
+        # Sessions list page
+        council_page.goto(f"{REACT_BASE}/llm-council/sessions")
+        council_page.wait_for_load_state("networkidle")
+        expect(council_page.get_by_test_id("sessions-sidebar")).to_be_visible(
+            timeout=15_000
+        )
+
+        # New session form page
+        council_page.goto(f"{REACT_BASE}/llm-council")
+        council_page.wait_for_load_state("networkidle")
+        expect(council_page.locator("textarea").first).to_be_visible(timeout=10_000)
+
+        # Type but do not send — checks navigation-phase errors only
+        council_page.locator("textarea").first.fill(TURN_1_MSG)
+
+        errors = getattr(council_page, "_console_errors", [])
+        assert errors == [], (
+            f"Console error(s) detected during navigation: {errors}"
+        )

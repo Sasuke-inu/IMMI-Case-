@@ -1,0 +1,2 @@
+# Ignore all screenshot PNG files (timestamped artifacts from E2E runs)
+*.png
