@@ -123,6 +123,51 @@ Implementer: oh-my-claudecode:executor (sonnet).
 Reviewer: different agent type (e.g. oh-my-claudecode:code-reviewer or
 oh-my-claudecode:critic) — Ralph rule: reviewer ≠ implementer.
 
+## Iteration 9 (US-009) — DONE 2026-04-28 (autopilot resume)
+
+### What was done
+- frontend/src/hooks/use-llm-council-sessions.ts — 5 TanStack v5 Query hooks:
+  useLlmCouncilSession, useLlmCouncilSessions, useCreateSession, useAddTurn,
+  useDeleteSession. Uses useQueryClient + invalidateQueries / removeQueries.
+- frontend/__tests__/use-llm-council-sessions.test.ts — 19 vitest tests using
+  renderHook + per-test fresh QueryClient wrapper. vi.mock the api-llm-council
+  module; vi.spyOn qc.invalidateQueries / qc.removeQueries to assert side effects.
+
+### Pipeline
+- Implementer: oh-my-claudecode:executor (sonnet)
+- Reviewer: oh-my-claudecode:code-reviewer (sonnet) — DIFFERENT agent type ✅
+- Reviewer verdict: APPROVED on first pass
+
+### Red-green cycle evidence (3 cycles, all on explicit AC)
+1. useAddTurn invalidates ['council-session', sessionId] — flipped to
+   "WRONG-ID" → RED → restored → GREEN
+2. useDeleteSession removes ['council-session', deletedId] — flipped to
+   "WRONG-ID" → RED → restored → GREEN
+3. useCreateSession seeds ['council-session', session_id] — flipped to
+   "WRONG-SESSION-ID" → RED → restored → GREEN
+
+### Verification
+- npx vitest run __tests__/use-llm-council-sessions.test.ts → 19/19 in 2.33s
+- npx tsc --noEmit → exit 0
+
+### Reviewer non-blocking note (track for US-010 or cleanup)
+- useCreateSession.onSuccess seeds the cache with case_id: null instead of
+  variables.case_id. Compile-safe (uses `satisfies LlmCouncilSession`), does
+  NOT block US-010, but the seeded entry will show null until next refetch
+  if a case_id was supplied. 3-line fix.
+
+### Files for next subagent context
+- frontend/src/hooks/use-llm-council-sessions.ts
+- frontend/__tests__/use-llm-council-sessions.test.ts
+- frontend/src/lib/api-llm-council.ts (US-008, prerequisite)
+
+### Next iteration
+Pick US-010: Rework LlmCouncilPage to thread UI
+(frontend/src/pages/LlmCouncilPage.tsx + frontend/src/components/llm-council/TurnCard.tsx).
+Implementer: oh-my-claudecode:executor (sonnet).
+Reviewer: different agent type (oh-my-claudecode:critic recommended for UI
+correctness depth — different from code-reviewer used for US-009).
+
 # ═════════════════════════════════════════════════════════════════════════
 # Below: legacy Three-Epic Sprint progress (2026-04-15) — completed, archived
 # ═════════════════════════════════════════════════════════════════════════
