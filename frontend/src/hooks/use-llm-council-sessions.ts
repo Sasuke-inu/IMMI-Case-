@@ -63,8 +63,13 @@ export function useLlmCouncilSessions(
  * Create a new session (fires the first council turn).
  *
  * onSuccess:
- *   - invalidates ['council-sessions'] so the list re-fetches
+ *   - optimistically PREPENDS the new session to every cached
+ *     ['council-sessions', …] list. Hyperdrive caches list SELECTs
+ *     for ~5-10s so an immediate invalidate refetches and gets a
+ *     pre-create snapshot that does not contain the just-created row.
  *   - seeds ['council-session', new_session_id] cache with the response
+ *   - schedules a delayed invalidate (~10s) for cross-tab reconciliation
+ *     once Hyperdrive cache TTL has expired.
  */
 export function useCreateSession() {
   const qc = useQueryClient();
@@ -75,19 +80,36 @@ export function useCreateSession() {
       case_context?: string;
     }) => createSession(params),
     onSuccess: (data, variables) => {
-      qc.invalidateQueries({ queryKey: ["council-sessions"] });
+      const nowIso = data.turn.created_at ?? new Date().toISOString();
+      const newSession = {
+        session_id: data.session_id,
+        case_id: variables.case_id ?? null,
+        title: data.turn.user_message,
+        status: "active",
+        total_turns: data.total_turns,
+        created_at: nowIso,
+        updated_at: nowIso,
+      } satisfies LlmCouncilSession;
+
+      qc.setQueriesData<{ sessions: LlmCouncilSession[] }>(
+        { queryKey: ["council-sessions"] },
+        (old) => {
+          if (!old?.sessions) return { sessions: [newSession] };
+          const without = old.sessions.filter(
+            (s) => s.session_id !== newSession.session_id,
+          );
+          return { ...old, sessions: [newSession, ...without] };
+        },
+      );
+
       qc.setQueryData(["council-session", data.session_id], {
-        session: {
-          session_id: data.session_id,
-          case_id: variables.case_id ?? null,
-          title: data.turn.user_message,
-          status: "active",
-          total_turns: data.total_turns,
-          created_at: data.turn.created_at ?? new Date().toISOString(),
-          updated_at: data.turn.created_at ?? new Date().toISOString(),
-        } satisfies LlmCouncilSession,
+        session: newSession,
         turns: [data.turn] satisfies LlmCouncilTurn[],
       });
+
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ["council-sessions"] });
+      }, 10_000);
     },
   });
 }
