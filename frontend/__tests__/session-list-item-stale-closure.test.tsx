@@ -98,7 +98,11 @@ describe("SessionListItem — US-014 stale-closure pin", () => {
     renderItem(session, onDelete);
 
     await user.click(screen.getByTestId("session-delete-btn"));
-    const cancelBtn = await screen.findByRole("button", { name: /cancel/i });
+    // Use the stable data-testid added in LOW #1 fix instead of the
+    // /cancel/i regex against t("common.cancel") — the i18n vitest mock
+    // returns the bare key string, so /cancel/i happened to work, but
+    // it would break the moment the mock changes.
+    const cancelBtn = await screen.findByTestId("confirm-modal-cancel-btn");
     await user.click(cancelBtn);
 
     expect(onDelete).not.toHaveBeenCalled();

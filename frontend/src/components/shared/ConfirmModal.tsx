@@ -59,12 +59,14 @@ export function ConfirmModal({
         <div className="mt-6 flex justify-end gap-2">
           <button
             ref={cancelRef}
+            data-testid="confirm-modal-cancel-btn"
             onClick={onCancel}
             className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-surface"
           >
             {t("common.cancel")}
           </button>
           <button
+            data-testid="confirm-modal-confirm-btn"
             onClick={onConfirm}
             className={
               isDanger
