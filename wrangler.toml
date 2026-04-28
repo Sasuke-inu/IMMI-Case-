@@ -33,9 +33,13 @@ main = "workers/proxy.js"
 binding = "HYPERDRIVE"
 id = "c961b377ef0c4ec2a01d9d7220db7c93"
 # Production cache state (set 2026-04-28 via wrangler CLI, not toml):
-#     caching.max_age = 10s    (was default 60s; reduced for LLM Council write-affected reads)
-#     caching.disabled = false (cache still enabled; just shorter TTL)
-# Reversible: `wrangler hyperdrive update c961b377... --max-age <N>`.
+#     caching.max_age = 10s                  (was default 60s)
+#     caching.stale_while_revalidate = 0s    (was default 15s)
+#     caching.disabled = false               (cache still enabled; just strict ≤10s window)
+# Combined effect: any SELECT served by Hyperdrive is guaranteed ≤10s old.
+# This aligns with the frontend setTimeout(invalidate, 10s) workaround in
+# useDeleteSession + useCreateSession so refetch picks up post-write data.
+# Reversible: `wrangler hyperdrive update c961b377... --max-age 60 --swr 15`.
 # Background: docs/HYPERDRIVE_CACHE_RFC.md §"Quick-win shipped 2026-04-28"
 #
 # To create Hyperdrive, use the DIRECT connection (not Supabase pooler):

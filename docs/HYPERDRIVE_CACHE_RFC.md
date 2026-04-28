@@ -7,23 +7,35 @@ see §8.
 **Quick-win shipped 2026-04-28** (no code change, infra only):
 
 ```
-npx wrangler hyperdrive update c961b377ef0c4ec2a01d9d7220db7c93 --max-age 10
+npx wrangler hyperdrive update c961b377ef0c4ec2a01d9d7220db7c93 \
+    --max-age 10 --swr 0
 ```
 
-reduced the cached `max_age` from default 60 s to 10 s on the production
-Hyperdrive config. This shrinks the worst-case stale window 6× without
-disabling caching globally. The existing `setTimeout(invalidate, 10s)`
-workaround in `useDeleteSession` / `useCreateSession` now aligns with the
-actual cache TTL — invalidate fires exactly when the cache is guaranteed
-expired (was previously a guess against a 60 s window that the workaround
-was masking with optimistic mutation).
+reduced the cached `max_age` from default 60 s to 10 s AND set
+`stale_while_revalidate` to 0 s on the production Hyperdrive config.
+
+Why both: max_age alone leaves Cloudflare serving stale cached responses
+for an additional `stale_while_revalidate` window (default 15 s) while it
+revalidates in the background. With `swr=0`, the strict total stale
+window is 10 s — perfectly aligning with the frontend
+`setTimeout(invalidate, 10s)` so refetch fires when the cache is
+guaranteed empty.
+
+This shrinks the worst-case stale window 7.5× (60+15 = 75 s → 10 s)
+without disabling caching globally. The existing `setTimeout(invalidate,
+10s)` workaround in `useDeleteSession` / `useCreateSession` now aligns
+with the actual cache TTL.
 
 Verification (`wrangler hyperdrive get c961b377…`):
 ```
-"caching": { "disabled": false, "max_age": 10 }
+"caching": {
+  "disabled": false,
+  "max_age": 10,
+  "stale_while_revalidate": 0
+}
 ```
 
-**Reversible**: `wrangler hyperdrive update c961b377… --max-age 60`.
+**Reversible**: `wrangler hyperdrive update c961b377… --max-age 60 --swr 15`.
 
 **Author**: Iteration 14 cleanup pass.
 
