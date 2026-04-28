@@ -375,9 +375,14 @@ async function streamExport(url, env, format) {
 
   const where = buildCasesWhere(sql, filters);
   if (!where) { await safeEnd(); return null; }
+  // Honor ?limit=N (clamped to [1, EXPORT_MAX_ROWS]). Default = full dump.
+  // Used by smoke tests / CI / preview integrations that don't want 112 MB.
+  const exportLimit = safeInt(
+    url.searchParams.get("limit"), EXPORT_MAX_ROWS, 1, EXPORT_MAX_ROWS,
+  );
   const cursor = sql`
     SELECT ${sql(EXPORT_FIELDS)} FROM ${sql(TABLE)} WHERE ${where}
-    ORDER BY year DESC NULLS LAST LIMIT ${EXPORT_MAX_ROWS}
+    ORDER BY year DESC NULLS LAST LIMIT ${exportLimit}
   `.cursor(EXPORT_CURSOR_BATCH);
 
   const enc = new TextEncoder();
