@@ -32,6 +32,12 @@ main = "workers/proxy.js"
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "c961b377ef0c4ec2a01d9d7220db7c93"
+# Production cache state (set 2026-04-28 via wrangler CLI, not toml):
+#     caching.max_age = 10s    (was default 60s; reduced for LLM Council write-affected reads)
+#     caching.disabled = false (cache still enabled; just shorter TTL)
+# Reversible: `wrangler hyperdrive update c961b377... --max-age <N>`.
+# Background: docs/HYPERDRIVE_CACHE_RFC.md §"Quick-win shipped 2026-04-28"
+#
 # To create Hyperdrive, use the DIRECT connection (not Supabase pooler):
 #   npx wrangler hyperdrive create immi-case-db \
 #     --connection-string="postgresql://postgres:[DB_PASSWORD]@db.urntbuqczarkuoaosjxd.supabase.co:5432/postgres"
