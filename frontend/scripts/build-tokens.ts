@@ -168,9 +168,7 @@ const lightColors = flattenColors(
 const darkColors = flattenColors(tokens.color.dark, "--color");
 
 // ─── Build :root { } ─────────────────────────────────────────
-const timestamp = new Date().toISOString();
-let css = `/* Auto-generated from tokens.json — do not edit manually */\n`;
-css += `/* Generated: ${timestamp} */\n\n`;
+let css = `/* Auto-generated from tokens.json — do not edit manually */\n\n`;
 
 css += `:root {\n`;
 
@@ -306,8 +304,7 @@ css += `}\n`;
 writeFileSync(resolve(__dirname_resolved, "../src/tokens/tokens.css"), css);
 
 // ─── Generate TypeScript constants ───────────────────────────
-let ts = `/* Auto-generated from tokens.json — do not edit manually */\n`;
-ts += `/* Generated: ${timestamp} */\n\n`;
+let ts = `/* Auto-generated from tokens.json — do not edit manually */\n\n`;
 
 // Full token tree (as const)
 ts += `export const tokens = ${JSON.stringify(tokens, null, 2)} as const\n\n`;
