@@ -245,6 +245,7 @@ Request → Cloudflare Worker (proxy.js)
 - **AustLII rate limiting** — bulk scraping triggers IP block; typically resolves in hours
 - **Worker postgres client** — always create per-request via `getSql(env)`, never module-level singleton (I/O context binding)
 - **Tag filtering** — `buildCasesWhere()` returns `null` for `tag` param; Worker falls back to Flask (pipe-delimited array logic)
+- **🛑 Production data cleanup rule** — Before ANY bulk UPDATE/DELETE on `public.immigration_cases` (especially regex/pattern-shape based cleanup of mixed-content fields like `judges`): (1) `ALTER TABLE … ADD COLUMN <col>_backup text; UPDATE … SET <col>_backup = <col>` first — gives sub-second rollback; (2) dry-run on `LIMIT 100` and **eyeball** matches against ground-truth (local `case_texts/*.txt`) — pattern-shape garbage rules have ~10–15% false-positive rate on legitimate names like `Michael Cooke (NSW)` / `general member cosgrave`; (3) Supabase Free tier daily backups are **Dashboard-only restore** (`supabase backups restore` CLI returns 400 "PITR not enabled"). See `docs/JUDGE_DATA_QUALITY.md` post-mortem for the 2026-05-02 incident.
 
 ## React Frontend Gotchas
 
