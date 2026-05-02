@@ -7,6 +7,61 @@
 
 ---
 
+## ⚠️ POST-MORTEM (added after rollback) — read this first
+
+**What happened (2026-05-02)**:
+
+1. We identified ~10% of `judges` rows as garbage (lowercase prose, `DATE`
+   placeholders, sentence fragments captured by a buggy greedy regex).
+2. We ran a "client-side batch loop" SQL cleanup that set 14,047 rows'
+   `judges` to empty string, on the assumption every match was garbage.
+3. **Reality-check via random sampling caught real-name false positives**:
+   approximately 10–15% of the cleared rows were legitimate names whose
+   formats happened to match a garbage pattern (e.g.
+   `Michael Cooke (NSW)` matched the bracket rule;
+   `general member cosgrave` matched the lowercase rule).
+4. Recovery: full-database PITR rollback to the 2026-05-01 20:03 UTC
+   daily snapshot (Supabase Free tier — Dashboard-only restore).
+5. Post-restore verification confirmed `distinct(judges) = 14,715`,
+   `'DATE' rows = 2,180`, `lowercase rows = 13,855` — all garbage AND
+   all real names back to pre-cleanup state.
+
+**Lessons**:
+
+- **A SQL-level cleanup driven by surface-shape patterns is not safe**
+  for fields where some legitimate values share the surface shape with
+  garbage. The judges field has both: many garbage rows are
+  lowercase-prefixed prose, BUT some legitimate names are also
+  lowercase-prefixed (`van …`, `el-…`) or contain brackets (`X (NSW)`).
+- **Build a backup column first**. We did not — `ALTER TABLE …
+  ADD COLUMN judges_backup text; UPDATE … SET judges_backup = judges;`
+  would have made a sub-second rollback possible without touching
+  unrelated tables.
+- **Daily Supabase backups are Dashboard-only on Free tier**. The
+  `supabase backups restore` CLI returns 400 "PITR is not enabled" even
+  though daily snapshots are listed. Plan for that.
+- The greedy-regex extractor fix in `postprocess.py` (commit `cf55863`)
+  remains valid — it prevents NEW garbage from being written. It just
+  wasn't safe to use the regex's *rejection rules* as a wholesale data
+  cleanup signal on data that was already mixed.
+
+**Status of artefacts**:
+
+| Artefact                              | Status               |
+|---------------------------------------|----------------------|
+| `scripts/clean_judges_garbage.sh`     | **DELETED** — do not re-run, see commit removing it |
+| `scripts/reextract_judges.py`         | retained, but `--apply` discouraged until regex covers PRESIDING/General/Senior MEMBER formats AND a backup column exists |
+| `postprocess.py` regex + sanity fix   | retained — prevents future garbage capture |
+| `tests/test_postprocess_judges.py`    | retained — 36 tests, all passing |
+| `docs/JUDGE_DATA_QUALITY.md`          | this file — kept as audit trail |
+| Production `judges` field             | restored to pre-cleanup state via PITR |
+
+The remediation steps in §"Recommended fix sequence" below remain
+informational — but **only attempt Steps D/E with a backup column
+in place and on a sample of <100 rows first**.
+
+---
+
 ## TL;DR
 
 The `judges` field has a **regex extraction bug in `postprocess.py:156`**

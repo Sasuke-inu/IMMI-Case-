@@ -3,6 +3,22 @@
 case_texts/*.txt files and applying the new sanity-checked regex from
 postprocess.py.
 
+⚠️  WARNING — DO NOT --apply WITHOUT FIRST READING docs/JUDGE_DATA_QUALITY.md
+    POST-MORTEM SECTION. The earlier sibling script
+    `scripts/clean_judges_garbage.sh` was deleted after a destructive
+    over-zealous cleanup that wiped legitimate judge names; the entire DB
+    had to be PITR-rolled back. This script's regex still does NOT cover
+    common Australian tribunal formats (`PRESIDING MEMBER:`,
+    `General Member X`, `Senior Member X. Y AM CSC`) and so will produce
+    a low hit-rate plus possible false positives. Recommended pre-flight
+    before any --apply:
+      1. Add a backup column: ALTER TABLE … ADD COLUMN judges_backup text;
+         UPDATE … SET judges_backup = judges;
+      2. Dry-run first with --limit 1000 and eyeball the output.
+      3. Apply on a small --limit slice; spot-check; only then expand.
+    Until then, the dry-run output is a *signal*, not a green light.
+
+
 Workflow:
   1. SELECT case_id, full_text_path FROM immigration_cases WHERE judges = ''
   2. For each row, translate the DB-stored absolute path to the local
