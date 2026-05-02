@@ -266,8 +266,12 @@ extraction / analytics requires a dedicated session — not done here.
 
 - Re-extract over 142,966 local `case_texts/*.txt` files (E phase 2)
 - Loop-clear remaining ~14,047 garbage rows (E phase 1 continuation)
-- Wire `normalize_judge_names` into Flask analytics + Cloudflare Worker
-  handlers + persist `judge_canonical_id` (F production integration)
+- Wire `normalize_judge_names` into the **Cloudflare Worker** judge
+  analytics handlers (`workers/proxy.js`: `handleAnalyticsJudges`,
+  `handleAnalyticsJudgeProfile`, `handleAnalyticsJudgeLeaderboard`,
+  `handleAnalyticsJudgeCompare`, `handleAnalyticsJudgeBio`) — these
+  are the production read path, not Flask. Persist `judge_canonical_id`
+  via Supabase migration. (F production integration)
 
 These are the high-blast-radius pieces and should be a separate
 focused session with its own gate review.

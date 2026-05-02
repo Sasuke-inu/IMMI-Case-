@@ -157,7 +157,7 @@ All GET requests to `/api/v1/*` are intercepted by `proxy.js` first. If a native
 ```
 Request → Cloudflare Worker (proxy.js)
 │
-├── GET /api/v1/*  ── Native Hyperdrive path (27 endpoints, direct PostgreSQL or static JS)
+├── GET /api/v1/*  ── Native Hyperdrive path (44 endpoints as of 2026-05-02 — verify with `grep -c "^async function handle\\|^function handle" workers/proxy.js`)
 │   │
 │   ├── /api/v1/cases                          → handleGetCases
 │   ├── /api/v1/cases/count                    → handleGetCasesCount
