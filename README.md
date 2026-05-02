@@ -138,10 +138,15 @@ cp .env.example .env
 | `TRUST_PROXY_HEADERS` | ✗ | `false` | 只有部署在可信任反向代理後方時才設為 `true`，允許安全地讀取 `X-Forwarded-For` |
 | `SUPABASE_URL` | 條件 | — | Supabase 專案 URL（使用 `--backend supabase` 時必填） |
 | `SUPABASE_SERVICE_ROLE_KEY` | 條件 | — | Supabase Service Role Key（伺服器端操作用） |
-| `SUPABASE_ANON_KEY` | 條件 | — | Supabase Anon Key（前端讀取用） |
-| `ANTHROPIC_API_KEY` | 條件 | — | LLM 萃取腳本使用（`extract_structured_fields_llm.py`） |
-| `OPENAI_API_KEY` | 條件 | — | OpenAI 嵌入向量生成（`backfill_case_embeddings.py`） |
 | `BACKEND_HOST` | ✗ | `127.0.0.1` | Flask 綁定 IP（對外服務改為 `0.0.0.0`） |
+| `CF_AIG_TOKEN` | 條件 | — | **LLM Council 主路徑**：Cloudflare AI Gateway 統一計費 token（`cfut_*`）。OpenAI / Anthropic / Google AI Studio 都從此扣額，無需個別 provider key |
+| `LLM_COUNCIL_CF_GATEWAY_URL` | ✗ | `…/immi-council/compat/…` | CF AI Gateway compat endpoint URL，預設指向專案的 `immi-council` gateway |
+| `LLM_COUNCIL_OPENAI_MODEL` 等 | ✗ | 見 `.env.example` | 模型路由需 provider 前綴：`openai/<m>`、`anthropic/<m>`、`google-ai-studio/<m>` |
+| `LLM_COUNCIL_MAX_OUTPUT_TOKENS` | ✗ | `4096` | 專家模型 token 上限（4096 為 probe-validated；2400 在 `gemini-2.5-pro` 會回傳 completion=0） |
+| `LLM_COUNCIL_MODERATOR_MAX_TOKENS` | ✗ | `8192` | 仲裁模型 token 上限（14-field JSON 輸出） |
+| `ANTHROPIC_API_KEY` | 條件 | — | **僅獨立腳本** `extract_structured_fields_llm.py` 直連 Anthropic 用；LLM Council **不需要**（走 CF Gateway） |
+| `OPENAI_API_KEY` | 條件 | — | **僅獨立腳本** `backfill_case_embeddings.py` 嵌入向量用；LLM Council **不需要**（走 CF Gateway） |
+| ~~`SUPABASE_ANON_KEY`~~ | — | — | 已移除：當前 `.env.example` 不再使用 anon key（前端讀取走 Worker / service role） |
 
 安全基線：
 - 當 `APP_ENV`、`IMMI_ENV` 或 `FLASK_ENV` 為 `production` / `staging` 時，`SECRET_KEY` 必須明確提供；開發 / 測試模式才允許自動生成臨時值。
@@ -171,10 +176,10 @@ open http://localhost:8080/
 ### 4.5 Test
 
 ```bash
-# Python 單元 + E2E 測試（610 個）
+# Python 單元 + E2E 測試（~1,291 個 — 1,032 unit + 259 E2E，source-counted via `grep "def test_"`）
 python3 -m pytest
 
-# 僅前端單元測試（261 個）
+# 僅前端單元測試（449 個 — 50 files，source-counted via `grep "(it|test)\("`）
 cd frontend && npx vitest run
 
 # 僅 E2E
@@ -390,7 +395,7 @@ IMMI-Case-/
 │   │   ├── lib/api.ts              #   CSRF-aware fetch wrapper
 │   │   └── tokens/tokens.json      #   設計令牌單一來源
 │   ├── scripts/build-tokens.ts     #   tokens.json → CSS + TS 建置腳本
-│   └── __tests__/                  #   261 Vitest 單元測試
+│   └── __tests__/                  #   449 Vitest 單元測試（50 files）
 │
 ├── scripts/                        # [The Tools]
 │   ├── backfill_case_embeddings.py #   pgvector 嵌入向量批次填充
@@ -398,8 +403,8 @@ IMMI-Case-/
 │   └── two_stage_embedding_backfill.py
 │
 ├── tests/                          # [Quality Gate]
-│   ├── test_models.py              #   296 Python 單元測試
-│   └── e2e/react/                  #   231 Playwright E2E 測試
+│   ├── test_models.py              #   1,032 Python 單元測試（50 files）
+│   └── e2e/react/                  #   259 Playwright E2E 測試（24 files）
 │
 ├── supabase/migrations/            # PostgreSQL schema 遷移 (17 個)
 ├── workers/austlii-scraper/        # Cloudflare Worker (TypeScript)
@@ -578,7 +583,7 @@ gh pr create --title "feat: judge name normalization" --body "..."
 | **Frontend** | React 18, TypeScript, Vite 7, Tailwind CSS v4, TanStack Query v5, Recharts, Sonner |
 | **i18n** | react-i18next — English + 繁體中文（全站雙語） |
 | **Storage** | CSV/JSON（預設）, SQLite FTS5+WAL, Supabase PostgreSQL + pgvector |
-| **Testing** | pytest (296 unit + 231 E2E Playwright), Vitest (261 frontend unit) |
+| **Testing** | pytest (1,032 unit + 259 E2E Playwright), Vitest (449 frontend unit) — source-counted via grep, see CLAUDE.md for verification command |
 | **LLM** | Claude Sonnet 4.6（欄位萃取，10 平行 sub-agent） |
 | **Embeddings** | OpenAI text-embedding-3-small (1536-dim), Gemini embedding-001 |
 | **Scraper** | Cloudflare Workers + R2（批量），AustLII 直接爬取（增量） |
@@ -609,6 +614,16 @@ gh pr create --title "feat: judge name normalization" --body "..."
 
 ## 14. License
 
-For legal research and educational purposes. See `LICENSE` for details.
+雙層授權設計，**code 與 data 分開治理**：
 
-> Assumption: LICENSE 檔案尚待建立。建議使用 MIT（開放研究用途）或 CC BY-NC 4.0（非商業資料集）。
+| 層 | 範圍 | 授權 | 檔案 |
+|----|------|------|------|
+| **Source code** | Python / TypeScript / SQL / 萃取 pipeline / LLM prompts | [Apache License 2.0](./LICENSE) | `LICENSE` |
+| **LLM 衍生欄位** | `applicant_name`、`visa_subclass`、`hearing_date`、`country_of_origin`、`is_represented`、`representative`、embeddings | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)（需署名） | `DATA_LICENSE.md` §2 |
+| **AustLII 原始判決** | 全文與基本元資料（149,016 cases） | [AustLII Copyright Policy](http://www.austlii.edu.au/austlii/copyright.html)（research / educational use 允許；批量商業再分發禁止） | `DATA_LICENSE.md` §1 |
+
+Copyright holder: **Tracker Tech Pty Ltd**, 2024-2026。
+
+完整第三方歸屬與資料治理規則見 [`NOTICE`](./NOTICE) 與 [`DATA_LICENSE.md`](./DATA_LICENSE.md)。
+
+> 重要：本資料集**不構成法律意見**，僅供研究與教育用途。法庭判決中之姓名、身份標識與個人資料受澳洲隱私法與抑制令約束，使用者自行負責合規。

@@ -46,6 +46,29 @@ python merge_llm_results.py               # merge batch results into CSV
 
 Use `PORT=8080 BACKEND=auto|sqlite|csv|supabase make api` to override defaults.
 
+## Environment Variables (Critical)
+
+Source of truth: `.env.example` (NOT this section — re-verify with `cat .env.example` if anything looks off). Real keys grouped by purpose:
+
+**Flask security**
+- `SECRET_KEY` — generate with `python3 -c "import secrets; print(secrets.token_hex(32))"`. **Required when `APP_ENV=production` or `staging`** (server refuses to start without it); dev mode auto-generates ephemeral.
+- `APP_ENV` — `development` (default) | `staging` | `production`. Production-like values enable `Secure` cookie + strict CSRF.
+- `TRUST_PROXY_HEADERS` — `false` (default). Only set `true` behind a trusted reverse proxy that rewrites `X-Forwarded-For`; otherwise rate-limit / IP rules can be bypassed by a forged header.
+
+**Local dev endpoint** (read by both Flask and Vite proxy)
+- `BACKEND_HOST=127.0.0.1` (use `0.0.0.0` to expose externally)
+- `BACKEND_PORT=8080` (5000 conflicts with macOS AirPlay)
+
+**Supabase backend** (required only when `python web.py --backend supabase`)
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-side; **no anon key in `.env.example`** despite what older docs say)
+
+**LLM Council via Cloudflare AI Gateway — unified billing** (the LLM architecture this project actually uses; commonly missed)
+- `CF_AIG_TOKEN` (`cfut_*`) — single Cloudflare token for unified billing across OpenAI / Anthropic / Google AI Studio. Auth header is `cf-aig-authorization`. Credits at `dash.cloudflare.com → AI → AI Gateway`.
+- `LLM_COUNCIL_CF_GATEWAY_URL` — defaults to the project's `immi-council` compat endpoint.
+- Model routing requires provider prefix on compat endpoint: `openai/<model>`, `anthropic/<model>`, `google-ai-studio/<model>`. Defaults: gpt-5-mini, gemini-3.1-pro-preview, claude-sonnet-4-6, gemini-2.5-flash (moderator).
+- Token caps: `LLM_COUNCIL_MAX_OUTPUT_TOKENS=4096` (experts), `LLM_COUNCIL_MODERATOR_MAX_TOKENS=8192` (14-field JSON), `LLM_COUNCIL_TIMEOUT_SECONDS=120`. The 4096 cap was probe-validated — `gemini-2.5-pro` returned `completion=0` at 2400.
+- **Do NOT add per-provider keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) for LLM Council** — credits flow through CF Gateway. Per-provider keys are only needed by standalone scripts (e.g. `extract_structured_fields_llm.py` direct Anthropic calls, `backfill_case_embeddings.py` OpenAI embeddings) and must be supplied by the user separately if running those.
+
 ## Architecture
 
 ```
@@ -306,7 +329,7 @@ LLM-assisted extraction (`extract_structured_fields_llm.py`) requires `ANTHROPIC
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
 - **149,016 case records** (2000-2026): 9 courts/tribunals: MRTA 52,970 | AATA 39,203 | FCA 14,987 | RRTA 13,765 | FCCA 11,157 | FMCA 10,395 | FedCFamC2G 4,109 | ARTA 2,260 | HCA 176
-- **Test suite**: 610 tests — 296 Python unit + 231 Playwright E2E + 83 frontend unit (Vitest)
+- **Test suite** (source-counted via `grep "def test_"` / `it\|test\(`, not pytest collect — re-verify with `pytest --collect-only -q | tail -1`): ~1,740 tests — 1,032 Python unit (50 files) + 259 Playwright E2E (24 files) + 449 frontend unit (50 files, Vitest). `@pytest.mark.parametrize` expansion makes pytest collect count higher.
 - CSRF protection via flask-wtf; `/api/v1/csrf-token` endpoint for React SPA
 - Default host is `127.0.0.1`; use `--host 0.0.0.0` to expose externally
 
