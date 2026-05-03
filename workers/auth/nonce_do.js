@@ -123,7 +123,7 @@ export async function checkNonce(env, hash) {
 
   try {
     const id = env.AUTH_NONCE.idFromName("global");
-    const stub = env.AUTH_NONCE.get(id);
+    const stub = env.AUTH_NONCE.get(id, { locationHint: "oc" });
     const resp = await stub.fetch("https://internal/nonce", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -2739,9 +2739,9 @@ export default {
         if (path === "/api/v1/auth/switch-tenant" && method === "POST")
           return handleAuthSwitchTenant(request, env, getSql);
       } catch (authErr) {
-        console.error("[auth] handler error:", authErr?.message);
+        console.error(JSON.stringify({ event: "auth.handler_error", message: authErr?.message }));
         return new Response(
-          JSON.stringify({ error: "Auth unavailable", detail: authErr?.message || "unknown" }),
+          JSON.stringify({ error: "Auth service unavailable", code: "auth_unavailable" }),
           { status: 503, headers: { "Content-Type": "application/json" } },
         );
       }

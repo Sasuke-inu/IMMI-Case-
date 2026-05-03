@@ -36,9 +36,10 @@ export async function verifyTelegramAuth(data, env) {
     return { valid: false, reason: "invalid_hash" };
   }
 
-  // Reject stale auth_date (older than 1 hour)
+  // Reject stale or future auth_date (older than 1 hour or >60s in the future)
   const authDate = parseInt(data.auth_date ?? "0", 10);
-  if (!authDate || Date.now() / 1000 - authDate > 3600) {
+  const nowSec = Date.now() / 1000;
+  if (!authDate || nowSec - authDate > 3600 || authDate > nowSec + 60) {
     return { valid: false, reason: "expired" };
   }
 

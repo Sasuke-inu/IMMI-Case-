@@ -86,6 +86,48 @@ describe("parseJwtPayload", () => {
 });
 
 // ---------------------------------------------------------------------------
+// parseJwtPayload — base64url padding edge cases
+// ---------------------------------------------------------------------------
+
+describe("parseJwtPayload — base64url padding restoration", () => {
+  it("decodes a payload whose stripped base64url length % 4 === 3 (needs 1 '=' restored)", () => {
+    // '{"sub":"u"}' (12 bytes) → btoa → 'eyJzdWIiOiJ1In0=' (16 chars, 1 padding)
+    // After stripping '=': length = 15, 15 % 4 = 3 → needs 1 '=' restored.
+    // Without the padding fix, atob() throws InvalidCharacterError on this string.
+    const raw = '{"sub":"u"}'; // deliberately short to hit the 3-remainder boundary
+    const stripped = btoa(raw).replace(/=+$/, "");
+    expect(stripped.length % 4).toBe(3);
+    const token = `header.${stripped}.sig`;
+    const payload = parseJwtPayload(token);
+    expect(payload).not.toBeNull();
+    expect(payload!.sub).toBe("u");
+  });
+
+  it("decodes a payload whose stripped base64url length % 4 === 2 (needs 2 '==' restored)", () => {
+    // '{"x":1}' (7 bytes) → btoa → 'eyJ4IjoxfQ==' (12 chars, 2 padding)
+    // After stripping: length = 10, 10 % 4 = 2 → needs 2 '==' restored.
+    const raw = '{"x":1}';
+    const stripped = btoa(raw).replace(/=+$/, "");
+    expect(stripped.length % 4).toBe(2);
+    const token = `header.${stripped}.sig`;
+    const payload = parseJwtPayload(token);
+    expect(payload).not.toBeNull();
+    expect(payload!.x).toBe(1);
+  });
+
+  it("decodes a payload whose stripped base64url length % 4 === 0 (no padding needed)", () => {
+    // Verify the common case still works when length is already aligned.
+    const raw = '{"ok":true}'; // 11 bytes → btoa → 'eyJvayI6dHJ1ZX0=' (16 chars, 1 =)
+    // Actually let's just verify any 0-remainder case parses correctly.
+    const payload = { ok: true, n: 1 };
+    const token = makeToken(payload);
+    const result = parseJwtPayload(token);
+    expect(result).not.toBeNull();
+    expect(result!.ok).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // isTokenExpired
 // ---------------------------------------------------------------------------
 

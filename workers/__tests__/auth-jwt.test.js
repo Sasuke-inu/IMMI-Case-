@@ -290,6 +290,13 @@ describe("makeAccessToken", () => {
     expect(exp).toBeLessThanOrEqual(before + 302);
   });
 
+  it("embeds kid in payload for structured-log traceability", async () => {
+    const token = await makeAccessToken(mockUser, mockTenant, mockTenants, mockEnv);
+    const result = await verifyJwt(token, mockEnv);
+    expect(result.valid).toBe(true);
+    expect(result.payload.kid).toBe(mockEnv.JWT_KID_CURRENT);
+  });
+
   it("includes sub, tenant_id, tenant_kind, tenant_name, tenants, role, tg_id in payload", async () => {
     const token = await makeAccessToken(mockUser, mockTenant, mockTenants, mockEnv);
     const result = await verifyJwt(token, mockEnv);

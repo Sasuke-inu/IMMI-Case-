@@ -105,7 +105,9 @@ export async function signJwt(payload, env) {
 
   const header = { alg: "HS256", typ: "JWT", kid: env.JWT_KID_CURRENT };
   const now = Math.floor(Date.now() / 1000);
-  const fullPayload = { iat: now, ...payload };
+  // kid is also injected into the payload so getSqlAsUser structured logs can read it
+  // (verifyJwt only returns payload, not header)
+  const fullPayload = { iat: now, kid: env.JWT_KID_CURRENT, ...payload };
   return buildJwt(header, fullPayload, env.JWT_SECRET_CURRENT);
 }
 

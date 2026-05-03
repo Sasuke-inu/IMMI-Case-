@@ -114,10 +114,31 @@ describe("verifyTelegramAuth — valid data", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Expired auth_date (> 3600s)
+// Expired auth_date (> 3600s) and future auth_date (> +60s)
 // ---------------------------------------------------------------------------
 
 describe("verifyTelegramAuth — expired auth_date", () => {
+  it("rejects auth_date more than 60 seconds in the future (clock skew / replay)", async () => {
+    const data = freshAuthData({
+      auth_date: String(Math.floor(Date.now() / 1000) + 120), // 2 minutes ahead
+    });
+    data.hash = await computeTestHash(data, BOT_TOKEN);
+
+    const result = await verifyTelegramAuth(data, MOCK_ENV);
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe("expired");
+  });
+
+  it("accepts auth_date exactly 60s in the future (within grace window)", async () => {
+    const data = freshAuthData({
+      auth_date: String(Math.floor(Date.now() / 1000) + 59),
+    });
+    data.hash = await computeTestHash(data, BOT_TOKEN);
+
+    const result = await verifyTelegramAuth(data, MOCK_ENV);
+    expect(result.valid).toBe(true);
+  });
+
   it("rejects auth_date older than 3600 seconds", async () => {
     const data = freshAuthData({
       auth_date: String(Math.floor(Date.now() / 1000) - 3601),

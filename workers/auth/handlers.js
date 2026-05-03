@@ -105,7 +105,7 @@ async function upsertTelegramUser(tgData, getSql, env) {
       if (memberships.length === 0) {
         const [newTenant] = await tx`
           INSERT INTO tenants (owner_user_id, kind, name)
-          VALUES (${user.id}, 'personal', ${tgData.first_name ?? "My Workspace"})
+          VALUES (${user.id}, 'individual', ${tgData.first_name ?? "My Workspace"})
           RETURNING id, kind, name
         `;
         await tx`
@@ -211,7 +211,7 @@ export async function handleAuthMe(request, env) {
     },
     tenant: {
       id:   claims.tenant_id,
-      kind: claims.tenant_kind ?? "personal",
+      kind: claims.tenant_kind ?? "individual",
       name: claims.tenant_name ?? "",
     },
     tenants: claims.tenants ?? [],

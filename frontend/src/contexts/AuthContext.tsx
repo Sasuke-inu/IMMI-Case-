@@ -75,28 +75,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // On mount: restore auth via httpOnly cookie (browser sends it automatically).
   // Access token comes from the response body — JS cannot read HttpOnly cookies.
+  // If the access cookie is expired (401) but the refresh cookie is still valid,
+  // fall back to /auth/refresh so users stay signed in across the 5-min access TTL.
   useEffect(() => {
-    fetch("/api/v1/auth/me", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.access_token) {
-          setState({
-            user: data.user,
-            tenant: data.tenant,
-            tenants: data.tenants || [],
-            accessToken: data.access_token,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-          setApiAccessToken(data.access_token);
-          scheduleRefresh(data.access_token);
-        } else {
-          setState((s) => ({ ...s, isLoading: false }));
+    (async () => {
+      try {
+        const r = await fetch("/api/v1/auth/me", { credentials: "include" });
+        if (r.ok) {
+          const data = await r.json();
+          if (data?.access_token) {
+            setState({
+              user: data.user,
+              tenant: data.tenant,
+              tenants: data.tenants || [],
+              accessToken: data.access_token,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+            setApiAccessToken(data.access_token);
+            scheduleRefresh(data.access_token);
+            return;
+          }
+        } else if (r.status === 401) {
+          // Access cookie expired — try silent refresh before giving up
+          const refreshed = await refresh();
+          if (refreshed) {
+            setState((s) => ({ ...s, isLoading: false }));
+            return;
+          }
         }
-      })
-      .catch(() => setState((s) => ({ ...s, isLoading: false })));
+      } catch {
+        // network error — fall through to unauthenticated state
+      }
+      setState((s) => ({ ...s, isLoading: false }));
+    })();
     return () => clearTimeout(refreshTimerRef.current);
-  }, [scheduleRefresh]);
+  }, [scheduleRefresh, refresh]);
 
   const login = useCallback(
     async (telegramData: Record<string, string>) => {
