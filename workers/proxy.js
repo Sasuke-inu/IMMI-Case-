@@ -1955,6 +1955,13 @@ async function handleAnalyticsConceptTrends(url, env) {
 
 /** GET /api/v1/analytics/judge-leaderboard — judges ranked by cases / approval rate */
 async function handleAnalyticsJudgeLeaderboard(url, env) {
+  // Worker-level cache: skip 3x full-table-scan SQL on repeated requests (TTL=600s)
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  if (_cache) {
+    const cached = await _cache.match(new Request(url.toString()));
+    if (cached) return cached;
+  }
+
   const sql      = getSql(env);
   const p        = url.searchParams;
   const sortBy   = p.get("sort_by") || "cases";
@@ -2003,7 +2010,9 @@ async function handleAnalyticsJudgeLeaderboard(url, env) {
   if(sortBy==="approval_rate") judges.sort((a,b)=>b.approval_rate-a.approval_rate||b.total_cases-a.total_cases);
   else if(sortBy==="name")     judges.sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
   else                         judges.sort((a,b)=>b.total_cases-a.total_cases||b.approval_rate-a.approval_rate);
-  return jsonOk({ judges:judges.slice(0,limit), total_judges:judges.length }, "public, max-age=600, stale-while-revalidate=120");
+  const res = jsonOk({ judges:judges.slice(0,limit), total_judges:judges.length }, "public, max-age=600, stale-while-revalidate=120");
+  if (_cache) await _cache.put(new Request(url.toString()), res.clone());
+  return res;
 }
 
 /** GET /api/v1/analytics/judge-profile — deep profile for a single judge */
