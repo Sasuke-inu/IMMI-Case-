@@ -1,0 +1,12 @@
+# Final Baseline — 2026-05-03T11:40:00Z
+
+/api/v1/stats
+  hit1=3.784s  hit2=0.080s  hit3=0.058s  warm_avg=0.069s
+/api/v1/cases?limit=20
+  hit1=3.624s  hit2=0.050s  hit3=0.054s  warm_avg=0.052s
+/api/v1/filter-options
+  hit1=5.965s  hit2=0.070s  hit3=0.051s  warm_avg=0.060s
+/api/v1/analytics/outcomes
+  hit1=3.695s  hit2=0.063s  hit3=0.051s  warm_avg=0.057s
+/api/v1/analytics/judge-leaderboard?limit=10
+  hit1=0.038s  hit2=0.030s  hit3=0.033s  warm_avg=0.031s
