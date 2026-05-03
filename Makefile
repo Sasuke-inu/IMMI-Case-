@@ -74,7 +74,7 @@ test-workers:
 # A literal `false` or missing third argument leaks JWT claims across pooled connections.
 audit-rls-guards:
 	@echo "Checking set_config calls for transaction-local flag..."
-	@BAD=$$(grep -rn "set_config(" $(REPO_ROOT)/workers --include="*.js" | grep -v "set_config('request.jwt.claims'.*true)" || true); \
+	@BAD=$$(grep -rn "set_config(" "$(REPO_ROOT)/workers" --include="*.js" | grep -v "set_config('request.jwt.claims'.*true)" || true); \
 	if [ -n "$$BAD" ]; then \
 	  echo "ERROR: set_config without transaction-local=true (cross-tenant leak risk):"; \
 	  echo "$$BAD"; exit 1; \
