@@ -113,7 +113,7 @@ immi_case_downloader/
 
 frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v4)
   src/
-    pages/            → 25 pages including:
+    pages/            → 27 pages including:
                         DashboardPage, CasesPage, CaseDetailPage, CaseEditPage,
                         CaseAddPage, CaseComparePage, AnalyticsPage,
                         JudgeProfilesPage, JudgeDetailPage, JudgeComparePage,
@@ -121,7 +121,7 @@ frontend/             → React SPA (Vite 6 + React 18 + TypeScript + Tailwind v
                         CourtLineagePage, DownloadPage, PipelinePage,
                         CollectionsPage, CollectionDetailPage,
                         GuidedSearchPage, SemanticSearchPage, SavedSearchesPage,
-                        LlmCouncilPage, DataDictionaryPage,
+                        LlmCouncilPage, LlmCouncilSessionsPage, DataDictionaryPage,
                         TaxonomyPage, SearchTaxonomyPage,
                         DesignTokensPage, JobStatusPage
     components/       → Shared (Breadcrumb, CourtBadge, ConfirmModal, etc.) + layout
@@ -190,7 +190,7 @@ Request → Cloudflare Worker (proxy.js)
 │       ↳ handler returns null → falls through to Flask (e.g. tag filter active)
 │       ↳ handler throws → falls through to Flask (Hyperdrive error recovery)
 │
-└── Everything else → Flask Container (Durable Object "flask-v15" — bumped from v13. See `workers/proxy.js:2475` for current)
+└── Everything else → Flask Container (Durable Object "flask-v15" — bumped from v13. See `workers/proxy.js:2725` for current)
     ├── POST/PUT/DELETE /api/v1/*   (writes — need Python validation)
     ├── GET /api/v1/search          (semantic/LLM — needs OpenAI/Gemini SDK)
     ├── GET /api/v1/csrf-token      (session-based)
@@ -330,7 +330,7 @@ LLM-assisted extraction (`extract_structured_fields_llm.py`) requires `ANTHROPIC
 
 - `downloaded_cases/` is gitignored — all scraped data is local only
 - **149,016 case records** (2000-2026): 9 courts/tribunals: MRTA 52,970 | AATA 39,203 | FCA 14,987 | RRTA 13,765 | FCCA 11,157 | FMCA 10,395 | FedCFamC2G 4,109 | ARTA 2,260 | HCA 176
-- **Test suite** (source-counted via `grep "def test_"` / `it\|test\(`, not pytest collect — re-verify with `pytest --collect-only -q | tail -1`): ~1,740 tests — 1,032 Python unit (50 files) + 259 Playwright E2E (24 files) + 449 frontend unit (50 files, Vitest). `@pytest.mark.parametrize` expansion makes pytest collect count higher.
+- **Test suite** (source-counted via `grep "def test_"` / `it\|test\(`, not pytest collect — re-verify with `pytest --collect-only -q | tail -1`): ~1,747 tests — 1,039 Python unit (52 files) + 259 Playwright E2E (24 files) + 449 frontend unit (50 files, Vitest). `@pytest.mark.parametrize` expansion makes pytest collect count higher.
 - CSRF protection via flask-wtf; `/api/v1/csrf-token` endpoint for React SPA
 - Default host is `127.0.0.1`; use `--host 0.0.0.0` to expose externally
 

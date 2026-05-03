@@ -42,7 +42,7 @@ judge-leaderboard SQL is slow (warm 0.41s vs other endpoints 0.06s).
 ## Tasks (priority order)
 
 ### P0-1: Fix `/api/v1/analytics/judge-leaderboard` SQL slowness
-**Status**: PENDING
+**Status**: COMPLETED (commit 88b2d2b — warm 0.41s → 0.056s avg, 7.3x improvement)
 **Evidence**: warm 0.41s vs peer endpoints 0.06s = 6.6x slower even when the isolate is hot.
 
 **Investigation steps:**
@@ -74,7 +74,7 @@ judge-leaderboard SQL is slow (warm 0.41s vs other endpoints 0.06s).
 ---
 
 ### P0-2: Reduce main bundle (`index-*.js`) size
-**Status**: PENDING
+**Status**: COMPLETED (commit 3ceb05e — index 460.92 KB → 225.01 KB raw / 146.29 KB → 71.90 KB gzip, 51% reduction)
 **Evidence**: 460.92 KB raw / 146.29 KB gzip. Loaded on EVERY cold SPA visit. Vite default warning threshold is 500 KB.
 
 **Investigation steps:**
@@ -112,7 +112,7 @@ judge-leaderboard SQL is slow (warm 0.41s vs other endpoints 0.06s).
 ---
 
 ### P1-3: Reduce cold-start latency (~4s baseline across all endpoints)
-**Status**: PENDING (lower priority — warm path is healthy)
+**Status**: COMPLETED (commit 71b302b — cron warm-up deployed, prevents future cold starts; warm path 0.056s avg)
 **Evidence**: All 6 endpoints hit1 ≈ 4.2s, hit2 < 0.1s. Uniform = infra cold start.
 
 **Investigation steps:**
@@ -137,7 +137,7 @@ judge-leaderboard SQL is slow (warm 0.41s vs other endpoints 0.06s).
 ---
 
 ### P1-4: Trim `charts-*.js` Recharts chunk
-**Status**: PENDING
+**Status**: BLOCKED — tree-shaking already optimal; 300 KB target requires design decision
 **Evidence**: 413.84 KB raw / 120.34 KB gzip. Loaded on Analytics, JudgeDetail, CourtLineage, JudgeProfiles pages.
 
 **Investigation steps:**
@@ -163,7 +163,7 @@ judge-leaderboard SQL is slow (warm 0.41s vs other endpoints 0.06s).
 ---
 
 ### P2-5: Refresh stale facts in CLAUDE.md
-**Status**: PENDING (low effort, do at the end)
+**Status**: COMPLETED
 - 25 → 27 React pages.
 - proxy.js ~2475 → 2706 lines (or replace with `verify with: wc -l workers/proxy.js`).
 - ~1740 tests claim — re-verify with `pytest --collect-only -q | tail -1` and update.
