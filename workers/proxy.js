@@ -1331,6 +1331,9 @@ async function handleAnalyticsOutcomes(env) {
 
 /** GET /api/v1/analytics/judges — top judges/members by case count */
 async function handleAnalyticsJudges(url, env) {
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  const _cacheKey = new Request(url.toString());
+  if (_cache) { const cached = await _cache.match(_cacheKey); if (cached) return cached; }
   const limit = safeInt(url.searchParams.get("limit"), 20, 1, 100);
   const sql   = getSql(env);
 
@@ -1368,11 +1371,16 @@ async function handleAnalyticsJudges(url, env) {
       courts:       [...(courtsMap.get(key) ?? [])].sort(),
     }));
 
-  return jsonOk({ judges }, "public, max-age=600, stale-while-revalidate=120");
+  const _res = jsonOk({ judges }, "public, max-age=600, stale-while-revalidate=120");
+  if (_cache) await _cache.put(_cacheKey, _res.clone());
+  return _res;
 }
 
 /** GET /api/v1/analytics/legal-concepts — top legal concepts by frequency */
 async function handleAnalyticsLegalConcepts(url, env) {
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  const _cacheKey = new Request(url.toString());
+  if (_cache) { const cached = await _cache.match(_cacheKey); if (cached) return cached; }
   const limit = safeInt(url.searchParams.get("limit"), 20, 1, 100);
   const sql   = getSql(env);
 
@@ -1403,7 +1411,9 @@ async function handleAnalyticsLegalConcepts(url, env) {
     .slice(0, limit)
     .map(([name, count]) => ({ name, count }));
 
-  return jsonOk({ concepts }, "public, max-age=600, stale-while-revalidate=120");
+  const _res = jsonOk({ concepts }, "public, max-age=600, stale-while-revalidate=120");
+  if (_cache) await _cache.put(_cacheKey, _res.clone());
+  return _res;
 }
 
 /** GET /api/v1/analytics/nature-outcome — case nature × outcome cross-tabulation */
@@ -1835,6 +1845,9 @@ async function handleAnalyticsJudgeBio(url, env) {
 
 /** GET /api/v1/analytics/visa-families — win rates by visa family */
 async function handleAnalyticsVisaFamilies(env) {
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  const _cacheKey = new Request("https://cache.local/api/v1/analytics/visa-families");
+  if (_cache) { const cached = await _cache.match(_cacheKey); if (cached) return cached; }
   const sql  = getSql(env);
   const rows = await sql`SELECT visa_subclass, court_code, outcome, COUNT(*)::int AS cnt FROM immigration_cases WHERE visa_subclass IS NOT NULL AND visa_subclass <> '' GROUP BY 1,2,3`;
   const familyT={}, familyW={};
@@ -1847,11 +1860,16 @@ async function handleAnalyticsVisaFamilies(env) {
     totalCases+=r.cnt;
   }
   const families=Object.entries(familyT).sort((a,b)=>b[1]-a[1]).map(([name,total])=>({ family:name, total, win_count:familyW[name]||0, win_rate:roundRate(familyW[name]||0,total) }));
-  return jsonOk({ families, total_cases: totalCases }, "public, max-age=600, stale-while-revalidate=120");
+  const _res = jsonOk({ families, total_cases: totalCases }, "public, max-age=600, stale-while-revalidate=120");
+  if (_cache) await _cache.put(_cacheKey, _res.clone());
+  return _res;
 }
 
 /** GET /api/v1/analytics/success-rate — multi-factor success rate analysis */
 async function handleAnalyticsSuccessRate(url, env) {
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  const _cacheKey = new Request(url.toString());
+  if (_cache) { const cached = await _cache.match(_cacheKey); if (cached) return cached; }
   const sql = getSql(env);
   const p   = url.searchParams;
   const court      = (p.get("court")||"").trim();
@@ -1887,11 +1905,13 @@ async function handleAnalyticsSuccessRate(url, env) {
   const byConcept=Object.entries(conceptT).sort((a,b)=>b[1]-a[1]).slice(0,30).map(([concept,cnt])=>{ const wr=roundRate(conceptW[concept]||0,cnt); return {concept,total:cnt,win_rate:wr,lift:overallRate>0?Math.round((wr/overallRate)*100)/100:0}; });
   const trend=Object.keys(yearT).sort().map(y=>({year:parseInt(y),rate:roundRate(yearW[y]||0,yearT[y]),count:yearT[y]}));
 
-  return jsonOk({
+  const _res = jsonOk({
     query:{court:court||null,year_from:yearFrom||null,year_to:yearTo||null,visa_subclass:visaSub||null,case_nature:caseNature||null,legal_concepts:[],total_matching:total},
     success_rate:{overall:overallRate,court_type:courtType,win_outcomes:winOutcomes,win_count:wins,loss_count:Math.max(0,total-wins),confidence:total>100?"high":total>=20?"medium":"low"},
     by_concept:byConcept, top_combos:[], trend,
   }, "public, max-age=120, stale-while-revalidate=30");
+  if (_cache) await _cache.put(_cacheKey, _res.clone());
+  return _res;
 }
 
 /** GET /api/v1/analytics/concept-effectiveness — per-concept win-rate and lift */
@@ -2800,6 +2820,15 @@ export default {
 
       try {
         await handleGetFilterOptions(env);
+      } catch (_) { /* non-fatal */ }
+
+      try {
+        await handleAnalyticsVisaFamilies(env);
+      } catch (_) { /* non-fatal */ }
+
+      try {
+        const srUrl = new URL("https://immi.trackit.today/api/v1/analytics/success-rate");
+        await handleAnalyticsSuccessRate(srUrl, env);
       } catch (_) { /* non-fatal */ }
     })());
   },
