@@ -177,6 +177,8 @@ workers/
 - **Flask ingress guard** — Flask rejects requests without `X-Internal-Route: worker` header
 - **JWT TTL** — access token 5min, refresh cookie 7d. Max revocation lag: 5min for reads, instant for writes (DB re-check)
 - **Wrangler secrets** — `JWT_SECRET_CURRENT`, `JWT_SECRET_PREVIOUS`, `JWT_KID_CURRENT`, `JWT_KID_PREVIOUS`, `TELEGRAM_BOT_TOKEN`
+- **`AUTH_ENABLED=false`** — set this Worker env var to disable JWT injection entirely; auth routes fall through to Flask (404), all reads stay anonymous. Use for emergency rollback or staging without Telegram config.
+- **Structured auth logs** — every authenticated DB query emits `{"event":"db.authed_query","kid","tenant_id","user_id","query_ms","ok"}` via `console.log` in `getSqlAsUser.js`. Pipe to Cloudflare Logpush → Grafana or Datadog to monitor per-tenant query latency and failure rates.
 
 ### Worker Architecture (Production)
 

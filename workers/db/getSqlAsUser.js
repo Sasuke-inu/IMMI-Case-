@@ -38,14 +38,26 @@ export function getSqlAsUser(env, claims) {
      * @returns {Promise<T>}
      */
     async tx(fn) {
+      const t0 = Date.now();
+      let ok = false;
       try {
-        return await sql.begin(async (tx) => {
+        const result = await sql.begin(async (tx) => {
           // CRITICAL: true = transaction-local (SET LOCAL). MUST NOT be false.
           await tx`SELECT set_config('request.jwt.claims', ${claimsJson}, true)`;
           return await fn(tx);
         });
+        ok = true;
+        return result;
       } finally {
         await sql.end();
+        console.log(JSON.stringify({
+          event: "db.authed_query",
+          kid: claims.kid ?? null,
+          tenant_id: claims.tenant_id ?? null,
+          user_id: claims.sub ?? null,
+          query_ms: Date.now() - t0,
+          ok,
+        }));
       }
     },
 
