@@ -1,7 +1,7 @@
 # IMMI-Case Makefile — common development commands
 # Usage: make <target>
 
-.PHONY: help dev build test test-py test-fe test-e2e lint typecheck clean
+.PHONY: help dev build test test-py test-fe test-workers test-e2e lint typecheck audit-rls-guards clean
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 
@@ -59,13 +59,26 @@ build:
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 
-test: test-py test-fe
+test: test-py test-fe test-workers
 
 test-py:
 	python3 -m pytest tests/ --ignore=tests/e2e -q
 
 test-fe:
 	cd $(REPO_ROOT)/frontend && npx vitest run
+
+test-workers:
+	cd $(REPO_ROOT)/workers && npx vitest run
+
+# AC4 safety guard: reject any set_config call without transaction-local flag (true).
+# A literal `false` or missing third argument leaks JWT claims across pooled connections.
+audit-rls-guards:
+	@echo "Checking set_config calls for transaction-local flag..."
+	@BAD=$$(grep -rn "set_config(" $(REPO_ROOT)/workers --include="*.js" | grep -v "set_config('request.jwt.claims'.*true)" || true); \
+	if [ -n "$$BAD" ]; then \
+	  echo "ERROR: set_config without transaction-local=true (cross-tenant leak risk):"; \
+	  echo "$$BAD"; exit 1; \
+	else echo "OK: all set_config calls verified with transaction-local=true"; fi
 
 test-e2e:
 	python3 -m pytest tests/e2e/ -v --timeout=60

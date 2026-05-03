@@ -72,9 +72,9 @@ async function upsertTelegramUser(tgData, getSql, env) {
   const sql = getSql(env);
   try {
     return await sql.begin(async (tx) => {
-      // Upsert user
+      // Upsert user — last_login_at is the correct column (no updated_at on users table)
       const [user] = await tx`
-        INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, updated_at)
+        INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, last_login_at)
         VALUES (
           ${Number(tgData.id)},
           ${tgData.first_name ?? null},
@@ -84,40 +84,41 @@ async function upsertTelegramUser(tgData, getSql, env) {
           NOW()
         )
         ON CONFLICT (telegram_id) DO UPDATE SET
-          first_name  = EXCLUDED.first_name,
-          last_name   = EXCLUDED.last_name,
-          username    = EXCLUDED.username,
-          photo_url   = EXCLUDED.photo_url,
-          updated_at  = EXCLUDED.updated_at
-        RETURNING id, telegram_id, role
+          first_name    = EXCLUDED.first_name,
+          last_name     = EXCLUDED.last_name,
+          username      = EXCLUDED.username,
+          photo_url     = EXCLUDED.photo_url,
+          last_login_at = EXCLUDED.last_login_at
+        RETURNING id, telegram_id
       `;
 
-      // Fetch memberships
+      // Fetch memberships including role for JWT claim — joined_at is the correct column
       let memberships = await tx`
-        SELECT tm.tenant_id AS id, t.kind, t.name
+        SELECT tm.tenant_id AS id, t.kind, t.name, tm.role
         FROM tenant_members tm
         JOIN tenants t ON t.id = tm.tenant_id
         WHERE tm.user_id = ${user.id}
-        ORDER BY tm.created_at
+        ORDER BY tm.joined_at
       `;
 
-      // First login — create personal tenant
+      // First login — create personal tenant (tenants table: id, kind, name, created_at — no owner_user_id)
       if (memberships.length === 0) {
         const [newTenant] = await tx`
-          INSERT INTO tenants (owner_user_id, kind, name)
-          VALUES (${user.id}, 'individual', ${tgData.first_name ?? "My Workspace"})
+          INSERT INTO tenants (kind, name)
+          VALUES ('individual', ${tgData.first_name ?? "My Workspace"})
           RETURNING id, kind, name
         `;
         await tx`
           INSERT INTO tenant_members (user_id, tenant_id, role)
           VALUES (${user.id}, ${newTenant.id}, 'owner')
         `;
-        memberships = [newTenant];
+        memberships = [{ ...newTenant, role: "owner" }];
       }
 
-      const tenant  = memberships[0];
-      const tenants = memberships.map((r) => r.id);
-      return { user, tenant, tenants };
+      const tenant   = memberships[0];
+      const tenants  = memberships.map((r) => r.id);
+      const userRole = memberships[0].role ?? "member";
+      return { user: { ...user, role: userRole }, tenant, tenants };
     });
   } finally {
     await sql.end();
