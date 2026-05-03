@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function TenantSwitcher() {
@@ -12,6 +13,8 @@ export function TenantSwitcher() {
     setSwitching(true);
     try {
       await switchTenant(tenantId);
+    } catch {
+      toast.error("Failed to switch workspace. Please try again.");
     } finally {
       setSwitching(false);
     }
