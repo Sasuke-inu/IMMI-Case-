@@ -290,12 +290,14 @@ describe("makeAccessToken", () => {
     expect(exp).toBeLessThanOrEqual(before + 302);
   });
 
-  it("includes sub, tenant_id, tenants, role, tg_id in payload", async () => {
+  it("includes sub, tenant_id, tenant_kind, tenant_name, tenants, role, tg_id in payload", async () => {
     const token = await makeAccessToken(mockUser, mockTenant, mockTenants, mockEnv);
     const result = await verifyJwt(token, mockEnv);
     expect(result.valid).toBe(true);
     expect(result.payload.sub).toBe(mockUser.id);
     expect(result.payload.tenant_id).toBe(mockTenant.id);
+    expect(result.payload.tenant_kind).toBe(mockTenant.kind);
+    expect(result.payload.tenant_name).toBe(mockTenant.name);
     expect(result.payload.tenants).toEqual(mockTenants);
     expect(result.payload.role).toBe("owner");
     expect(result.payload.tg_id).toBe(mockUser.telegram_id);

@@ -27,6 +27,8 @@ export function getSqlAsUser(env, claims) {
   });
 
   const claimsJson = JSON.stringify(claims);
+  // Request-scoped correlation ID — Hyperdrive doesn't expose pool connection IDs
+  const connectionId = crypto.randomUUID();
 
   return {
     /**
@@ -55,6 +57,7 @@ export function getSqlAsUser(env, claims) {
           kid: claims.kid ?? null,
           tenant_id: claims.tenant_id ?? null,
           user_id: claims.sub ?? null,
+          connection_id: connectionId,
           query_ms: Date.now() - t0,
           ok,
         }));
