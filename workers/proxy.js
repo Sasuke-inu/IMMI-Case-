@@ -1916,6 +1916,9 @@ async function handleAnalyticsSuccessRate(url, env) {
 
 /** GET /api/v1/analytics/concept-effectiveness — per-concept win-rate and lift */
 async function handleAnalyticsConceptEffectiveness(url, env) {
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  const _cacheKey = new Request(url.toString());
+  if (_cache) { const cached = await _cache.match(_cacheKey); if (cached) return cached; }
   const sql   = getSql(env);
   const limit = safeInt(url.searchParams.get("limit"), 30, 1, 100);
   const [baseRows, conceptRows] = await Promise.all([
@@ -1943,11 +1946,16 @@ async function handleAnalyticsConceptEffectiveness(url, env) {
     const byCourt={}; for(const [code,d] of Object.entries(conceptByCourt[name]||{})) byCourt[code]={total:d.total,win_rate:roundRate(d.wins,d.total)};
     return {name,total:cnt,win_rate:wr,lift:baselineRate>0?Math.round((wr/baselineRate)*100)/100:0,by_court:byCourt};
   });
-  return jsonOk({ baseline_rate: baselineRate, concepts }, "public, max-age=600, stale-while-revalidate=120");
+  const _res = jsonOk({ baseline_rate: baselineRate, concepts }, "public, max-age=600, stale-while-revalidate=120");
+  if (_cache) await _cache.put(_cacheKey, _res.clone());
+  return _res;
 }
 
 /** GET /api/v1/analytics/concept-cooccurrence — concept pair co-occurrence matrix */
 async function handleAnalyticsConceptCooccurrence(url, env) {
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  const _cacheKey = new Request(url.toString());
+  if (_cache) { const cached = await _cache.match(_cacheKey); if (cached) return cached; }
   const sql      = getSql(env);
   const limit    = safeInt(url.searchParams.get("limit"),     15, 2, 30);
   const minCount = safeInt(url.searchParams.get("min_count"), 50, 1, 1000000);
@@ -1980,11 +1988,16 @@ async function handleAnalyticsConceptCooccurrence(url, env) {
     topPairs.push({a,b,count,win_rate:wr,lift:baselineRate>0?Math.round((wr/baselineRate)*100)/100:0});
   }
   topPairs.sort((x,y)=>y.count-x.count);
-  return jsonOk({ concepts:topConcepts, matrix, top_pairs:topPairs }, "public, max-age=600, stale-while-revalidate=120");
+  const _res = jsonOk({ concepts:topConcepts, matrix, top_pairs:topPairs }, "public, max-age=600, stale-while-revalidate=120");
+  if (_cache) await _cache.put(_cacheKey, _res.clone());
+  return _res;
 }
 
 /** GET /api/v1/analytics/concept-trends — concept usage time series + emerging/declining */
 async function handleAnalyticsConceptTrends(url, env) {
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  const _cacheKey = new Request(url.toString());
+  if (_cache) { const cached = await _cache.match(_cacheKey); if (cached) return cached; }
   const sql   = getSql(env);
   const limit = safeInt(url.searchParams.get("limit"), 10, 1, 30);
   const rows  = await sql`SELECT trim(c) AS concept_raw, ic.year, ic.court_code, ic.outcome, COUNT(*)::int AS cnt FROM immigration_cases ic, LATERAL unnest(string_to_array(regexp_replace(ic.legal_concepts,';',',','g'),',')) AS c WHERE ic.legal_concepts IS NOT NULL AND ic.legal_concepts <> '' AND trim(c) <> '' AND ic.year IS NOT NULL GROUP BY 1,2,3,4 ORDER BY cnt DESC LIMIT 10000`;
@@ -2016,7 +2029,9 @@ async function handleAnalyticsConceptTrends(url, env) {
     if(growthPct<-25) declining.push({name:concept,decline_pct:growthPct,recent_count:recent});
   }
   emerging.sort((a,b)=>b.growth_pct-a.growth_pct); declining.sort((a,b)=>a.decline_pct-b.decline_pct);
-  return jsonOk({ series, emerging, declining }, "public, max-age=600, stale-while-revalidate=120");
+  const _res = jsonOk({ series, emerging, declining }, "public, max-age=600, stale-while-revalidate=120");
+  if (_cache) await _cache.put(_cacheKey, _res.clone());
+  return _res;
 }
 
 /** GET /api/v1/analytics/judge-leaderboard — judges ranked by cases / approval rate */
