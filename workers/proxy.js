@@ -1685,6 +1685,9 @@ async function handleStatsTrends(url, env) {
 
 /** GET /api/v1/analytics/filter-options — analytics page context-aware filter options */
 async function handleAnalyticsFilterOptions(url, env) {
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  const _cacheKey = new Request(url.toString());
+  if (_cache) { const cached = await _cache.match(_cacheKey); if (cached) return cached; }
   const sql = getSql(env);
   const p   = url.searchParams;
   const court    = (p.get("court") || "").trim();
@@ -1699,12 +1702,14 @@ async function handleAnalyticsFilterOptions(url, env) {
   ]);
   const total = totals[0].total;
 
-  return jsonOk({
+  const _res = jsonOk({
     query: { court:court||null, year_from:yearFrom||null, year_to:yearTo||null, total_matching:total },
     case_natures:    natures.map(r => ({ value:r.case_nature, count:r.cnt })),
     visa_subclasses: subclasses.map(r => { const sc=cleanSubclass(r.visa_subclass); const entry=_VISA_REGISTRY.get(sc); return { value:r.visa_subclass, label:entry?`${sc} - ${entry[0]}`:`Subclass ${r.visa_subclass}`, family:entry?entry[1]:"Other", count:r.cnt }; }),
     outcome_types:   outcomes.map(r => ({ value:normaliseOutcome(r.outcome), count:r.cnt })).filter(r=>r.value),
   }, "public, max-age=120, stale-while-revalidate=30");
+  if (_cache) await _cache.put(_cacheKey, _res.clone());
+  return _res;
 }
 
 /** GET /api/v1/analytics/monthly-trends — monthly win-rate time series */
@@ -2098,6 +2103,9 @@ async function handleAnalyticsJudgeLeaderboard(url, env) {
 
 /** GET /api/v1/analytics/judge-profile — deep profile for a single judge */
 async function handleAnalyticsJudgeProfile(url, env) {
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  const _cacheKey = new Request(url.toString());
+  if (_cache) { const cached = await _cache.match(_cacheKey); if (cached) return cached; }
   const sql  = getSql(env);
   const name = (url.searchParams.get("name") || "").trim();
   if (!name) return jsonErr("name query parameter is required");
@@ -2116,11 +2124,16 @@ async function handleAnalyticsJudgeProfile(url, env) {
   const displayName=normaliseJudgeName(name)||name;
   const payload=buildJudgeProfile(displayName, caseRows, { courtBaselines, includeRecentCases:true });
   payload.judge.canonical_name=displayName;
-  return jsonOk(payload, "public, max-age=300, stale-while-revalidate=60");
+  const _res = jsonOk(payload, "public, max-age=300, stale-while-revalidate=60");
+  if (_cache) await _cache.put(_cacheKey, _res.clone());
+  return _res;
 }
 
 /** GET /api/v1/analytics/judge-compare — compare 2-4 judges side by side */
 async function handleAnalyticsJudgeCompare(url, env) {
+  const _cache = typeof caches !== 'undefined' ? caches.default : null;
+  const _cacheKey = new Request(url.toString());
+  if (_cache) { const cached = await _cache.match(_cacheKey); if (cached) return cached; }
   const sql      = getSql(env);
   const names    = (url.searchParams.get("names")||"").split(",").map(s=>s.trim()).filter(Boolean).slice(0,4);
   if (names.length < 2) return jsonErr("At least two judge names are required");
@@ -2133,7 +2146,9 @@ async function handleAnalyticsJudgeCompare(url, env) {
       p.judge.canonical_name=displayName; return p;
     });
   }));
-  return jsonOk({ judges: profiles }, "public, max-age=300, stale-while-revalidate=60");
+  const _res = jsonOk({ judges: profiles }, "public, max-age=300, stale-while-revalidate=60");
+  if (_cache) await _cache.put(_cacheKey, _res.clone());
+  return _res;
 }
 
 // ── Flask Container Durable Object ────────────────────────────────────────────
