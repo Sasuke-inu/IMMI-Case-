@@ -2,13 +2,13 @@ import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   ResponsiveContainer,
-  Tooltip,
   AreaChart,
   Area,
   XAxis,
   YAxis,
   CartesianGrid,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { OutcomeStackedBar } from "@/components/shared/OutcomeStackedBar";
 import { JudgeHero } from "@/components/judges/JudgeHero";
 import { CourtComparisonCard } from "@/components/judges/CourtComparisonCard";
@@ -180,7 +180,7 @@ export function JudgeDetailPage() {
                 <YAxis
                   tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
                 />
-                <Tooltip
+                <ChartTooltip
                   formatter={(value: number | string | undefined) => [
                     `${Number(value ?? 0).toFixed(1)}%`,
                     t("judges.approval_rate"),

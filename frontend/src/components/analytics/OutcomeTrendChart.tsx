@@ -6,11 +6,11 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   Legend,
   ReferenceLine,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { COURT_EVENTS } from "@/lib/court-events";
 
 interface OutcomeTrendChartProps {
@@ -78,7 +78,7 @@ function OutcomeTrendChartInner({ data }: OutcomeTrendChartProps) {
             axisLine={false}
             tickLine={false}
           />
-          <Tooltip
+          <ChartTooltip
             formatter={(value: number | undefined, name: string | undefined) => [
               `${Number(value ?? 0).toFixed(1)}%`,
               name ?? "",

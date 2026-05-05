@@ -6,9 +6,9 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Tooltip,
   Legend,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import type { ConceptEffectivenessData } from "@/types/case";
 
 interface ConceptCourtBreakdownProps {
@@ -56,7 +56,7 @@ function ConceptCourtBreakdownInner({ data }: ConceptCourtBreakdownProps) {
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip
+        <ChartTooltip
           formatter={(value: number | string | undefined) => [
             `${Number(value ?? 0).toFixed(1)}%`,
             t("analytics.win_rate"),

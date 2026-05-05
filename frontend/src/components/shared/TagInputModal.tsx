@@ -46,7 +46,7 @@ export function TagInputModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-[#111820]/65" onClick={onCancel} />
+      <div className="fixed inset-0 bg-[var(--color-overlay)]/65" onClick={onCancel} />
       <div className="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
         <div className="flex items-start gap-3">
           <div className="rounded-full bg-accent/10 p-2">

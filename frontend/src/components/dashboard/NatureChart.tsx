@@ -7,10 +7,10 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 
 /**
  * Generate a single-hue blue gradient color for a bar at position `index`
@@ -82,7 +82,7 @@ function NatureChartInner({ data }: NatureChartProps) {
               v.length > 18 ? v.slice(0, 16) + "…" : v
             }
           />
-          <Tooltip
+          <ChartTooltip
             cursor={{ fill: "var(--color-background-surface)", opacity: 0.5 }}
             contentStyle={{
               backgroundColor: "var(--color-background-card)",

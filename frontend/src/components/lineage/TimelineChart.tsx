@@ -9,11 +9,11 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   Cell,
   ReferenceLine,
 } from "recharts";
+import { ChartTooltip as SharedChartTooltip } from "@/components/shared/ChartTooltip";
 import type { LineageData } from "@/lib/lineage-data";
 import { getCourtColor } from "@/tokens/tokens";
 import {
@@ -207,7 +207,7 @@ function TimelineChartInner({
         tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
         tickFormatter={normalized ? (v: number) => `${v}%` : undefined}
       />
-      <Tooltip
+      <SharedChartTooltip
         content={(props) => (
           <ChartTooltip
             {...(props as unknown as Parameters<typeof ChartTooltip>[0])}

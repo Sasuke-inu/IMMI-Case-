@@ -4,10 +4,10 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Tooltip,
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 
 const OUTCOME_COLORS: Record<string, string> = {
   Affirmed: "#2d7d46",
@@ -74,7 +74,7 @@ function OutcomeByCourtChartInner({ data }: OutcomeByCourtChartProps) {
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip
+        <ChartTooltip
           formatter={(value: number | undefined, name: string | undefined) => [
             `${Number(value ?? 0).toFixed(1)}%`,
             name ?? "",

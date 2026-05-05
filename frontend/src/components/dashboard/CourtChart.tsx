@@ -6,10 +6,10 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { getCourtColor } from "@/tokens/tokens";
 
 interface CourtChartProps {
@@ -60,7 +60,7 @@ function CourtChartInner({ data }: CourtChartProps) {
             tickMargin={6}
           />
           <YAxis tick={{ fontSize: 12, fill: "var(--color-text-secondary)" }} />
-          <Tooltip
+          <ChartTooltip
             contentStyle={{
               backgroundColor: "var(--color-background-card)",
               border: "1px solid var(--color-border)",

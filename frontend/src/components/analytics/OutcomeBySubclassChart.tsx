@@ -5,10 +5,10 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Tooltip,
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 
 interface OutcomeBySubclassChartProps {
   data: Record<string, Record<string, number>>;
@@ -64,7 +64,7 @@ function OutcomeBySubclassChartInner({
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip
+        <ChartTooltip
           formatter={(value: number | undefined) => [
             `${Number(value ?? 0).toFixed(1)}%`,
             t("analytics.affirmed_rate"),

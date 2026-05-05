@@ -6,10 +6,10 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { ChartCard } from "./ChartCard";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { useVisaFamilies } from "@/hooks/use-analytics";
@@ -122,7 +122,7 @@ function VisaFamiliesSectionInner({ filters }: Props) {
                 tick={{ fill: "var(--color-text)", fontSize: 11 }}
                 width={95}
               />
-              <Tooltip
+              <ChartTooltip
                 contentStyle={{
                   backgroundColor: "var(--color-card)",
                   borderColor: "var(--color-border)",

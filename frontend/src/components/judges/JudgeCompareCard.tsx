@@ -4,7 +4,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Tooltip,
   CartesianGrid,
   LabelList,
   ReferenceLine,
@@ -15,6 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { cn } from "@/lib/utils";
 import { formatCourtTypeLabel } from "@/lib/display";
 import { OUTCOME_COLORS, approvalBadgeClass } from "./constants";
@@ -148,7 +148,7 @@ export function JudgeCompareCard({ judge }: JudgeCompareCardProps) {
                   />
                 ))}
               </Pie>
-              <Tooltip
+              <ChartTooltip
                 formatter={(
                   value: number | string | undefined,
                   name: string | number | undefined,
@@ -255,7 +255,7 @@ export function JudgeCompareCard({ judge }: JudgeCompareCardProps) {
                 width={68}
                 tick={{ fontSize: 10, fill: "var(--color-text-secondary)" }}
               />
-              <Tooltip
+              <ChartTooltip
                 cursor={false}
                 formatter={(value: number | string | undefined) => [
                   Number(value ?? 0).toLocaleString(),
@@ -332,7 +332,7 @@ export function JudgeCompareCard({ judge }: JudgeCompareCardProps) {
                 tick={{ fontSize: 9, fill: "var(--color-text-secondary)" }}
                 tickFormatter={(value) => `${Number(value ?? 0).toFixed(0)}%`}
               />
-              <Tooltip
+              <ChartTooltip
                 labelFormatter={(label, payload) => {
                   const row = payload?.[0]?.payload as
                     | { total?: number }

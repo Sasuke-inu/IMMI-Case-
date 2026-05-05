@@ -6,9 +6,9 @@ import {
   Cell,
   XAxis,
   YAxis,
-  Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { useTranslation } from "react-i18next";
 import type { ConceptEntry } from "@/types/case";
 
@@ -69,7 +69,7 @@ function LegalConceptsChartInner({ data }: LegalConceptsChartProps) {
             axisLine={false}
             tickLine={false}
           />
-          <Tooltip
+          <ChartTooltip
             formatter={(value: number | undefined) => [
               Number(value ?? 0).toLocaleString(),
               t("chart.cases"),

@@ -51,6 +51,9 @@ export const tokens = {
       "MRTA": "#922b5f",
       "FMCA": "#b84c00"
     },
+    "overlay": {
+      "DEFAULT": "#111820"
+    },
     "dark": {
       "primary": {
         "DEFAULT": "#d0d4da",
@@ -61,6 +64,9 @@ export const tokens = {
         "DEFAULT": "#c9942e",
         "light": "#e0b04a",
         "muted": "rgba(201, 148, 46, 0.12)"
+      },
+      "overlay": {
+        "DEFAULT": "#000000"
       },
       "background": {
         "DEFAULT": "#111820",

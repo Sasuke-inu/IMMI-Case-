@@ -6,10 +6,10 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import type { TrendEntry } from "@/types/case";
 import { getCourtColor } from "@/tokens/tokens";
 
@@ -71,7 +71,7 @@ function TrendChartInner({ data }: TrendChartProps) {
             tickFormatter={(v: number) => String(v)}
           />
           <YAxis tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
-          <Tooltip
+          <ChartTooltip
             content={({ active, payload, label }) => {
               if (!active || !payload) return null;
               const nonZero = payload.filter(

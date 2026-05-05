@@ -5,9 +5,9 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import type { CountryBreakdownEntry } from "@/types/case";
 
 interface CountryOriginChartProps {
@@ -51,7 +51,7 @@ export function CountryOriginChart({ data }: CountryOriginChartProps) {
             width={120}
             tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
           />
-          <Tooltip
+          <ChartTooltip
             formatter={(value: number | string | undefined) => [
               Number(value ?? 0).toLocaleString(),
               t("judges.cases"),

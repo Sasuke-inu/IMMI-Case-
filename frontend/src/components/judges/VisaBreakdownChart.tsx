@@ -5,8 +5,8 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Tooltip,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 
 interface VisaBreakdownChartProps {
   data: Array<{ subclass: string; total: number; win_rate: number }>;
@@ -48,7 +48,7 @@ export function VisaBreakdownChart({ data }: VisaBreakdownChartProps) {
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip
+        <ChartTooltip
           formatter={(value: number | string | undefined, key) => {
             const numeric = Number(value ?? 0);
             if (key === "winRate")

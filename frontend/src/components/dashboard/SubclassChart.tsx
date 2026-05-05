@@ -7,10 +7,10 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 
 // Friendly names for common subclasses
 const SUBCLASS_NAMES: Record<string, string> = {
@@ -112,7 +112,7 @@ function SubclassChartInner({ data }: SubclassChartProps) {
               v.length > 20 ? v.slice(0, 18) + "…" : v
             }
           />
-          <Tooltip
+          <ChartTooltip
             cursor={{ fill: "var(--color-background-surface)", opacity: 0.5 }}
             contentStyle={{
               backgroundColor: "var(--color-background-card)",

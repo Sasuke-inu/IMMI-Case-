@@ -5,10 +5,10 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Tooltip,
   CartesianGrid,
   Legend,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 
 interface MetricData {
   name: string;
@@ -98,7 +98,7 @@ export function DualMetricChart({
             />
           </>
         )}
-        <Tooltip
+        <ChartTooltip
           formatter={(value: number | undefined) => {
             if (typeof value === "number") {
               return `${(value * 100).toFixed(1)}%`;

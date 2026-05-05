@@ -1,5 +1,6 @@
 import { memo, useMemo, useRef, useState, useEffect } from "react";
-import { Sankey, Tooltip, Rectangle, Layer } from "recharts";
+import { Sankey, Rectangle, Layer } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { useTranslation } from "react-i18next";
 import type { FlowMatrixData } from "@/types/case";
 
@@ -199,7 +200,7 @@ function FlowSankeyChartInner({ data }: FlowSankeyChartProps) {
             link={{ stroke: "var(--color-primary)", opacity: 0.3 }}
             margin={{ top: 10, right: 120, bottom: 10, left: 10 }}
           >
-            <Tooltip
+            <ChartTooltip
               contentStyle={{
                 backgroundColor: "var(--color-background-card)",
                 border: "1px solid var(--color-border-light)",

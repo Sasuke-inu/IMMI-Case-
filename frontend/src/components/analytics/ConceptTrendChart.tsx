@@ -6,8 +6,8 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  Tooltip,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { useTranslation } from "react-i18next";
 import type { ConceptTrendData } from "@/types/case";
 
@@ -116,7 +116,7 @@ function ConceptTrendChartInner({ data }: ConceptTrendChartProps) {
               tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
               tickFormatter={(v: number) => `${v}%`}
             />
-            <Tooltip
+            <ChartTooltip
               formatter={(value: number | string | undefined) => [
                 `${Number(value ?? 0).toFixed(1)}%`,
                 t("analytics.win_rate"),

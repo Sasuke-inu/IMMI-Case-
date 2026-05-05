@@ -5,9 +5,9 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { JudgeEntry } from "@/types/case";
@@ -80,7 +80,7 @@ function TopJudgesChartInner({ data }: TopJudgesChartProps) {
             axisLine={false}
             tickLine={false}
           />
-          <Tooltip
+          <ChartTooltip
             formatter={(value: number | undefined) => [
               Number(value ?? 0).toLocaleString(),
               t("chart.cases"),

@@ -7,9 +7,9 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  Tooltip,
   Cell,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import type { ConceptEffectivenessData } from "@/types/case";
 
 interface ConceptEffectivenessChartProps {
@@ -63,7 +63,7 @@ function ConceptEffectivenessChartInner({
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip
+        <ChartTooltip
           formatter={(value: number | string | undefined, key) => {
             const numeric = Number(value ?? 0);
             if (key === "liftDelta")

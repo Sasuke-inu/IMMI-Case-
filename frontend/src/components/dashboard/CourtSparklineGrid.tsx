@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
-import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, ResponsiveContainer } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { useTranslation } from "react-i18next";
 import { getCourtColor } from "@/tokens/tokens";
 import type { TrendEntry } from "@/types/case";
@@ -75,7 +76,7 @@ function CourtSparklineGridInner({ data }: CourtSparklineGridProps) {
                   margin={{ top: 2, right: 2, bottom: 2, left: 2 }}
                 >
                   <XAxis dataKey="year" hide />
-                  <Tooltip
+                  <ChartTooltip
                     formatter={(v: number | string | undefined) => [
                       Number(v ?? 0).toLocaleString(),
                       t("chart.cases", { defaultValue: "cases" }),

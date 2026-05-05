@@ -6,10 +6,10 @@ import {
   Line,
   XAxis,
   YAxis,
-  Tooltip,
   CartesianGrid,
   ReferenceLine,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 
 interface MonthlyEntry {
   month: string;
@@ -72,7 +72,7 @@ function MonthlyTrendsChartInner({ data }: MonthlyTrendsChartProps) {
             domain={[0, 100]}
             tickFormatter={(v: number) => `${v}%`}
           />
-          <Tooltip
+          <ChartTooltip
             contentStyle={{
               backgroundColor: "var(--color-background-card)",
               border: "1px solid var(--color-border)",

@@ -6,9 +6,9 @@ import {
   Line,
   XAxis,
   YAxis,
-  Tooltip,
   CartesianGrid,
 } from "recharts";
+import { ChartTooltip } from "@/components/shared/ChartTooltip";
 import { Microscope } from "lucide-react";
 import { useFilterOptions } from "@/hooks/use-cases";
 import {
@@ -275,7 +275,7 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
                         fill: "var(--color-text-secondary)",
                       }}
                     />
-                    <Tooltip
+                    <ChartTooltip
                       formatter={(value: number | string | undefined) => [
                         `${Number(value ?? 0).toFixed(1)}%`,
                         t("analytics.success_rate"),

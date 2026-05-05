@@ -54,7 +54,7 @@ export function SuccessRateDeepModal({
   return (
     <div
       data-testid="deep-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#111820]/65"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)]/65"
       onClick={onClose}
     >
       <div
