@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bookmark, Edit2 } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
 import type { CaseFilters, SavedSearch } from "@/types/case";
 
 interface SaveSearchModalProps {
@@ -54,20 +55,6 @@ function SaveSearchModalContent({
   const [error, setError] = useState<string | null>(null);
 
   const isEditMode = !!editingSearch;
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => inputRef.current?.focus(), 100);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  // Handle escape key
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onCancel]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,87 +110,104 @@ function SaveSearchModalContent({
   const filterSummary = generateFilterSummary(filters, t);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
+    <Dialog.Root
+      open={true}
+      onOpenChange={(next) => {
+        if (!next) onCancel();
+      }}
     >
-      <div className="fixed inset-0 bg-[var(--color-overlay)]/65" onClick={onCancel} />
-      <div className="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-        <form onSubmit={handleSubmit}>
-          <div className="flex items-start gap-3">
-            <div className="rounded-full bg-accent/10 p-2">
-              {isEditMode ? (
-                <Edit2 className="h-5 w-5 text-accent" />
-              ) : (
-                <Bookmark className="h-5 w-5 text-accent" />
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--color-overlay)]/65" />
+        <Dialog.Content
+          className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-6 shadow-lg focus:outline-none"
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            inputRef.current?.focus();
+          }}
+        >
+          <form onSubmit={handleSubmit}>
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-accent/10 p-2">
+                {isEditMode ? (
+                  <Edit2 className="h-5 w-5 text-accent" />
+                ) : (
+                  <Bookmark className="h-5 w-5 text-accent" />
+                )}
+              </div>
+              <div className="flex-1">
+                <Dialog.Title className="text-lg font-semibold text-foreground">
+                  {isEditMode
+                    ? t("saved_searches.edit_title")
+                    : t("saved_searches.save_title")}
+                </Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm text-muted-text">
+                  {isEditMode
+                    ? t("saved_searches.edit_description")
+                    : t("saved_searches.save_description")}
+                </Dialog.Description>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label
+                htmlFor="search-name"
+                className="block text-sm font-medium text-foreground"
+              >
+                {t("saved_searches.search_name_label")}
+              </label>
+              <input
+                ref={inputRef}
+                id="search-name"
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setError(null);
+                }}
+                placeholder={t("saved_searches.search_name_placeholder")}
+                aria-describedby={error ? "save-search-name-error" : undefined}
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              {error && (
+                <p
+                  id="save-search-name-error"
+                  className="mt-1 text-sm text-danger"
+                >
+                  {error}
+                </p>
               )}
             </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-foreground">
+
+            {filterSummary && (
+              <div className="mt-4 rounded-md bg-surface p-3">
+                <p className="text-xs font-medium text-muted-text">
+                  {t("saved_searches.current_filters_label")}
+                </p>
+                <p className="mt-1 text-sm text-foreground">{filterSummary}</p>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-surface"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="submit"
+                className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
+              >
                 {isEditMode
-                  ? t("saved_searches.edit_title")
-                  : t("saved_searches.save_title")}
-              </h3>
-              <p className="mt-1 text-sm text-muted-text">
-                {isEditMode
-                  ? t("saved_searches.edit_description")
-                  : t("saved_searches.save_description")}
-              </p>
+                  ? t("common.update")
+                  : t("saved_searches.save_button")}
+              </button>
             </div>
-          </div>
-
-          <div className="mt-4">
-            <label
-              htmlFor="search-name"
-              className="block text-sm font-medium text-foreground"
-            >
-              {t("saved_searches.search_name_label")}
-            </label>
-            <input
-              ref={inputRef}
-              id="search-name"
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setError(null);
-              }}
-              placeholder={t("saved_searches.search_name_placeholder")}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            />
-            {error && <p className="mt-1 text-sm text-danger">{error}</p>}
-          </div>
-
-          {filterSummary && (
-            <div className="mt-4 rounded-md bg-surface p-3">
-              <p className="text-xs font-medium text-muted-text">
-                {t("saved_searches.current_filters_label")}
-              </p>
-              <p className="mt-1 text-sm text-foreground">{filterSummary}</p>
-            </div>
-          )}
-
-          <div className="mt-6 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-surface"
-            >
-              {t("common.cancel")}
-            </button>
-            <button
-              type="submit"
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
-            >
-              {isEditMode
-                ? t("common.update")
-                : t("saved_searches.save_button")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          </form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

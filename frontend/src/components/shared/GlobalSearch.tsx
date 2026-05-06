@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import * as Dialog from "@radix-ui/react-dialog";
 import { Search, X } from "lucide-react";
 import { useSearchCases } from "@/hooks/use-cases";
 import { cn } from "@/lib/utils";
@@ -26,16 +27,9 @@ function GlobalSearchDialog({ onClose }: GlobalSearchDialogProps) {
     inputRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    function handler(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
-
   const cases = data?.cases ?? [];
   const hasResults = cases.length > 0;
+  const isExpanded = hasResults && query.length > 0;
 
   const clampedActiveIdx = useMemo(() => {
     if (!hasResults) return 0;
@@ -44,11 +38,11 @@ function GlobalSearchDialog({ onClose }: GlobalSearchDialogProps) {
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 bg-[var(--color-overlay)]/65 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="fixed inset-x-0 top-[15vh] z-50 mx-auto w-full max-w-lg px-4">
+      <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--color-overlay)]/65 backdrop-blur-sm" />
+      <Dialog.Content className="fixed inset-x-0 top-[15vh] z-50 mx-auto w-full max-w-lg px-4">
+        <Dialog.Title className="sr-only">
+          {t("common.search_cases", { defaultValue: "Search cases" })}
+        </Dialog.Title>
         <div className="overflow-hidden rounded-lg border border-border bg-card shadow-lg">
           {/* Search input */}
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
@@ -57,6 +51,11 @@ function GlobalSearchDialog({ onClose }: GlobalSearchDialogProps) {
               ref={inputRef}
               data-global-search
               type="text"
+              role="combobox"
+              aria-expanded={isExpanded}
+              aria-haspopup="listbox"
+              aria-controls="global-search-listbox"
+              aria-autocomplete="list"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -95,10 +94,16 @@ function GlobalSearchDialog({ onClose }: GlobalSearchDialogProps) {
 
           {/* Results */}
           {cases.length > 0 && (
-            <ul className="max-h-80 overflow-y-auto p-2">
+            <ul
+              role="listbox"
+              id="global-search-listbox"
+              className="max-h-80 overflow-y-auto p-2"
+            >
               {cases.map((c, idx) => (
                 <li key={c.case_id}>
                   <button
+                    role="option"
+                    aria-selected={idx === clampedActiveIdx}
                     onClick={() => {
                       navigate(`/cases/${c.case_id}`);
                       onClose();
@@ -152,12 +157,22 @@ function GlobalSearchDialog({ onClose }: GlobalSearchDialogProps) {
             </span>
           </div>
         </div>
-      </div>
+      </Dialog.Content>
     </>
   );
 }
 
 export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
-  if (!open) return null;
-  return <GlobalSearchDialog onClose={onClose} />;
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
+      <Dialog.Portal>
+        <GlobalSearchDialog onClose={onClose} />
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
 }

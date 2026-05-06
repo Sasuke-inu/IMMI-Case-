@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import type { Collection, CollectionColor } from "@/types/bookmarks";
 
@@ -78,19 +79,6 @@ function CollectionEditorDialog({
     collection?.color,
   );
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => nameRef.current?.focus(), 50);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onCancel]);
-
   function handleTagKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -113,144 +101,166 @@ function CollectionEditorDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)]/70"
-      onClick={onCancel}
+    <Dialog.Root
+      open={true}
+      onOpenChange={(next) => {
+        if (!next) onCancel();
+      }}
     >
-      <div
-        className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-heading text-base font-semibold text-foreground">
-            {collection
-              ? t("common.edit", "Edit")
-              : t("bookmarks.new_collection", "New Collection")}
-          </h2>
-          <button
-            onClick={onCancel}
-            className="rounded-md p-1 text-muted-text hover:bg-surface hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {/* Name */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-text">
-              {t("bookmarks.collection_name", "Collection Name")} *
-            </label>
-            <input
-              ref={nameRef}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSave();
-              }}
-              placeholder={t("bookmarks.collection_name", "Collection Name")}
-              className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none"
-            />
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--color-overlay)]/70" />
+        <Dialog.Content
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            nameRef.current?.focus();
+          }}
+          className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 focus:outline-none"
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <Dialog.Title asChild>
+              <h2 className="font-heading text-base font-semibold text-foreground">
+                {collection
+                  ? t("common.edit", "Edit")
+                  : t("bookmarks.new_collection", "New Collection")}
+              </h2>
+            </Dialog.Title>
+            <button
+              onClick={onCancel}
+              className="rounded-md p-1 text-muted-text hover:bg-surface hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
-          {/* Description */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-text">
-              {t(
-                "bookmarks.collection_description",
-                "Description (optional)",
-              )}
-            </label>
-            <input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t(
-                "bookmarks.collection_description",
-                "Description (optional)",
-              )}
-              className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none"
-            />
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-text">
-              {t("bookmarks.collection_tags", "Tags")}
-            </label>
-            <div className="flex flex-wrap gap-1.5 rounded-md border border-border bg-surface px-3 py-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent"
-                >
-                  {tag}
-                  <button
-                    onClick={() => removeTag(tag)}
-                    className="ml-0.5 text-accent/60 hover:text-accent"
-                  >
-                    <X className="h-2.5 w-2.5" />
-                  </button>
-                </span>
-              ))}
+          <div className="space-y-4">
+            {/* Name */}
+            <div>
+              <label
+                htmlFor="coll-name"
+                className="mb-1 block text-xs font-medium text-muted-text"
+              >
+                {t("bookmarks.collection_name", "Collection Name")} *
+              </label>
               <input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder={t("bookmarks.add_tag", "Add tag")}
-                className="min-w-[80px] flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-text focus:outline-none"
+                id="coll-name"
+                ref={nameRef}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSave();
+                }}
+                placeholder={t("bookmarks.collection_name", "Collection Name")}
+                className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none"
               />
             </div>
-          </div>
 
-          {/* Color */}
-          <div>
-            <label className="mb-2 block text-xs font-medium text-muted-text">
-              {t("bookmarks.collection_color", "Colour")}
-            </label>
-            <div className="flex gap-2">
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={cn(
-                    "h-6 w-6 rounded-full transition-transform",
-                    COLOR_SWATCH[c],
-                    color === c
-                      ? "ring-2 ring-accent ring-offset-2 ring-offset-card scale-110"
-                      : "hover:scale-110",
-                  )}
-                  aria-label={c}
+            {/* Description */}
+            <div>
+              <label
+                htmlFor="coll-desc"
+                className="mb-1 block text-xs font-medium text-muted-text"
+              >
+                {t(
+                  "bookmarks.collection_description",
+                  "Description (optional)",
+                )}
+              </label>
+              <input
+                id="coll-desc"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={t(
+                  "bookmarks.collection_description",
+                  "Description (optional)",
+                )}
+                className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground placeholder:text-muted-text focus:border-accent focus:outline-none"
+              />
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label
+                htmlFor="coll-tags"
+                className="mb-1 block text-xs font-medium text-muted-text"
+              >
+                {t("bookmarks.collection_tags", "Tags")}
+              </label>
+              <div className="flex flex-wrap gap-1.5 rounded-md border border-border bg-surface px-3 py-2">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent"
+                  >
+                    {tag}
+                    <button
+                      onClick={() => removeTag(tag)}
+                      className="ml-0.5 text-accent/60 hover:text-accent"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  id="coll-tags"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder={t("bookmarks.add_tag", "Add tag")}
+                  className="min-w-[80px] flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-text focus:outline-none"
                 />
-              ))}
-              {color && (
-                <button
-                  onClick={() => setColor(undefined)}
-                  className="h-6 w-6 rounded-full border border-border bg-surface text-muted-text hover:scale-110 transition-transform flex items-center justify-center"
-                  aria-label={t("bookmarks.clear_color")}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
+              </div>
+            </div>
+
+            {/* Color */}
+            <div>
+              <label className="mb-2 block text-xs font-medium text-muted-text">
+                {t("bookmarks.collection_color", "Colour")}
+              </label>
+              <div className="flex gap-2">
+                {COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={cn(
+                      "h-6 w-6 rounded-full transition-transform",
+                      COLOR_SWATCH[c],
+                      color === c
+                        ? "ring-2 ring-accent ring-offset-2 ring-offset-card scale-110"
+                        : "hover:scale-110",
+                    )}
+                    aria-label={c}
+                  />
+                ))}
+                {color && (
+                  <button
+                    onClick={() => setColor(undefined)}
+                    className="h-6 w-6 rounded-full border border-border bg-surface text-muted-text hover:scale-110 transition-transform flex items-center justify-center"
+                    aria-label={t("bookmarks.clear_color")}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            onClick={onCancel}
-            className="rounded-md border border-border px-4 py-1.5 text-sm text-foreground hover:bg-surface"
-          >
-            {t("common.cancel", "Cancel")}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!name.trim()}
-            className="rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-white hover:bg-accent/90 disabled:opacity-50"
-          >
-            {t("common.save", "Save")}
-          </button>
-        </div>
-      </div>
-    </div>
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              onClick={onCancel}
+              className="rounded-md border border-border px-4 py-1.5 text-sm text-foreground hover:bg-surface"
+            >
+              {t("common.cancel", "Cancel")}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!name.trim()}
+              className="rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-white hover:bg-accent/90 disabled:opacity-50"
+            >
+              {t("common.save", "Save")}
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

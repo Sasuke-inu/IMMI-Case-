@@ -13,6 +13,7 @@ export function JudgeAutocomplete() {
   // State for search input with debounce
   const [inputValue, setInputValue] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   // Debounce timer ref
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -30,6 +31,10 @@ export function JudgeAutocomplete() {
   const { data, isLoading } = useJudgeAutocomplete(debouncedQuery, 20);
 
   const judgeResults = data?.judges ?? [];
+
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [debouncedQuery]);
 
   // Handle search input change with debounce
   const handleSearchChange = useCallback((value: string) => {
@@ -85,6 +90,32 @@ export function JudgeAutocomplete() {
           placeholder={t("taxonomy.judge_search_placeholder", {
             defaultValue: "e.g. Smith, Brown (min 2 chars)",
           })}
+          role="combobox"
+          aria-expanded={debouncedQuery.length >= 2 && judgeResults.length > 0}
+          aria-haspopup="listbox"
+          aria-controls="judge-autocomplete-listbox"
+          aria-autocomplete="list"
+          aria-activedescendant={
+            activeIndex >= 0 ? `judge-option-${activeIndex}` : undefined
+          }
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setActiveIndex((prev) =>
+                Math.min(prev + 1, judgeResults.length - 1),
+              );
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setActiveIndex((prev) => Math.max(prev - 1, -1));
+            } else if (e.key === "Enter" && activeIndex >= 0) {
+              e.preventDefault();
+              handleJudgeClick(judgeResults[activeIndex]);
+            } else if (e.key === "Escape") {
+              setInputValue("");
+              setDebouncedQuery("");
+              setActiveIndex(-1);
+            }
+          }}
           className={cn(
             "w-full rounded-md border border-border bg-card py-2 pl-9 pr-3 text-sm",
             "text-foreground placeholder:text-muted-text",
@@ -114,15 +145,24 @@ export function JudgeAutocomplete() {
               })}
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {judgeResults.map((judge) => (
+            <div
+              className="divide-y divide-border"
+              role="listbox"
+              id="judge-autocomplete-listbox"
+              aria-label="Judge results"
+            >
+              {judgeResults.map((judge, index) => (
                 <button
                   key={judge.canonical_name ?? judge.name}
                   type="button"
+                  role="option"
+                  id={`judge-option-${index}`}
+                  aria-selected={activeIndex === index}
                   onClick={() => handleJudgeClick(judge)}
                   className={cn(
                     "w-full px-4 py-3 text-left transition-colors",
                     "hover:bg-surface focus:bg-surface focus:outline-none",
+                    activeIndex === index && "bg-surface",
                   )}
                 >
                   <div className="flex items-center justify-between gap-3">
