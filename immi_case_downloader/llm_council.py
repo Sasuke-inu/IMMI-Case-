@@ -192,12 +192,14 @@ class CouncilConfig:
             gemini_pro_model=os.environ.get("LLM_COUNCIL_GEMINI_PRO_MODEL", "google-ai-studio/gemini-3.1-pro-preview").strip() or "google-ai-studio/gemini-3.1-pro-preview",
             anthropic_model=os.environ.get("LLM_COUNCIL_ANTHROPIC_MODEL", "anthropic/claude-sonnet-4-6").strip() or "anthropic/claude-sonnet-4-6",
             gemini_flash_model=os.environ.get("LLM_COUNCIL_GEMINI_FLASH_MODEL", "google-ai-studio/gemini-2.5-flash").strip() or "google-ai-studio/gemini-2.5-flash",
-            # 4096 budget verified via direct gateway probes:
+            # 6144 budget verified via direct gateway probes:
             #   - 2400 → gemini-2.5-pro completion=0 (reasoning eats all)
-            #   - 4096 → gemini-2.5-pro completion=1360 visible chars (truncated but usable)
-            #   - 8192 → gemini-2.5-pro completion=3102 visible chars (full natural stop)
-            # 4096 is the reliability/cost sweet spot for reasoning models.
-            max_output_tokens=_env_int("LLM_COUNCIL_MAX_OUTPUT_TOKENS", 4096, minimum=256, maximum=8192),
+            #   - 4096 → gpt-5-mini under heavy legal prompt: 0 visible chars
+            #     when reasoning_effort defaults to "medium" (silent token starve)
+            #   - 6144 + reasoning_effort=low → reliable visible output across
+            #     gpt-5-mini and gemini-2.5/3.x reasoning families
+            #   - 8192 → safe upper bound, kept as ceiling
+            max_output_tokens=_env_int("LLM_COUNCIL_MAX_OUTPUT_TOKENS", 6144, minimum=256, maximum=8192),
             # Moderator emits a 14-field JSON (rankings, critiques per expert,
             # vote_summary, agreement/conflict points, provider_law_sections,
             # mock_judgment, composed_answer, follow_up_questions). At 4096
@@ -588,6 +590,14 @@ def _gateway_chat_completion(
     if _is_gpt5_reasoning_model(model):
         payload["max_completion_tokens"] = budget
         payload["temperature"] = 1
+        # gpt-5 family supports reasoning_effort: minimal|low|medium|high.
+        # Default medium burns latency + tokens on heavy legal prompts; "low"
+        # cuts 50-80% latency while preserving research-quality output. Override
+        # via LLM_COUNCIL_GPT5_REASONING_EFFORT env var for deeper analysis runs.
+        payload["reasoning_effort"] = (
+            os.environ.get("LLM_COUNCIL_GPT5_REASONING_EFFORT", "low").strip().lower()
+            or "low"
+        )
     else:
         payload["max_tokens"] = budget
         payload["temperature"] = temperature
@@ -1449,14 +1459,17 @@ def validate_council_connectivity(*, live: bool = False) -> dict[str, Any]:
     # (~12-20s total vs ~100s if we used the full council prompts).
     probe_system = "You are a connectivity probe. Reply with the single word: OK"
     probe_question = "OK"
-    probe_kwargs = dict(
-        question=probe_question,
-        case_context="",
-        cfg=cfg,
-        system_prompt=probe_system,
-        raw_prompt=True,
-        max_tokens=256,
-    )
+    # dict[str, Any] prevents Pyright collapsing the value union into
+    # `str | CouncilConfig | bool | int`, which would block **unpack into a
+    # function whose parameters have heterogeneous types.
+    probe_kwargs: dict[str, Any] = {
+        "question": probe_question,
+        "case_context": "",
+        "cfg": cfg,
+        "system_prompt": probe_system,
+        "raw_prompt": True,
+        "max_tokens": 256,
+    }
     openai_probe = _run_gateway_expert(
         provider_key="openai",
         provider_label="OpenAI",

@@ -118,7 +118,15 @@ function removeToken(sessionId: string): void {
 // Core fetch helper (no CSRF — Worker uses HMAC token auth, not Flask CSRF)
 // ---------------------------------------------------------------------------
 
-const LLM_COUNCIL_TIMEOUT_MS = 180_000; // LLM calls can take up to 3 min
+// 5-minute frontend ceiling. Backend chain is:
+//   gpt-5-mini reasoning_effort=low: ~30-60s
+//   anthropic claude-sonnet-4-6: ~50-90s
+//   gemini-3.1-pro-preview: ~10-30s
+//   moderator gemini-2.5-flash: ~10-25s
+// Worst-case sequential: experts(parallel ~90s) + moderator(~25s) + network slack
+// → ~120-150s typical, up to ~240s under provider degradation. 300s gives
+// headroom without hanging the user indefinitely.
+const LLM_COUNCIL_TIMEOUT_MS = 300_000;
 
 interface FetchOptions {
   method?: string;

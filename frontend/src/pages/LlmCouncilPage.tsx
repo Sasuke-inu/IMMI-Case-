@@ -18,7 +18,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Loader2, Scale, Send, Sparkles } from "lucide-react";
+import { Bot, Loader2, Scale, Send, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { PageLoader } from "@/components/shared/PageLoader";
@@ -30,6 +30,85 @@ import {
 } from "@/hooks/use-llm-council-sessions";
 
 const MAX_TURNS = 15;
+
+// ---------------------------------------------------------------------------
+// CouncilRunningIndicator — Sprint 3 P3-4
+// Three provider avatars + a moderator avatar with staggered pulse animation,
+// conveying the panel composition instead of a single dead spinner.
+// ---------------------------------------------------------------------------
+
+const RUNNING_PROVIDERS = [
+  { key: "openai", label: "OpenAI" },
+  { key: "gemini", label: "Gemini" },
+  { key: "anthropic", label: "Claude" },
+] as const;
+
+function CouncilRunningIndicator() {
+  const { t } = useTranslation();
+  return (
+    <div
+      className="rounded-xl border border-border/80 bg-card p-4 shadow-sm"
+      data-testid="council-running-indicator"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="mb-3 flex items-center gap-2 text-sm text-muted-text">
+        <div className="animate-spin">
+          <Loader2 className="h-4 w-4 text-accent" />
+        </div>
+        <span>
+          {t("llm_council.running_hint", {
+            defaultValue:
+              "Council is running. Waiting for all expert opinions and composition.",
+          })}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {RUNNING_PROVIDERS.map((p, idx) => (
+          <div
+            key={p.key}
+            className="flex items-center gap-2 rounded-full border border-border bg-surface/50 px-3 py-1.5"
+            data-testid={`running-avatar-${p.key}`}
+          >
+            <div
+              className="rounded-full bg-accent/15 p-1 text-accent"
+              style={{
+                animation: "pulse 1.4s ease-in-out infinite",
+                animationDelay: `${idx * 0.2}s`,
+              }}
+            >
+              <Bot className="h-3.5 w-3.5" />
+            </div>
+            <span className="text-xs font-medium text-foreground">
+              {p.label}
+            </span>
+          </div>
+        ))}
+        <span className="text-xs text-muted-text">→</span>
+        <div
+          className="flex items-center gap-2 rounded-full border border-amber-300/50 bg-amber-50/30 px-3 py-1.5 dark:border-amber-700/50 dark:bg-amber-900/10"
+          data-testid="running-avatar-moderator"
+        >
+          <div
+            className="rounded-full bg-amber-400/20 p-1 text-amber-700 dark:text-amber-300"
+            style={{
+              animation: "pulse 1.4s ease-in-out infinite",
+              animationDelay: "0.6s",
+            }}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+          </div>
+          <span className="text-xs font-medium text-foreground">
+            {t("llm_council.running_moderator_label", {
+              defaultValue: "Moderator",
+            })}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // NewSessionForm — shown when no sessionId in URL
@@ -204,16 +283,10 @@ function ThreadView({ sessionId }: ThreadViewProps) {
         ))}
       </div>
 
-      {/* Pending indicator while addTurn is in flight */}
-      {addTurn.isPending ? (
-        <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-card p-4 text-sm text-muted-text shadow-sm">
-          <div className="animate-spin"><Loader2 className="h-4 w-4 text-accent" /></div>
-          {t("llm_council.running_hint", {
-            defaultValue:
-              "Council is running. Waiting for all expert opinions and composition.",
-          })}
-        </div>
-      ) : null}
+      {/* Pending indicator while addTurn is in flight — Sprint 3 P3-4
+          Three provider avatars with pulse animation conveying parallel
+          deliberation, not a single dead spinner. */}
+      {addTurn.isPending ? <CouncilRunningIndicator /> : null}
 
       {/* Follow-up input */}
       <section className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">

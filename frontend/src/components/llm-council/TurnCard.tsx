@@ -1,18 +1,31 @@
 /**
  * frontend/src/components/llm-council/TurnCard.tsx
  *
- * Renders a single council session turn:
+ * Renders a single council session turn (Sprint 3 UI rebuild):
  *   - User message header
- *   - 3 provider opinion cards
- *   - Moderator synthesis section
+ *   - Moderator synthesis (top — primary answer, like a legal memo's holding)
+ *     + Likelihood badge
+ *     + Composed answer
+ *     + Law sections cross-reference table (provider × statute matrix)
+ *     + Consensus / Disagreements
+ *     + Follow-up questions
+ *   - Expert opinions (collapsible accordion, default closed)
+ *     + Tab navigation between providers
+ *     + Per-tab answer + sources + status
+ *
+ * Mobile + desktop: experts collapsed by default (moderator is the holding).
  */
 
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Bot,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
+  Scale,
   Sparkles,
   User,
 } from "lucide-react";
@@ -24,7 +37,7 @@ import type {
 } from "@/lib/api-llm-council";
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Likelihood styling helpers
 // ---------------------------------------------------------------------------
 
 function likelihoodTone(label: string) {
@@ -46,110 +59,166 @@ function likelihoodBadge(label: string) {
   return "bg-surface text-muted-text";
 }
 
-// ---------------------------------------------------------------------------
-// OpinionCard
-// ---------------------------------------------------------------------------
-
-interface OpinionCardProps {
-  opinion: LlmCouncilOpinion;
+function sectionKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function OpinionCard({ opinion }: OpinionCardProps) {
+// ---------------------------------------------------------------------------
+// LawSectionsTable — provider × statute cross-reference (Sprint 3 P3-2)
+// ---------------------------------------------------------------------------
+
+interface LawSectionsTableProps {
+  providerLawSections: Record<string, string[]>;
+  sharedLawSections: string[];
+  providerLabels: Record<string, string>;
+  confidence: number;
+  confidenceReason: string;
+}
+
+function LawSectionsTable({
+  providerLawSections,
+  sharedLawSections,
+  providerLabels,
+  confidence,
+  confidenceReason,
+}: LawSectionsTableProps) {
   const { t } = useTranslation();
+
+  const providers = Object.keys(providerLawSections).sort();
+  if (providers.length === 0) return null;
+
+  const sectionMap = new Map<string, string>();
+  for (const provider of providers) {
+    for (const section of providerLawSections[provider] || []) {
+      const key = sectionKey(section);
+      if (key && !sectionMap.has(key)) {
+        sectionMap.set(key, section);
+      }
+    }
+  }
+  const allSections = Array.from(sectionMap.values());
+  if (allSections.length === 0) return null;
+
+  const sharedKeys = new Set(sharedLawSections.map(sectionKey));
+  const cited = (provider: string, key: string): boolean => {
+    const list = providerLawSections[provider] || [];
+    return list.some((s) => sectionKey(s) === key);
+  };
+
   return (
-    <article
-      className="rounded-xl border border-border/80 bg-card p-4 shadow-sm"
-      aria-label={opinion.provider_label}
+    <div
+      className="mt-4 rounded-md border border-border bg-surface/40"
+      data-testid="law-sections-table"
     >
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex items-center gap-2">
-          <Bot className="h-4 w-4 text-accent" />
-          <p className="font-semibold text-foreground">{opinion.provider_label}</p>
-          <span className="text-xs text-muted-text">{opinion.model}</span>
+          <Scale className="h-3.5 w-3.5 text-accent" />
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-text">
+            {t("llm_council.law_sections_table_title", {
+              defaultValue: "Statute Citations Cross-Reference",
+            })}
+          </p>
         </div>
-        <div className="flex items-center gap-1 text-xs">
-          {opinion.success ? (
-            <>
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="text-emerald-700 dark:text-emerald-400">
-                {t("llm_council.status_ok", {
-                  defaultValue: "OK ({{latency}} ms)",
-                  latency: opinion.latency_ms,
-                })}
-              </span>
-            </>
-          ) : (
-            <>
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-              <span className="text-amber-700 dark:text-amber-400">
-                {t("llm_council.status_failed", {
-                  defaultValue: "Failed ({{latency}} ms)",
-                  latency: opinion.latency_ms,
-                })}
-              </span>
-            </>
-          )}
-        </div>
+        {confidence > 0 ? (
+          <span
+            title={confidenceReason}
+            className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent"
+          >
+            {t("llm_council.citation_confidence", {
+              defaultValue: "Citation overlap",
+            })}
+            : {confidence}%
+          </span>
+        ) : null}
       </div>
 
-      {opinion.success ? (
-        <>
-          <p className="whitespace-pre-wrap text-sm text-foreground">
-            {opinion.answer}
-          </p>
-          {opinion.sources.length > 0 ? (
-            <div className="mt-3">
-              <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
-                {t("llm_council.sources_label", { defaultValue: "Sources" })}
-              </p>
-              <div className="space-y-1">
-                {opinion.sources.map((source) => (
-                  <a
-                    key={source}
-                    href={source}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 break-all text-xs text-accent hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3 shrink-0" />
-                    {source}
-                  </a>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </>
-      ) : (
-        <ApiErrorState
-          title={t("llm_council.expert_failed_title", {
-            defaultValue: "Model request failed",
-          })}
-          message={
-            opinion.error ||
-            t("llm_council.unknown_model_error", {
-              defaultValue: "Unknown model error",
-            })
-          }
-        />
-      )}
-    </article>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border bg-background/50 text-muted-text">
+              <th className="px-3 py-1.5 text-left font-semibold">
+                {t("llm_council.law_section_col", {
+                  defaultValue: "Statute / Regulation",
+                })}
+              </th>
+              {providers.map((p) => (
+                <th
+                  key={p}
+                  className="px-2 py-1.5 text-center font-semibold whitespace-nowrap"
+                >
+                  {providerLabels[p] || p}
+                </th>
+              ))}
+              <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap">
+                {t("llm_council.shared_col", { defaultValue: "All Agree" })}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {allSections.map((section) => {
+              const key = sectionKey(section);
+              const isShared = sharedKeys.has(key);
+              return (
+                <tr
+                  key={key}
+                  className={`border-b border-border/50 last:border-b-0 ${
+                    isShared ? "bg-emerald-50 dark:bg-emerald-900/10" : ""
+                  }`}
+                >
+                  <td className="px-3 py-1.5 font-medium text-foreground">
+                    {section}
+                  </td>
+                  {providers.map((p) => (
+                    <td key={p} className="px-2 py-1.5 text-center">
+                      {cited(p, key) ? (
+                        <CheckCircle2
+                          className="mx-auto h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+                          aria-label={`${providerLabels[p] || p} cited`}
+                        />
+                      ) : (
+                        <span aria-label="Not cited" className="text-muted-text">
+                          —
+                        </span>
+                      )}
+                    </td>
+                  ))}
+                  <td className="px-2 py-1.5 text-center">
+                    {isShared ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                        ✓
+                      </span>
+                    ) : (
+                      <span className="text-muted-text">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// ModeratorSection
+// ModeratorSection — moved to top, primary answer block
 // ---------------------------------------------------------------------------
 
 interface ModeratorSectionProps {
   moderator: LlmCouncilModerator;
+  providerLabels: Record<string, string>;
 }
 
-function ModeratorSection({ moderator }: ModeratorSectionProps) {
+function ModeratorSection({ moderator, providerLabels }: ModeratorSectionProps) {
   const { t } = useTranslation();
 
   if (!moderator.success) {
     return (
-      <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+      <div
+        className="rounded-xl border border-border/80 bg-card p-4 shadow-sm"
+        data-testid="moderator-section"
+      >
         <div className="mb-3 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-accent" />
           <h3 className="text-sm font-semibold text-foreground">
@@ -227,6 +296,29 @@ function ModeratorSection({ moderator }: ModeratorSectionProps) {
         </p>
       ) : null}
 
+      {moderator.disagreements ? (
+        <p className="mt-1 text-xs text-muted-text">
+          <span className="font-semibold">
+            {t("llm_council.disagreements_label", {
+              defaultValue: "Disagreements",
+            })}
+            :{" "}
+          </span>
+          {moderator.disagreements}
+        </p>
+      ) : null}
+
+      {moderator.provider_law_sections &&
+      Object.keys(moderator.provider_law_sections).length > 0 ? (
+        <LawSectionsTable
+          providerLawSections={moderator.provider_law_sections}
+          sharedLawSections={moderator.shared_law_sections || []}
+          providerLabels={providerLabels}
+          confidence={moderator.shared_law_sections_confidence_percent || 0}
+          confidenceReason={moderator.shared_law_sections_confidence_reason || ""}
+        />
+      ) : null}
+
       {moderator.follow_up_questions && moderator.follow_up_questions.length > 0 ? (
         <div className="mt-3">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-text">
@@ -246,6 +338,130 @@ function ModeratorSection({ moderator }: ModeratorSectionProps) {
 }
 
 // ---------------------------------------------------------------------------
+// ExpertTabs — tabbed expert opinions inside collapsible accordion
+// ---------------------------------------------------------------------------
+
+interface ExpertTabsProps {
+  opinions: LlmCouncilOpinion[];
+}
+
+function ExpertTabs({ opinions }: ExpertTabsProps) {
+  const { t } = useTranslation();
+  const [activeKey, setActiveKey] = useState<string>(
+    opinions[0]?.provider_key || "",
+  );
+
+  if (opinions.length === 0) return null;
+
+  const active = opinions.find((o) => o.provider_key === activeKey) || opinions[0];
+
+  return (
+    <div className="space-y-3" data-testid="expert-tabs">
+      <div
+        role="tablist"
+        className="-mb-px flex flex-wrap gap-1 border-b border-border"
+      >
+        {opinions.map((op) => {
+          const isActive = op.provider_key === active.provider_key;
+          return (
+            <button
+              key={op.provider_key}
+              role="tab"
+              aria-selected={isActive}
+              data-testid={`expert-tab-${op.provider_key}`}
+              onClick={() => setActiveKey(op.provider_key)}
+              className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-semibold transition-colors ${
+                isActive
+                  ? "border-accent text-accent"
+                  : "border-transparent text-muted-text hover:text-foreground"
+              }`}
+            >
+              {op.success ? (
+                <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+              )}
+              <span>{op.provider_label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <article
+        role="tabpanel"
+        className="rounded-md border border-border/80 bg-card p-3"
+        aria-label={active.provider_label}
+      >
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 text-muted-text">
+            <Bot className="h-3.5 w-3.5" />
+            <span className="font-mono">{active.model}</span>
+          </div>
+          <div>
+            {active.success ? (
+              <span className="text-emerald-700 dark:text-emerald-400">
+                {t("llm_council.status_ok", {
+                  defaultValue: "OK ({{latency}} ms)",
+                  latency: active.latency_ms,
+                })}
+              </span>
+            ) : (
+              <span className="text-amber-700 dark:text-amber-400">
+                {t("llm_council.status_failed", {
+                  defaultValue: "Failed ({{latency}} ms)",
+                  latency: active.latency_ms,
+                })}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {active.success ? (
+          <>
+            <p className="whitespace-pre-wrap text-sm text-foreground">
+              {active.answer}
+            </p>
+            {active.sources.length > 0 ? (
+              <div className="mt-3">
+                <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
+                  {t("llm_council.sources_label", { defaultValue: "Sources" })}
+                </p>
+                <div className="space-y-1">
+                  {active.sources.map((source) => (
+                    <a
+                      key={source}
+                      href={source}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 break-all text-xs text-accent hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3 shrink-0" />
+                      {source}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <ApiErrorState
+            title={t("llm_council.expert_failed_title", {
+              defaultValue: "Model request failed",
+            })}
+            message={
+              active.error ||
+              t("llm_council.unknown_model_error", {
+                defaultValue: "Unknown model error",
+              })
+            }
+          />
+        )}
+      </article>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // TurnCard (exported)
 // ---------------------------------------------------------------------------
 
@@ -256,6 +472,14 @@ export interface TurnCardProps {
 
 export function TurnCard({ turn, turnNumber }: TurnCardProps) {
   const { t } = useTranslation();
+  const [expertsExpanded, setExpertsExpanded] = useState(false);
+
+  const providerLabels: Record<string, string> = {};
+  for (const op of turn.opinions || []) {
+    providerLabels[op.provider_key] = op.provider_label;
+  }
+
+  const successCount = (turn.opinions || []).filter((o) => o.success).length;
 
   return (
     <div
@@ -280,22 +504,47 @@ export function TurnCard({ turn, turnNumber }: TurnCardProps) {
         </div>
       </div>
 
-      {/* Opinions */}
-      {turn.opinions.length > 0 ? (
-        <div className="space-y-2">
-          <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-text">
-            {t("llm_council.expert_title", {
-              defaultValue: "Expert Model Opinions",
-            })}
-          </p>
-          {turn.opinions.map((opinion) => (
-            <OpinionCard key={opinion.provider_key} opinion={opinion} />
-          ))}
+      {/* Moderator synthesis — TOP placement (primary holding) */}
+      <ModeratorSection
+        moderator={turn.moderator}
+        providerLabels={providerLabels}
+      />
+
+      {/* Expert opinions — collapsible accordion with tabs */}
+      {turn.opinions && turn.opinions.length > 0 ? (
+        <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+          <button
+            type="button"
+            onClick={() => setExpertsExpanded((v) => !v)}
+            aria-expanded={expertsExpanded}
+            data-testid="experts-toggle"
+            className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-surface/50"
+          >
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-accent" />
+              <span className="text-sm font-semibold text-foreground">
+                {t("llm_council.expert_title", {
+                  defaultValue: "Expert Model Opinions",
+                })}
+              </span>
+              <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-text">
+                {successCount}/{turn.opinions.length}{" "}
+                {t("llm_council.experts_ok_label", { defaultValue: "OK" })}
+              </span>
+            </div>
+            {expertsExpanded ? (
+              <ChevronUp className="h-4 w-4 text-muted-text" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-text" />
+            )}
+          </button>
+          {expertsExpanded ? (
+            <div className="border-t border-border px-4 pb-4 pt-3">
+              <ExpertTabs opinions={turn.opinions} />
+            </div>
+          ) : null}
         </div>
       ) : null}
-
-      {/* Moderator synthesis */}
-      <ModeratorSection moderator={turn.moderator} />
     </div>
   );
 }

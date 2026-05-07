@@ -30,8 +30,62 @@ const DEFAULT_GEMINI_PRO_MODEL = "google-ai-studio/gemini-3.1-pro-preview";
 const DEFAULT_ANTHROPIC_MODEL = "anthropic/claude-sonnet-4-6";
 const DEFAULT_GEMINI_FLASH_MODEL = "google-ai-studio/gemini-2.5-flash";
 
-const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
+// 6144 verified probe: gives gpt-5 reasoning models headroom for hidden
+// reasoning tokens before visible output. 4096 was probe-known to starve
+// reasoning models on heavy legal prompts (gpt-5-mini, gemini-2.5-pro).
+const DEFAULT_MAX_OUTPUT_TOKENS = 6144;
 const DEFAULT_MODERATOR_MAX_TOKENS = 8192;
+
+// Per-model timeout ceilings (Sprint 1 P1). Different providers have different
+// reasoning latency profiles; one-size-fits-all 120s either starves anthropic
+// or wastes 90s on a hung gemini call. Override via env.
+//   anthropic claude-sonnet-4-6 with thinking: 50-90s typical, 150s ceiling
+//   gpt-5-mini reasoning_effort=low: 30-60s typical, 90s ceiling
+//   gemini pro/flash: 10-30s typical, 60-90s ceiling
+const DEFAULT_PER_MODEL_TIMEOUT_MS = {
+  anthropic: 150_000,
+  openai: 90_000,
+  "google-ai-studio": 60_000,
+  moderator: 90_000,
+};
+
+function timeoutForModel(env, model, isModerator = false) {
+  if (isModerator) {
+    return parseInt(env.LLM_COUNCIL_MODERATOR_TIMEOUT_MS, 10) || DEFAULT_PER_MODEL_TIMEOUT_MS.moderator;
+  }
+  const m = (model || "").toLowerCase();
+  if (m.startsWith("anthropic/")) {
+    return parseInt(env.LLM_COUNCIL_ANTHROPIC_TIMEOUT_MS, 10) || DEFAULT_PER_MODEL_TIMEOUT_MS.anthropic;
+  }
+  if (m.startsWith("openai/")) {
+    return parseInt(env.LLM_COUNCIL_OPENAI_TIMEOUT_MS, 10) || DEFAULT_PER_MODEL_TIMEOUT_MS.openai;
+  }
+  if (m.startsWith("google-ai-studio/")) {
+    return parseInt(env.LLM_COUNCIL_GEMINI_TIMEOUT_MS, 10) || DEFAULT_PER_MODEL_TIMEOUT_MS["google-ai-studio"];
+  }
+  return 90_000;
+}
+
+// Structured log helper (Sprint 1 P1). Emits JSON lines suitable for
+// Cloudflare Logpush → Grafana/Datadog filtering. Schema:
+//   {ts, event, provider_key, model, latency_ms, ok, error_class?, attempt?}
+function logCouncilEvent(fields) {
+  try {
+    console.log(JSON.stringify({ ts: new Date().toISOString(), ...fields }));
+  } catch (_) {
+    // logging must never throw
+  }
+}
+
+function classifyError(err) {
+  const msg = String((err && err.message) || err || "").toLowerCase();
+  if (msg.includes("timeout") || msg.includes("aborted")) return "timeout";
+  if (msg.includes("http 4")) return "client_error";
+  if (msg.includes("http 5")) return "server_error";
+  if (msg.includes("did not include text output")) return "empty_output";
+  if (msg.includes("missing cf_aig_token")) return "auth_missing";
+  return "unknown";
+}
 
 // ---------------------------------------------------------------------------
 // System prompts (ported verbatim from llm_council.py DEFAULT_*_SYSTEM_PROMPT)
@@ -179,6 +233,8 @@ export async function gatewayChatCompletion({
   history = [],
   maxTokens = DEFAULT_MAX_OUTPUT_TOKENS,
   temperature = 0.2,
+  timeoutMs,
+  isModerator = false,
 }) {
   const gatewayUrl = env.CF_GATEWAY_URL || CF_GATEWAY_DEFAULT_URL;
   const token = env.CF_AIG_TOKEN || "";
@@ -196,27 +252,53 @@ export async function gatewayChatCompletion({
   if (isGpt5ReasoningModel(model)) {
     body.max_completion_tokens = maxTokens;
     body.temperature = 1;
+    // gpt-5 family supports reasoning_effort: minimal|low|medium|high.
+    // Default medium burns latency + tokens on heavy legal prompts; "low"
+    // cuts 50-80% latency while preserving research-quality output. Override
+    // via env.LLM_COUNCIL_GPT5_REASONING_EFFORT for deeper analysis runs.
+    body.reasoning_effort = (env.LLM_COUNCIL_GPT5_REASONING_EFFORT || "low").toLowerCase();
   } else {
     body.max_tokens = maxTokens;
     body.temperature = temperature;
   }
 
-  const res = await fetch(gatewayUrl, {
-    method: "POST",
-    headers: {
-      "cf-aig-authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  // AbortController + per-model timeout (Sprint 1 P1). Without this,
+  // Cloudflare Worker wall-time forcibly kills the entire invocation
+  // when one provider hangs, surfacing as a generic 524 to the user.
+  const effectiveTimeoutMs = timeoutMs || timeoutForModel(env, model, isModerator);
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutHandle = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, effectiveTimeoutMs);
 
-  if (!res.ok) {
-    let detail;
-    try { detail = await res.json(); } catch (_) { detail = await res.text().catch(() => ""); }
-    throw new Error(`HTTP ${res.status}: ${JSON.stringify(detail).slice(0, 800)}`);
+  try {
+    const res = await fetch(gatewayUrl, {
+      method: "POST",
+      headers: {
+        "cf-aig-authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      let detail;
+      try { detail = await res.json(); } catch (_) { detail = await res.text().catch(() => ""); }
+      throw new Error(`HTTP ${res.status}: ${JSON.stringify(detail).slice(0, 800)}`);
+    }
+
+    return await res.json();
+  } catch (err) {
+    if (timedOut) {
+      throw new Error(`Request timeout after ${effectiveTimeoutMs / 1000}s`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutHandle);
   }
-
-  return res.json();
 }
 
 // ---------------------------------------------------------------------------
@@ -253,11 +335,20 @@ export async function runExpert({
   history = [],
   maxTokens = DEFAULT_MAX_OUTPUT_TOKENS,
   rawPrompt = false,
+  isModerator = false,
 }) {
   const model = normalizeGatewayModel(modelRaw, defaultPrefix);
   const start = Date.now();
 
   if (!env.CF_AIG_TOKEN) {
+    logCouncilEvent({
+      event: "council.expert",
+      provider_key: providerKey,
+      model,
+      ok: false,
+      error_class: "auth_missing",
+      latency_ms: 0,
+    });
     return {
       provider_key: providerKey,
       provider_label: providerLabel,
@@ -272,61 +363,147 @@ export async function runExpert({
 
   const userPrompt = rawPrompt ? question.trim() : buildUserPrompt(question, caseContext);
 
-  try {
-    const data = await gatewayChatCompletion({
-      env,
-      model,
-      systemPrompt,
-      userPrompt,
-      history,
-      maxTokens,
-    });
-    const raw = extractChatCompletionText(data);
-    const answer = stripReasoningArtifacts(raw);
-    const elapsed = Date.now() - start;
+  // Single retry on transient failure (Sprint 1 P1). Backoff 1s before
+  // attempt 2. Retries on: HTTP 5xx, network/timeout, empty response from
+  // reasoning model. Does NOT retry: HTTP 4xx (caller error), auth missing.
+  const MAX_ATTEMPTS = 2;
+  let lastErr = null;
 
-    if (!answer) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const data = await gatewayChatCompletion({
+        env,
+        model,
+        systemPrompt,
+        userPrompt,
+        history,
+        maxTokens,
+        isModerator,
+      });
+      const raw = extractChatCompletionText(data);
+      const answer = stripReasoningArtifacts(raw);
+      const elapsed = Date.now() - start;
+
+      if (!answer) {
+        // Empty output from reasoning model — retry once before giving up
+        if (attempt < MAX_ATTEMPTS) {
+          lastErr = new Error(`${providerLabel} response did not include text output`);
+          logCouncilEvent({
+            event: "council.expert.retry",
+            provider_key: providerKey,
+            model,
+            attempt,
+            error_class: "empty_output",
+            latency_ms: elapsed,
+          });
+          await sleep(1000 * attempt);
+          continue;
+        }
+        logCouncilEvent({
+          event: "council.expert",
+          provider_key: providerKey,
+          model,
+          ok: false,
+          error_class: "empty_output",
+          attempt,
+          latency_ms: elapsed,
+        });
+        return {
+          provider_key: providerKey,
+          provider_label: providerLabel,
+          model,
+          success: false,
+          answer: "",
+          error: `${providerLabel} response did not include text output`,
+          sources: [],
+          latency_ms: elapsed,
+        };
+      }
+
+      const sources = [];
+      const urlRe = /https?:\/\/[^\s)>"]+/g;
+      let m;
+      while ((m = urlRe.exec(answer)) !== null) {
+        if (!sources.includes(m[0])) sources.push(m[0]);
+      }
+
+      logCouncilEvent({
+        event: "council.expert",
+        provider_key: providerKey,
+        model,
+        ok: true,
+        attempt,
+        latency_ms: elapsed,
+      });
+      return {
+        provider_key: providerKey,
+        provider_label: providerLabel,
+        model,
+        success: true,
+        answer,
+        error: "",
+        sources,
+        latency_ms: elapsed,
+      };
+    } catch (err) {
+      lastErr = err;
+      const errClass = classifyError(err);
+      // Don't retry on client errors (4xx) — they won't get better
+      const isRetryable =
+        attempt < MAX_ATTEMPTS &&
+        errClass !== "client_error" &&
+        errClass !== "auth_missing";
+      if (isRetryable) {
+        logCouncilEvent({
+          event: "council.expert.retry",
+          provider_key: providerKey,
+          model,
+          attempt,
+          error_class: errClass,
+          latency_ms: Date.now() - start,
+        });
+        await sleep(1000 * attempt);
+        continue;
+      }
+      const elapsed = Date.now() - start;
+      logCouncilEvent({
+        event: "council.expert",
+        provider_key: providerKey,
+        model,
+        ok: false,
+        error_class: errClass,
+        attempt,
+        latency_ms: elapsed,
+      });
       return {
         provider_key: providerKey,
         provider_label: providerLabel,
         model,
         success: false,
         answer: "",
-        error: `${providerLabel} response did not include text output`,
+        error: `${providerLabel} request failed: ${String(err).slice(0, 700)}`,
         sources: [],
         latency_ms: elapsed,
       };
     }
-
-    const sources = [];
-    const urlRe = /https?:\/\/[^\s)>"]+/g;
-    let m;
-    while ((m = urlRe.exec(answer)) !== null) {
-      if (!sources.includes(m[0])) sources.push(m[0]);
-    }
-
-    return {
-      provider_key: providerKey,
-      provider_label: providerLabel,
-      model,
-      success: true,
-      answer,
-      error: "",
-      sources,
-      latency_ms: elapsed,
-    };
-  } catch (err) {
-    return {
-      provider_key: providerKey,
-      provider_label: providerLabel,
-      model,
-      success: false,
-      answer: "",
-      error: `${providerLabel} request failed: ${String(err).slice(0, 700)}`,
-      sources: [],
-      latency_ms: Date.now() - start,
-    };
   }
+
+  // Unreachable in practice (loop always returns), but guards against
+  // partial-fall-through if MAX_ATTEMPTS is misconfigured.
+  return {
+    provider_key: providerKey,
+    provider_label: providerLabel,
+    model,
+    success: false,
+    answer: "",
+    error: `${providerLabel} request failed after ${MAX_ATTEMPTS} attempts: ${String(lastErr || "unknown").slice(0, 700)}`,
+    sources: [],
+    latency_ms: Date.now() - start,
+  };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ---------------------------------------------------------------------------
@@ -798,8 +975,12 @@ export async function runCouncil({
   // D2: build history from prevTurns if explicit history not provided
   const historyMessages = history !== undefined ? history : buildHistoryMessages(prevTurns || []);
 
-  // 3 experts in parallel
-  const [openaiOpinion, geminiProOpinion, anthropicOpinion] = await Promise.all([
+  // 3 experts in parallel. Promise.allSettled (Sprint 1 P1) lets the
+  // moderator run even if 1 of 3 experts crashes hard (e.g. provider 5xx
+  // exhausts retries). runExpert never throws on its own — it returns a
+  // CouncilOpinion with success=false — so allSettled's `rejected` branch
+  // is a defensive guard against unexpected throws bubbling up.
+  const expertResults = await Promise.allSettled([
     runExpert({
       env,
       providerKey: "openai",
@@ -835,9 +1016,49 @@ export async function runCouncil({
     }),
   ]);
 
-  const opinions = [openaiOpinion, geminiProOpinion, anthropicOpinion];
+  const providerMeta = [
+    { key: "openai", label: "OpenAI", model: openaiModel },
+    { key: "gemini_pro", label: "Google Gemini Pro", model: geminiProModel },
+    { key: "anthropic", label: "Anthropic", model: anthropicModel },
+  ];
 
-  // moderator sequentially after all experts complete
+  const opinions = expertResults.map((result, idx) => {
+    if (result.status === "fulfilled") return result.value;
+    // Defensive synthetic CouncilOpinion for an expert that threw rather
+    // than returning a failure result. Should be rare — runExpert catches
+    // its own errors — but allSettled keeps the moderator from being held
+    // hostage if e.g. a runtime crashes mid-fetch.
+    const meta = providerMeta[idx];
+    logCouncilEvent({
+      event: "council.expert",
+      provider_key: meta.key,
+      model: meta.model,
+      ok: false,
+      error_class: "throw",
+      latency_ms: 0,
+    });
+    return {
+      provider_key: meta.key,
+      provider_label: meta.label,
+      model: meta.model,
+      success: false,
+      answer: "",
+      error: `${meta.label} threw: ${String(result.reason || "unknown").slice(0, 700)}`,
+      sources: [],
+      latency_ms: 0,
+    };
+  });
+
+  const successCount = opinions.filter((o) => o.success && (o.answer || "").trim()).length;
+  logCouncilEvent({
+    event: "council.experts.summary",
+    success_count: successCount,
+    total: opinions.length,
+  });
+
+  // Graceful degradation: as long as ≥1 expert succeeded the moderator can
+  // still synthesize — if all failed, fallbackModerator returns a structured
+  // failure shape rather than blowing up.
   const moderator = await runModerator({
     env,
     opinions,

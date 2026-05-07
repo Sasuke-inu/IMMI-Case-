@@ -509,11 +509,15 @@ describe("runCouncil — history feed-through to moderator", () => {
 describe("runCouncil — error handling when 1 expert fails", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("returns 2 successful + 1 failed opinion when OpenAI returns HTTP 500", async () => {
+  it("returns 2 successful + 1 failed opinion when OpenAI exhausts retries on HTTP 500", async () => {
+    // Sprint 1 P1: runExpert retries server_error once. So OpenAI failing
+    // requires 2× HTTP 500 to exhaust the retry budget. Gemini + Anthropic
+    // succeed first try; moderator succeeds first try.
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(makeResponse({ error: "Server error" }, 500))
+      .mockResolvedValueOnce(makeResponse({ error: "Server error" }, 500)) // openai attempt 1
       .mockResolvedValueOnce(chatResponse("Gemini answer on jurisdiction"))
       .mockResolvedValueOnce(chatResponse("Anthropic answer on jurisdiction"))
+      .mockResolvedValueOnce(makeResponse({ error: "Server error" }, 500)) // openai retry attempt 2
       .mockResolvedValueOnce(chatResponse(moderatorJson));
 
     const result = await runCouncil({
@@ -536,8 +540,27 @@ describe("runCouncil — error handling when 1 expert fails", () => {
     expect(anthropicOp.success).toBe(true);
     expect(anthropicOp.answer).toBe("Anthropic answer on jurisdiction");
 
-    // moderator still ran and returned ranking
+    // moderator still ran and returned ranking — graceful degradation works.
     expect(result.moderator).toHaveProperty("ranking");
+  });
+
+  it("recovers from transient HTTP 500 via retry (Sprint 1 P1 new behavior)", async () => {
+    // Documents the retry-recovery path: first attempt 500, retry succeeds.
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(makeResponse({ error: "transient" }, 500)) // openai attempt 1
+      .mockResolvedValueOnce(chatResponse("Gemini answer"))
+      .mockResolvedValueOnce(chatResponse("Anthropic answer"))
+      .mockResolvedValueOnce(chatResponse("OpenAI answer (recovered)")) // openai attempt 2
+      .mockResolvedValueOnce(chatResponse(moderatorJson));
+
+    const result = await runCouncil({
+      env: mockEnv,
+      question: "Retry recovery test",
+    });
+
+    const openaiOp = result.opinions.find((o) => o.provider_key === "openai");
+    expect(openaiOp.success).toBe(true);
+    expect(openaiOp.answer).toBe("OpenAI answer (recovered)");
   });
 
   it("moderator uses fallback path when all 3 experts fail", async () => {

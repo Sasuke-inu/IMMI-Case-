@@ -193,10 +193,15 @@ describe("TurnCard", () => {
     expect(screen.getByTestId("turn-card")).toBeInTheDocument();
   });
 
-  it("renders the opinion provider label", () => {
+  it("renders the opinion provider label after expanding experts accordion", async () => {
+    // Sprint 3 UI rebuild: experts are collapsed by default to keep the
+    // moderator (the legal "holding") as the primary view. Provider labels
+    // appear inside tabs once the accordion is opened.
     const turn = makeTurn(1);
     renderTurnCard(turn, 1);
-    expect(screen.getByText("OpenAI")).toBeInTheDocument();
+    const toggle = screen.getByTestId("experts-toggle");
+    toggle.click();
+    expect(await screen.findByText("OpenAI")).toBeInTheDocument();
   });
 
   it("renders the moderator section (data-testid='moderator-section')", () => {
