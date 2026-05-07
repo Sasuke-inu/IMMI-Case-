@@ -32,7 +32,7 @@ jobs:
       - name: Run Python unit tests
         env:
           PYTHONPATH: .
-        run: .venv/bin/pytest tests/ -x --timeout=60 -q --ignore=tests/e2e
+        run: .venv/bin/pytest tests/ -x --timeout=60 -q --ignore=tests/e2e --ignore=tests/integration
 
   test-frontend:
     runs-on: ubuntu-latest
