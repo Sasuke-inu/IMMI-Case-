@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1777304358567,
-  "projectRoot": "/Users/d/Developer/IMMI-Case-",
+  "lastScanned": 1778093100279,
+  "projectRoot": "/Users/d/Developer/Active Projects/IMMI-Case-",
   "techStack": {
     "languages": [
       {
@@ -29,16 +29,24 @@
         ]
       }
     ],
-    "frameworks": [],
+    "frameworks": [
+      {
+        "name": "vitest",
+        "version": "2.0.0",
+        "category": "testing"
+      }
+    ],
     "packageManager": "npm",
     "runtime": null
   },
   "build": {
-    "buildCommand": "make build 2>&1 | tail -30",
-    "testCommand": "python3 -m pytest tests/test_api_export.py tests/test_court_lineage_api.py --no-cov -q 2>&1 | tail -10",
+    "buildCommand": "make build",
+    "testCommand": "cd \"/Users/d/Developer/Active Projects/IMMI-Case-/\" && /Library/Frameworks/Python.framework/Versions/3.14/bin/python3 -m pytest tests/test_llm_council_module.py -x -q --no-header 2>&1 | tail -5",
     "lintCommand": null,
     "devCommand": null,
-    "scripts": {}
+    "scripts": {
+      "test:workers": "vitest run --config workers/vitest.config.js"
+    }
   },
   "conventions": {
     "namingStyle": null,
@@ -64,9 +72,10 @@
     "__pycache__": {
       "path": "__pycache__",
       "purpose": null,
-      "fileCount": 3,
-      "lastAccessed": 1777304358425,
+      "fileCount": 4,
+      "lastAccessed": 1778093100207,
       "keyFiles": [
+        "postprocess.cpython-314.pyc",
         "reformat_case_text.cpython-314.pyc",
         "sync_judge_bios_supabase.cpython-314.pyc",
         "web.cpython-314.pyc"
@@ -76,14 +85,14 @@
       "path": "audit",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1777304358426,
+      "lastAccessed": 1778093100207,
       "keyFiles": []
     },
     "data_quality_reports": {
       "path": "data_quality_reports",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1777304358480,
+      "lastAccessed": 1778093100267,
       "keyFiles": [
         "legal_concepts_quality_report.md",
         "semantic_eval_20260223_061143.json",
@@ -93,15 +102,20 @@
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
-      "fileCount": 0,
-      "lastAccessed": 1777304358492,
-      "keyFiles": []
+      "fileCount": 4,
+      "lastAccessed": 1778093100268,
+      "keyFiles": [
+        "ARCHITECTURE.md",
+        "HYPERDRIVE_CACHE_RFC.md",
+        "JUDGE_DATA_QUALITY.md",
+        "UPLOAD_JUDGE_PHOTOS.md"
+      ]
     },
     "downloaded_cases": {
       "path": "downloaded_cases",
       "purpose": null,
-      "fileCount": 38,
-      "lastAccessed": 1777304358503,
+      "fileCount": 40,
+      "lastAccessed": 1778093100268,
       "keyFiles": [
         "art_members.json",
         "cases.db",
@@ -113,21 +127,21 @@
     "frontend": {
       "path": "frontend",
       "purpose": null,
-      "fileCount": 17,
-      "lastAccessed": 1777304358508,
+      "fileCount": 19,
+      "lastAccessed": 1778093100269,
       "keyFiles": [
         "I18N_IMPLEMENTATION_PLAN.md",
+        "Makefile",
         "README.md",
         "components.json",
-        "eslint.config.js",
-        "index.html"
+        "eslint.config.js"
       ]
     },
     "immi android app": {
       "path": "immi android app",
       "purpose": null,
-      "fileCount": 6,
-      "lastAccessed": 1777304358516,
+      "fileCount": 7,
+      "lastAccessed": 1778093100269,
       "keyFiles": [
         "README.md",
         "build.gradle.kts",
@@ -140,7 +154,7 @@
       "path": "immi_case_downloader",
       "purpose": null,
       "fileCount": 20,
-      "lastAccessed": 1777304358519,
+      "lastAccessed": 1778093100270,
       "keyFiles": [
         "__init__.py",
         "__main__.py",
@@ -152,8 +166,8 @@
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
-      "fileCount": 25,
-      "lastAccessed": 1777304358521,
+      "fileCount": 30,
+      "lastAccessed": 1778093100271,
       "keyFiles": [
         "audit_gemini_accuracy.py",
         "backfill_case_embeddings.py",
@@ -166,7 +180,7 @@
       "path": "supabase",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1777304358522,
+      "lastAccessed": 1778093100272,
       "keyFiles": [
         "config.toml"
       ]
@@ -174,8 +188,8 @@
     "tests": {
       "path": "tests",
       "purpose": "Test files",
-      "fileCount": 52,
-      "lastAccessed": 1777304358522,
+      "fileCount": 54,
+      "lastAccessed": 1778093100273,
       "keyFiles": [
         "__init__.py",
         "conftest.py",
@@ -187,28 +201,18 @@
     "workers": {
       "path": "workers",
       "purpose": null,
-      "fileCount": 1,
-      "lastAccessed": 1777304358523,
+      "fileCount": 3,
+      "lastAccessed": 1778093100274,
       "keyFiles": [
-        "proxy.js"
-      ]
-    },
-    "frontend/__tests__": {
-      "path": "frontend/__tests__",
-      "purpose": "Test files",
-      "fileCount": 46,
-      "lastAccessed": 1777304358530,
-      "keyFiles": [
-        "advanced-filter-panel.test.tsx",
-        "analytics-charts-tokens.test.tsx",
-        "analytics-filter-integration.test.tsx"
+        "proxy.js",
+        "vitest.config.js"
       ]
     },
     "immi android app/app": {
       "path": "immi android app/app",
       "purpose": "Application code",
-      "fileCount": 2,
-      "lastAccessed": 1777304358552,
+      "fileCount": 3,
+      "lastAccessed": 1778093100276,
       "keyFiles": [
         "build.gradle.kts",
         "proguard-rules.pro"
@@ -218,14 +222,14 @@
       "path": "immi android app/build",
       "purpose": "Build output",
       "fileCount": 0,
-      "lastAccessed": 1777304358564,
+      "lastAccessed": 1778093100276,
       "keyFiles": []
     },
     "immi_case_downloader/data": {
       "path": "immi_case_downloader/data",
       "purpose": "Data files",
       "fileCount": 3,
-      "lastAccessed": 1777304358565,
+      "lastAccessed": 1778093100277,
       "keyFiles": [
         "README.md",
         "judge_name_overrides.json",
@@ -235,8 +239,8 @@
     "supabase/migrations": {
       "path": "supabase/migrations",
       "purpose": "Database migrations",
-      "fileCount": 24,
-      "lastAccessed": 1777304358566,
+      "fileCount": 28,
+      "lastAccessed": 1778093100278,
       "keyFiles": [
         "20260218000000_initial_schema.sql",
         "20260218082511_add_dashboard_rpc_functions.sql",
@@ -247,313 +251,85 @@
       "path": "tests/fixtures",
       "purpose": "Test fixtures",
       "fileCount": 4,
-      "lastAccessed": 1777304358567,
+      "lastAccessed": 1778093100278,
       "keyFiles": [
         "austlii_case_detail.html",
         "austlii_search_results.html",
         "austlii_year_listing.html"
       ]
+    },
+    "workers/__tests__": {
+      "path": "workers/__tests__",
+      "purpose": "Test files",
+      "fileCount": 8,
+      "lastAccessed": 1778093100279,
+      "keyFiles": [
+        "auth-jwt.test.js",
+        "auth-telegram.test.js",
+        "llm-council-auth.test.js"
+      ]
+    },
+    "workers/node_modules": {
+      "path": "workers/node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 0,
+      "lastAccessed": 1778093100279,
+      "keyFiles": []
     }
   },
   "hotPaths": [
     {
+      "path": "workers/llm-council/runner.js",
+      "accessCount": 7,
+      "lastAccessed": 1778186147167,
+      "type": "file"
+    },
+    {
       "path": "immi_case_downloader/llm_council.py",
-      "accessCount": 64,
-      "lastAccessed": 1777313105493,
+      "accessCount": 5,
+      "lastAccessed": 1778177020127,
       "type": "file"
     },
     {
-      "path": "frontend/src/pages/LlmCouncilPage.tsx",
-      "accessCount": 41,
-      "lastAccessed": 1777322738446,
+      "path": "CLAUDE.md",
+      "accessCount": 4,
+      "lastAccessed": 1778144232643,
       "type": "file"
     },
     {
-      "path": "workers/proxy.js",
-      "accessCount": 32,
-      "lastAccessed": 1777314628108,
+      "path": "workers/__tests__/llm-council-runner.test.js",
+      "accessCount": 3,
+      "lastAccessed": 1778186266289,
       "type": "file"
     },
     {
-      "path": "workers/__tests__/llm-council-storage.test.js",
-      "accessCount": 22,
-      "lastAccessed": 1777313805716,
+      "path": "frontend/src/components/llm-council/TurnCard.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1778186495326,
       "type": "file"
     },
     {
-      "path": "workers/__tests__/llm-council-runner-helpers.test.js",
-      "accessCount": 18,
-      "lastAccessed": 1777313118186,
-      "type": "file"
-    },
-    {
-      "path": "frontend/__tests__/llm-council-page.test.tsx",
-      "accessCount": 16,
-      "lastAccessed": 1777322856873,
-      "type": "file"
-    },
-    {
-      "path": "tests/test_llm_council_module.py",
-      "accessCount": 13,
-      "lastAccessed": 1777312244783,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/lib/api.ts",
-      "accessCount": 12,
-      "lastAccessed": 1777314471886,
-      "type": "file"
-    },
-    {
-      "path": "wrangler.toml",
-      "accessCount": 11,
-      "lastAccessed": 1777314221567,
-      "type": "file"
-    },
-    {
-      "path": ".env.example",
-      "accessCount": 9,
-      "lastAccessed": 1777200977526,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/components/judges/JudgeCard.tsx",
-      "accessCount": 7,
-      "lastAccessed": 1777183906679,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/web/routes/api.py",
-      "accessCount": 7,
-      "lastAccessed": 1777257392859,
-      "type": "file"
-    },
-    {
-      "path": "workers/vitest.config.js",
-      "accessCount": 7,
-      "lastAccessed": 1777313801196,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/components/judges/JudgeLeaderboard.tsx",
-      "accessCount": 6,
-      "lastAccessed": 1777183938862,
+      "path": "frontend/src/lib/api-llm-council.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778177065800,
       "type": "file"
     },
     {
       "path": "immi_case_downloader/web/routes/api_pipeline.py",
-      "accessCount": 6,
-      "lastAccessed": 1777313797732,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/web/routes/api_cases.py",
-      "accessCount": 5,
-      "lastAccessed": 1777190181031,
-      "type": "file"
-    },
-    {
-      "path": "workers/llm-council/runner-helpers.js",
-      "accessCount": 5,
-      "lastAccessed": 1777313796605,
-      "type": "file"
-    },
-    {
-      "path": "requirements.txt",
-      "accessCount": 4,
-      "lastAccessed": 1777153913813,
-      "type": "file"
-    },
-    {
-      "path": ".env",
-      "accessCount": 4,
-      "lastAccessed": 1777200906732,
-      "type": "file"
-    },
-    {
-      "path": "package.json",
-      "accessCount": 4,
-      "lastAccessed": 1777312683219,
-      "type": "file"
-    },
-    {
-      "path": "workers/llm-council/auth.js",
-      "accessCount": 4,
-      "lastAccessed": 1777313791626,
-      "type": "file"
-    },
-    {
-      "path": "tests/e2e/react/conftest.py",
-      "accessCount": 4,
-      "lastAccessed": 1777322721251,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/web/routes/api_export.py",
-      "accessCount": 3,
-      "lastAccessed": 1777190168769,
-      "type": "file"
-    },
-    {
-      "path": "tests/test_council_schema.py",
-      "accessCount": 3,
-      "lastAccessed": 1777309017667,
-      "type": "file"
-    },
-    {
-      "path": "supabase/migrations/20260428_council_sessions.sql",
-      "accessCount": 3,
-      "lastAccessed": 1777312624328,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/hooks/use-llm-council.ts",
-      "accessCount": 3,
-      "lastAccessed": 1777319184545,
-      "type": "file"
-    },
-    {
-      "path": "tests/e2e/react/react_helpers.py",
-      "accessCount": 3,
-      "lastAccessed": 1777322737660,
-      "type": "file"
-    },
-    {
-      "path": "workers/llm-council/storage.js",
-      "accessCount": 3,
-      "lastAccessed": 1777326025806,
-      "type": "file"
-    },
-    {
-      "path": "tests/test_security.py",
-      "accessCount": 2,
-      "lastAccessed": 1777154182552,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/pages/JudgeProfilesPage.tsx",
-      "accessCount": 2,
-      "lastAccessed": 1777183765666,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/types/case.ts",
-      "accessCount": 2,
-      "lastAccessed": 1777183976633,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/models.py",
-      "accessCount": 2,
-      "lastAccessed": 1777188794927,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/web/security.py",
-      "accessCount": 2,
-      "lastAccessed": 1777188795717,
-      "type": "file"
-    },
-    {
-      "path": "tests/e2e/react/test_react_case_crud.py",
-      "accessCount": 2,
-      "lastAccessed": 1777188855155,
-      "type": "file"
-    },
-    {
-      "path": "tests/e2e/react/test_react_export.py",
-      "accessCount": 2,
-      "lastAccessed": 1777188855666,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/web/routes/bookmarks.py",
-      "accessCount": 2,
-      "lastAccessed": 1777190165961,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/web/routes/api_taxonomy.py",
-      "accessCount": 2,
-      "lastAccessed": 1777190166756,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/web/routes/legislations.py",
-      "accessCount": 2,
-      "lastAccessed": 1777190169576,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/hooks/use-judges.ts",
       "accessCount": 1,
-      "lastAccessed": 1777183782709,
+      "lastAccessed": 1778144248254,
       "type": "file"
     },
     {
-      "path": "tests/test_llm_council_api.py",
+      "path": "frontend/src/pages/LlmCouncilPage.tsx",
       "accessCount": 1,
-      "lastAccessed": 1777184884688,
+      "lastAccessed": 1778150041217,
       "type": "file"
     },
     {
-      "path": "workers/austlii-scraper/wrangler.toml",
+      "path": "workers/llm-council/handlers.js",
       "accessCount": 1,
-      "lastAccessed": 1777188819734,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/web/jobs.py",
-      "accessCount": 1,
-      "lastAccessed": 1777188826724,
-      "type": "file"
-    },
-    {
-      "path": "download_fulltext.py",
-      "accessCount": 1,
-      "lastAccessed": 1777188826875,
-      "type": "file"
-    },
-    {
-      "path": "workers/austlii-scraper/src/index.ts",
-      "accessCount": 1,
-      "lastAccessed": 1777188830663,
-      "type": "file"
-    },
-    {
-      "path": "Dockerfile",
-      "accessCount": 1,
-      "lastAccessed": 1777188837151,
-      "type": "file"
-    },
-    {
-      "path": "tests/e2e/react/test_react_jobs.py",
-      "accessCount": 1,
-      "lastAccessed": 1777188859805,
-      "type": "file"
-    },
-    {
-      "path": "tests/e2e/react/test_react_smoke.py",
-      "accessCount": 1,
-      "lastAccessed": 1777188860487,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/web/helpers.py",
-      "accessCount": 1,
-      "lastAccessed": 1777191574255,
-      "type": "file"
-    },
-    {
-      "path": "supabase/migrations/20260418000000_add_monthly_trends_rpc.sql",
-      "accessCount": 1,
-      "lastAccessed": 1777308521126,
-      "type": "file"
-    },
-    {
-      "path": "immi_case_downloader/supabase_repository.py",
-      "accessCount": 1,
-      "lastAccessed": 1777308527203,
+      "lastAccessed": 1778150080144,
       "type": "file"
     }
   ],
