@@ -648,6 +648,24 @@ export async function runModerator({
   const sysPrompt = moderatorSystemPrompt || DEFAULT_MODERATOR_SYSTEM_PROMPT;
   const maxTokens = moderatorMaxTokens || DEFAULT_MODERATOR_MAX_TOKENS;
 
+  // Truncate per-expert answers before sending to moderator. Heavy legal
+  // prompts (e.g. 5-issue immigration AAT review) produce 10k+ char
+  // answers per expert; concatenated full opinions easily exceed 30k
+  // chars which (a) blows the moderator's reasoning budget so visible
+  // 14-field JSON output gets starved, (b) increases latency past the
+  // ceiling. 8000 chars (~2000 tokens) per expert keeps the full
+  // moderator prompt under ~30k chars while preserving enough detail
+  // for cross-expert ranking, critique, and statute-citation extraction.
+  // The full expert answers are still rendered in the UI per-tab; only
+  // moderator synthesis sees the truncated version.
+  const MODERATOR_PER_EXPERT_CHAR_LIMIT = 8000;
+  const truncate = (s) => {
+    const str = String(s || "");
+    if (str.length <= MODERATOR_PER_EXPERT_CHAR_LIMIT) return str;
+    return str.slice(0, MODERATOR_PER_EXPERT_CHAR_LIMIT) +
+      "\n…[truncated for moderator synthesis; full answer in expert tab]";
+  };
+
   const promptPayload = {
     question,
     case_context: caseContext,
@@ -656,7 +674,7 @@ export async function runModerator({
       provider_label: o.provider_label,
       model: o.model,
       success: o.success,
-      answer: o.answer,
+      answer: truncate(o.answer),
       error: o.error,
       sources: o.sources,
     })),
@@ -704,6 +722,9 @@ export async function runModerator({
     history,
     maxTokens,
     rawPrompt: true,
+    isModerator: true,  // routes through moderator-specific timeout (90s default
+                        // vs 60s for plain google-ai-studio) — heavy 14-field JSON
+                        // synthesis with 30k-char input needs the wider window.
   });
 
   const elapsed = Date.now() - start;
