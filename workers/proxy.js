@@ -2582,7 +2582,7 @@ export async function dispatchLlmCouncil(request, env, url, path, method) {
 // ── Flask proxy helper ────────────────────────────────────────────────────────
 
 async function proxyToFlask(request, env) {
-  const id        = env.FlaskBackend.idFromName("flask-v16");
+  const id        = env.FlaskBackend.idFromName("flask-v17");
   const container = env.FlaskBackend.get(id);
 
   // Inject Hyperdrive connection string so Flask can optionally use direct psycopg2.
