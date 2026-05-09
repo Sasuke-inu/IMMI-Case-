@@ -35,7 +35,6 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { PageLoader } from "@/components/shared/PageLoader";
 import { TurnCard } from "@/components/llm-council/TurnCard";
@@ -396,8 +395,12 @@ function PromptSidebar({ onSelectPrompt }: PromptSidebarProps) {
           ))}
           <li className="flex items-center gap-2 border-t border-border pt-2">
             <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
-            <span className="text-foreground">Gemini Flash</span>
-            <span className="text-muted-text">— moderator</span>
+            <span className="text-foreground">
+              {t("llm_council.chairman_label", {
+                defaultValue: "Council Chairman",
+              })}
+            </span>
+            <span className="text-muted-text">— 綜合 / synthesis</span>
           </li>
         </ul>
       </div>
@@ -826,15 +829,56 @@ export function LlmCouncilPage() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-xl border border-border/80 bg-card p-6 shadow-sm">
-        <PageHeader
-          title={t("llm_council.title", { defaultValue: "LLM IMMI Council" })}
-          description={t("llm_council.subtitle", {
-            defaultValue:
-              "Three legal-research experts deliberate in parallel — OpenAI, Gemini Pro, Anthropic Sonnet — and Gemini Flash composes the synthesis with statute cross-reference, ranked critique, and a mock judgment outline.",
-          })}
-          icon={<Scale className="h-5 w-5" />}
+      {/* Hero — custom oversized block. Icon scales with title height
+          (clamp 4-5rem) so the Scale glyph reads at the same visual weight
+          as the headline. Subtitle deliberately drops upstream model
+          provider names; the panel surfaces as a unified Council. */}
+      <section
+        className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-6 shadow-sm sm:p-8"
+        data-testid="llm-council-hero"
+      >
+        {/* Subtle accent gradient bar at the bottom edge for depth */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, var(--color-accent, #d4a017) 50%, transparent)",
+            opacity: 0.5,
+          }}
         />
+        <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+          <div
+            className="flex shrink-0 items-center justify-center rounded-2xl bg-accent-muted text-accent shadow-sm ring-1 ring-accent/20"
+            style={{
+              width: "clamp(4rem, 8vw, 5.5rem)",
+              height: "clamp(4rem, 8vw, 5.5rem)",
+            }}
+          >
+            <Scale
+              style={{
+                width: "clamp(2rem, 5vw, 3rem)",
+                height: "clamp(2rem, 5vw, 3rem)",
+              }}
+            />
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
+              {t("llm_council.eyebrow", {
+                defaultValue: "Multi-Model Legal Research",
+              })}
+            </p>
+            <h1 className="break-words font-heading text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-tight tracking-tight text-foreground">
+              {t("llm_council.title", { defaultValue: "LLM IMMI Council" })}
+            </h1>
+            <p className="text-sm leading-relaxed text-muted-text sm:text-base">
+              {t("llm_council.subtitle", {
+                defaultValue:
+                  "Three independent legal-research experts deliberate in parallel — their opinions are then synthesised by the Council Chairman into ranked critique, statute cross-reference, and a mock judgment outline.",
+              })}
+            </p>
+          </div>
+        </div>
       </section>
 
       {sessionId ? (

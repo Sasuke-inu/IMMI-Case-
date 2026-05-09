@@ -713,7 +713,7 @@ export async function runModerator({
   const modOpinion = await runExpert({
     env,
     providerKey: "gemini_flash",
-    providerLabel: "Google Gemini Flash (Moderator)",
+    providerLabel: "Council Chairman",
     modelRaw: model,
     defaultPrefix: "google-ai-studio",
     systemPrompt: sysPrompt,

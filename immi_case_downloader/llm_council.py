@@ -1106,7 +1106,7 @@ def _run_moderator(
 
     mod_opinion = _run_gateway_expert(
         provider_key="gemini_flash",
-        provider_label="Google Gemini Flash (Moderator)",
+        provider_label="Council Chairman",
         model_raw=cfg.gemini_flash_model,
         default_prefix="google-ai-studio",
         question=moderator_prompt,
@@ -1493,7 +1493,7 @@ def validate_council_connectivity(*, live: bool = False) -> dict[str, Any]:
     )
     flash_probe = _run_gateway_expert(
         provider_key="gemini_flash",
-        provider_label="Google Gemini Flash (Moderator)",
+        provider_label="Council Chairman",
         model_raw=cfg.gemini_flash_model,
         default_prefix="google-ai-studio",
         **probe_kwargs,

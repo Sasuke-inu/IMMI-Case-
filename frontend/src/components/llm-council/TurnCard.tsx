@@ -29,12 +29,73 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import type {
   LlmCouncilTurn,
   LlmCouncilOpinion,
   LlmCouncilModerator,
 } from "@/lib/api-llm-council";
+
+// ---------------------------------------------------------------------------
+// Markdown — styled wrapper for legal-memo output. GFM enables tables,
+// strikethrough, autolinks, task-lists. Block-incomplete markdown (e.g. an
+// unfinished table row) renders gracefully as raw text until the syntax
+// closes; this naturally supports streaming "wait until block is complete"
+// rendering once SSE deltas re-render the buffer each chunk.
+// ---------------------------------------------------------------------------
+
+const MARKDOWN_COMPONENTS = {
+  h1: (p: any) => <h1 className="mb-2 mt-3 text-base font-bold text-foreground" {...p} />,
+  h2: (p: any) => <h2 className="mb-2 mt-3 text-sm font-bold text-foreground" {...p} />,
+  h3: (p: any) => <h3 className="mb-1 mt-2 text-sm font-semibold text-foreground" {...p} />,
+  h4: (p: any) => <h4 className="mb-1 mt-2 text-xs font-semibold uppercase tracking-wide text-muted-text" {...p} />,
+  p: (p: any) => <p className="mb-2 leading-relaxed text-foreground" {...p} />,
+  ul: (p: any) => <ul className="mb-2 ml-4 list-disc space-y-1 text-foreground marker:text-accent" {...p} />,
+  ol: (p: any) => <ol className="mb-2 ml-4 list-decimal space-y-1 text-foreground marker:text-accent" {...p} />,
+  li: (p: any) => <li className="leading-relaxed" {...p} />,
+  strong: (p: any) => <strong className="font-semibold text-foreground" {...p} />,
+  em: (p: any) => <em className="italic" {...p} />,
+  a: (p: any) => (
+    <a className="text-accent underline-offset-2 hover:underline" target="_blank" rel="noreferrer" {...p} />
+  ),
+  blockquote: (p: any) => (
+    <blockquote className="my-2 border-l-2 border-accent/50 bg-surface/40 pl-3 italic text-muted-text" {...p} />
+  ),
+  code: ({ inline, className, children, ...rest }: any) =>
+    inline ? (
+      <code className="rounded bg-surface px-1 py-0.5 font-mono text-[0.85em] text-accent" {...rest}>
+        {children}
+      </code>
+    ) : (
+      <code className={`block overflow-x-auto rounded-md bg-surface p-2 font-mono text-xs ${className || ""}`} {...rest}>
+        {children}
+      </code>
+    ),
+  pre: (p: any) => <pre className="my-2 overflow-x-auto rounded-md bg-surface p-3 text-xs" {...p} />,
+  hr: () => <hr className="my-3 border-border" />,
+  table: (p: any) => (
+    <div className="my-2 overflow-x-auto rounded-md border border-border">
+      <table className="w-full text-xs" {...p} />
+    </div>
+  ),
+  thead: (p: any) => <thead className="bg-surface/50 text-muted-text" {...p} />,
+  tbody: (p: any) => <tbody {...p} />,
+  tr: (p: any) => <tr className="border-b border-border last:border-0" {...p} />,
+  th: (p: any) => <th className="px-2 py-1.5 text-left font-semibold" {...p} />,
+  td: (p: any) => <td className="px-2 py-1.5 align-top" {...p} />,
+};
+
+function Markdown({ children }: { children: string }) {
+  return (
+    <div className="max-w-none text-sm text-foreground">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+        {children}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Likelihood styling helpers
@@ -281,9 +342,7 @@ function ModeratorSection({ moderator, providerLabels }: ModeratorSectionProps) 
               defaultValue: "Integrated Council Analysis",
             })}
           </p>
-          <p className="whitespace-pre-wrap text-sm text-foreground">
-            {moderator.mock_judgment || moderator.composed_answer}
-          </p>
+          <Markdown>{moderator.mock_judgment || moderator.composed_answer}</Markdown>
         </div>
       ) : null}
 
@@ -418,9 +477,7 @@ function ExpertTabs({ opinions }: ExpertTabsProps) {
 
         {active.success ? (
           <>
-            <p className="whitespace-pre-wrap text-sm text-foreground">
-              {active.answer}
-            </p>
+            <Markdown>{active.answer}</Markdown>
             {active.sources.length > 0 ? (
               <div className="mt-3">
                 <p className="mb-1 text-xs uppercase tracking-wide text-muted-text">
