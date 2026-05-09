@@ -1,1 +1,0 @@
-import{j as s}from"./vendor-C0FagFki.js";import{au as n}from"./index-Ccuh-NEX.js";function i({icon:t,title:r,description:a,action:e,className:o,contained:m=!0}){return s.jsx(n,{title:r,description:a,icon:t,action:e,contained:m,className:o})}export{i as E};

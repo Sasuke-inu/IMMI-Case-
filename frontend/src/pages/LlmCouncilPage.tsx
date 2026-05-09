@@ -23,7 +23,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate, Navigate } from "react-router-dom";
+import { useParams, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Bot,
@@ -39,8 +39,11 @@ import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { PageLoader } from "@/components/shared/PageLoader";
 import { TurnCard } from "@/components/llm-council/TurnCard";
 import {
+  StreamingCouncilView,
+  useCouncilStream,
+} from "@/components/llm-council/StreamingCouncilView";
+import {
   useLlmCouncilSession,
-  useCreateSession,
   useAddTurn,
 } from "@/hooks/use-llm-council-sessions";
 
@@ -532,22 +535,28 @@ function MessageInput({
 
 function NewSessionForm() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [caseId, setCaseId] = useState("");
   const [submitError, setSubmitError] = useState("");
-  const createSession = useCreateSession();
+  const stream = useCouncilStream();
+
+  // Has the stream been started at least once? (controls whether to render
+  // the StreamingCouncilView after streaming completes.)
+  const hasStreamed =
+    stream.isStreaming ||
+    stream.state.openai.status !== "pending" ||
+    stream.state.gemini_pro.status !== "pending" ||
+    stream.state.anthropic.status !== "pending";
 
   async function handleSend() {
     const msg = message.trim();
     if (!msg) return;
     setSubmitError("");
     try {
-      const result = await createSession.mutateAsync({
+      await stream.start({
         message: msg,
-        case_id: caseId.trim() || undefined,
+        case_context: caseId.trim() ? `Case ID hint: ${caseId.trim()}` : undefined,
       });
-      navigate(`/llm-council/sessions/${result.session_id}`);
     } catch (err) {
       setSubmitError(
         (err as Error).message ||
@@ -556,6 +565,11 @@ function NewSessionForm() {
           }),
       );
     }
+  }
+
+  function handleReset() {
+    stream.reset();
+    setSubmitError("");
   }
 
   return (
@@ -580,7 +594,7 @@ function NewSessionForm() {
                 value={message}
                 onChange={setMessage}
                 onSubmit={handleSend}
-                isPending={createSession.isPending}
+                isPending={stream.isStreaming}
                 rows={6}
                 placeholder={t("llm_council.question_placeholder", {
                   defaultValue:
@@ -614,10 +628,10 @@ function NewSessionForm() {
               <div className="flex items-end justify-end">
                 <button
                   type="submit"
-                  disabled={createSession.isPending || !message.trim()}
+                  disabled={stream.isStreaming || !message.trim()}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                 >
-                  {createSession.isPending ? (
+                  {stream.isStreaming ? (
                     <>
                       <div className="animate-spin">
                         <Loader2 className="h-4 w-4" />
@@ -637,10 +651,28 @@ function NewSessionForm() {
             </div>
 
             {submitError ? <ApiErrorState message={submitError} /> : null}
-
-            {/* Inline running indicator while creating */}
-            {createSession.isPending ? <CouncilDeliberationViz /> : null}
           </form>
+
+          {/* Live streaming viz — shown during AND after streaming so the
+              user can review the final 3-column output without losing it. */}
+          {hasStreamed ? (
+            <div className="mt-6 space-y-3">
+              <StreamingCouncilView state={stream.state} />
+              {!stream.isStreaming ? (
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="rounded-md border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface"
+                  >
+                    {t("llm_council.start_new_btn", {
+                      defaultValue: "Start a new session",
+                    })}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
 
