@@ -2541,7 +2541,7 @@ const LLM_COUNCIL_SESSION_TURNS_RE =
 const LLM_COUNCIL_SESSION_RE =
   /^\/api\/v1\/llm-council\/sessions\/([A-Za-z0-9_-]{21})$/;
 
-export async function dispatchLlmCouncil(request, env, url, path, method) {
+export async function dispatchLlmCouncil(request, env, url, path, method, ctx) {
   if (!path.startsWith(LLM_COUNCIL_PREFIX)) return null;
 
   // Health stays on Flask (existing legacy behaviour).
@@ -2564,7 +2564,7 @@ export async function dispatchLlmCouncil(request, env, url, path, method) {
 
   // POST /api/v1/llm-council/stream  (Sprint 2 — SSE for 3-column live UI)
   if (path === "/api/v1/llm-council/stream" && method === "POST") {
-    return handleStreamCouncil(request, env);
+    return handleStreamCouncil(request, env, path, ctx);
   }
 
   // POST /api/v1/llm-council/sessions/:id/turns
@@ -2588,7 +2588,7 @@ export async function dispatchLlmCouncil(request, env, url, path, method) {
 // ── Flask proxy helper ────────────────────────────────────────────────────────
 
 async function proxyToFlask(request, env) {
-  const id        = env.FlaskBackend.idFromName("flask-v19");
+  const id        = env.FlaskBackend.idFromName("flask-v20");
   const container = env.FlaskBackend.get(id);
 
   // Inject Hyperdrive connection string so Flask can optionally use direct psycopg2.
@@ -2605,7 +2605,7 @@ async function proxyToFlask(request, env) {
 // ── Main router ───────────────────────────────────────────────────────────────
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url    = new URL(request.url);
     const path   = url.pathname;
     const method = request.method;
@@ -2821,7 +2821,7 @@ export default {
     // anything that escapes is a real misconfiguration.
     if (path.startsWith(LLM_COUNCIL_PREFIX)) {
       try {
-        const llmRes = await dispatchLlmCouncil(request, env, url, path, method);
+        const llmRes = await dispatchLlmCouncil(request, env, url, path, method, ctx);
         if (llmRes !== null) return llmRes;
       } catch (llmErr) {
         console.error("[llm-council] handler error:", llmErr?.message);

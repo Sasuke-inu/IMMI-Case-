@@ -1369,8 +1369,10 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
     }
   };
 
-  // Kick off orchestration without await; result consumed via writer.close()
-  (async () => {
+  // Kick off orchestration. Returns the Promise so the caller can pass it
+  // to ctx.waitUntil(), guaranteeing the orchestration completes (and the
+  // gateway bill is captured) even if the client disconnects mid-stream.
+  const work = (async () => {
     try {
       await send("council.start", {
         question: q,
@@ -1428,5 +1430,5 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
     }
   })();
 
-  return readable;
+  return { readable, work };
 }

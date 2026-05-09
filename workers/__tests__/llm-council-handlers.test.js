@@ -234,23 +234,23 @@ describe("handleCreateSession", () => {
     expect(json.error).toContain("message");
   });
 
-  it("returns 400 when message exceeds 5000 characters", async () => {
+  it("returns 400 when message exceeds 8000 characters", async () => {
     const env = makeEnv();
     const req = makeRequest("POST", "https://example.com/sessions", {
-      message: "x".repeat(5001),
+      message: "x".repeat(8001),
     });
 
     const res = await handleCreateSession(req, env);
     expect(res.status).toBe(400);
 
     const json = await parseJson(res);
-    expect(json.error).toContain("5000");
+    expect(json.error).toContain("8000");
   });
 
-  it("accepts a message of exactly 5000 characters", async () => {
+  it("accepts a message of exactly 8000 characters", async () => {
     const env = makeEnv();
     const req = makeRequest("POST", "https://example.com/sessions", {
-      message: "x".repeat(5000),
+      message: "x".repeat(8000),
     });
 
     const res = await handleCreateSession(req, env);
@@ -399,7 +399,7 @@ describe("handleAddTurn", () => {
     expect(json.error).toContain("message");
   });
 
-  it("returns 400 when message exceeds 5000 characters", async () => {
+  it("returns 400 when message exceeds 8000 characters", async () => {
     const env = makeEnv();
     const token = await mintFakeToken();
     mockGetSession.mockResolvedValue({
@@ -410,7 +410,7 @@ describe("handleAddTurn", () => {
     const req = makeRequest(
       "POST",
       `https://example.com/sessions/${SESSION_ID}/turns`,
-      { message: "y".repeat(5001) },
+      { message: "y".repeat(8001) },
       { "X-Session-Token": token },
     );
 
@@ -923,10 +923,10 @@ describe("handleLegacyRun", () => {
     expect(json.error).toContain("question");
   });
 
-  it("returns 400 when question exceeds 5000 characters", async () => {
+  it("returns 400 when question exceeds 8000 characters", async () => {
     const env = makeEnv();
     const req = makeRequest("POST", "https://example.com/run", {
-      question: "z".repeat(5001),
+      question: "z".repeat(8001),
     });
 
     const res = await handleLegacyRun(req, env);

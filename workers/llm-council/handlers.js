@@ -35,7 +35,11 @@ import { runCouncil, streamCouncil } from "./runner.js";
 // Constants
 // ---------------------------------------------------------------------------
 
-const MAX_MESSAGE_LENGTH = 5000;
+// Aligned with frontend MAX_MESSAGE_CHARS in LlmCouncilPage.tsx (8000).
+// Heavy legal prompts (5+ issues + facts + structure block) regularly
+// exceed 5000 chars. Worker accepting < frontend cap silently rejects
+// long valid prompts as 400.
+const MAX_MESSAGE_LENGTH = 8000;
 const VALID_CASE_ID_RE = /^[0-9a-f]{12}$/;
 
 // ---------------------------------------------------------------------------
@@ -564,7 +568,7 @@ export async function handleLegacyRun(request, env) {
  * @param {object} env
  * @returns {Promise<Response>}
  */
-export async function handleStreamCouncil(request, env) {
+export async function handleStreamCouncil(request, env, _path, ctx) {
   const rl = await applyRateLimit(request, env);
   if (!rl.success) {
     return errorResponse("Rate limit exceeded — try again shortly", 429);
@@ -583,9 +587,9 @@ export async function handleStreamCouncil(request, env) {
   const message = body.message.trim();
   const caseContext = typeof body.case_context === "string" ? body.case_context : "";
 
-  let stream;
+  let result;
   try {
-    stream = streamCouncil({
+    result = streamCouncil({
       env,
       question: message,
       caseContext,
@@ -595,7 +599,15 @@ export async function handleStreamCouncil(request, env) {
     return errorResponse(`LLM Council stream error: ${err.message}`, 503);
   }
 
-  return new Response(stream, {
+  // ctx.waitUntil keeps the orchestration alive even if the client disconnects
+  // mid-stream — guarantees gateway calls complete (so the bill we paid produces
+  // a result). When ctx is unavailable (older Worker runtime, tests), the
+  // orchestration still runs but is bound to the response lifecycle.
+  if (ctx && typeof ctx.waitUntil === "function") {
+    ctx.waitUntil(result.work);
+  }
+
+  return new Response(result.readable, {
     status: 200,
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
