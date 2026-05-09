@@ -29,7 +29,7 @@ import {
   deleteSession,
   loadHistory,
 } from "./storage.js";
-import { runCouncil } from "./runner.js";
+import { runCouncil, streamCouncil } from "./runner.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -540,5 +540,68 @@ export async function handleLegacyRun(request, env) {
     opinions: councilResult.opinions,
     moderator: councilResult.moderator,
     retrieved_cases: [],
+  });
+}
+
+// ---------------------------------------------------------------------------
+// handleStreamCouncil  (Sprint 2 — SSE streaming for 3-column live UI)
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /stream
+ *
+ * Body: {message, case_id?, case_context?}
+ *
+ * Returns text/event-stream with multiplexed SSE events from 3 parallel
+ * experts + final moderator. See streamCouncil() in runner.js for the
+ * full event taxonomy.
+ *
+ * No session persistence (ephemeral, like /run). The frontend is
+ * responsible for capturing the council.done event and persisting via the
+ * existing /sessions endpoint if continuity is needed.
+ *
+ * @param {Request} request
+ * @param {object} env
+ * @returns {Promise<Response>}
+ */
+export async function handleStreamCouncil(request, env) {
+  const rl = await applyRateLimit(request, env);
+  if (!rl.success) {
+    return errorResponse("Rate limit exceeded — try again shortly", 429);
+  }
+
+  let body;
+  try { body = await request.json(); }
+  catch { return errorResponse("Request body must be valid JSON"); }
+  if (!body || typeof body !== "object") {
+    return errorResponse("Request body must be a JSON object");
+  }
+
+  const validationError = validateMessageBody(body, "message");
+  if (validationError) return errorResponse(validationError.error);
+
+  const message = body.message.trim();
+  const caseContext = typeof body.case_context === "string" ? body.case_context : "";
+
+  let stream;
+  try {
+    stream = streamCouncil({
+      env,
+      question: message,
+      caseContext,
+      prevTurns: [],
+    });
+  } catch (err) {
+    return errorResponse(`LLM Council stream error: ${err.message}`, 503);
+  }
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
   });
 }

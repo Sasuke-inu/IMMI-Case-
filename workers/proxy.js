@@ -49,6 +49,7 @@ import {
   handleListSessions,
   handleDeleteSession,
   handleLegacyRun,
+  handleStreamCouncil,
 } from "./llm-council/handlers.js";
 import { handleTelegramLogin, handleAuthMe, handleAuthLogout, handleAuthRefresh, handleAuthSwitchTenant } from "./auth/handlers.js";
 export { AuthNonce } from "./auth/nonce_do.js";
@@ -2559,6 +2560,11 @@ export async function dispatchLlmCouncil(request, env, url, path, method) {
   // POST /api/v1/llm-council/run (legacy single-shot, ephemeral)
   if (path === "/api/v1/llm-council/run" && method === "POST") {
     return handleLegacyRun(request, env);
+  }
+
+  // POST /api/v1/llm-council/stream  (Sprint 2 — SSE for 3-column live UI)
+  if (path === "/api/v1/llm-council/stream" && method === "POST") {
+    return handleStreamCouncil(request, env);
   }
 
   // POST /api/v1/llm-council/sessions/:id/turns

@@ -1150,3 +1150,283 @@ function safeCount(value, fallback) {
     return fallback;
   }
 }
+
+// ===========================================================================
+// SSE STREAMING (Sprint 2 — added 2026-05-10)
+// ===========================================================================
+//
+// Frontend POSTs to /api/v1/llm-council/stream → handleStreamCouncil →
+// streamCouncil() returns a ReadableStream of SSE events. Three experts run
+// in parallel via streamGatewayChatCompletion, multiplexed into ONE output
+// stream. Frontend EventSource consumes this and updates 3-column UI live.
+//
+// Event taxonomy:
+//   council.start                — { question, models }
+//   <provider_key>.delta         — { text } (repeated per token chunk)
+//   <provider_key>.done          — { answer, model, latency_ms, sources, success }
+//   <provider_key>.error         — { error, model, latency_ms }
+//   moderator.start              — { model }
+//   moderator.complete           — { ...full ModeratorResult }
+//   council.done                 — { opinions, moderator } (terminal)
+//   council.error                — { error } (terminal, on top-level failure)
+
+/**
+ * Async generator yielding deltas from CF AI Gateway compat endpoint with
+ * stream: true. Caller accumulates into a full-text buffer.
+ */
+export async function* streamGatewayChatCompletion({
+  env,
+  model,
+  systemPrompt,
+  userPrompt,
+  history = [],
+  maxTokens = DEFAULT_MAX_OUTPUT_TOKENS,
+  temperature = 0.2,
+  timeoutMs,
+  isModerator = false,
+}) {
+  const gatewayUrl = env.CF_GATEWAY_URL || CF_GATEWAY_DEFAULT_URL;
+  const token = env.CF_AIG_TOKEN || "";
+  if (!token) throw new Error("Missing CF_AIG_TOKEN");
+  if (!gatewayUrl) throw new Error("Missing CF_GATEWAY_URL");
+
+  const messages = [];
+  if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
+  for (const msg of history) messages.push(msg);
+  messages.push({ role: "user", content: userPrompt });
+
+  const body = { model, messages, stream: true };
+  if (isGpt5ReasoningModel(model)) {
+    body.max_completion_tokens = maxTokens;
+    body.temperature = 1;
+    body.reasoning_effort = (env.LLM_COUNCIL_GPT5_REASONING_EFFORT || "low").toLowerCase();
+  } else {
+    body.max_tokens = maxTokens;
+    body.temperature = temperature;
+  }
+
+  const effectiveTimeoutMs = timeoutMs || timeoutForModel(env, model, isModerator);
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutHandle = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, effectiveTimeoutMs);
+
+  try {
+    const res = await fetch(gatewayUrl, {
+      method: "POST",
+      headers: {
+        "cf-aig-authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      let detail;
+      try { detail = await res.json(); } catch (_) { detail = await res.text().catch(() => ""); }
+      throw new Error(`HTTP ${res.status}: ${JSON.stringify(detail).slice(0, 800)}`);
+    }
+    if (!res.body) throw new Error("No response body");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // OpenAI-format SSE: each event is `data: {json}\n\n`, terminator `data: [DONE]`.
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line || !line.startsWith("data: ")) continue;
+        const data = line.slice(6);
+        if (data === "[DONE]") return;
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (typeof delta === "string" && delta.length > 0) {
+            yield { delta };
+          }
+        } catch (_) { /* skip malformed chunk */ }
+      }
+    }
+  } catch (err) {
+    if (timedOut) {
+      throw new Error(`Stream timeout after ${effectiveTimeoutMs / 1000}s`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
+function encodeSseEvent(event, data) {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  return new TextEncoder().encode(payload);
+}
+
+/**
+ * Build a ReadableStream that multiplexes SSE events from 3 parallel experts
+ * + final moderator synthesis. Suitable as Response body with
+ * Content-Type: text/event-stream.
+ */
+export function streamCouncil({ env, question, caseContext = "", prevTurns, models = {} }) {
+  const q = (question || "").trim();
+  if (!q) throw new Error("question is required");
+
+  const openaiModel = normalizeGatewayModel(
+    models.openai || env.LLM_COUNCIL_OPENAI_MODEL || DEFAULT_OPENAI_MODEL,
+    "openai",
+  );
+  const geminiProModel = normalizeGatewayModel(
+    models.gemini_pro || env.LLM_COUNCIL_GEMINI_PRO_MODEL || DEFAULT_GEMINI_PRO_MODEL,
+    "google-ai-studio",
+  );
+  const anthropicModel = normalizeGatewayModel(
+    models.anthropic || env.LLM_COUNCIL_ANTHROPIC_MODEL || DEFAULT_ANTHROPIC_MODEL,
+    "anthropic",
+  );
+  const geminiFlashModel = normalizeGatewayModel(
+    models.gemini_flash || env.LLM_COUNCIL_GEMINI_FLASH_MODEL || DEFAULT_GEMINI_FLASH_MODEL,
+    "google-ai-studio",
+  );
+
+  const historyMessages = buildHistoryMessages(prevTurns || []);
+  const userPrompt = buildUserPrompt(q, caseContext);
+
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+
+  const send = async (event, data) => {
+    try { await writer.write(encodeSseEvent(event, data)); }
+    catch (_) { /* writer closed (client disconnected) */ }
+  };
+
+  const runStreamExpert = async (providerKey, providerLabel, model, systemPrompt) => {
+    const start = Date.now();
+    let fullText = "";
+    try {
+      for await (const { delta } of streamGatewayChatCompletion({
+        env, model, systemPrompt, userPrompt, history: historyMessages,
+      })) {
+        fullText += delta;
+        await send(`${providerKey}.delta`, { text: delta });
+      }
+      const answer = stripReasoningArtifacts(fullText);
+      const elapsed = Date.now() - start;
+      if (!answer) {
+        await send(`${providerKey}.error`, {
+          error: `${providerLabel} response did not include text output`,
+          model, latency_ms: elapsed,
+        });
+        return {
+          provider_key: providerKey, provider_label: providerLabel, model,
+          success: false, answer: "",
+          error: `${providerLabel} response did not include text output`,
+          sources: [], latency_ms: elapsed,
+        };
+      }
+      const sources = [];
+      const urlRe = /https?:\/\/[^\s)>"]+/g;
+      let m;
+      while ((m = urlRe.exec(answer)) !== null) {
+        if (!sources.includes(m[0])) sources.push(m[0]);
+      }
+      await send(`${providerKey}.done`, {
+        answer, model, latency_ms: elapsed, sources, success: true,
+      });
+      logCouncilEvent({
+        event: "council.expert.stream", provider_key: providerKey,
+        model, ok: true, latency_ms: elapsed,
+      });
+      return {
+        provider_key: providerKey, provider_label: providerLabel, model,
+        success: true, answer, error: "", sources, latency_ms: elapsed,
+      };
+    } catch (err) {
+      const elapsed = Date.now() - start;
+      const errClass = classifyError(err);
+      await send(`${providerKey}.error`, {
+        error: String(err).slice(0, 700), model, latency_ms: elapsed,
+      });
+      logCouncilEvent({
+        event: "council.expert.stream", provider_key: providerKey,
+        model, ok: false, error_class: errClass, latency_ms: elapsed,
+      });
+      return {
+        provider_key: providerKey, provider_label: providerLabel, model,
+        success: false, answer: "",
+        error: `${providerLabel} request failed: ${String(err).slice(0, 700)}`,
+        sources: [], latency_ms: elapsed,
+      };
+    }
+  };
+
+  // Kick off orchestration without await; result consumed via writer.close()
+  (async () => {
+    try {
+      await send("council.start", {
+        question: q,
+        models: {
+          openai: openaiModel, gemini_pro: geminiProModel,
+          anthropic: anthropicModel, gemini_flash: geminiFlashModel,
+        },
+      });
+
+      const expertResults = await Promise.allSettled([
+        runStreamExpert("openai", "OpenAI", openaiModel, DEFAULT_OPENAI_SYSTEM_PROMPT),
+        runStreamExpert("gemini_pro", "Google Gemini Pro", geminiProModel, DEFAULT_GEMINI_PRO_SYSTEM_PROMPT),
+        runStreamExpert("anthropic", "Anthropic", anthropicModel, DEFAULT_ANTHROPIC_SYSTEM_PROMPT),
+      ]);
+
+      const providerMeta = [
+        { key: "openai", label: "OpenAI", model: openaiModel },
+        { key: "gemini_pro", label: "Google Gemini Pro", model: geminiProModel },
+        { key: "anthropic", label: "Anthropic", model: anthropicModel },
+      ];
+      const opinions = expertResults.map((result, idx) => {
+        if (result.status === "fulfilled") return result.value;
+        const meta = providerMeta[idx];
+        return {
+          provider_key: meta.key, provider_label: meta.label, model: meta.model,
+          success: false, answer: "",
+          error: `${meta.label} threw: ${String(result.reason || "unknown").slice(0, 700)}`,
+          sources: [], latency_ms: 0,
+        };
+      });
+
+      // Moderator runs after experts; non-streamed in v1
+      await send("moderator.start", { model: geminiFlashModel });
+      const moderator = await runModerator({
+        env, opinions, question: q, caseContext,
+        history: historyMessages, moderatorModel: geminiFlashModel,
+      });
+      await send("moderator.complete", moderator);
+
+      // Terminal event with full payload (so client can persist if desired)
+      await send("council.done", {
+        question: q, case_context: caseContext || "",
+        models: {
+          openai: { model: openaiModel },
+          gemini_pro: { model: geminiProModel },
+          anthropic: { model: anthropicModel },
+          gemini_flash: { model: geminiFlashModel, role: "Council Chairman" },
+        },
+        opinions, moderator,
+      });
+    } catch (err) {
+      await send("council.error", { error: String(err).slice(0, 700) });
+    } finally {
+      try { await writer.close(); } catch (_) { /* already closed */ }
+    }
+  })();
+
+  return readable;
+}
