@@ -83,29 +83,53 @@ async function* parseSseStream(body: ReadableStream<Uint8Array>): AsyncGenerator
   const decoder = new TextDecoder();
   let buffer = "";
 
+  // Parse a single raw event block per W3C SSE spec:
+  //   - Field separator may be "field: value" OR "field:value"
+  //   - Multiple `data:` lines concatenate with "\n" between them
+  //   - Lines beginning with ":" are comments (e.g. ":keepalive")
+  const parseEvent = (rawEvent: string): SseEvent | null => {
+    let eventName = "message";
+    let dataStr = "";
+    for (const line of rawEvent.split("\n")) {
+      if (!line || line.startsWith(":")) continue;
+      const colonIdx = line.indexOf(":");
+      if (colonIdx === -1) continue;
+      const field = line.slice(0, colonIdx);
+      const value = line.slice(colonIdx + 1).replace(/^ /, "");
+      if (field === "event") eventName = value.trim();
+      else if (field === "data") {
+        dataStr += (dataStr ? "\n" : "") + value;
+      }
+    }
+    if (!dataStr) return null;
+    try {
+      return { event: eventName, data: JSON.parse(dataStr) };
+    } catch {
+      return null;
+    }
+  };
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
 
-    // SSE events separated by blank line (\n\n).
     let blankIdx;
     while ((blankIdx = buffer.indexOf("\n\n")) !== -1) {
       const rawEvent = buffer.slice(0, blankIdx);
       buffer = buffer.slice(blankIdx + 2);
-      let eventName = "message";
-      let dataStr = "";
-      for (const line of rawEvent.split("\n")) {
-        if (line.startsWith("event: ")) eventName = line.slice(7).trim();
-        else if (line.startsWith("data: ")) dataStr += line.slice(6);
-      }
-      if (!dataStr) continue;
-      try {
-        yield { event: eventName, data: JSON.parse(dataStr) };
-      } catch {
-        // skip malformed
-      }
+      const ev = parseEvent(rawEvent);
+      if (ev) yield ev;
     }
+  }
+
+  // FIX C3 — flush trailing event without "\n\n" terminator. If the network
+  // truncates or the server's final flush omits the blank-line terminator,
+  // the terminal `council.done` would otherwise be lost and the UI would
+  // spin forever waiting for a status transition.
+  if (buffer.trim()) {
+    const ev = parseEvent(buffer);
+    if (ev) yield ev;
   }
 }
 
@@ -128,6 +152,11 @@ export function useCouncilStream(): UseCouncilStreamResult {
   const [state, setState] = useState<CouncilStreamState>(initialState());
   const [isStreaming, setIsStreaming] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
+  // Generation token — increments on every start() call. The for-await
+  // loop in the previous start() may still hold stale closures over its
+  // `update`. Gating writes on `myGen === genRef.current` prevents the
+  // old run from clobbering fresh state when the user rapidly re-submits.
+  const genRef = useRef(0);
 
   const reset = useCallback(() => {
     setState(initialState());
@@ -135,6 +164,7 @@ export function useCouncilStream(): UseCouncilStreamResult {
   }, []);
 
   const abort = useCallback(() => {
+    genRef.current += 1; // invalidate any in-flight loop
     controllerRef.current?.abort();
     controllerRef.current = null;
     setIsStreaming(false);
@@ -150,9 +180,13 @@ export function useCouncilStream(): UseCouncilStreamResult {
       setState(fresh);
       setIsStreaming(true);
 
-      // Local mutable copy that we keep in sync with React state.
+      const myGen = ++genRef.current;
+      // Local mutable copy mirrored to React state. Guarded by myGen so
+      // a previously-aborted loop's straggler updates cannot overwrite
+      // a fresh stream's state.
       let curr: CouncilStreamState = fresh;
       const update = (next: CouncilStreamState) => {
+        if (myGen !== genRef.current) return; // superseded
         curr = next;
         setState(next);
       };

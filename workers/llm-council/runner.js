@@ -1240,21 +1240,36 @@ export async function* streamGatewayChatCompletion({
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
-      // OpenAI-format SSE: each event is `data: {json}\n\n`, terminator `data: [DONE]`.
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const rawLine of lines) {
-        const line = rawLine.trim();
-        if (!line || !line.startsWith("data: ")) continue;
-        const data = line.slice(6);
-        if (data === "[DONE]") return;
+      // SSE events are separated by a BLANK LINE ("\n\n"). Split on the
+      // event terminator — NOT single \n — so a JSON payload that arrives
+      // fragmented across TCP frames survives as one event. The previous
+      // split-on-"\n" was a silent-data-loss bug: a chunk ending mid-event
+      // left the partial `data: {…` in lines[] (treated as complete) and
+      // the remainder landed in `buffer`, so JSON.parse threw and the
+      // delta was dropped. Per W3C SSE spec: an event ends with blank line.
+      const events = buffer.split("\n\n");
+      buffer = events.pop() || "";
+      for (const rawEvent of events) {
+        // Spec allows multiple `data:` lines per event — concatenate with
+        // "\n". The gateway today emits one, but stay future-proof.
+        let dataStr = "";
+        for (const line of rawEvent.split("\n")) {
+          if (line.startsWith("data: ")) {
+            dataStr += (dataStr ? "\n" : "") + line.slice(6);
+          } else if (line.startsWith("data:")) {
+            dataStr += (dataStr ? "\n" : "") + line.slice(5);
+          }
+          // Lines beginning with ":" are SSE comments — ignore.
+        }
+        if (!dataStr) continue;
+        if (dataStr === "[DONE]") return;
         try {
-          const parsed = JSON.parse(data);
+          const parsed = JSON.parse(dataStr);
           const delta = parsed.choices?.[0]?.delta?.content;
           if (typeof delta === "string" && delta.length > 0) {
             yield { delta };
           }
-        } catch (_) { /* skip malformed chunk */ }
+        } catch (_) { /* genuinely malformed event */ }
       }
     }
   } catch (err) {
@@ -1403,6 +1418,33 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
           sources: [], latency_ms: 0,
         };
       });
+
+      // Guard against the all-experts-failed case — running the moderator
+      // on three error opinions burns Flash tokens and produces a misleading
+      // synthesis with empty provider_law_sections + 50% MEDIUM fallback.
+      // Short-circuit straight to council.error so the UI shows the real
+      // failure instead of the fallback judgement.
+      const anyExpertSuccess = opinions.some(
+        (o) => o.success && (o.answer || "").trim().length > 0,
+      );
+      if (!anyExpertSuccess) {
+        await send("council.error", {
+          error: "All three experts failed — no synthesis attempted.",
+        });
+        await send("council.done", {
+          question: q,
+          case_context: caseContext || "",
+          models: {
+            openai: { model: openaiModel },
+            gemini_pro: { model: geminiProModel },
+            anthropic: { model: anthropicModel },
+            gemini_flash: { model: geminiFlashModel, role: "Council Chairman" },
+          },
+          opinions,
+          moderator: null,
+        });
+        return;
+      }
 
       // Moderator runs after experts; non-streamed in v1
       await send("moderator.start", { model: geminiFlashModel });

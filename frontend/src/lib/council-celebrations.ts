@@ -107,6 +107,12 @@ function getAudioCtx(): AudioContext | null {
     (window as unknown as { webkitAudioContext?: typeof AudioContext })
       .webkitAudioContext;
   if (!Ctor) return null;
+  // If a previously cached context entered "closed" state (SPA navigation
+  // can leak this — once closed, createOscillator throws InvalidStateError),
+  // discard and re-create. Suspended state is recoverable via resume().
+  if (cachedAudioCtx && cachedAudioCtx.state === "closed") {
+    cachedAudioCtx = null;
+  }
   if (!cachedAudioCtx) cachedAudioCtx = new Ctor();
   return cachedAudioCtx;
 }
@@ -124,7 +130,21 @@ export function playCue(
   if (ctx.state === "suspended") {
     ctx.resume().catch(() => undefined);
   }
+  // Defensive: even after closed-state recovery, the AudioContext may
+  // throw on createOscillator() under rare conditions (e.g. permissions,
+  // browser policy). Wrap the whole tone synthesis in try/catch so a
+  // failed cue never crashes a user-initiated action.
+  try {
+    playCueImpl(ctx, kind);
+  } catch {
+    /* swallow — cues are non-essential */
+  }
+}
 
+function playCueImpl(
+  ctx: AudioContext,
+  kind: "gavel" | "ding" | "tap" | "verdict",
+): void {
   const now = ctx.currentTime;
 
   if (kind === "gavel") {
@@ -299,25 +319,68 @@ export interface Achievement {
   emoji: string;
 }
 
+// Persisted set of already-unlocked achievement IDs. Prevents the same
+// toast from re-firing if the user (e.g.) hits the same milestone via two
+// rapid runs that land in the same calendar day.
+const COUNCIL_UNLOCKED_IDS_KEY = "council:unlocked-ids";
+
+function readUnlockedSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(COUNCIL_UNLOCKED_IDS_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeUnlockedSet(ids: Set<string>): void {
+  try {
+    localStorage.setItem(
+      COUNCIL_UNLOCKED_IDS_KEY,
+      JSON.stringify(Array.from(ids)),
+    );
+  } catch { /* incognito or quota */ }
+}
+
+/**
+ * Local-date YYYY-MM-DD — uses the user's wall clock, not UTC. AU users
+ * (UTC+10/+11) running council before vs after UTC midnight on the same
+ * AEST day would otherwise see streak misbehave.
+ */
+function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function localYesterday(): string {
+  const d = new Date(Date.now() - 86_400_000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /**
  * Increment council run count, return any newly-unlocked achievement(s).
  * Pure side-effect on localStorage; caller decides how to present toasts.
+ *
+ * Achievements de-duplicate via persisted unlocked-IDs set, so the same
+ * milestone never fires twice — even if the user hits it via concurrent
+ * runs or revisits after clearing achievement state in another tab.
  */
 export function recordCouncilRun(): Achievement[] {
   const before = readCount(COUNCIL_RUN_COUNT_KEY);
   const after = before + 1;
   writeCount(COUNCIL_RUN_COUNT_KEY, after);
 
-  // Streak — count consecutive distinct calendar days
-  const today = new Date().toISOString().slice(0, 10);
+  // Streak — local-date based (fix UTC boundary bug for AU users)
+  const today = localToday();
   const last = readString(COUNCIL_LAST_RUN_KEY);
   let streak = readCount(COUNCIL_STREAK_KEY);
+  let crossedDay = false;
   if (last !== today) {
+    crossedDay = true;
     if (last) {
-      const yesterday = new Date(Date.now() - 86_400_000)
-        .toISOString()
-        .slice(0, 10);
-      streak = last === yesterday ? streak + 1 : 1;
+      streak = last === localYesterday() ? streak + 1 : 1;
     } else {
       streak = 1;
     }
@@ -325,7 +388,14 @@ export function recordCouncilRun(): Achievement[] {
     writeString(COUNCIL_LAST_RUN_KEY, today);
   }
 
+  const unlockedSet = readUnlockedSet();
   const unlocked: Achievement[] = [];
+  const tryUnlock = (a: Achievement) => {
+    if (unlockedSet.has(a.id)) return;
+    unlockedSet.add(a.id);
+    unlocked.push(a);
+  };
+
   const milestones: Record<number, Achievement> = {
     1: {
       id: "first-council",
@@ -358,23 +428,29 @@ export function recordCouncilRun(): Achievement[] {
       emoji: "🏛️",
     },
   };
-  if (milestones[after]) unlocked.push(milestones[after]);
-  if (streak === 3) {
-    unlocked.push({
+  if (milestones[after]) tryUnlock(milestones[after]);
+
+  // Streak achievements only evaluate on day-crossings AND dedupe via
+  // unlockedSet — fixes the H2 bug where streak-3 toast fired on every
+  // same-day run after streak hit 3.
+  if (crossedDay && streak === 3) {
+    tryUnlock({
       id: "streak-3",
       title: "Three-Day Streak",
       body: "Three consecutive days. Diligence noted.",
       emoji: "🔥",
     });
   }
-  if (streak === 7) {
-    unlocked.push({
+  if (crossedDay && streak === 7) {
+    tryUnlock({
       id: "streak-7",
       title: "Weekly Bench",
       body: "Seven straight days of council. The court's regular.",
       emoji: "🗓️",
     });
   }
+
+  if (unlocked.length > 0) writeUnlockedSet(unlockedSet);
   return unlocked;
 }
 
@@ -413,17 +489,21 @@ export function timeOfDaySalutation(): string {
 // Token highlighter — finds legal-citation patterns in streaming text
 // ---------------------------------------------------------------------------
 
-const STATUTE_RE =
-  /\b(?:s\s?\d+[A-Z]?(?:\([0-9a-z]+\))?(?:\s*Migration\s+Act\s+\d{4})?|Migration\s+Act\s+\d{4}|reg(?:ulation)?\s?\d+(?:\.\d+)?[A-Z]?)\b/g;
+const STATUTE_RE_SOURCE =
+  String.raw`\b(?:s\s?\d+[A-Z]?(?:\([0-9a-z]+\))?(?:\s*Migration\s+Act\s+\d{4})?|Migration\s+Act\s+\d{4}|reg(?:ulation)?\s?\d+(?:\.\d+)?[A-Z]?)\b`;
 
 export function extractStatuteMatches(
   text: string,
 ): { index: number; length: number }[] {
   const out: { index: number; length: number }[] = [];
   if (!text) return out;
-  STATUTE_RE.lastIndex = 0;
-  let m;
-  while ((m = STATUTE_RE.exec(text)) !== null) {
+  // Use String.matchAll with a fresh regex per call. A module-level /g
+  // regex shares lastIndex across calls — concurrent or interleaved
+  // callers would corrupt each other's iteration cursor. Building the
+  // regex inside the function isolates state per invocation.
+  const re = new RegExp(STATUTE_RE_SOURCE, "g");
+  for (const m of text.matchAll(re)) {
+    if (m.index === undefined) continue;
     out.push({ index: m.index, length: m[0].length });
     if (out.length >= 200) break;
   }
