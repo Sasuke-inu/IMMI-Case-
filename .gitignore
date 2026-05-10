@@ -47,6 +47,9 @@ htmlcov/
 .playwright-mcp/
 .serena/
 
+# Claude Code agent runtime locks — session-scoped, never source
+**/scheduled_tasks.lock
+
 # Supabase CLI temp
 supabase/.temp/
 
