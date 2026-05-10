@@ -644,6 +644,17 @@ export async function runModerator({
   moderatorModel,
   moderatorSystemPrompt,
   moderatorMaxTokens,
+  // Slice F Phase 1 — optional streaming hook. When provided, the moderator's
+  // 14-field JSON synthesis streams via streamGatewayChatCompletion and each
+  // raw token chunk is forwarded to onDelta(text). When null/absent, the
+  // legacy non-streaming runExpert path is used (full back-compat). The final
+  // return shape is identical in both paths so downstream parsing/normalisation
+  // is untouched.
+  onDelta = null,
+  // Optional cancel signal — when streamCouncil's client disconnects, this
+  // aborts the moderator stream so we stop billing Flash tokens nobody will
+  // see. Mirrors the pattern used for expert streams.
+  externalSignal = null,
 }) {
   const start = Date.now();
   const model =
@@ -715,22 +726,64 @@ export async function runModerator({
     "- Mention uncertainty explicitly when evidence is weak.\n" +
     "- Do not add unsupported legal claims, and do not output markdown or prose outside JSON.\n";
 
-  const modOpinion = await runExpert({
-    env,
-    providerKey: "gemini_flash",
-    providerLabel: "Council Chairman",
-    modelRaw: model,
-    defaultPrefix: "google-ai-studio",
-    systemPrompt: sysPrompt,
-    question: moderatorPrompt,
-    caseContext: "",
-    history,
-    maxTokens,
-    rawPrompt: true,
-    isModerator: true,  // routes through moderator-specific timeout (90s default
-                        // vs 60s for plain google-ai-studio) — heavy 14-field JSON
-                        // synthesis with 30k-char input needs the wider window.
-  });
+  let modOpinion;
+  if (typeof onDelta === "function") {
+    // Streaming path — emit deltas as they arrive; build a runExpert-shaped
+    // result from the buffered text so downstream parsing is unchanged.
+    let fullText = "";
+    try {
+      for await (const ev of streamGatewayChatCompletion({
+        env,
+        model,
+        systemPrompt: sysPrompt,
+        userPrompt: moderatorPrompt,
+        history,
+        maxTokens,
+        isModerator: true,
+        externalSignal,
+      })) {
+        const delta = ev?.delta || "";
+        if (delta) {
+          fullText += delta;
+          // onDelta is best-effort — never let a downstream throw kill the stream.
+          try { onDelta(delta); } catch (_) { /* swallow */ }
+        }
+      }
+      modOpinion = {
+        success: true,
+        answer: stripReasoningArtifacts(fullText),
+        error: "",
+        sources: [],
+        latency_ms: Date.now() - start,
+      };
+    } catch (err) {
+      modOpinion = {
+        success: false,
+        answer: "",
+        error: `Council Chairman request failed: ${String(err).slice(0, 700)}`,
+        sources: [],
+        latency_ms: Date.now() - start,
+      };
+    }
+  } else {
+    // Legacy non-streaming path — preserved for runCouncil + tests.
+    modOpinion = await runExpert({
+      env,
+      providerKey: "gemini_flash",
+      providerLabel: "Council Chairman",
+      modelRaw: model,
+      defaultPrefix: "google-ai-studio",
+      systemPrompt: sysPrompt,
+      question: moderatorPrompt,
+      caseContext: "",
+      history,
+      maxTokens,
+      rawPrompt: true,
+      isModerator: true,  // routes through moderator-specific timeout (90s default
+                          // vs 60s for plain google-ai-studio) — heavy 14-field JSON
+                          // synthesis with 30k-char input needs the wider window.
+    });
+  }
 
   const elapsed = Date.now() - start;
 
@@ -1841,11 +1894,16 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
         return null;
       }
 
-      // Moderator runs after experts; non-streamed in v1
+      // Moderator now streams (Slice F Phase 1). Each token chunk fires a
+      // `moderator.delta` SSE event so the frontend can show the 14-field
+      // JSON synthesis assembling live; the final parsed object still arrives
+      // via `moderator.complete` so existing UI fall-through still works.
       await send("moderator.start", { model: geminiFlashModel });
       const moderator = await runModerator({
         env, opinions, question: q, caseContext,
         history: historyMessages, moderatorModel: geminiFlashModel,
+        onDelta: (text) => { void send("moderator.delta", { text }); },
+        externalSignal: orchestrationAbort.signal,
       });
       await send("moderator.complete", moderator);
 
