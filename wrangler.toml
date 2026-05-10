@@ -76,9 +76,12 @@ custom_domain = true
 [[containers]]
 class_name = "FlaskBackend"
 image = "./Dockerfile"
-# Bumped 2→3 to allow rolling DO instance bumps (flask-v13/v14/v15) without
-# quota lockout when forcing cold-start to pick up new container images.
-max_instances = 3
+# Bumped 3→7 (2026-05-10): rolling DO suffix bumps over many sessions
+# (flask-v13/14/15/.../v22) saturated the 3-slot quota on the 9th bump
+# (v23), causing 'container is not running' across all endpoints and
+# bricking production for ~10 min. With 7 slots, we can absorb several
+# bumps before old instances hibernate and free quota.
+max_instances = 7
 
 [vars]
 AUTH_ENABLED = "true"
