@@ -22,12 +22,13 @@
  *  /llm-council/sessions/:sessionId      -> thread view
  */
 
-import { useEffect, useRef, useState } from "react";
-import { useParams, Navigate } from "react-router-dom";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useParams, Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Bot,
   Eraser,
+  KeyRound,
   Lightbulb,
   Loader2,
   Scale,
@@ -37,6 +38,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
+import { restoreByCode } from "@/lib/api-llm-council";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { PageLoader } from "@/components/shared/PageLoader";
 import { TurnCard } from "@/components/llm-council/TurnCard";
@@ -546,6 +548,108 @@ function MessageInput({
 }
 
 // ---------------------------------------------------------------------------
+// RestoreByCodeRibbon — Task C UX. Lets a returning user paste a 6-char
+// recall code and jump back into their saved conversation.
+// ---------------------------------------------------------------------------
+
+const RECALL_CODE_RE = /^[2-9A-HJ-NP-Z]{6}$/;
+
+function RestoreByCodeRibbon() {
+  const navigate = useNavigate();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const normalised = code.trim().toUpperCase();
+  const isValidShape = RECALL_CODE_RE.test(normalised);
+
+  async function handleRestore(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setError(null);
+
+    if (!isValidShape) {
+      setError("Code must be 6 characters (letters and digits, no 0/O/1/I/L).");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const result = await restoreByCode(normalised);
+      // Token already persisted by the api fetcher — navigate into the session view.
+      navigate(`/llm-council/sessions/${result.session_id}`);
+    } catch (err) {
+      const msg = (err as Error).message || "Restore failed";
+      // 404 → "Code not found"; 400 → validation. Surface as-is.
+      setError(msg);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form
+      data-testid="restore-by-code-ribbon"
+      onSubmit={handleRestore}
+      className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-surface/30 px-4 py-3 shadow-sm"
+    >
+      <div className="flex items-center gap-2 text-xs font-semibold text-muted-text">
+        <KeyRound className="h-3.5 w-3.5 text-accent" />
+        <span>Returning?</span>
+      </div>
+      <input
+        type="text"
+        value={code}
+        onChange={(e) => {
+          // Auto-uppercase + strip whitespace so "k3q9 xm" pastes cleanly
+          const next = e.target.value.replace(/\s+/g, "").toUpperCase().slice(0, 6);
+          setCode(next);
+          if (error) setError(null);
+        }}
+        placeholder="K3Q9XM"
+        maxLength={6}
+        autoComplete="off"
+        spellCheck={false}
+        aria-label="6-character recall code"
+        data-testid="restore-by-code-input"
+        className="w-32 rounded-md border border-border bg-background px-3 py-1.5 text-center font-mono text-sm font-bold tracking-[0.2em] uppercase text-foreground outline-none transition-colors focus:border-accent"
+      />
+      <button
+        type="submit"
+        disabled={busy || !isValidShape}
+        data-testid="restore-by-code-submit"
+        className="inline-flex items-center gap-1.5 rounded-md border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {busy ? (
+          <>
+            <div className="animate-spin">
+              <Loader2 className="h-3 w-3" />
+            </div>
+            Restoring…
+          </>
+        ) : (
+          <>
+            <KeyRound className="h-3 w-3" />
+            Restore conversation
+          </>
+        )}
+      </button>
+      <span className="text-[11px] text-muted-text">
+        Have a recall code from a previous session? Enter it to continue.
+      </span>
+      {error ? (
+        <span
+          role="alert"
+          data-testid="restore-by-code-error"
+          className="w-full rounded-md border border-amber-300/50 bg-amber-50/40 px-2 py-1 text-[11px] text-amber-700 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-300"
+        >
+          {error}
+        </span>
+      ) : null}
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // NewSessionForm — desktop two-column / mobile single-column
 // ---------------------------------------------------------------------------
 
@@ -634,6 +738,17 @@ function NewSessionForm({ onAchievements, onRunComplete }: NewSessionFormProps) 
     <div className="grid gap-6 md:grid-cols-12">
       {/* Form column — col-span-8 on md+, col-span-12 on mobile */}
       <section className="md:col-span-8">
+        {/* Task C — Restore by code ribbon. Surfaced ABOVE the form so a
+            returning user sees it before starting a fresh session.
+            Hidden once the user starts streaming so it doesn't compete
+            with live council output. */}
+        {!stream.isStreaming &&
+        stream.state.openai.status === "pending" &&
+        stream.state.gemini_pro.status === "pending" &&
+        stream.state.anthropic.status === "pending" ? (
+          <RestoreByCodeRibbon />
+        ) : null}
+
         <div className="rounded-xl border border-border/80 bg-card p-6 shadow-sm">
           <form
             onSubmit={(e) => {

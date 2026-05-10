@@ -66,6 +66,8 @@ export interface LlmCouncilSession {
   title: string;
   status: "active" | "complete" | "abandoned";
   total_turns: number;
+  /** 6-char user-facing recall code (Task C). Null on legacy rows. */
+  retrieve_code: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -212,12 +214,14 @@ export async function createSession(params: {
 }): Promise<{
   session_id: string;
   session_token: string;
+  retrieve_code: string;
   turn: LlmCouncilTurn;
   total_turns: number;
 }> {
   const result = await councilFetchJson<{
     session_id: string;
     session_token: string;
+    retrieve_code: string;
     turn: LlmCouncilTurn;
     total_turns: number;
   }>("/api/v1/llm-council/sessions", {
@@ -225,6 +229,33 @@ export async function createSession(params: {
     body: JSON.stringify(params),
   });
 
+  persistToken(result.session_id, result.session_token);
+  return result;
+}
+
+/**
+ * POST /api/v1/llm-council/sessions/restore
+ *
+ * Exchange a 6-character retrieve_code for {session_id, session_token,
+ * retrieve_code}. Persists the token to localStorage so the existing
+ * GET /sessions/:id flow works post-restore.
+ *
+ * Throws on 404 ("Code not found") or 400 (bad shape).
+ */
+export async function restoreByCode(code: string): Promise<{
+  session_id: string;
+  session_token: string;
+  retrieve_code: string;
+}> {
+  const normalised = code.trim().toUpperCase();
+  const result = await councilFetchJson<{
+    session_id: string;
+    session_token: string;
+    retrieve_code: string;
+  }>("/api/v1/llm-council/sessions/restore", {
+    method: "POST",
+    body: JSON.stringify({ code: normalised }),
+  });
   persistToken(result.session_id, result.session_token);
   return result;
 }

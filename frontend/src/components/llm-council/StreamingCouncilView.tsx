@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AlertTriangle, Bot, CheckCircle2, ExternalLink, Loader2, Search, Sparkles } from "lucide-react";
+import { AlertTriangle, Bot, CheckCircle2, Copy, ExternalLink, KeyRound, Loader2, Search, Sparkles } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,6 +58,13 @@ export interface CouncilStreamState {
     data?: any;
     error?: string;
   };
+  /** Task C — session identity emitted as a `council.session` SSE event
+   *  right after `council.start`. Null until the event lands. */
+  session: {
+    sessionId: string | null;
+    sessionToken: string | null;
+    retrieveCode: string | null;
+  };
   startedAt: number;
 }
 
@@ -75,6 +82,7 @@ const initialState = (): CouncilStreamState => ({
   anthropic: initialExpert(),
   moderator: { status: "pending" },
   council: { status: "running" },
+  session: { sessionId: null, sessionToken: null, retrieveCode: null },
   startedAt: Date.now(),
 });
 
@@ -236,6 +244,28 @@ export function useCouncilStream(): UseCouncilStreamResult {
           lastActivityAt = Date.now();
           if (ev.event === "council.start") {
             update({ ...curr, council: { status: "running" } });
+            continue;
+          }
+
+          if (ev.event === "council.session") {
+            // Task C — capture the pre-minted session identity. The Worker
+            // persists the session+turn after the council orchestration
+            // finishes (handler ctx.waitUntil), so we just need to surface
+            // the retrieve_code so the user can save it.
+            const sessionId = String(ev.data?.session_id || "") || null;
+            const sessionToken = String(ev.data?.session_token || "") || null;
+            const retrieveCode = String(ev.data?.retrieve_code || "") || null;
+            // Persist token so future GET /sessions/:id flows work the same
+            // way as the createSession path. Try-catch for incognito quota.
+            if (sessionId && sessionToken) {
+              try {
+                localStorage.setItem(`llm-council-token-${sessionId}`, sessionToken);
+              } catch { /* incognito / quota — non-fatal */ }
+            }
+            update({
+              ...curr,
+              session: { sessionId, sessionToken, retrieveCode },
+            });
             continue;
           }
 
@@ -621,6 +651,81 @@ export function StreamingCouncilView({ state }: StreamingCouncilViewProps) {
             <Loader2 className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
           </div>
         ) : null}
+      </div>
+
+      {/* Task C — recall-code surface. Only rendered after the council
+          finishes AND the session.session event has landed (most flows
+          satisfy both within ~10ms of each other; gating on retrieveCode
+          alone would surface it mid-stream which is misleading). */}
+      {state.council.status === "done" && state.session.retrieveCode ? (
+        <RecallCodeCard code={state.session.retrieveCode} />
+      ) : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RecallCodeCard — prominent "save your code" UI shown after stream done
+// ---------------------------------------------------------------------------
+
+function RecallCodeCard({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  const onCopy = useCallback(() => {
+    try {
+      navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard blocked — non-fatal, code is visible on screen */
+    }
+  }, [code]);
+
+  return (
+    <div
+      data-testid="recall-code-card"
+      className="rounded-xl border border-accent/40 bg-gradient-to-r from-accent/5 to-accent/10 p-4 shadow-sm dark:from-accent/10 dark:to-accent/20"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
+            <KeyRound className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-wide text-accent">
+              Save your recall code
+            </div>
+            <div className="text-[11px] text-muted-text">
+              Enter this code on a future visit to restore this conversation.
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <code
+            data-testid="recall-code-value"
+            className="select-all rounded-md border border-accent/40 bg-card px-3 py-1.5 font-mono text-base font-bold tracking-[0.2em] text-foreground"
+          >
+            {code}
+          </code>
+          <button
+            type="button"
+            onClick={onCopy}
+            data-testid="recall-code-copy"
+            aria-label="Copy recall code"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-accent/60 hover:bg-accent/10 hover:text-accent"
+          >
+            {copied ? (
+              <>
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                Copied
+              </>
+            ) : (
+              <>
+                <Copy className="h-3.5 w-3.5" />
+                Copy
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
