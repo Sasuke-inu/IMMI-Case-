@@ -18,13 +18,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AlertTriangle, Bot, CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, Bot, CheckCircle2, ExternalLink, Loader2, Search, Sparkles } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export type ProviderKey = "openai" | "gemini_pro" | "anthropic";
+
+export interface GroundedSource {
+  url: string;
+  title?: string;
+}
 
 export interface ExpertStreamState {
   text: string;
@@ -33,6 +38,10 @@ export interface ExpertStreamState {
   model?: string;
   latencyMs?: number;
   sources?: string[];
+  /** Live citation chips emitted by `<provider>.source` SSE events from
+   *  Anthropic web_search + Gemini google_search grounding. Inline URLs in
+   *  the answer text still go in `sources` (combined for legacy callers). */
+  groundedSources?: GroundedSource[];
 }
 
 export interface CouncilStreamState {
@@ -268,6 +277,25 @@ export function useCouncilStream(): UseCouncilStreamResult {
                   latencyMs: ev.data.latency_ms,
                 },
               });
+            } else if (sub === "source") {
+              // Live grounding citation from web_search / google_search.
+              // Dedupe by URL so the same source emitted twice (e.g. via
+              // `<provider>.source` AND `<provider>.done.grounded_sources`)
+              // doesn't double up in the chip footer.
+              const url = String(ev.data?.url || "").trim();
+              if (!url) continue;
+              const existing = prev.groundedSources || [];
+              if (existing.some((s) => s.url === url)) continue;
+              update({
+                ...curr,
+                [matched]: {
+                  ...prev,
+                  groundedSources: [
+                    ...existing,
+                    { url, title: ev.data?.title || url },
+                  ],
+                },
+              });
             }
             continue;
           }
@@ -426,6 +454,45 @@ function ExpertColumn({ providerKey, state }: ExpertColumnProps) {
         <footer className="border-t border-border bg-surface/30 px-3 py-1.5 font-mono text-[10px] text-muted-text">
           {state.model}
         </footer>
+      ) : null}
+      {/* Grounding citation chips — surfaces real-time web_search /
+          google_search source URLs. Trust signal: user sees Anthropic
+          actually pulling 2025 ART Amendment Bill from aph.gov.au. */}
+      {state.groundedSources && state.groundedSources.length > 0 ? (
+        <div
+          className="border-t border-border bg-surface/20 px-2 py-1.5"
+          data-testid={`stream-sources-${providerKey}`}
+        >
+          <div className="mb-1 flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider text-accent">
+            <Search className="h-2.5 w-2.5" />
+            <span>Live sources ({state.groundedSources.length})</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {state.groundedSources.slice(0, 8).map((s) => {
+              let host = s.url;
+              try { host = new URL(s.url).hostname.replace(/^www\./, ""); }
+              catch { /* malformed URL — fall back to raw */ }
+              return (
+                <a
+                  key={s.url}
+                  href={s.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={s.title || s.url}
+                  className="inline-flex max-w-[10rem] items-center gap-1 truncate rounded-full border border-border bg-card px-2 py-0.5 text-[10px] text-foreground transition-colors hover:border-accent/60 hover:bg-accent/10 hover:text-accent"
+                >
+                  <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                  <span className="truncate">{host}</span>
+                </a>
+              );
+            })}
+            {state.groundedSources.length > 8 ? (
+              <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] text-muted-text">
+                +{state.groundedSources.length - 8}
+              </span>
+            ) : null}
+          </div>
+        </div>
       ) : null}
     </article>
   );
