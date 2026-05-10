@@ -11,6 +11,30 @@
 
 import postgres from "postgres";
 
+// ── Retrieve-code generator ──────────────────────────────────────────────────
+
+// Base32 alphabet excluding 0/O/1/I/L (visual disambiguation for users
+// transcribing the code from one device to another). 30 symbols → 30^6 ≈ 729M
+// codes; uniqueness is enforced at the DB layer via partial UNIQUE index
+// (see supabase/migrations/20260510_council_retrieve_code.sql).
+const RETRIEVE_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+const RETRIEVE_CODE_LENGTH = 6;
+
+/**
+ * Generate a 6-character user-facing retrieve code via crypto.getRandomValues.
+ * Caller must handle the rare DB UNIQUE-violation case (rerun on conflict).
+ * @returns {string}
+ */
+export function generateRetrieveCode() {
+  const buf = new Uint8Array(RETRIEVE_CODE_LENGTH);
+  crypto.getRandomValues(buf);
+  let out = "";
+  for (let i = 0; i < RETRIEVE_CODE_LENGTH; i++) {
+    out += RETRIEVE_CODE_ALPHABET[buf[i] % RETRIEVE_CODE_ALPHABET.length];
+  }
+  return out;
+}
+
 // ── Client factory ────────────────────────────────────────────────────────────
 
 /**
@@ -40,14 +64,45 @@ export function getSql(env) {
  * @param {string} params.hmacSig    - base64url HMAC-SHA256 of sessionId
  * @returns {Promise<object>} the inserted row
  */
-export async function createSession({ env, sessionId, caseId, title, hmacSig }) {
+export async function createSession({
+  env,
+  sessionId,
+  caseId,
+  title,
+  hmacSig,
+  retrieveCode = null,
+}) {
   const sql = getSql(env);
   const rows = await sql`
-    INSERT INTO council_sessions (session_id, case_id, title, hmac_sig)
-    VALUES (${sessionId}, ${caseId ?? null}, ${title ?? null}, ${hmacSig})
+    INSERT INTO council_sessions (session_id, case_id, title, hmac_sig, retrieve_code)
+    VALUES (${sessionId}, ${caseId ?? null}, ${title ?? null}, ${hmacSig}, ${retrieveCode})
     RETURNING *
   `;
   return rows[0];
+}
+
+// ── getSessionByCode ──────────────────────────────────────────────────────────
+
+/**
+ * Look up a session by its user-facing 6-char retrieve_code.
+ * Code matching is case-insensitive (alphabet excludes 0/O/1/I/L so confusion
+ * is bounded; we still upper() at lookup for safety against pasted lowercase).
+ *
+ * @param {object} params
+ * @param {object} params.env
+ * @param {string} params.code  - 6-char retrieve code
+ * @returns {Promise<object|null>} session row or null
+ */
+export async function getSessionByCode({ env, code }) {
+  if (typeof code !== "string" || code.length !== 6) return null;
+  const normalised = code.toUpperCase();
+  const sql = getSql(env);
+  const rows = await sql`
+    SELECT * FROM council_sessions
+    WHERE retrieve_code = ${normalised}
+    LIMIT 1
+  `;
+  return rows && rows.length > 0 ? rows[0] : null;
 }
 
 // ── addTurn ───────────────────────────────────────────────────────────────────

@@ -1618,7 +1618,7 @@ export async function* streamGeminiNative({
  * + final moderator synthesis. Suitable as Response body with
  * Content-Type: text/event-stream.
  */
-export function streamCouncil({ env, question, caseContext = "", prevTurns, models = {} }) {
+export function streamCouncil({ env, question, caseContext = "", prevTurns, models = {}, sessionMeta = null }) {
   const q = (question || "").trim();
   if (!q) throw new Error("question is required");
 
@@ -1773,6 +1773,17 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
         },
       });
 
+      // Surface session identity early so the frontend can show the
+      // retrieve code without waiting for council.done. Only emitted when
+      // the caller (handler) supplies sessionMeta.
+      if (sessionMeta && typeof sessionMeta === "object") {
+        await send("council.session", {
+          session_id: sessionMeta.session_id || null,
+          session_token: sessionMeta.session_token || null,
+          retrieve_code: sessionMeta.retrieve_code || null,
+        });
+      }
+
       const expertResults = await Promise.allSettled([
         runStreamExpert("openai", "OpenAI", openaiModel, DEFAULT_OPENAI_SYSTEM_PROMPT),
         runStreamExpert("gemini_pro", "Google Gemini Pro", geminiProModel, DEFAULT_GEMINI_PRO_SYSTEM_PROMPT),
@@ -1798,7 +1809,7 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
       // Client disconnected mid-orchestration — skip moderator entirely.
       // Saves Flash tokens and avoids a 30s wait when nobody's listening.
       if (orchestrationAbort.signal.aborted) {
-        return;
+        return null;
       }
 
       // Guard against the all-experts-failed case — running the moderator
@@ -1813,7 +1824,7 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
         await send("council.error", {
           error: "All three experts failed — no synthesis attempted.",
         });
-        await send("council.done", {
+        const allFailedDonePayload = {
           question: q,
           case_context: caseContext || "",
           models: {
@@ -1824,8 +1835,10 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
           },
           opinions,
           moderator: null,
-        });
-        return;
+        };
+        await send("council.done", allFailedDonePayload);
+        // Resolve work with null so handler skips persistence on all-failed
+        return null;
       }
 
       // Moderator runs after experts; non-streamed in v1
@@ -1837,7 +1850,7 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
       await send("moderator.complete", moderator);
 
       // Terminal event with full payload (so client can persist if desired)
-      await send("council.done", {
+      const donePayload = {
         question: q, case_context: caseContext || "",
         models: {
           openai: { model: openaiModel },
@@ -1846,9 +1859,14 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
           gemini_flash: { model: geminiFlashModel, role: "Council Chairman" },
         },
         opinions, moderator,
-      });
+      };
+      await send("council.done", donePayload);
+      // Resolve work with the same payload so the handler can persist via
+      // result.work.then(councilResult => createSession + addTurn).
+      return donePayload;
     } catch (err) {
       await send("council.error", { error: String(err).slice(0, 700) });
+      return null;
     } finally {
       try { await writer.close(); } catch (_) { /* already closed */ }
     }

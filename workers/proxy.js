@@ -50,6 +50,7 @@ import {
   handleDeleteSession,
   handleLegacyRun,
   handleStreamCouncil,
+  handleRestoreByCode,
 } from "./llm-council/handlers.js";
 import { handleTelegramLogin, handleAuthMe, handleAuthLogout, handleAuthRefresh, handleAuthSwitchTenant } from "./auth/handlers.js";
 export { AuthNonce } from "./auth/nonce_do.js";
@@ -2565,6 +2566,14 @@ export async function dispatchLlmCouncil(request, env, url, path, method, ctx) {
   // POST /api/v1/llm-council/stream  (Sprint 2 — SSE for 3-column live UI)
   if (path === "/api/v1/llm-council/stream" && method === "POST") {
     return handleStreamCouncil(request, env, path, ctx);
+  }
+
+  // POST /api/v1/llm-council/sessions/restore  (Task C — 6-digit code recall)
+  // Must come BEFORE the /:id regex matchers so 'restore' is dispatched
+  // explicitly rather than treated as a session_id (it's 7 chars vs the
+  // 21-char regex, so it wouldn't match anyway, but explicit beats implicit).
+  if (path === "/api/v1/llm-council/sessions/restore" && method === "POST") {
+    return handleRestoreByCode(request, env);
   }
 
   // POST /api/v1/llm-council/sessions/:id/turns

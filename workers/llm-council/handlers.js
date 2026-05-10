@@ -25,9 +25,11 @@ import {
   createSession,
   addTurn,
   getSession,
+  getSessionByCode,
   listSessions,
   deleteSession,
   loadHistory,
+  generateRetrieveCode,
 } from "./storage.js";
 import { runCouncil, streamCouncil } from "./runner.js";
 
@@ -179,10 +181,11 @@ export async function handleCreateSession(request, env) {
   const caseId = body.case_id || null;
   const caseContext = typeof body.case_context === "string" ? body.case_context : "";
 
-  // 3. Generate IDs + token
+  // 3. Generate IDs + token + retrieve code
   const sessionId = nanoid21();
   const turnId = nanoid21();
   const sessionToken = await mintToken(env, sessionId);
+  const retrieveCode = generateRetrieveCode();
 
   // 4. Run council (turn 0, no history)
   let councilResult;
@@ -201,13 +204,34 @@ export async function handleCreateSession(request, env) {
   const title = message.slice(0, 80);
 
   // 5. Persist session + turn
-  await createSession({
-    env,
-    sessionId,
-    caseId,
-    title,
-    hmacSig: sessionToken,
-  });
+  // Retry once on retrieve_code UNIQUE-violation (extremely rare at 30^6 ≈ 729M
+  // codes; partial unique index ensures only non-null values collide).
+  let createdSession;
+  let codeUsed = retrieveCode;
+  try {
+    createdSession = await createSession({
+      env,
+      sessionId,
+      caseId,
+      title,
+      hmacSig: sessionToken,
+      retrieveCode: codeUsed,
+    });
+  } catch (err) {
+    if (String(err?.message || "").includes("retrieve_code")) {
+      codeUsed = generateRetrieveCode();
+      createdSession = await createSession({
+        env,
+        sessionId,
+        caseId,
+        title,
+        hmacSig: sessionToken,
+        retrieveCode: codeUsed,
+      });
+    } else {
+      throw err;
+    }
+  }
 
   await addTurn({
     env,
@@ -222,10 +246,11 @@ export async function handleCreateSession(request, env) {
     totalLatencyMs: null,
   });
 
-  // 6. Respond
+  // 6. Respond — surface retrieve_code so the frontend can display it
   return jsonResponse({
     session_id: sessionId,
     session_token: sessionToken,
+    retrieve_code: createdSession?.retrieve_code ?? codeUsed,
     turn: {
       turn_id: turnId,
       turn_index: 0,
@@ -586,6 +611,16 @@ export async function handleStreamCouncil(request, env, _path, ctx) {
 
   const message = body.message.trim();
   const caseContext = typeof body.case_context === "string" ? body.case_context : "";
+  const caseId = body.case_id || null;
+
+  // Pre-mint session identity so we can emit it as a `council.session` SSE
+  // event early in the stream (so the frontend can show the retrieve code
+  // even before the orchestration completes).
+  const sessionId = nanoid21();
+  const sessionToken = await mintToken(env, sessionId);
+  const retrieveCode = generateRetrieveCode();
+  const turnId = nanoid21();
+  const title = message.slice(0, 80);
 
   let result;
   try {
@@ -594,17 +629,61 @@ export async function handleStreamCouncil(request, env, _path, ctx) {
       question: message,
       caseContext,
       prevTurns: [],
+      // Optional metadata — runner.js emits a `council.session` SSE event
+      // immediately after the stream opens when this is provided.
+      sessionMeta: {
+        session_id: sessionId,
+        session_token: sessionToken,
+        retrieve_code: retrieveCode,
+      },
     });
   } catch (err) {
     return errorResponse(`LLM Council stream error: ${err.message}`, 503);
   }
 
-  // ctx.waitUntil keeps the orchestration alive even if the client disconnects
-  // mid-stream — guarantees gateway calls complete (so the bill we paid produces
-  // a result). When ctx is unavailable (older Worker runtime, tests), the
-  // orchestration still runs but is bound to the response lifecycle.
+  // Persist on done — runs after the stream's orchestration completes.
+  // result.work resolves to the final {opinions, moderator, ...} object on
+  // success, or to null on terminal error. ctx.waitUntil keeps this alive
+  // even if the client disconnects mid-stream.
+  const persistTask = result.work.then(async (councilResult) => {
+    if (!councilResult || typeof councilResult !== "object") return;
+    try {
+      // Retry once on retrieve_code UNIQUE collision.
+      let codeUsed = retrieveCode;
+      try {
+        await createSession({
+          env, sessionId, caseId, title,
+          hmacSig: sessionToken, retrieveCode: codeUsed,
+        });
+      } catch (err) {
+        if (String(err?.message || "").includes("retrieve_code")) {
+          codeUsed = generateRetrieveCode();
+          await createSession({
+            env, sessionId, caseId, title,
+            hmacSig: sessionToken, retrieveCode: codeUsed,
+          });
+        } else { throw err; }
+      }
+      await addTurn({
+        env,
+        sessionId,
+        turnId,
+        turnIndex: 0,
+        userMessage: message,
+        userCaseContext: caseContext || null,
+        payload: councilResult,
+        retrievedCases: councilResult.retrieved_cases || null,
+        totalTokens: null,
+        totalLatencyMs: null,
+      });
+    } catch (err) {
+      // Persistence is best-effort — never break the user-facing stream.
+      console.error("[stream-persist] failed:", err?.message || err);
+    }
+  });
+
   if (ctx && typeof ctx.waitUntil === "function") {
-    ctx.waitUntil(result.work);
+    ctx.waitUntil(persistTask);
   }
 
   return new Response(result.readable, {
@@ -615,5 +694,64 @@ export async function handleStreamCouncil(request, env, _path, ctx) {
       "Connection": "keep-alive",
       "X-Accel-Buffering": "no",
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// handleRestoreByCode
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /sessions/restore
+ *
+ * Body: {code}
+ *
+ * Looks up a session by its 6-char retrieve_code and returns
+ * {session_id, session_token} so the frontend can navigate to the existing
+ * GET /sessions/:id flow with proper auth.
+ *
+ * Auth model: HMAC-derived session_token is recomputed server-side from
+ * sessionId + CSRF_SECRET (deterministic via mintToken), so we do NOT
+ * leak the original token from the DB — we mint a fresh one. Either is
+ * valid because verifyToken just checks HMAC equality.
+ *
+ * @param {Request} request
+ * @param {object} env
+ * @returns {Promise<Response>}
+ */
+export async function handleRestoreByCode(request, env) {
+  const rl = await applyRateLimit(request, env);
+  if (!rl.success) {
+    return errorResponse("Rate limit exceeded — try again shortly", 429);
+  }
+
+  let body;
+  try { body = await request.json(); }
+  catch { return errorResponse("Request body must be valid JSON"); }
+  if (!body || typeof body !== "object") {
+    return errorResponse("Request body must be a JSON object");
+  }
+
+  const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
+  if (!code || code.length !== 6) {
+    return errorResponse("code must be a 6-character string", 400);
+  }
+  // Reject anything that isn't in the alphabet (avoid SQL probing noise).
+  if (!/^[2-9A-HJ-NP-Z]{6}$/.test(code)) {
+    return errorResponse("code contains invalid characters", 400);
+  }
+
+  const session = await getSessionByCode({ env, code });
+  if (!session) {
+    return errorResponse("Code not found", 404);
+  }
+
+  // Recompute the deterministic HMAC token (matches what verifyToken expects).
+  const sessionToken = await mintToken(env, session.session_id);
+
+  return jsonResponse({
+    session_id: session.session_id,
+    session_token: sessionToken,
+    retrieve_code: session.retrieve_code,
   });
 }

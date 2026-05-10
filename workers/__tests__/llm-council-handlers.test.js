@@ -29,17 +29,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockCreateSession = vi.fn();
 const mockAddTurn = vi.fn();
 const mockGetSession = vi.fn();
+const mockGetSessionByCode = vi.fn();
 const mockListSessions = vi.fn();
 const mockDeleteSession = vi.fn();
 const mockLoadHistory = vi.fn();
+const mockGenerateRetrieveCode = vi.fn(() => "TEST00");
 
 vi.mock("../llm-council/storage.js", () => ({
   createSession: (...a) => mockCreateSession(...a),
   addTurn: (...a) => mockAddTurn(...a),
   getSession: (...a) => mockGetSession(...a),
+  getSessionByCode: (...a) => mockGetSessionByCode(...a),
   listSessions: (...a) => mockListSessions(...a),
   deleteSession: (...a) => mockDeleteSession(...a),
   loadHistory: (...a) => mockLoadHistory(...a),
+  generateRetrieveCode: () => mockGenerateRetrieveCode(),
 }));
 
 // ---------------------------------------------------------------------------
