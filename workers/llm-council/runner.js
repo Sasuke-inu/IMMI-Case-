@@ -107,26 +107,31 @@ export const DEFAULT_OPENAI_SYSTEM_PROMPT =
 
 export const DEFAULT_GEMINI_PRO_SYSTEM_PROMPT =
   "Role: Senior legal research counsel specialized in grounded-source verification for Australian immigration matters. " +
-  "Primary duty: use grounded search evidence and clearly cite source links when available. " +
+  "Search tool: you have google_search grounding enabled. Actively use it to verify recent statutory amendments, " +
+  "AAT/ART decisions, Federal Court judgments, DFAT country reports, UNHCR guidance, and case-law citations. " +
+  "Always prefer 2024-2026 primary sources. Cite via groundingMetadata where possible. " +
   "Source hierarchy: legislation and delegated legislation first, then tribunal/court decisions, then official policy guidance. " +
   "Reasoning discipline: separate legal rules, factual premises, inferences, and unresolved uncertainties. " +
   "Strict constraints: do not invent citations, do not overclaim source content, and mark any point that is not source-verified. " +
   "Output format requirements: " +
-  "(1) Verified legal framework, " +
+  "(1) Verified legal framework (with statute citations), " +
   "(2) Argument map for applicant vs decision-maker, " +
   "(3) Procedural and evidentiary vulnerabilities, " +
-  "(4) Authorities and source links used, " +
+  "(4) Authorities and source links used (include URLs from search results), " +
   "(5) Next research and document-check steps. " +
   "Do not provide legal advice; provide research-oriented analysis only.";
 
 export const DEFAULT_ANTHROPIC_SYSTEM_PROMPT =
   "Role: Senior adversarial legal analyst for Australian immigration research. " +
+  "Search tool: you have web_search enabled (max 5 uses per turn). Use it strategically to verify the most " +
+  "current Australian Migration Act amendments, AAT/ART/Federal Court decisions on jurisdictional error, " +
+  "and recent country-information reports relevant to the applicant's claim. " +
   "Primary duty: stress-test the case theory by identifying strongest and weakest arguments on both sides. " +
   "Reasoning standard: high-depth chain of legal analysis including assumptions, counterfactuals, and failure modes. " +
   "Risk focus: procedural fairness defects, jurisdictional error theories, credibility findings, statutory criteria mismatch, and proof deficiencies. " +
   "Strict constraints: no fabricated authorities, no unsupported factual claims, and explicit confidence levels for each major conclusion. " +
   "Output format requirements: " +
-  "(1) Best-case arguments, " +
+  "(1) Best-case arguments (with case-name + section citations), " +
   "(2) Best rebuttals, " +
   "(3) Critical risks likely to fail review, " +
   "(4) Evidence required to improve position, " +
@@ -1316,6 +1321,298 @@ function encodeSseEvent(event, data) {
   return new TextEncoder().encode(payload);
 }
 
+// ===========================================================================
+// NATIVE-API STREAMING ADAPTERS (web search enabled)
+// ===========================================================================
+//
+// CF AI Gateway compat endpoint normalises everyone to OpenAI Chat Completions
+// shape — but provider-native search tools (Anthropic web_search,
+// Gemini google_search grounding) live in different request/response schemas
+// that compat strips. To get search, hit AIG's per-provider passthrough:
+//   /anthropic/v1/messages                    — Anthropic Messages API + tools
+//   /google-ai-studio/v1beta/models/{m}:streamGenerateContent — Gemini native
+// Both still bill through CF_AIG_TOKEN (unified billing preserved).
+// Each adapter yields { delta: string, source?: {url, title} } so the SSE
+// event shape stays identical to streamGatewayChatCompletion's contract.
+
+const CF_AIG_BASE = "https://gateway.ai.cloudflare.com/v1/30ffcfbf8c4103048bc38a5398b7ec99/immi-council";
+
+/**
+ * Strip the "anthropic/" prefix to get the bare model id Anthropic API expects.
+ */
+function stripAnthropicPrefix(model) {
+  return (model || "").replace(/^anthropic\//, "");
+}
+
+/**
+ * Strip "google-ai-studio/" prefix.
+ */
+function stripGooglePrefix(model) {
+  return (model || "").replace(/^google-ai-studio\//, "");
+}
+
+/**
+ * Stream from Anthropic Messages API via CF AI Gateway passthrough,
+ * with web_search tool enabled (5 uses max). Yields delta strings as the
+ * model emits text, including text from tool_use cycles.
+ *
+ * Anthropic SSE event types we care about:
+ *   - message_start                             (ignore — metadata)
+ *   - content_block_start                       (ignore — block init)
+ *   - content_block_delta { delta: { type: "text_delta", text: "..." } }
+ *   - content_block_stop                        (ignore)
+ *   - message_delta                             (ignore — usage)
+ *   - message_stop                              (terminator)
+ *   - server_tool_use { name: "web_search", input: { query }} (we surface URL via .source)
+ *   - web_search_tool_result { content: [{type:"web_search_result", url, title}] }
+ *
+ * @param {object} opts
+ * @yields {{delta: string, source?: {url, title}}}
+ */
+export async function* streamAnthropicNative({
+  env,
+  model,
+  systemPrompt,
+  userPrompt,
+  maxTokens = DEFAULT_MAX_OUTPUT_TOKENS,
+  timeoutMs,
+  externalSignal,
+}) {
+  const token = env.CF_AIG_TOKEN || "";
+  if (!token) throw new Error("Missing CF_AIG_TOKEN");
+
+  const url = `${CF_AIG_BASE}/anthropic/v1/messages`;
+  const bareModel = stripAnthropicPrefix(model);
+
+  const body = {
+    model: bareModel,
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+    stream: true,
+    tools: [
+      {
+        type: "web_search_20250305",
+        name: "web_search",
+        max_uses: 5,
+      },
+    ],
+  };
+
+  const effectiveTimeoutMs = timeoutMs || timeoutForModel(env, model, false);
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutHandle = setTimeout(() => { timedOut = true; controller.abort(); }, effectiveTimeoutMs);
+
+  let externalAborted = false;
+  const onExternalAbort = () => { externalAborted = true; controller.abort(); };
+  if (externalSignal) {
+    if (externalSignal.aborted) { externalAborted = true; controller.abort(); }
+    else externalSignal.addEventListener("abort", onExternalAbort, { once: true });
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "cf-aig-authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+        // AIG injects the upstream API key, but Anthropic still requires
+        // these headers for the Messages API beta web_search tool.
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "web-search-2025-03-05",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      let detail;
+      try { detail = await res.json(); } catch (_) { detail = await res.text().catch(() => ""); }
+      throw new Error(`HTTP ${res.status}: ${JSON.stringify(detail).slice(0, 800)}`);
+    }
+    if (!res.body) throw new Error("No response body");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const events = buffer.split("\n\n");
+      buffer = events.pop() || "";
+      for (const rawEvent of events) {
+        // Anthropic SSE: "event: <name>\ndata: <json>\n\n"
+        let dataStr = "";
+        for (const line of rawEvent.split("\n")) {
+          if (line.startsWith("data: ")) dataStr += (dataStr ? "\n" : "") + line.slice(6);
+          else if (line.startsWith("data:")) dataStr += (dataStr ? "\n" : "") + line.slice(5);
+        }
+        if (!dataStr) continue;
+        try {
+          const parsed = JSON.parse(dataStr);
+          // text deltas
+          if (parsed.type === "content_block_delta" && parsed.delta?.type === "text_delta") {
+            const delta = parsed.delta.text;
+            if (typeof delta === "string" && delta.length > 0) {
+              yield { delta };
+            }
+          }
+          // web_search_tool_result blocks carry source URLs
+          if (parsed.type === "content_block_start" && parsed.content_block?.type === "web_search_tool_result") {
+            const results = parsed.content_block.content || [];
+            for (const r of results) {
+              if (r.type === "web_search_result" && r.url) {
+                yield { delta: "", source: { url: r.url, title: r.title || r.url } };
+              }
+            }
+          }
+          if (parsed.type === "message_stop") return;
+        } catch (_) { /* malformed event */ }
+      }
+    }
+  } catch (err) {
+    if (externalAborted) throw new Error("Stream cancelled by orchestration");
+    if (timedOut) throw new Error(`Stream timeout after ${effectiveTimeoutMs / 1000}s`);
+    throw err;
+  } finally {
+    clearTimeout(timeoutHandle);
+    if (externalSignal) {
+      try { externalSignal.removeEventListener("abort", onExternalAbort); } catch (_) {}
+    }
+  }
+}
+
+/**
+ * Stream from Google AI Studio (Gemini) generateContent via CF AI Gateway
+ * passthrough, with google_search grounding enabled. Yields delta strings as
+ * the model emits text, plus source URLs from groundingMetadata.
+ *
+ * Gemini ":streamGenerateContent" returns NDJSON-like array of partial
+ * GenerateContentResponse objects (NOT OpenAI SSE format). When the
+ * Content-Type is text/event-stream (alt=sse query), it becomes SSE; we use
+ * alt=sse for predictability.
+ *
+ * @param {object} opts
+ * @yields {{delta: string, source?: {url, title}}}
+ */
+export async function* streamGeminiNative({
+  env,
+  model,
+  systemPrompt,
+  userPrompt,
+  maxTokens = DEFAULT_MAX_OUTPUT_TOKENS,
+  timeoutMs,
+  externalSignal,
+}) {
+  const token = env.CF_AIG_TOKEN || "";
+  if (!token) throw new Error("Missing CF_AIG_TOKEN");
+
+  const bareModel = stripGooglePrefix(model);
+  // alt=sse forces SSE output (standard \n\n event terminators)
+  const url = `${CF_AIG_BASE}/google-ai-studio/v1beta/models/${bareModel}:streamGenerateContent?alt=sse`;
+
+  const body = {
+    contents: [
+      { role: "user", parts: [{ text: userPrompt }] },
+    ],
+    systemInstruction: systemPrompt
+      ? { parts: [{ text: systemPrompt }] }
+      : undefined,
+    tools: [{ google_search: {} }],
+    generationConfig: {
+      maxOutputTokens: maxTokens,
+      temperature: 0.2,
+    },
+  };
+
+  const effectiveTimeoutMs = timeoutMs || timeoutForModel(env, model, false);
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutHandle = setTimeout(() => { timedOut = true; controller.abort(); }, effectiveTimeoutMs);
+
+  let externalAborted = false;
+  const onExternalAbort = () => { externalAborted = true; controller.abort(); };
+  if (externalSignal) {
+    if (externalSignal.aborted) { externalAborted = true; controller.abort(); }
+    else externalSignal.addEventListener("abort", onExternalAbort, { once: true });
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "cf-aig-authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      let detail;
+      try { detail = await res.json(); } catch (_) { detail = await res.text().catch(() => ""); }
+      throw new Error(`HTTP ${res.status}: ${JSON.stringify(detail).slice(0, 800)}`);
+    }
+    if (!res.body) throw new Error("No response body");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    const seenChunks = new Set(); // dedupe groundingChunks across partials
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const events = buffer.split("\n\n");
+      buffer = events.pop() || "";
+      for (const rawEvent of events) {
+        let dataStr = "";
+        for (const line of rawEvent.split("\n")) {
+          if (line.startsWith("data: ")) dataStr += (dataStr ? "\n" : "") + line.slice(6);
+          else if (line.startsWith("data:")) dataStr += (dataStr ? "\n" : "") + line.slice(5);
+        }
+        if (!dataStr) continue;
+        try {
+          const parsed = JSON.parse(dataStr);
+          // candidates[0].content.parts[i].text — text deltas
+          const candidate = parsed.candidates?.[0];
+          if (candidate?.content?.parts) {
+            for (const part of candidate.content.parts) {
+              if (typeof part.text === "string" && part.text.length > 0) {
+                yield { delta: part.text };
+              }
+            }
+          }
+          // groundingMetadata.groundingChunks[i].web.{uri,title} — source citations
+          const chunks = candidate?.groundingMetadata?.groundingChunks || [];
+          for (const chunk of chunks) {
+            const web = chunk.web;
+            if (web?.uri && !seenChunks.has(web.uri)) {
+              seenChunks.add(web.uri);
+              yield { delta: "", source: { url: web.uri, title: web.title || web.uri } };
+            }
+          }
+        } catch (_) { /* malformed event */ }
+      }
+    }
+  } catch (err) {
+    if (externalAborted) throw new Error("Stream cancelled by orchestration");
+    if (timedOut) throw new Error(`Stream timeout after ${effectiveTimeoutMs / 1000}s`);
+    throw err;
+  } finally {
+    clearTimeout(timeoutHandle);
+    if (externalSignal) {
+      try { externalSignal.removeEventListener("abort", onExternalAbort); } catch (_) {}
+    }
+  }
+}
+
 /**
  * Build a ReadableStream that multiplexes SSE events from 3 parallel experts
  * + final moderator synthesis. Suitable as Response body with
@@ -1363,16 +1660,50 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
     }
   };
 
+  /**
+   * Dispatch to the right streaming generator based on provider:
+   *   - anthropic  → Anthropic Messages API + web_search tool (native passthrough)
+   *   - gemini_pro → Gemini generateContent + google_search grounding (native)
+   *   - openai     → OpenAI Chat Completions via compat (no tools yet — gpt-5
+   *                  reasoning models do not surface tool support through compat)
+   */
+  const pickStreamGenerator = (providerKey, model, systemPrompt) => {
+    if (providerKey === "anthropic") {
+      return streamAnthropicNative({
+        env, model, systemPrompt, userPrompt,
+        externalSignal: orchestrationAbort.signal,
+      });
+    }
+    if (providerKey === "gemini_pro") {
+      return streamGeminiNative({
+        env, model, systemPrompt, userPrompt,
+        externalSignal: orchestrationAbort.signal,
+      });
+    }
+    // openai (and any future provider) keeps compat path. History only
+    // applies to compat (Anthropic + Gemini native get fresh single-turn
+    // for now — multi-turn with tools is a follow-up).
+    return streamGatewayChatCompletion({
+      env, model, systemPrompt, userPrompt, history: historyMessages,
+      externalSignal: orchestrationAbort.signal,
+    });
+  };
+
   const runStreamExpert = async (providerKey, providerLabel, model, systemPrompt) => {
     const start = Date.now();
     let fullText = "";
+    const searchSources = []; // populated by native adapters via .source
     try {
-      for await (const { delta } of streamGatewayChatCompletion({
-        env, model, systemPrompt, userPrompt, history: historyMessages,
-        externalSignal: orchestrationAbort.signal,
-      })) {
-        fullText += delta;
-        await send(`${providerKey}.delta`, { text: delta });
+      for await (const ev of pickStreamGenerator(providerKey, model, systemPrompt)) {
+        const delta = ev?.delta || "";
+        if (delta.length > 0) {
+          fullText += delta;
+          await send(`${providerKey}.delta`, { text: delta });
+        }
+        if (ev?.source?.url && !searchSources.find((s) => s.url === ev.source.url)) {
+          searchSources.push(ev.source);
+          await send(`${providerKey}.source`, ev.source);
+        }
       }
       const answer = stripReasoningArtifacts(fullText);
       const elapsed = Date.now() - start;
@@ -1388,7 +1719,10 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
           sources: [], latency_ms: elapsed,
         };
       }
-      const sources = [];
+      // Combine inline URLs from the answer text with any search-tool source
+      // citations the native adapter surfaced. Inline URLs are common for
+      // OpenAI compat path; native adapters add real grounding sources.
+      const sources = searchSources.map((s) => s.url);
       const urlRe = /https?:\/\/[^\s)>"]+/g;
       let m;
       while ((m = urlRe.exec(answer)) !== null) {
@@ -1396,6 +1730,7 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
       }
       await send(`${providerKey}.done`, {
         answer, model, latency_ms: elapsed, sources, success: true,
+        grounded_sources: searchSources,
       });
       logCouncilEvent({
         event: "council.expert.stream", provider_key: providerKey,
@@ -1404,6 +1739,7 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
       return {
         provider_key: providerKey, provider_label: providerLabel, model,
         success: true, answer, error: "", sources, latency_ms: elapsed,
+        grounded_sources: searchSources,
       };
     } catch (err) {
       const elapsed = Date.now() - start;
