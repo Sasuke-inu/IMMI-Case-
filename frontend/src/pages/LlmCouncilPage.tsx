@@ -34,6 +34,8 @@ import {
   Send,
   Sparkles,
   Users,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { PageLoader } from "@/components/shared/PageLoader";
@@ -42,10 +44,24 @@ import {
   StreamingCouncilView,
   useCouncilStream,
 } from "@/components/llm-council/StreamingCouncilView";
+import { AchievementsContainer } from "@/components/llm-council/AchievementToast";
 import {
   useLlmCouncilSession,
   useAddTurn,
 } from "@/hooks/use-llm-council-sessions";
+import {
+  fireSubmitGavelBurst,
+  fireCouncilDoneCelebration,
+  isSoundOn,
+  toggleSound,
+  playCue,
+  recordCouncilRun,
+  unlockRobeTheme,
+  isRobeThemeUnlocked,
+  timeOfDaySalutation,
+  getCouncilStats,
+  type Achievement,
+} from "@/lib/council-celebrations";
 
 const MAX_TURNS = 15;
 const MAX_MESSAGE_CHARS = 8000;
@@ -533,25 +549,48 @@ function MessageInput({
 // NewSessionForm — desktop two-column / mobile single-column
 // ---------------------------------------------------------------------------
 
-function NewSessionForm() {
+interface NewSessionFormProps {
+  onAchievements: (list: Achievement[]) => void;
+  onRunComplete: () => void;
+}
+
+function NewSessionForm({ onAchievements, onRunComplete }: NewSessionFormProps) {
   const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [caseId, setCaseId] = useState("");
   const [submitError, setSubmitError] = useState("");
   const stream = useCouncilStream();
+  const celebratedDoneRef = useRef(false);
 
-  // Has the stream been started at least once? (controls whether to render
-  // the StreamingCouncilView after streaming completes.)
   const hasStreamed =
     stream.isStreaming ||
     stream.state.openai.status !== "pending" ||
     stream.state.gemini_pro.status !== "pending" ||
     stream.state.anthropic.status !== "pending";
 
+  // Fire council-done celebration once when stream reaches done state
+  useEffect(() => {
+    if (
+      stream.state.council.status === "done" &&
+      !celebratedDoneRef.current
+    ) {
+      celebratedDoneRef.current = true;
+      fireCouncilDoneCelebration();
+      playCue("verdict");
+      const unlocked = recordCouncilRun();
+      if (unlocked.length > 0) onAchievements(unlocked);
+      onRunComplete();
+    }
+  }, [stream.state.council.status, onAchievements, onRunComplete]);
+
   async function handleSend() {
     const msg = message.trim();
     if (!msg) return;
     setSubmitError("");
+    // Submit-moment gavel ritual
+    fireSubmitGavelBurst();
+    playCue("gavel");
+    celebratedDoneRef.current = false;
     try {
       await stream.start({
         message: msg,
@@ -570,6 +609,7 @@ function NewSessionForm() {
   function handleReset() {
     stream.reset();
     setSubmitError("");
+    celebratedDoneRef.current = false;
   }
 
   return (
@@ -690,9 +730,15 @@ function NewSessionForm() {
 
 interface ThreadViewProps {
   sessionId: string;
+  onAchievements: (list: Achievement[]) => void;
+  onRunComplete: () => void;
 }
 
-function ThreadView({ sessionId }: ThreadViewProps) {
+function ThreadView({
+  sessionId,
+  onAchievements,
+  onRunComplete,
+}: ThreadViewProps) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
   const [submitError, setSubmitError] = useState("");
@@ -709,9 +755,17 @@ function ThreadView({ sessionId }: ThreadViewProps) {
     const msg = input.trim();
     if (!msg || atLimit) return;
     setSubmitError("");
+    fireSubmitGavelBurst();
+    playCue("gavel");
     try {
       await addTurn.mutateAsync({ message: msg });
       setInput("");
+      // Follow-up turns count as runs too — fire celebration + record
+      fireCouncilDoneCelebration();
+      playCue("verdict");
+      const unlocked = recordCouncilRun();
+      if (unlocked.length > 0) onAchievements(unlocked);
+      onRunComplete();
     } catch (err) {
       setSubmitError(
         (err as Error).message ||
@@ -855,6 +909,59 @@ export function LlmCouncilPage() {
   const { t } = useTranslation();
   const { sessionId } = useParams<{ sessionId?: string }>();
 
+  // Easter-egg: tap the Scale icon 5x to unlock the "robe" theme
+  const [scaleTapCount, setScaleTapCount] = useState(0);
+  const [robeUnlocked, setRobeUnlocked] = useState(() => isRobeThemeUnlocked());
+
+  // Sound on/off (Web Audio cues — gavel/ding/verdict). Default OFF.
+  const [soundOn, setSoundOn] = useState(() => isSoundOn());
+
+  // Persistent stats — shown subtly in the hero subtitle
+  const [stats, setStats] = useState(() => getCouncilStats());
+
+  // Achievements toast queue
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+
+  function handleScaleTap() {
+    setScaleTapCount((n) => {
+      const next = n + 1;
+      if (next >= 5 && !robeUnlocked) {
+        unlockRobeTheme();
+        setRobeUnlocked(true);
+        setAchievements((prev) => [
+          ...prev,
+          {
+            id: "robe-unlock",
+            title: "The Robe Awakens",
+            body: "You found the hidden chamber. Welcome, your honour.",
+            emoji: "🥷",
+          },
+        ]);
+      }
+      return next;
+    });
+    playCue("tap");
+  }
+
+  function handleSoundToggle() {
+    const next = toggleSound();
+    setSoundOn(next);
+    if (next) playCue("ding");
+  }
+
+  function handleDismissAchievement(id: string) {
+    setAchievements((prev) => prev.filter((a) => a.id !== id));
+  }
+
+  function pushAchievements(list: Achievement[]) {
+    if (list.length === 0) return;
+    setAchievements((prev) => [...prev, ...list]);
+  }
+
+  function refreshStats() {
+    setStats(getCouncilStats());
+  }
+
   if (sessionId === "new") {
     return <Navigate to="/llm-council" replace />;
   }
@@ -862,9 +969,8 @@ export function LlmCouncilPage() {
   return (
     <div className="space-y-8">
       {/* Hero — custom oversized block. Icon scales with title height
-          (clamp 4-5rem) so the Scale glyph reads at the same visual weight
-          as the headline. Subtitle deliberately drops upstream model
-          provider names; the panel surfaces as a unified Council. */}
+          (clamp 4-5.5rem). Subtitle drops upstream model provider names;
+          panel surfaces as a unified Council Chairman + 3 experts. */}
       <section
         className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-6 shadow-sm sm:p-8"
         data-testid="llm-council-hero"
@@ -879,27 +985,69 @@ export function LlmCouncilPage() {
             opacity: 0.5,
           }}
         />
-        <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+        {/* Robe-theme easter-egg overlay: subtle navy diagonal stripes */}
+        {robeUnlocked ? (
           <div
-            className="flex shrink-0 items-center justify-center rounded-2xl bg-accent-muted text-accent shadow-sm ring-1 ring-accent/20"
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(45deg, rgba(27,40,56,0.04), rgba(27,40,56,0.04) 8px, transparent 8px, transparent 16px)",
+            }}
+          />
+        ) : null}
+
+        <div className="relative flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={handleScaleTap}
+            aria-label="Council emblem"
+            className="group relative flex shrink-0 items-center justify-center rounded-2xl bg-accent-muted text-accent shadow-sm ring-1 ring-accent/20 transition-all hover:scale-105 hover:shadow-md hover:ring-accent/40 active:scale-95"
             style={{
               width: "clamp(4rem, 8vw, 5.5rem)",
               height: "clamp(4rem, 8vw, 5.5rem)",
             }}
+            data-testid="council-emblem"
           >
             <Scale
+              className="transition-transform duration-300 group-hover:rotate-[-6deg]"
               style={{
                 width: "clamp(2rem, 5vw, 3rem)",
                 height: "clamp(2rem, 5vw, 3rem)",
               }}
             />
-          </div>
+            {/* Hint pulse on first 3 visits (when count is 0) — invites discovery */}
+            {scaleTapCount === 0 && stats.totalRuns < 3 ? (
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-2xl ring-2 ring-accent/30"
+                style={{ animation: "councilEmblemPulse 2.4s ease-out infinite" }}
+              />
+            ) : null}
+            <style>
+              {`@keyframes councilEmblemPulse {
+                0% { transform: scale(1); opacity: 0.7; }
+                100% { transform: scale(1.18); opacity: 0; }
+              }`}
+            </style>
+          </button>
           <div className="min-w-0 flex-1 space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
-              {t("llm_council.eyebrow", {
-                defaultValue: "Multi-Model Legal Research",
-              })}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
+                {t("llm_council.eyebrow", {
+                  defaultValue: "Multi-Model Legal Research",
+                })}
+              </p>
+              {stats.totalRuns > 0 ? (
+                <span
+                  className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent"
+                  title={`${stats.totalRuns} council runs · ${stats.streak}-day streak`}
+                >
+                  {stats.totalRuns} hearing{stats.totalRuns === 1 ? "" : "s"}
+                  {stats.streak >= 2 ? ` · 🔥 ${stats.streak}d` : ""}
+                </span>
+              ) : null}
+            </div>
             <h1 className="break-words font-heading text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-tight tracking-tight text-foreground">
               {t("llm_council.title", { defaultValue: "LLM IMMI Council" })}
             </h1>
@@ -909,12 +1057,34 @@ export function LlmCouncilPage() {
                   "Three independent legal-research experts deliberate in parallel — their opinions are then synthesised by the Council Chairman into ranked critique, statute cross-reference, and a mock judgment outline.",
               })}
             </p>
+            <p className="text-[11px] italic text-muted-text">
+              {timeOfDaySalutation()}
+            </p>
           </div>
+
+          {/* Sound toggle — top-right corner of the hero */}
+          <button
+            type="button"
+            onClick={handleSoundToggle}
+            aria-label={soundOn ? "Turn court sounds off" : "Turn court sounds on"}
+            data-testid="council-sound-toggle"
+            className="absolute right-0 top-0 -translate-y-1 rounded-full border border-border bg-card/80 p-2 text-muted-text shadow-sm transition-colors hover:text-accent sm:translate-y-0"
+          >
+            {soundOn ? (
+              <Volume2 className="h-3.5 w-3.5" />
+            ) : (
+              <VolumeX className="h-3.5 w-3.5" />
+            )}
+          </button>
         </div>
       </section>
 
       {sessionId ? (
-        <ThreadView sessionId={sessionId} />
+        <ThreadView
+          sessionId={sessionId}
+          onAchievements={pushAchievements}
+          onRunComplete={refreshStats}
+        />
       ) : (
         <>
           <section className="rounded-xl border border-dashed border-border bg-card p-5 text-sm text-muted-text shadow-sm">
@@ -928,9 +1098,18 @@ export function LlmCouncilPage() {
               </p>
             </div>
           </section>
-          <NewSessionForm />
+          <NewSessionForm
+            onAchievements={pushAchievements}
+            onRunComplete={refreshStats}
+          />
         </>
       )}
+
+      {/* Achievement toasts — fixed bottom-right */}
+      <AchievementsContainer
+        achievements={achievements}
+        onDismiss={handleDismissAchievement}
+      />
     </div>
   );
 }
