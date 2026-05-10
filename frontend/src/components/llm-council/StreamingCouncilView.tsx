@@ -191,6 +191,24 @@ export function useCouncilStream(): UseCouncilStreamResult {
         setState(next);
       };
 
+      // Silence watchdog — once events start flowing, fetch's request
+      // timeout no longer protects us. If the Worker silently dies
+      // mid-stream (wall-time exceeded, panic, OOM), the SSE connection
+      // sits idle and the UI spins forever. Aborting after WATCHDOG_MS
+      // of no event surfaces the failure cleanly. Reset on each event.
+      const WATCHDOG_MS = 90_000;
+      let lastActivityAt = Date.now();
+      const watchdog = setInterval(() => {
+        if (myGen !== genRef.current) {
+          clearInterval(watchdog);
+          return;
+        }
+        if (Date.now() - lastActivityAt > WATCHDOG_MS) {
+          clearInterval(watchdog);
+          controller.abort();
+        }
+      }, 5_000);
+
       try {
         const res = await fetch("/api/v1/llm-council/stream", {
           method: "POST",
@@ -206,6 +224,7 @@ export function useCouncilStream(): UseCouncilStreamResult {
         }
 
         for await (const ev of parseSseStream(res.body)) {
+          lastActivityAt = Date.now();
           if (ev.event === "council.start") {
             update({ ...curr, council: { status: "running" } });
             continue;
@@ -281,6 +300,7 @@ export function useCouncilStream(): UseCouncilStreamResult {
         });
         return curr;
       } finally {
+        clearInterval(watchdog);
         controllerRef.current = null;
         setIsStreaming(false);
       }

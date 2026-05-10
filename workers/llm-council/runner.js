@@ -1184,6 +1184,7 @@ export async function* streamGatewayChatCompletion({
   temperature = 0.2,
   timeoutMs,
   isModerator = false,
+  externalSignal, // optional: linked to streamCouncil's orchestration abort
 }) {
   const gatewayUrl = env.CF_GATEWAY_URL || CF_GATEWAY_DEFAULT_URL;
   const token = env.CF_AIG_TOKEN || "";
@@ -1212,6 +1213,24 @@ export async function* streamGatewayChatCompletion({
     timedOut = true;
     controller.abort();
   }, effectiveTimeoutMs);
+
+  // Link externalSignal (e.g. orchestration-level cancel from streamCouncil
+  // when the client disconnects) into this fetch's local controller. Without
+  // this, the gateway request keeps streaming to completion even after the
+  // SSE writer is closed — burning LLM credits with no consumer.
+  let externalAborted = false;
+  const onExternalAbort = () => {
+    externalAborted = true;
+    controller.abort();
+  };
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      externalAborted = true;
+      controller.abort();
+    } else {
+      externalSignal.addEventListener("abort", onExternalAbort, { once: true });
+    }
+  }
 
   try {
     const res = await fetch(gatewayUrl, {
@@ -1273,12 +1292,22 @@ export async function* streamGatewayChatCompletion({
       }
     }
   } catch (err) {
+    if (externalAborted) {
+      // Orchestration cancelled (client disconnected) — propagate as a
+      // distinguishable error so callers can short-circuit cleanly without
+      // logging it as a real failure.
+      throw new Error("Stream cancelled by orchestration");
+    }
     if (timedOut) {
       throw new Error(`Stream timeout after ${effectiveTimeoutMs / 1000}s`);
     }
     throw err;
   } finally {
     clearTimeout(timeoutHandle);
+    if (externalSignal) {
+      try { externalSignal.removeEventListener("abort", onExternalAbort); }
+      catch (_) { /* ignore */ }
+    }
   }
 }
 
@@ -1319,9 +1348,19 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
 
+  // Orchestration-level abort. Triggers when ANY writer.write() rejects
+  // (client disconnected). Propagates into all in-flight streamGateway
+  // calls via externalSignal so we stop billing LLM gateway calls the
+  // user no longer cares about.
+  const orchestrationAbort = new AbortController();
+
   const send = async (event, data) => {
-    try { await writer.write(encodeSseEvent(event, data)); }
-    catch (_) { /* writer closed (client disconnected) */ }
+    try {
+      await writer.write(encodeSseEvent(event, data));
+    } catch (_) {
+      // Client gone — abort orchestration so upstream LLM streams stop
+      if (!orchestrationAbort.signal.aborted) orchestrationAbort.abort();
+    }
   };
 
   const runStreamExpert = async (providerKey, providerLabel, model, systemPrompt) => {
@@ -1330,6 +1369,7 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
     try {
       for await (const { delta } of streamGatewayChatCompletion({
         env, model, systemPrompt, userPrompt, history: historyMessages,
+        externalSignal: orchestrationAbort.signal,
       })) {
         fullText += delta;
         await send(`${providerKey}.delta`, { text: delta });
@@ -1418,6 +1458,12 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
           sources: [], latency_ms: 0,
         };
       });
+
+      // Client disconnected mid-orchestration — skip moderator entirely.
+      // Saves Flash tokens and avoids a 30s wait when nobody's listening.
+      if (orchestrationAbort.signal.aborted) {
+        return;
+      }
 
       // Guard against the all-experts-failed case — running the moderator
       // on three error opinions burns Flash tokens and produces a misleading

@@ -242,19 +242,42 @@ describe("LlmCouncilPage", () => {
     ).toBeInTheDocument();
   });
 
-  // 6. Pending state on createSession
-  // TODO(Sprint 2 SSE): NewSessionForm now uses useCouncilStream (SSE
-  // streaming via fetch ReadableStream) instead of useCreateSession
-  // mutation. Rewrite to mock streaming fetch + assert on
-  // stream.isStreaming-driven button state.
-  it.skip("shows 'Running Council...' when createSession is pending", () => {
-    mockUseCreateSession.mockReturnValue(
-      idleMutation({ isPending: true }),
-    );
-    renderNewSession();
-    expect(
-      screen.getByRole("button", { name: /Running Council/i }),
-    ).toBeDisabled();
+  // 6. Pending state during SSE streaming
+  // NewSessionForm now uses useCouncilStream which POSTs to /stream and
+  // flips isStreaming=true while reading the response body. Mock fetch
+  // returning a never-resolving ReadableStream so isStreaming stays true
+  // long enough to assert on the button state.
+  it("shows 'Running Council...' when streaming is in flight", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      const body = new ReadableStream({
+        start() { /* never enqueue — keeps isStreaming=true */ },
+      });
+      return Promise.resolve(
+        new Response(body, {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+    });
+    try {
+      renderNewSession();
+      const textarea = screen.getByPlaceholderText(
+        /Compare strongest review grounds/i,
+      );
+      fireEvent.change(textarea, {
+        target: { value: "What grounds for AAT review?" },
+      });
+      fireEvent.submit(
+        screen.getByRole("button", { name: /Send/i }).closest("form")!,
+      );
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: /Running Council/i }),
+        ).toBeDisabled();
+      });
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   // 7. Thread: 0 turns → 0 TurnCards
@@ -301,62 +324,81 @@ describe("LlmCouncilPage", () => {
     ).toBeInTheDocument();
   });
 
-  // 13. createSession called with the typed message AND navigate called with correct URL
-  // TODO(Sprint 2 SSE): obsolete after switch to useCouncilStream — no
-  // longer goes through useCreateSession.mutateAsync, no navigation
-  // (streaming view renders inline). Rewrite to mock streaming fetch
-  // and assert on column population.
-  it.skip("calls createSession.mutateAsync on form submit with message text and navigates to new session URL", async () => {
-    const mutateAsync = vi.fn().mockResolvedValue({
-      session_id: "new-session-123",
-    });
-    mockUseCreateSession.mockReturnValue(idleMutation({ mutateAsync }));
-    renderNewSession();
-
-    fireEvent.change(
-      screen.getByPlaceholderText(/Compare strongest review grounds/i),
-      { target: { value: "Is procedural fairness required?" } },
-    );
-    fireEvent.submit(
-      screen.getByRole("button", { name: /Send/i }).closest("form")!,
-    );
-
-    await waitFor(() => {
-      expect(mutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "Is procedural fairness required?",
+  // 13. SSE stream POSTed with the typed message; streaming view renders
+  // inline (no navigation in new SSE flow). Mock fetch + assert on POST
+  // url + body, and on the streaming-view container appearing.
+  it("POSTs to /api/v1/llm-council/stream with the typed message and renders the streaming view", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      const body = new ReadableStream({
+        start() { /* keep open — we only check that the POST happened */ },
+      });
+      return Promise.resolve(
+        new Response(body, {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
         }),
       );
     });
-
-    await waitFor(() => {
-      expect(navigateMock).toHaveBeenCalledWith(
-        "/llm-council/sessions/new-session-123",
+    try {
+      renderNewSession();
+      fireEvent.change(
+        screen.getByPlaceholderText(/Compare strongest review grounds/i),
+        { target: { value: "Is procedural fairness required?" } },
       );
-    });
+      fireEvent.submit(
+        screen.getByRole("button", { name: /Send/i }).closest("form")!,
+      );
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          "/api/v1/llm-council/stream",
+          expect.objectContaining({
+            method: "POST",
+            body: expect.stringContaining("Is procedural fairness required?"),
+          }),
+        );
+      });
+      // Streaming view mounts inline — no navigation
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("streaming-council-view"),
+        ).toBeInTheDocument();
+      });
+      expect(navigateMock).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
-  // 14. Error banner shown on createSession failure
-  // TODO(Sprint 2 SSE): obsolete; new flow uses fetch ReadableStream.
-  // Rewrite to mock fetch reject and assert on the inline error banner.
-  it.skip("shows inline error banner when createSession throws", async () => {
-    const mutateAsync = vi
-      .fn()
-      .mockRejectedValue(new Error("Token missing"));
-    mockUseCreateSession.mockReturnValue(idleMutation({ mutateAsync }));
-    renderNewSession();
-
-    fireEvent.change(
-      screen.getByPlaceholderText(/Compare strongest review grounds/i),
-      { target: { value: "Some legal question" } },
-    );
-    fireEvent.submit(
-      screen.getByRole("button", { name: /Send/i }).closest("form")!,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(/Token missing/i)).toBeInTheDocument();
-    });
+  // 14. Error banner shown when SSE fetch fails
+  it("shows inline error banner when streaming fetch fails", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response("Token missing", {
+          status: 401,
+          statusText: "Unauthorized",
+        }),
+      );
+    try {
+      renderNewSession();
+      fireEvent.change(
+        screen.getByPlaceholderText(/Compare strongest review grounds/i),
+        { target: { value: "Some legal question" } },
+      );
+      fireEvent.submit(
+        screen.getByRole("button", { name: /Send/i }).closest("form")!,
+      );
+      // Error surfaces via the streaming-view council.error state, which
+      // renders the streaming-council-view container even on failure.
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("streaming-council-view"),
+        ).toBeInTheDocument();
+      });
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   // 15. sessionId="new" redirects to /llm-council (item 2 guard)

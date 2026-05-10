@@ -568,20 +568,38 @@ function NewSessionForm({ onAchievements, onRunComplete }: NewSessionFormProps) 
     stream.state.gemini_pro.status !== "pending" ||
     stream.state.anthropic.status !== "pending";
 
-  // Fire council-done celebration once when stream reaches done state
+  // Fire council-done celebration once when stream reaches done state.
+  // Mirror the ThreadView contract: only celebrate when the panel actually
+  // produced a useful answer. Streams can reach "done" with all 3 experts
+  // errored or moderator unsuccessful — that's a failure, not a victory.
   useEffect(() => {
     if (
       stream.state.council.status === "done" &&
       !celebratedDoneRef.current
     ) {
       celebratedDoneRef.current = true;
-      fireCouncilDoneCelebration();
-      playCue("verdict");
-      const unlocked = recordCouncilRun();
-      if (unlocked.length > 0) onAchievements(unlocked);
-      onRunComplete();
+      const anyExpertOk =
+        stream.state.openai.status === "done" ||
+        stream.state.gemini_pro.status === "done" ||
+        stream.state.anthropic.status === "done";
+      const moderatorOk = stream.state.moderator.status === "complete";
+      if (anyExpertOk && moderatorOk) {
+        fireCouncilDoneCelebration();
+        playCue("verdict");
+        const unlocked = recordCouncilRun();
+        if (unlocked.length > 0) onAchievements(unlocked);
+        onRunComplete();
+      }
     }
-  }, [stream.state.council.status, onAchievements, onRunComplete]);
+  }, [
+    stream.state.council.status,
+    stream.state.openai.status,
+    stream.state.gemini_pro.status,
+    stream.state.anthropic.status,
+    stream.state.moderator.status,
+    onAchievements,
+    onRunComplete,
+  ]);
 
   async function handleSend() {
     const msg = message.trim();
@@ -758,14 +776,24 @@ function ThreadView({
     fireSubmitGavelBurst();
     playCue("gavel");
     try {
-      await addTurn.mutateAsync({ message: msg });
+      const result = await addTurn.mutateAsync({ message: msg });
       setInput("");
-      // Follow-up turns count as runs too — fire celebration + record
-      fireCouncilDoneCelebration();
-      playCue("verdict");
-      const unlocked = recordCouncilRun();
-      if (unlocked.length > 0) onAchievements(unlocked);
-      onRunComplete();
+      // Only celebrate when the council actually succeeded. addTurn resolves
+      // on HTTP 200 even when {moderator.success:false, opinions:[all errored]}.
+      // Celebrating a failure misleads the user, fires confetti for nothing,
+      // and contaminates the achievement counter. Require both: moderator
+      // synthesised something AND at least one expert produced an answer.
+      const moderatorOk = result?.turn?.moderator?.success === true;
+      const anyExpertOk = (result?.turn?.opinions || []).some(
+        (o) => o?.success === true,
+      );
+      if (moderatorOk && anyExpertOk) {
+        fireCouncilDoneCelebration();
+        playCue("verdict");
+        const unlocked = recordCouncilRun();
+        if (unlocked.length > 0) onAchievements(unlocked);
+        onRunComplete();
+      }
     } catch (err) {
       setSubmitError(
         (err as Error).message ||
