@@ -1757,8 +1757,18 @@ export function streamCouncil({ env, question, caseContext = "", prevTurns, mode
       });
     }
     if (providerKey === "gemini_pro") {
-      return streamGeminiNative({
-        env, model, systemPrompt, userPrompt,
+      // Switched 2026-05-11 from streamGeminiNative → compat path.
+      // The native passthrough was silently dropping all candidate text in
+      // production (direct AI Gateway probe yielded 75 text events; Worker
+      // got 0) despite identical request bodies. Root cause unknown but
+      // likely a parser edge case with the native SSE delivery shape under
+      // streaming load. Compat path (used by gpt-5 path successfully) is
+      // proven reliable and supports gemini-2.5-pro via the openai-compatible
+      // gateway endpoint. Trade-off: lose `google_search` grounding tool
+      // (compat doesn't expose it). Anthropic still has web_search grounding,
+      // so the council retains 1 live-search expert.
+      return streamGatewayChatCompletion({
+        env, model, systemPrompt, userPrompt, history: historyMessages,
         externalSignal: orchestrationAbort.signal,
       });
     }
