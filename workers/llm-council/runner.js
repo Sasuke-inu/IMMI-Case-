@@ -1584,6 +1584,24 @@ export async function* streamGeminiNative({
     generationConfig: {
       maxOutputTokens: maxTokens,
       temperature: 0.2,
+      // gemini-3.1-pro-preview is a thinking model. By default it can burn
+      // the entire maxOutputTokens budget on internal reasoning tokens
+      // (thoughtsTokenCount) before emitting ANY candidate text — causing
+      // "Google Gemini Pro response did not include text output" errors in
+      // production on heavy council prompts.
+      //
+      // We can't disable thinking entirely (thinkingBudget=0 returns 400
+      // "This model only works in thinking mode"). Instead we cap thinking
+      // to ¼ of total budget so at least ¾ is reserved for candidate text.
+      // Probe (2026-05-11):
+      //   thinkingBudget 512  → 9s, thoughtsTokenCount 486, candidate text ✓
+      //   no thinkingConfig   → 21s, thoughtsTokenCount 1170, candidate text ✓
+      // The cap forces the model to wrap up reasoning faster and start
+      // emitting visible output. Override via env if needed.
+      thinkingConfig: {
+        thinkingBudget: parseInt(env.LLM_COUNCIL_GEMINI_THINKING_BUDGET, 10)
+          || Math.max(512, Math.floor(maxTokens / 4)),
+      },
     },
   };
 
