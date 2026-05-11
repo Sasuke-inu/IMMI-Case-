@@ -26,7 +26,13 @@ const CF_GATEWAY_DEFAULT_URL =
   "/immi-council/compat/chat/completions";
 
 const DEFAULT_OPENAI_MODEL = "openai/gpt-5-mini-2025-08-07";
-const DEFAULT_GEMINI_PRO_MODEL = "google-ai-studio/gemini-3.1-pro-preview";
+// gemini-3.1-pro-preview proved unreliable in production: even with
+// thinkingBudget cap + 150s timeout, the model returned 0 candidate text
+// events on heavy council prompts ("Google Gemini Pro response did not
+// include text output"). Direct AI Gateway probes of gemini-2.5-pro with
+// identical params returned 75+ text events in 42s — stable Pro model
+// works where the preview did not. Switched 2026-05-11.
+const DEFAULT_GEMINI_PRO_MODEL = "google-ai-studio/gemini-2.5-pro";
 const DEFAULT_ANTHROPIC_MODEL = "anthropic/claude-sonnet-4-6";
 const DEFAULT_GEMINI_FLASH_MODEL = "google-ai-studio/gemini-2.5-flash";
 
