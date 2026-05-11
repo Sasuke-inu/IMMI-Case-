@@ -41,11 +41,16 @@ const DEFAULT_MODERATOR_MAX_TOKENS = 8192;
 // or wastes 90s on a hung gemini call. Override via env.
 //   anthropic claude-sonnet-4-6 with thinking: 50-90s typical, 150s ceiling
 //   gpt-5-mini reasoning_effort=low: 30-60s typical, 90s ceiling
-//   gemini pro/flash: 10-30s typical, 60-90s ceiling
+//   gemini 3.1 pro preview (THINKING model): 60-120s typical on complex legal
+//     prompts. Probe (2026-05-10) showed 97% tokens spent on internal reasoning
+//     (thoughtsTokenCount 190 vs candidatesTokenCount 6 on a 200-token probe)
+//     before first visible stream delta. 60s ceiling caused 100% timeout
+//     failures on real council prompts → bumped to 150s.
+//   gemini 2.5 flash (moderator): non-thinking, fast — keep moderator at 90s.
 const DEFAULT_PER_MODEL_TIMEOUT_MS = {
   anthropic: 150_000,
   openai: 90_000,
-  "google-ai-studio": 60_000,
+  "google-ai-studio": 150_000,
   moderator: 90_000,
 };
 
