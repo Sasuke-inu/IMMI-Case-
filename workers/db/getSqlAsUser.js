@@ -33,7 +33,7 @@ export function getSqlAsUser(env, claims) {
   return {
     /**
      * Run fn inside a transaction with JWT claims set via SET LOCAL.
-     * RLS policies will see these claims via auth_jwt_claims() function.
+     * RLS policies will see these claims via immi_auth_jwt_claims() function.
      *
      * @template T
      * @param {(tx: postgres.TransactionSql) => Promise<T>} fn

@@ -72,9 +72,9 @@ async function upsertTelegramUser(tgData, getSql, env) {
   const sql = getSql(env);
   try {
     return await sql.begin(async (tx) => {
-      // Upsert user — last_login_at is the correct column (no updated_at on users table)
+      // Upsert immi_user — last_login_at is the correct column (no updated_at on immi_users)
       const [user] = await tx`
-        INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, last_login_at)
+        INSERT INTO immi_users (telegram_id, first_name, last_name, username, photo_url, last_login_at)
         VALUES (
           ${Number(tgData.id)},
           ${tgData.first_name ?? null},
@@ -95,21 +95,21 @@ async function upsertTelegramUser(tgData, getSql, env) {
       // Fetch memberships including role for JWT claim — joined_at is the correct column
       let memberships = await tx`
         SELECT tm.tenant_id AS id, t.kind, t.name, tm.role
-        FROM tenant_members tm
-        JOIN tenants t ON t.id = tm.tenant_id
+        FROM immi_tenant_members tm
+        JOIN immi_tenants t ON t.id = tm.tenant_id
         WHERE tm.user_id = ${user.id}
         ORDER BY tm.joined_at
       `;
 
-      // First login — create personal tenant (tenants table: id, kind, name, created_at — no owner_user_id)
+      // First login — create personal tenant (immi_tenants: id, kind, name, created_at)
       if (memberships.length === 0) {
         const [newTenant] = await tx`
-          INSERT INTO tenants (kind, name)
+          INSERT INTO immi_tenants (kind, name)
           VALUES ('individual', ${tgData.first_name ?? "My Workspace"})
           RETURNING id, kind, name
         `;
         await tx`
-          INSERT INTO tenant_members (user_id, tenant_id, role)
+          INSERT INTO immi_tenant_members (user_id, tenant_id, role)
           VALUES (${user.id}, ${newTenant.id}, 'owner')
         `;
         memberships = [{ ...newTenant, role: "owner" }];
@@ -267,10 +267,10 @@ export async function handleAuthRefresh(request, env, getSql) {
           t.kind          AS tenant_kind,
           t.name          AS tenant_name,
           ARRAY_AGG(tm2.tenant_id ORDER BY tm2.joined_at) AS all_tenants
-        FROM users u
-        JOIN tenant_members tm  ON tm.user_id  = u.id
-        JOIN tenants t          ON t.id         = tm.tenant_id
-        JOIN tenant_members tm2 ON tm2.user_id  = u.id
+        FROM immi_users u
+        JOIN immi_tenant_members tm  ON tm.user_id  = u.id
+        JOIN immi_tenants t          ON t.id         = tm.tenant_id
+        JOIN immi_tenant_members tm2 ON tm2.user_id  = u.id
         WHERE u.id = ${userId}::uuid
         GROUP BY u.id, u.telegram_id, tm.role, tm.tenant_id, t.kind, t.name
         ORDER BY tm.joined_at
@@ -342,8 +342,8 @@ export async function handleAuthSwitchTenant(request, env, getSql) {
       // Live membership check — JWT claims can be up to 5 min stale
       const [row] = await sql`
         SELECT t.id, t.kind, t.name
-        FROM tenants t
-        JOIN tenant_members tm ON tm.tenant_id = t.id
+        FROM immi_tenants t
+        JOIN immi_tenant_members tm ON tm.tenant_id = t.id
         WHERE t.id = ${targetTenantId}::uuid
           AND tm.user_id = ${claims.sub}::uuid
       `;

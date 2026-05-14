@@ -1,7 +1,7 @@
 -- Migration: tighten LLM Council tenant isolation policies (plan §1.4).
 --
 -- Previously council_sessions had one permissive policy:
---   FOR ALL USING (tenant_id IS NULL OR tenant_id = auth_tenant_id())
+--   FOR ALL USING (tenant_id IS NULL OR tenant_id = immi_auth_tenant_id())
 -- which let any caller — including unauthenticated ones — INSERT rows with
 -- tenant_id = NULL, defeating the tenant isolation guarantee on writes.
 --
@@ -11,14 +11,14 @@
 --           rows.  Read-only compat path for sessions created before
 --           multi-tenant auth landed.
 --
---   INSERT: WITH CHECK (tenant_id = auth_tenant_id())
+--   INSERT: WITH CHECK (tenant_id = immi_auth_tenant_id())
 --           Every new row MUST be bound to the authenticated caller's tenant.
 --           This is the core of the plan — no new anonymous rows.
 --
---   UPDATE: USING + WITH CHECK both pinned to auth_tenant_id().
+--   UPDATE: USING + WITH CHECK both pinned to immi_auth_tenant_id().
 --           No tenant rebinding via update; legacy NULL rows are not mutable.
 --
---   DELETE: USING (tenant_id = auth_tenant_id()).
+--   DELETE: USING (tenant_id = immi_auth_tenant_id()).
 --           No deletion of legacy NULL rows from the API.
 --
 -- council_turns inherits scoping via the parent council_sessions FK and gets
@@ -42,7 +42,7 @@ CREATE POLICY council_sessions_select ON council_sessions
   USING (
     -- Tenant rows: see only your own.
     -- Legacy anonymous rows: still readable for backwards compat.
-    tenant_id = auth_tenant_id()
+    tenant_id = immi_auth_tenant_id()
     OR tenant_id IS NULL
   );
 
@@ -51,17 +51,17 @@ CREATE POLICY council_sessions_insert ON council_sessions
   WITH CHECK (
     -- New rows MUST bind to the JWT tenant.  No anonymous inserts.
     tenant_id IS NOT NULL
-    AND tenant_id = auth_tenant_id()
+    AND tenant_id = immi_auth_tenant_id()
   );
 
 CREATE POLICY council_sessions_update ON council_sessions
   FOR UPDATE
-  USING (tenant_id = auth_tenant_id())
-  WITH CHECK (tenant_id = auth_tenant_id());
+  USING (tenant_id = immi_auth_tenant_id())
+  WITH CHECK (tenant_id = immi_auth_tenant_id());
 
 CREATE POLICY council_sessions_delete ON council_sessions
   FOR DELETE
-  USING (tenant_id = auth_tenant_id());
+  USING (tenant_id = immi_auth_tenant_id());
 
 -- ---------------------------------------------------------------------------
 -- council_turns: enable RLS + scope via the parent session
@@ -77,7 +77,7 @@ CREATE POLICY council_turns_select ON council_turns
     EXISTS (
       SELECT 1 FROM council_sessions s
       WHERE s.session_id = council_turns.session_id
-        AND (s.tenant_id = auth_tenant_id() OR s.tenant_id IS NULL)
+        AND (s.tenant_id = immi_auth_tenant_id() OR s.tenant_id IS NULL)
     )
   );
 
@@ -87,7 +87,7 @@ CREATE POLICY council_turns_insert ON council_turns
     EXISTS (
       SELECT 1 FROM council_sessions s
       WHERE s.session_id = council_turns.session_id
-        AND s.tenant_id = auth_tenant_id()
+        AND s.tenant_id = immi_auth_tenant_id()
     )
   );
 

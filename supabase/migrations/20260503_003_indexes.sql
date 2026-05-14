@@ -4,24 +4,24 @@
 -- the remaining covering/sort indexes needed for common query patterns.
 
 -- ---------------------------------------------------------------------------
--- users
+-- immi_users
 -- ---------------------------------------------------------------------------
 
 -- Chronological listing (admin dashboards, audit trails)
-CREATE INDEX IF NOT EXISTS users_created_at_idx
-  ON users(created_at DESC);
+CREATE INDEX IF NOT EXISTS immi_users_created_at_idx
+  ON immi_users(created_at DESC);
 
--- Join from users → tenants when resolving primary workspace
-CREATE INDEX IF NOT EXISTS users_primary_tenant_idx
-  ON users(primary_tenant_id);
+-- Join from immi_users → immi_tenants when resolving primary workspace
+CREATE INDEX IF NOT EXISTS immi_users_primary_tenant_idx
+  ON immi_users(primary_tenant_id);
 
 -- ---------------------------------------------------------------------------
--- tenants
+-- immi_tenants
 -- ---------------------------------------------------------------------------
 
 -- Chronological listing
-CREATE INDEX IF NOT EXISTS tenants_created_at_idx
-  ON tenants(created_at DESC);
+CREATE INDEX IF NOT EXISTS immi_tenants_created_at_idx
+  ON immi_tenants(created_at DESC);
 
 -- ---------------------------------------------------------------------------
 -- council_sessions (extended columns)

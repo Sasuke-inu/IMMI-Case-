@@ -2611,7 +2611,7 @@ async function verifyTenantMembership(env, claims) {
   try {
     const rows = await sql`
       SELECT 1
-      FROM tenant_members
+      FROM immi_tenant_members
       WHERE tenant_id = ${claims.tenant_id}::uuid
         AND user_id   = ${claims.sub}::uuid
       LIMIT 1
