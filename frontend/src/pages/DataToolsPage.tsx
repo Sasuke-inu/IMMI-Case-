@@ -16,7 +16,8 @@ import {
   Search,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchPipelineStatus, fetchJobStatus, type JobStatus } from "@/lib/api";
+import { fetchPipelineStatus, fetchJobStatus } from "@/lib/api";
+import type { JobStatus } from "@/types/case";
 import { useStats } from "@/hooks/use-stats";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { PageHeader } from "@/components/shared/PageHeader";

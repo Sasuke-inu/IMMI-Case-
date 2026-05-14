@@ -65,8 +65,8 @@ vi.mock("sonner", () => ({
 import { LlmCouncilSessionsPage } from "@/pages/LlmCouncilSessionsPage";
 import {
   SessionListItem,
-  relativeTime,
 } from "@/components/llm-council/SessionListItem";
+import { relativeTime } from "@/components/llm-council/session-list-item-helpers";
 import type { LlmCouncilSessionListItem } from "@/lib/api-llm-council";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────

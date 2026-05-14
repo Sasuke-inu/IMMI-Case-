@@ -10,7 +10,8 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 
 // Friendly names for common subclasses
 const SUBCLASS_NAMES: Record<string, string> = {
@@ -121,8 +122,8 @@ function SubclassChartInner({ data }: SubclassChartProps) {
               color: "var(--color-text)",
               fontSize: 13,
             }}
-            formatter={(value: number | undefined) => [
-              Number(value ?? 0).toLocaleString(),
+            formatter={(value: ValueType | undefined) => [
+              toChartNumber(value).toLocaleString(),
               t("components.charts.chart_cases"),
             ]}
             labelFormatter={(label: unknown) => String(label)}

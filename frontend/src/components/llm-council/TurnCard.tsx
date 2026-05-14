@@ -46,24 +46,27 @@ import type {
 // rendering once SSE deltas re-render the buffer each chunk.
 // ---------------------------------------------------------------------------
 
-const MARKDOWN_COMPONENTS = {
-  h1: (p: any) => <h1 className="mb-2 mt-3 text-base font-bold text-foreground" {...p} />,
-  h2: (p: any) => <h2 className="mb-2 mt-3 text-sm font-bold text-foreground" {...p} />,
-  h3: (p: any) => <h3 className="mb-1 mt-2 text-sm font-semibold text-foreground" {...p} />,
-  h4: (p: any) => <h4 className="mb-1 mt-2 text-xs font-semibold uppercase tracking-wide text-muted-text" {...p} />,
-  p: (p: any) => <p className="mb-2 leading-relaxed text-foreground" {...p} />,
-  ul: (p: any) => <ul className="mb-2 ml-4 list-disc space-y-1 text-foreground marker:text-accent" {...p} />,
-  ol: (p: any) => <ol className="mb-2 ml-4 list-decimal space-y-1 text-foreground marker:text-accent" {...p} />,
-  li: (p: any) => <li className="leading-relaxed" {...p} />,
-  strong: (p: any) => <strong className="font-semibold text-foreground" {...p} />,
-  em: (p: any) => <em className="italic" {...p} />,
-  a: (p: any) => (
+type MdProps = React.HTMLAttributes<HTMLElement>;
+type MdCodeProps = React.HTMLAttributes<HTMLElement> & { inline?: boolean; className?: string; children?: React.ReactNode };
+
+const MARKDOWN_COMPONENTS: Record<string, (props: MdProps | MdCodeProps) => React.ReactNode> = {
+  h1: (p: MdProps) => <h1 className="mb-2 mt-3 text-base font-bold text-foreground" {...p} />,
+  h2: (p: MdProps) => <h2 className="mb-2 mt-3 text-sm font-bold text-foreground" {...p} />,
+  h3: (p: MdProps) => <h3 className="mb-1 mt-2 text-sm font-semibold text-foreground" {...p} />,
+  h4: (p: MdProps) => <h4 className="mb-1 mt-2 text-xs font-semibold uppercase tracking-wide text-muted-text" {...p} />,
+  p: (p: MdProps) => <p className="mb-2 leading-relaxed text-foreground" {...p} />,
+  ul: (p: MdProps) => <ul className="mb-2 ml-4 list-disc space-y-1 text-foreground marker:text-accent" {...p} />,
+  ol: (p: MdProps) => <ol className="mb-2 ml-4 list-decimal space-y-1 text-foreground marker:text-accent" {...p} />,
+  li: (p: MdProps) => <li className="leading-relaxed" {...p} />,
+  strong: (p: MdProps) => <strong className="font-semibold text-foreground" {...p} />,
+  em: (p: MdProps) => <em className="italic" {...p} />,
+  a: (p: MdProps) => (
     <a className="text-accent underline-offset-2 hover:underline" target="_blank" rel="noreferrer" {...p} />
   ),
-  blockquote: (p: any) => (
+  blockquote: (p: MdProps) => (
     <blockquote className="my-2 border-l-2 border-accent/50 bg-surface/40 pl-3 italic text-muted-text" {...p} />
   ),
-  code: ({ inline, className, children, ...rest }: any) =>
+  code: ({ inline, className, children, ...rest }: MdCodeProps) =>
     inline ? (
       <code className="rounded bg-surface px-1 py-0.5 font-mono text-[0.85em] text-accent" {...rest}>
         {children}
@@ -73,18 +76,18 @@ const MARKDOWN_COMPONENTS = {
         {children}
       </code>
     ),
-  pre: (p: any) => <pre className="my-2 overflow-x-auto rounded-md bg-surface p-3 text-xs" {...p} />,
+  pre: (p: MdProps) => <pre className="my-2 overflow-x-auto rounded-md bg-surface p-3 text-xs" {...p} />,
   hr: () => <hr className="my-3 border-border" />,
-  table: (p: any) => (
+  table: (p: MdProps) => (
     <div className="my-2 overflow-x-auto rounded-md border border-border">
       <table className="w-full text-xs" {...p} />
     </div>
   ),
-  thead: (p: any) => <thead className="bg-surface/50 text-muted-text" {...p} />,
-  tbody: (p: any) => <tbody {...p} />,
-  tr: (p: any) => <tr className="border-b border-border last:border-0" {...p} />,
-  th: (p: any) => <th className="px-2 py-1.5 text-left font-semibold" {...p} />,
-  td: (p: any) => <td className="px-2 py-1.5 align-top" {...p} />,
+  thead: (p: MdProps) => <thead className="bg-surface/50 text-muted-text" {...p} />,
+  tbody: (p: MdProps) => <tbody {...p} />,
+  tr: (p: MdProps) => <tr className="border-b border-border last:border-0" {...p} />,
+  th: (p: MdProps) => <th className="px-2 py-1.5 text-left font-semibold" {...p} />,
+  td: (p: MdProps) => <td className="px-2 py-1.5 align-top" {...p} />,
 };
 
 function Markdown({ children }: { children: string }) {

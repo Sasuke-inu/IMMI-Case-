@@ -7,7 +7,8 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import type { CountryBreakdownEntry } from "@/types/case";
 
 interface CountryOriginChartProps {
@@ -52,8 +53,8 @@ export function CountryOriginChart({ data }: CountryOriginChartProps) {
             tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
           />
           <ChartTooltip
-            formatter={(value: number | string | undefined) => [
-              Number(value ?? 0).toLocaleString(),
+            formatter={(value: ValueType | undefined) => [
+              toChartNumber(value).toLocaleString(),
               t("judges.cases"),
             ]}
             contentStyle={{

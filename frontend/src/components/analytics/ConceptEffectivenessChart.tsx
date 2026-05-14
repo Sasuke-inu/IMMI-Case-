@@ -9,7 +9,8 @@ import {
   YAxis,
   Cell,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 import type { ConceptEffectivenessData } from "@/types/case";
 
 interface ConceptEffectivenessChartProps {
@@ -64,8 +65,8 @@ function ConceptEffectivenessChartInner({
           tickLine={false}
         />
         <ChartTooltip
-          formatter={(value: number | string | undefined, key) => {
-            const numeric = Number(value ?? 0);
+          formatter={(value: ValueType | undefined, key: NameType | undefined) => {
+            const numeric = toChartNumber(value);
             if (key === "liftDelta")
               return [numeric.toFixed(2), t("analytics.lift_delta")];
             return [String(value ?? 0), "Value"];

@@ -36,3 +36,9 @@ export function ChartTooltip(props: RechartsTooltipProps) {
     />
   );
 }
+
+// Re-export helpers so callers can import both from this module.
+// eslint-disable-next-line react-refresh/only-export-components
+export { toChartNumber } from "./chart-tooltip-helpers";
+// eslint-disable-next-line react-refresh/only-export-components
+export type { TooltipFormatter } from "./chart-tooltip-helpers";

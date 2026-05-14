@@ -7,7 +7,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { useTranslation } from "react-i18next";
 import type { ConceptTrendData } from "@/types/case";
 
@@ -117,8 +118,8 @@ function ConceptTrendChartInner({ data }: ConceptTrendChartProps) {
               tickFormatter={(v: number) => `${v}%`}
             />
             <ChartTooltip
-              formatter={(value: number | string | undefined) => [
-                `${Number(value ?? 0).toFixed(1)}%`,
+              formatter={(value: ValueType | undefined) => [
+                `${toChartNumber(value).toFixed(1)}%`,
                 t("analytics.win_rate"),
               ]}
               contentStyle={{

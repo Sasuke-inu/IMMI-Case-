@@ -87,6 +87,7 @@ export function useCreateSession() {
         title: data.turn.user_message,
         status: "active",
         total_turns: data.total_turns,
+        retrieve_code: data.retrieve_code ?? null,
         created_at: nowIso,
         updated_at: nowIso,
       } satisfies LlmCouncilSession;

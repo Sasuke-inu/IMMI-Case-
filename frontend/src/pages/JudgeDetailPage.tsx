@@ -8,7 +8,8 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { OutcomeStackedBar } from "@/components/shared/OutcomeStackedBar";
 import { JudgeHero } from "@/components/judges/JudgeHero";
 import { CourtComparisonCard } from "@/components/judges/CourtComparisonCard";
@@ -181,8 +182,8 @@ export function JudgeDetailPage() {
                   tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }}
                 />
                 <ChartTooltip
-                  formatter={(value: number | string | undefined) => [
-                    `${Number(value ?? 0).toFixed(1)}%`,
+                  formatter={(value: ValueType | undefined) => [
+                    `${toChartNumber(value).toFixed(1)}%`,
                     t("judges.approval_rate"),
                   ]}
                   contentStyle={{

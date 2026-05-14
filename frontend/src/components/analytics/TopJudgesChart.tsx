@@ -7,7 +7,8 @@ import {
   YAxis,
   ResponsiveContainer,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { JudgeEntry } from "@/types/case";
@@ -81,8 +82,8 @@ function TopJudgesChartInner({ data }: TopJudgesChartProps) {
             tickLine={false}
           />
           <ChartTooltip
-            formatter={(value: number | undefined) => [
-              Number(value ?? 0).toLocaleString(),
+            formatter={(value: ValueType | undefined) => [
+              toChartNumber(value).toLocaleString(),
               t("chart.cases"),
             ]}
             labelFormatter={(

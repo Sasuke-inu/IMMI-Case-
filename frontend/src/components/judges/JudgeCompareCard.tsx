@@ -14,7 +14,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 import { cn } from "@/lib/utils";
 import { formatCourtTypeLabel } from "@/lib/display";
 import { OUTCOME_COLORS, approvalBadgeClass } from "./constants";
@@ -150,10 +151,10 @@ export function JudgeCompareCard({ judge }: JudgeCompareCardProps) {
               </Pie>
               <ChartTooltip
                 formatter={(
-                  value: number | string | undefined,
-                  name: string | number | undefined,
+                  value: ValueType | undefined,
+                  name: NameType | undefined,
                 ) => {
-                  const count = Number(value ?? 0);
+                  const count = toChartNumber(value);
                   const pct =
                     totalOutcomeCases > 0
                       ? ((count / totalOutcomeCases) * 100).toFixed(1)
@@ -257,8 +258,8 @@ export function JudgeCompareCard({ judge }: JudgeCompareCardProps) {
               />
               <ChartTooltip
                 cursor={false}
-                formatter={(value: number | string | undefined) => [
-                  Number(value ?? 0).toLocaleString(),
+                formatter={(value: ValueType | undefined) => [
+                  toChartNumber(value).toLocaleString(),
                   t("judges.cases"),
                 ]}
                 labelFormatter={(label) =>
@@ -340,8 +341,8 @@ export function JudgeCompareCard({ judge }: JudgeCompareCardProps) {
                   const total = Number(row?.total ?? 0).toLocaleString();
                   return `${String(label)} · ${total} ${t("judges.cases")}`;
                 }}
-                formatter={(value: number | string | undefined) => [
-                  `${Number(value ?? 0).toFixed(1)}%`,
+                formatter={(value: ValueType | undefined) => [
+                  `${toChartNumber(value).toFixed(1)}%`,
                   t("judges.approval_rate"),
                 ]}
                 contentStyle={{

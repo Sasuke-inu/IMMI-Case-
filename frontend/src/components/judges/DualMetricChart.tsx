@@ -8,7 +8,8 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 
 interface MetricData {
   name: string;
@@ -99,12 +100,7 @@ export function DualMetricChart({
           </>
         )}
         <ChartTooltip
-          formatter={(value: number | undefined) => {
-            if (typeof value === "number") {
-              return `${(value * 100).toFixed(1)}%`;
-            }
-            return "";
-          }}
+          formatter={(value: ValueType | undefined) => `${(toChartNumber(value) * 100).toFixed(1)}%`}
           contentStyle={{
             backgroundColor: "var(--color-background-card)",
             border: "1px solid var(--color-border)",

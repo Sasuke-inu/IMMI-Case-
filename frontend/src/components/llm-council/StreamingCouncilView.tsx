@@ -50,12 +50,12 @@ export interface CouncilStreamState {
   anthropic: ExpertStreamState;
   moderator: {
     status: "pending" | "running" | "complete" | "error";
-    data?: any;
+    data?: Record<string, unknown>;
     error?: string;
   };
   council: {
     status: "pending" | "running" | "done" | "error";
-    data?: any;
+    data?: Record<string, unknown>;
     error?: string;
   };
   /** Task C — session identity emitted as a `council.session` SSE event
@@ -92,7 +92,7 @@ const initialState = (): CouncilStreamState => ({
 
 interface SseEvent {
   event: string;
-  data: any;
+  data: Record<string, unknown>;
 }
 
 async function* parseSseStream(body: ReadableStream<Uint8Array>): AsyncGenerator<SseEvent> {
@@ -165,6 +165,7 @@ export interface UseCouncilStreamResult {
   reset: () => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCouncilStream(): UseCouncilStreamResult {
   const [state, setState] = useState<CouncilStreamState>(initialState());
   const [isStreaming, setIsStreaming] = useState(false);
@@ -343,7 +344,7 @@ export function useCouncilStream(): UseCouncilStreamResult {
             continue;
           }
           if (ev.event === "council.error") {
-            update({ ...curr, council: { status: "error", error: ev.data.error } });
+            update({ ...curr, council: { status: "error", error: String(ev.data.error ?? "") } });
             continue;
           }
         }
@@ -380,18 +381,22 @@ export function useCouncilStream(): UseCouncilStreamResult {
 // StreamingCouncilView component
 // ---------------------------------------------------------------------------
 
-const STREAM_MARKDOWN_COMPONENTS: Record<string, any> = {
-  h1: (p: any) => <h1 className="mb-1 mt-2 text-sm font-bold text-foreground" {...p} />,
-  h2: (p: any) => <h2 className="mb-1 mt-2 text-xs font-bold text-foreground" {...p} />,
-  h3: (p: any) => <h3 className="mb-1 mt-2 text-xs font-semibold text-foreground" {...p} />,
-  h4: (p: any) => <h4 className="mb-1 mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-text" {...p} />,
-  p: (p: any) => <p className="mb-1.5 text-xs leading-relaxed text-foreground" {...p} />,
-  ul: (p: any) => <ul className="mb-1.5 ml-3 list-disc space-y-0.5 text-xs text-foreground" {...p} />,
-  ol: (p: any) => <ol className="mb-1.5 ml-3 list-decimal space-y-0.5 text-xs text-foreground" {...p} />,
-  li: (p: any) => <li className="leading-relaxed" {...p} />,
-  strong: (p: any) => <strong className="font-semibold text-foreground" {...p} />,
-  em: (p: any) => <em className="italic" {...p} />,
-  code: ({ inline, className, children, ...rest }: any) =>
+type MdProps = React.HTMLAttributes<HTMLElement>;
+type MdCodeProps = React.HTMLAttributes<HTMLElement> & { inline?: boolean; className?: string; children?: React.ReactNode };
+
+// eslint-disable-next-line react-refresh/only-export-components
+const STREAM_MARKDOWN_COMPONENTS: Record<string, (props: MdProps | MdCodeProps) => React.ReactNode> = {
+  h1: (p: MdProps) => <h1 className="mb-1 mt-2 text-sm font-bold text-foreground" {...p} />,
+  h2: (p: MdProps) => <h2 className="mb-1 mt-2 text-xs font-bold text-foreground" {...p} />,
+  h3: (p: MdProps) => <h3 className="mb-1 mt-2 text-xs font-semibold text-foreground" {...p} />,
+  h4: (p: MdProps) => <h4 className="mb-1 mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-text" {...p} />,
+  p: (p: MdProps) => <p className="mb-1.5 text-xs leading-relaxed text-foreground" {...p} />,
+  ul: (p: MdProps) => <ul className="mb-1.5 ml-3 list-disc space-y-0.5 text-xs text-foreground" {...p} />,
+  ol: (p: MdProps) => <ol className="mb-1.5 ml-3 list-decimal space-y-0.5 text-xs text-foreground" {...p} />,
+  li: (p: MdProps) => <li className="leading-relaxed" {...p} />,
+  strong: (p: MdProps) => <strong className="font-semibold text-foreground" {...p} />,
+  em: (p: MdProps) => <em className="italic" {...p} />,
+  code: ({ inline, className, children, ...rest }: MdCodeProps) =>
     inline ? (
       <code className="rounded bg-surface px-1 font-mono text-[0.8em] text-accent" {...rest}>
         {children}
@@ -401,15 +406,15 @@ const STREAM_MARKDOWN_COMPONENTS: Record<string, any> = {
         {children}
       </code>
     ),
-  table: (p: any) => (
+  table: (p: MdProps) => (
     <div className="my-1 overflow-x-auto rounded border border-border">
       <table className="w-full text-[10px]" {...p} />
     </div>
   ),
-  thead: (p: any) => <thead className="bg-surface/50 text-muted-text" {...p} />,
-  tr: (p: any) => <tr className="border-b border-border last:border-0" {...p} />,
-  th: (p: any) => <th className="px-1.5 py-1 text-left font-semibold" {...p} />,
-  td: (p: any) => <td className="px-1.5 py-1 align-top" {...p} />,
+  thead: (p: MdProps) => <thead className="bg-surface/50 text-muted-text" {...p} />,
+  tr: (p: MdProps) => <tr className="border-b border-border last:border-0" {...p} />,
+  th: (p: MdProps) => <th className="px-1.5 py-1 text-left font-semibold" {...p} />,
+  td: (p: MdProps) => <td className="px-1.5 py-1 align-top" {...p} />,
 };
 
 interface ExpertColumnProps {

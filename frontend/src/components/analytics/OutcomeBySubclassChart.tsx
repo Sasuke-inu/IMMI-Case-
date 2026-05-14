@@ -8,7 +8,8 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 
 interface OutcomeBySubclassChartProps {
   data: Record<string, Record<string, number>>;
@@ -65,8 +66,8 @@ function OutcomeBySubclassChartInner({
           tickLine={false}
         />
         <ChartTooltip
-          formatter={(value: number | undefined) => [
-            `${Number(value ?? 0).toFixed(1)}%`,
+          formatter={(value: ValueType | undefined) => [
+            `${toChartNumber(value).toFixed(1)}%`,
             t("analytics.affirmed_rate"),
           ]}
           labelFormatter={(label: unknown) =>

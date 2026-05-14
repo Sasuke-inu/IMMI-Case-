@@ -10,7 +10,8 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 
 /**
  * Generate a single-hue blue gradient color for a bar at position `index`
@@ -91,8 +92,8 @@ function NatureChartInner({ data }: NatureChartProps) {
               color: "var(--color-text)",
               fontSize: 13,
             }}
-            formatter={(value: number | undefined) => [
-              Number(value ?? 0).toLocaleString(),
+            formatter={(value: ValueType | undefined) => [
+              toChartNumber(value).toLocaleString(),
               t("components.charts.chart_cases"),
             ]}
           />

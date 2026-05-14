@@ -9,7 +9,8 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 import { ChartCard } from "./ChartCard";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { useVisaFamilies } from "@/hooks/use-analytics";
@@ -131,10 +132,10 @@ function VisaFamiliesSectionInner({ filters }: Props) {
                   fontSize: 12,
                 }}
                 formatter={(
-                  value: number | undefined,
-                  name: string | undefined,
+                  value: ValueType | undefined,
+                  name: NameType | undefined
                 ) => [
-                  (value ?? 0).toLocaleString(),
+                  toChartNumber(value).toLocaleString(),
                   name === "total"
                     ? t("analytics.total_cases", {
                         defaultValue: "Total Cases",

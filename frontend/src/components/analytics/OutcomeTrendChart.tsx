@@ -10,7 +10,8 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 import { COURT_EVENTS } from "@/lib/court-events";
 
 interface OutcomeTrendChartProps {
@@ -79,8 +80,8 @@ function OutcomeTrendChartInner({ data }: OutcomeTrendChartProps) {
             tickLine={false}
           />
           <ChartTooltip
-            formatter={(value: number | undefined, name: string | undefined) => [
-              `${Number(value ?? 0).toFixed(1)}%`,
+            formatter={(value: ValueType | undefined, name: NameType | undefined) => [
+              `${toChartNumber(value).toFixed(1)}%`,
               name ?? "",
             ]}
             labelFormatter={(label: unknown) =>

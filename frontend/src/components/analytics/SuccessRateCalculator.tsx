@@ -8,7 +8,8 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { Microscope } from "lucide-react";
 import { useFilterOptions } from "@/hooks/use-cases";
 import {
@@ -276,8 +277,8 @@ export function SuccessRateCalculator({ filters }: SuccessRateCalculatorProps) {
                       }}
                     />
                     <ChartTooltip
-                      formatter={(value: number | string | undefined) => [
-                        `${Number(value ?? 0).toFixed(1)}%`,
+                      formatter={(value: ValueType | undefined) => [
+                        `${toChartNumber(value).toFixed(1)}%`,
                         t("analytics.success_rate"),
                       ]}
                       contentStyle={{

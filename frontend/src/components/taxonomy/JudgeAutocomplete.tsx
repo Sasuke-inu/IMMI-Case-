@@ -32,13 +32,10 @@ export function JudgeAutocomplete() {
 
   const judgeResults = data?.judges ?? [];
 
-  useEffect(() => {
-    setActiveIndex(-1);
-  }, [debouncedQuery]);
-
   // Handle search input change with debounce
   const handleSearchChange = useCallback((value: string) => {
     setInputValue(value);
+    setActiveIndex(-1); // reset keyboard nav on each keystroke
 
     // Clear existing timer
     if (debounceTimerRef.current) {

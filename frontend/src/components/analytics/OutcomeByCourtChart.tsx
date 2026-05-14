@@ -7,7 +7,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 
 const OUTCOME_COLORS: Record<string, string> = {
   Affirmed: "#2d7d46",
@@ -75,8 +76,8 @@ function OutcomeByCourtChartInner({ data }: OutcomeByCourtChartProps) {
           tickLine={false}
         />
         <ChartTooltip
-          formatter={(value: number | undefined, name: string | undefined) => [
-            `${Number(value ?? 0).toFixed(1)}%`,
+          formatter={(value: ValueType | undefined, name: NameType | undefined) => [
+            `${toChartNumber(value).toFixed(1)}%`,
             name ?? "",
           ]}
           contentStyle={{

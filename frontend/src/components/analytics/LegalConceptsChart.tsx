@@ -8,7 +8,8 @@ import {
   YAxis,
   ResponsiveContainer,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { useTranslation } from "react-i18next";
 import type { ConceptEntry } from "@/types/case";
 
@@ -70,8 +71,8 @@ function LegalConceptsChartInner({ data }: LegalConceptsChartProps) {
             tickLine={false}
           />
           <ChartTooltip
-            formatter={(value: number | undefined) => [
-              Number(value ?? 0).toLocaleString(),
+            formatter={(value: ValueType | undefined) => [
+              toChartNumber(value).toLocaleString(),
               t("chart.cases"),
             ]}
             labelFormatter={(

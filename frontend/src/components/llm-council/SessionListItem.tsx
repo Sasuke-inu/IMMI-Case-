@@ -13,20 +13,10 @@ import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import type { LlmCouncilSessionListItem } from "@/lib/api-llm-council";
 
 // ---------------------------------------------------------------------------
-// Relative-time helper (no date-fns dep required)
+// Relative-time helper (imported from sibling for react-refresh compliance)
 // ---------------------------------------------------------------------------
 
-export function relativeTime(isoString: string): string {
-  const diffMs = Date.now() - new Date(isoString).getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  if (diffSec < 60) return "just now";
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDays = Math.floor(diffHr / 24);
-  return `${diffDays}d ago`;
-}
+import { relativeTime } from "./session-list-item-helpers";
 
 // ---------------------------------------------------------------------------
 // Props

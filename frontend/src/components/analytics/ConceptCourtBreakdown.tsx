@@ -8,7 +8,8 @@ import {
   YAxis,
   Legend,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import type { ConceptEffectivenessData } from "@/types/case";
 
 interface ConceptCourtBreakdownProps {
@@ -57,8 +58,8 @@ function ConceptCourtBreakdownInner({ data }: ConceptCourtBreakdownProps) {
           tickLine={false}
         />
         <ChartTooltip
-          formatter={(value: number | string | undefined) => [
-            `${Number(value ?? 0).toFixed(1)}%`,
+          formatter={(value: ValueType | undefined) => [
+            `${toChartNumber(value).toFixed(1)}%`,
             t("analytics.win_rate"),
           ]}
           contentStyle={{

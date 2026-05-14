@@ -6,7 +6,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChartTooltip } from "@/components/shared/ChartTooltip";
+import { ChartTooltip, toChartNumber } from "@/components/shared/ChartTooltip";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 
 interface VisaBreakdownChartProps {
   data: Array<{ subclass: string; total: number; win_rate: number }>;
@@ -49,8 +50,8 @@ export function VisaBreakdownChart({ data }: VisaBreakdownChartProps) {
           tickLine={false}
         />
         <ChartTooltip
-          formatter={(value: number | string | undefined, key) => {
-            const numeric = Number(value ?? 0);
+          formatter={(value: ValueType | undefined, key: NameType | undefined) => {
+            const numeric = toChartNumber(value);
             if (key === "winRate")
               return [`${numeric.toFixed(1)}%`, t("judges.win_rate")];
             return [String(value ?? 0), t("judges.cases")];

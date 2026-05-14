@@ -31,14 +31,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  const refreshRef = useRef<(() => Promise<boolean>) | null>(null);
+
   const scheduleRefresh = useCallback((token: string) => {
     const payload = parseJwtPayload(token);
     if (!payload || typeof payload.exp !== "number") return;
     const msUntilExpiry = payload.exp * 1000 - Date.now();
     const refreshIn = Math.max(msUntilExpiry - 60_000, 0); // refresh 1min before expiry
     clearTimeout(refreshTimerRef.current);
-    refreshTimerRef.current = setTimeout(() => refresh(), refreshIn);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    refreshTimerRef.current = setTimeout(() => { refreshRef.current?.(); }, refreshIn);
+  }, []);
 
   const refresh = useCallback(async (): Promise<boolean> => {
     try {
@@ -72,6 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
   }, [scheduleRefresh]);
+  // Keep refreshRef current so scheduleRefresh always calls the latest refresh.
+  React.useLayoutEffect(() => { refreshRef.current = refresh; });
 
   // On mount: restore auth via httpOnly cookie (browser sends it automatically).
   // Access token comes from the response body — JS cannot read HttpOnly cookies.
@@ -194,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
