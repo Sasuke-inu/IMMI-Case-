@@ -1,0 +1,98 @@
+/**
+ * auth-nonce.test.js
+ *
+ * Verifies that workers/auth/nonce_do.js `checkNonce` reads the env binding
+ * by the SAME name declared in wrangler.toml (`AUTH_NONCE`). Prevents a
+ * regression where wrangler.toml drifts to a different binding name
+ * (e.g. "AUTH_NONCE_DO") while code keeps reading `env.AUTH_NONCE`, which
+ * fail-closes every Telegram login (auth.fail.config / "replay detected").
+ *
+ * NOTE: the Durable Object class itself is exercised end-to-end against the
+ * Workers runtime in integration; this file just pins the helper's binding
+ * lookup so the contract is captured at unit level.
+ */
+
+import { describe, it, expect, vi } from "vitest";
+import { checkNonce } from "../auth/nonce_do.js";
+
+/**
+ * Build a fake DurableObjectNamespace whose stub.fetch() returns the given
+ * { fresh: boolean } JSON envelope. The spies on idFromName/get let us
+ * assert that checkNonce really did go through the binding under test.
+ */
+function makeNamespace(fresh) {
+  const stub = {
+    fetch: vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ fresh }), {
+        headers: { "Content-Type": "application/json" },
+      }),
+    ),
+  };
+  return {
+    idFromName: vi.fn().mockReturnValue("global-id-1"),
+    get: vi.fn().mockReturnValue(stub),
+    _stub: stub,
+  };
+}
+
+describe("checkNonce — env binding name wiring", () => {
+  it("fail-closes (returns false) when env.AUTH_NONCE is missing", async () => {
+    const ok = await checkNonce({}, "abc123hash");
+    expect(ok).toBe(false);
+  });
+
+  it("fail-closes when env is null/undefined", async () => {
+    expect(await checkNonce(null, "abc")).toBe(false);
+    expect(await checkNonce(undefined, "abc")).toBe(false);
+  });
+
+  it("reads specifically env.AUTH_NONCE (not legacy AUTH_NONCE_DO)", async () => {
+    // Regression: wrangler.toml previously named the binding AUTH_NONCE_DO
+    // while nonce_do.js read env.AUTH_NONCE — checkNonce silently fail-closed
+    // on every Telegram login. Pin the binding name contract here.
+    const wrongBinding = makeNamespace(true);
+    const ok = await checkNonce({ AUTH_NONCE_DO: wrongBinding }, "abc123hash");
+    expect(ok).toBe(false);
+    expect(wrongBinding.idFromName).not.toHaveBeenCalled();
+  });
+
+  it("returns true when env.AUTH_NONCE is bound and DO returns fresh=true", async () => {
+    const ns = makeNamespace(true);
+    const ok = await checkNonce({ AUTH_NONCE: ns }, "abc123hash");
+
+    expect(ok).toBe(true);
+    // Verify the helper actually used the binding (i.e. did not fail-close
+    // on a config check before getting to the DO call).
+    expect(ns.idFromName).toHaveBeenCalledWith("global");
+    expect(ns.get).toHaveBeenCalledWith(
+      "global-id-1",
+      expect.objectContaining({ locationHint: "oc" }),
+    );
+    expect(ns._stub.fetch).toHaveBeenCalledOnce();
+
+    // The body sent to the DO must include the hash so the DO can dedupe.
+    const fetchCall = ns._stub.fetch.mock.calls[0];
+    const init = fetchCall[1];
+    const body = JSON.parse(init.body);
+    expect(body.hash).toBe("abc123hash");
+  });
+
+  it("returns false (replay) when DO returns fresh=false", async () => {
+    const ns = makeNamespace(false);
+    const ok = await checkNonce({ AUTH_NONCE: ns }, "abc123hash");
+    expect(ok).toBe(false);
+    // DO was reached — this is a real replay rejection, not a config miss.
+    expect(ns._stub.fetch).toHaveBeenCalledOnce();
+  });
+
+  it("fail-closes when the DO call throws", async () => {
+    const ns = {
+      idFromName: vi.fn().mockReturnValue("id"),
+      get: vi.fn().mockImplementation(() => {
+        throw new Error("simulated DO error");
+      }),
+    };
+    const ok = await checkNonce({ AUTH_NONCE: ns }, "abc123hash");
+    expect(ok).toBe(false);
+  });
+});

@@ -1,26 +1,28 @@
 /**
  * workers/llm-council/handlers.js
  *
- * Six endpoint handler functions for the LLM Council Worker.
- * Each is a (request, env) → Response function with no router knowledge.
+ * Endpoint handler functions for the LLM Council Worker.
  *
- * Handler list:
- *   handleCreateSession   POST /sessions
- *   handleAddTurn         POST /sessions/:id/turns
- *   handleGetSession      GET  /sessions/:id
- *   handleListSessions    GET  /sessions
- *   handleDeleteSession   DELETE /sessions/:id
- *   handleLegacyRun       POST /run  (backward compat, ephemeral — no DB)
+ * AUTH MODEL (plan §1.3 + §1.4):
+ *   Every persistence-touching endpoint requires a verified JWT. Tenant
+ *   isolation is enforced server-side via RLS using `auth_tenant_id()` —
+ *   handlers MUST pass `claims` into every storage call so the postgres
+ *   transaction wrapper sets `SET LOCAL request.jwt.claims` before any DML
+ *   runs. The legacy X-Session-Token HMAC is no longer accepted as a
+ *   standalone auth — JWT is the sole gate.
  *
- * Auth flow:
- *   - handleCreateSession: rate-limit only (mints token on success)
- *   - handleAddTurn / handleGetSession / handleDeleteSession: verifyToken from
- *     X-Session-Token header
- *   - handleListSessions: no auth (list is not sensitive; protected by rate limit)
- *   - handleLegacyRun: rate-limit only
+ *   Endpoint-by-endpoint:
+ *     POST   /sessions          → JWT required (mints session token; writes tenant_id)
+ *     POST   /sessions/:id/turns→ JWT required (RLS verifies session ownership)
+ *     GET    /sessions/:id      → JWT required (RLS hides foreign sessions)
+ *     GET    /sessions          → JWT required (RLS filters by tenant)
+ *     DELETE /sessions/:id      → JWT required
+ *     POST   /sessions/restore  → JWT required (RLS filters by tenant)
+ *     POST   /stream            → JWT required (persists via ctx.waitUntil)
+ *     POST   /run               → rate-limit only (ephemeral, no DB)
  */
 
-import { mintToken, verifyToken, nanoid21 } from "./auth.js";
+import { mintToken, nanoid21 } from "./auth.js";
 import {
   createSession,
   addTurn,
@@ -32,28 +34,12 @@ import {
   generateRetrieveCode,
 } from "./storage.js";
 import { runCouncil, streamCouncil } from "./runner.js";
+import { verifyJwt } from "../auth/jwt.js";
+import { requireAuth } from "../db/getSqlAsUser.js";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-// Aligned with frontend MAX_MESSAGE_CHARS in LlmCouncilPage.tsx (8000).
-// Heavy legal prompts (5+ issues + facts + structure block) regularly
-// exceed 5000 chars. Worker accepting < frontend cap silently rejects
-// long valid prompts as 400.
 const MAX_MESSAGE_LENGTH = 8000;
 const VALID_CASE_ID_RE = /^[0-9a-f]{12}$/;
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Return a JSON Response with the given body object and status.
- * @param {object} body
- * @param {number} [status=200]
- * @returns {Response}
- */
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -61,23 +47,10 @@ function jsonResponse(body, status = 200) {
   });
 }
 
-/**
- * Return a JSON error response.
- * @param {string} message
- * @param {number} [status=400]
- * @returns {Response}
- */
 function errorResponse(message, status = 400) {
   return jsonResponse({ error: message }, status);
 }
 
-/**
- * Extract the client IP from the request for rate-limiting.
- * Prefers CF-Connecting-IP (set by Cloudflare), falls back to X-Forwarded-For,
- * then a static fallback so tests can omit the header.
- * @param {Request} request
- * @returns {string}
- */
 function clientIp(request) {
   return (
     request.headers.get("CF-Connecting-IP") ||
@@ -86,36 +59,16 @@ function clientIp(request) {
   );
 }
 
-/**
- * Apply RL_COUNCIL_TURN rate limit for the given request.
- * Returns {success: true} or {success: false}.
- * @param {Request} request
- * @param {object} env
- * @returns {Promise<{success: boolean}>}
- */
 async function applyRateLimit(request, env) {
   if (!env.RL_COUNCIL_TURN) return { success: true };
   return env.RL_COUNCIL_TURN.limit({ key: clientIp(request) });
 }
 
-/**
- * Extract session_id from a URL path such as /sessions/:id or /sessions/:id/turns.
- * Returns the segment after the last "/sessions/" prefix.
- * @param {string} pathname
- * @returns {string}
- */
 function extractSessionId(pathname) {
   const m = pathname.match(/\/sessions\/([^/]+)/);
   return m ? m[1] : "";
 }
 
-/**
- * Validate the common message body fields.
- * Returns {error: string} on failure, null on success.
- * @param {object} body - parsed JSON body
- * @param {string} messageKey - key name for message field ("message" or "question")
- * @returns {{error: string}|null}
- */
 function validateMessageBody(body, messageKey = "message") {
   const message = typeof body[messageKey] === "string" ? body[messageKey].trim() : "";
   if (!message) {
@@ -133,35 +86,24 @@ function validateMessageBody(body, messageKey = "message") {
   return null;
 }
 
+async function requireSessionAuth(request, env) {
+  return requireAuth(request, env, verifyJwt);
+}
+
 // ---------------------------------------------------------------------------
 // handleCreateSession
 // ---------------------------------------------------------------------------
 
-/**
- * POST /sessions
- *
- * Body: {message, case_id?, case_context?}
- *
- * Flow:
- *   1. Rate-limit by IP
- *   2. Parse + validate body
- *   3. Generate session_id (nanoid21) + mint token
- *   4. Run runCouncil (turn 0, no history)
- *   5. createSession + addTurn in storage
- *   6. Return {session_id, session_token, turn, total_turns: 1}
- *
- * @param {Request} request
- * @param {object} env
- * @returns {Promise<Response>}
- */
 export async function handleCreateSession(request, env) {
-  // 1. Rate limit
+  const authResult = await requireSessionAuth(request, env);
+  if (authResult instanceof Response) return authResult;
+  const { claims } = authResult;
+
   const rl = await applyRateLimit(request, env);
   if (!rl.success) {
     return errorResponse("Rate limit exceeded — try again shortly", 429);
   }
 
-  // 2. Parse + validate
   let body;
   try {
     body = await request.json();
@@ -181,13 +123,11 @@ export async function handleCreateSession(request, env) {
   const caseId = body.case_id || null;
   const caseContext = typeof body.case_context === "string" ? body.case_context : "";
 
-  // 3. Generate IDs + token + retrieve code
   const sessionId = nanoid21();
   const turnId = nanoid21();
   const sessionToken = await mintToken(env, sessionId);
   const retrieveCode = generateRetrieveCode();
 
-  // 4. Run council (turn 0, no history)
   let councilResult;
   try {
     councilResult = await runCouncil({
@@ -200,17 +140,14 @@ export async function handleCreateSession(request, env) {
     return errorResponse(`LLM Council error: ${err.message}`, 503);
   }
 
-  // Derive a title from the first 80 chars of the message
   const title = message.slice(0, 80);
 
-  // 5. Persist session + turn
-  // Retry once on retrieve_code UNIQUE-violation (extremely rare at 30^6 ≈ 729M
-  // codes; partial unique index ensures only non-null values collide).
   let createdSession;
   let codeUsed = retrieveCode;
   try {
     createdSession = await createSession({
       env,
+      claims,
       sessionId,
       caseId,
       title,
@@ -222,6 +159,7 @@ export async function handleCreateSession(request, env) {
       codeUsed = generateRetrieveCode();
       createdSession = await createSession({
         env,
+        claims,
         sessionId,
         caseId,
         title,
@@ -235,6 +173,7 @@ export async function handleCreateSession(request, env) {
 
   await addTurn({
     env,
+    claims,
     sessionId,
     turnId,
     turnIndex: 0,
@@ -246,7 +185,6 @@ export async function handleCreateSession(request, env) {
     totalLatencyMs: null,
   });
 
-  // 6. Respond — surface retrieve_code so the frontend can display it
   return jsonResponse({
     session_id: sessionId,
     session_token: sessionToken,
@@ -265,50 +203,21 @@ export async function handleCreateSession(request, env) {
 // handleAddTurn
 // ---------------------------------------------------------------------------
 
-/**
- * POST /sessions/:id/turns
- *
- * Headers: X-Session-Token
- * Body: {message}
- *
- * Flow:
- *   1. Parse session_id from path
- *   2. verifyToken from header → 403 if invalid
- *   3. Rate-limit
- *   4. Parse + validate body
- *   5. getSession → 404 if missing
- *   6. Check total_turns < 15 → 409 if at cap
- *   7. loadHistory
- *   8. runCouncil with history
- *   9. addTurn (race-safe; null → 409)
- *  10. Return {turn, total_turns}
- *
- * @param {Request} request
- * @param {object} env
- * @param {string} pathname - e.g. "/api/v1/llm-council/sessions/abc123/turns"
- * @returns {Promise<Response>}
- */
 export async function handleAddTurn(request, env, pathname) {
-  // 1. Session ID from path
+  const authResult = await requireSessionAuth(request, env);
+  if (authResult instanceof Response) return authResult;
+  const { claims } = authResult;
+
   const sessionId = extractSessionId(pathname || new URL(request.url).pathname);
   if (!sessionId) {
     return errorResponse("session_id missing from path", 400);
   }
 
-  // 2. Auth
-  const token = request.headers.get("X-Session-Token") || "";
-  const valid = await verifyToken(env, sessionId, token);
-  if (!valid) {
-    return errorResponse("Invalid or missing X-Session-Token", 403);
-  }
-
-  // 3. Rate limit
   const rl = await applyRateLimit(request, env);
   if (!rl.success) {
     return errorResponse("Rate limit exceeded — try again shortly", 429);
   }
 
-  // 4. Parse + validate body
   let body;
   try {
     body = await request.json();
@@ -326,21 +235,17 @@ export async function handleAddTurn(request, env, pathname) {
 
   const message = body.message.trim();
 
-  // 5. Load session
-  const sessionData = await getSession({ env, sessionId });
+  const sessionData = await getSession({ env, claims, sessionId });
   if (!sessionData) {
     return errorResponse("Session not found", 404);
   }
 
-  // 6. Turn cap check
   if (sessionData.session.total_turns >= 15) {
     return errorResponse("Session has reached the maximum of 15 turns", 409);
   }
 
-  // 7. Load history
-  const history = await loadHistory({ env, sessionId });
+  const history = await loadHistory({ env, claims, sessionId });
 
-  // 8. Run council
   let councilResult;
   try {
     councilResult = await runCouncil({
@@ -359,9 +264,9 @@ export async function handleAddTurn(request, env, pathname) {
   const turnIndex = sessionData.session.total_turns;
   const turnId = nanoid21();
 
-  // 9. Persist turn (race-safe)
   const turnRow = await addTurn({
     env,
+    claims,
     sessionId,
     turnId,
     turnIndex,
@@ -380,7 +285,6 @@ export async function handleAddTurn(request, env, pathname) {
     );
   }
 
-  // 10. Respond
   return jsonResponse({
     turn: {
       turn_id: turnId,
@@ -396,37 +300,26 @@ export async function handleAddTurn(request, env, pathname) {
 // handleGetSession
 // ---------------------------------------------------------------------------
 
-/**
- * GET /sessions/:id
- *
- * Headers: X-Session-Token
- *
- * @param {Request} request
- * @param {object} env
- * @param {string} pathname
- * @returns {Promise<Response>}
- */
 export async function handleGetSession(request, env, pathname) {
+  const authResult = await requireSessionAuth(request, env);
+  if (authResult instanceof Response) return authResult;
+  const { claims } = authResult;
+
   const sessionId = extractSessionId(pathname || new URL(request.url).pathname);
   if (!sessionId) {
     return errorResponse("session_id missing from path", 400);
   }
 
-  const token = request.headers.get("X-Session-Token") || "";
-  const valid = await verifyToken(env, sessionId, token);
-  if (!valid) {
-    return errorResponse("Invalid or missing X-Session-Token", 403);
-  }
-
-  const sessionData = await getSession({ env, sessionId });
+  const sessionData = await getSession({ env, claims, sessionId });
   if (!sessionData) {
     return errorResponse("Session not found", 404);
   }
 
-  // Normalize turn shape to match handleCreateSession / handleAddTurn responses
-  // (frontend LlmCouncilTurn type expects opinions/moderator/etc at the top level,
-  // not nested under turn.payload). Without this, reload-after-create crashes
-  // TurnCard with "Cannot read properties of undefined (reading 'length')".
+  // Plan §1.3 — strip secrets from response.
+  const session = { ...sessionData.session };
+  delete session.hmac_sig;
+  delete session.retrieve_code;
+
   const normalizedTurns = sessionData.turns.map((t) => ({
     turn_id: t.turn_id,
     turn_index: t.turn_index,
@@ -438,7 +331,7 @@ export async function handleGetSession(request, env, pathname) {
   }));
 
   return jsonResponse({
-    session: sessionData.session,
+    session,
     turns: normalizedTurns,
   });
 }
@@ -447,24 +340,17 @@ export async function handleGetSession(request, env, pathname) {
 // handleListSessions
 // ---------------------------------------------------------------------------
 
-/**
- * GET /sessions
- *
- * Query: ?limit=20&before=<ISO timestamp>
- *
- * No auth required (not sensitive; protected by global rate limit).
- *
- * @param {Request} request
- * @param {object} env
- * @returns {Promise<Response>}
- */
 export async function handleListSessions(request, env) {
+  const authResult = await requireSessionAuth(request, env);
+  if (authResult instanceof Response) return authResult;
+  const { claims } = authResult;
+
   const url = new URL(request.url);
   const limitRaw = parseInt(url.searchParams.get("limit") || "20", 10);
   const limit = isNaN(limitRaw) || limitRaw < 1 ? 20 : limitRaw;
   const before = url.searchParams.get("before") || null;
 
-  const sessions = await listSessions({ env, limit, before });
+  const sessions = await listSessions({ env, claims, limit, before });
 
   return jsonResponse({ sessions });
 }
@@ -473,29 +359,17 @@ export async function handleListSessions(request, env) {
 // handleDeleteSession
 // ---------------------------------------------------------------------------
 
-/**
- * DELETE /sessions/:id
- *
- * Headers: X-Session-Token
- *
- * @param {Request} request
- * @param {object} env
- * @param {string} pathname
- * @returns {Promise<Response>}
- */
 export async function handleDeleteSession(request, env, pathname) {
+  const authResult = await requireSessionAuth(request, env);
+  if (authResult instanceof Response) return authResult;
+  const { claims } = authResult;
+
   const sessionId = extractSessionId(pathname || new URL(request.url).pathname);
   if (!sessionId) {
     return errorResponse("session_id missing from path", 400);
   }
 
-  const token = request.headers.get("X-Session-Token") || "";
-  const valid = await verifyToken(env, sessionId, token);
-  if (!valid) {
-    return errorResponse("Invalid or missing X-Session-Token", 403);
-  }
-
-  const deleted = await deleteSession({ env, sessionId });
+  const deleted = await deleteSession({ env, claims, sessionId });
   if (!deleted) {
     return errorResponse("Session not found", 404);
   }
@@ -504,31 +378,15 @@ export async function handleDeleteSession(request, env, pathname) {
 }
 
 // ---------------------------------------------------------------------------
-// handleLegacyRun
+// handleLegacyRun (ephemeral — no auth, no DB)
 // ---------------------------------------------------------------------------
 
-/**
- * POST /run  (backward compat — matches Flask /llm-council/run shape)
- *
- * Body: {question, case_id?, context?}
- *
- * Ephemeral — no session or turn is created in DB.
- *
- * Returns the same shape as Flask /llm-council/run:
- *   {question, case_context, models, opinions, moderator, retrieved_cases?}
- *
- * @param {Request} request
- * @param {object} env
- * @returns {Promise<Response>}
- */
 export async function handleLegacyRun(request, env) {
-  // Rate limit
   const rl = await applyRateLimit(request, env);
   if (!rl.success) {
     return errorResponse("Rate limit exceeded — try again shortly", 429);
   }
 
-  // Parse + validate
   let body;
   try {
     body = await request.json();
@@ -547,7 +405,6 @@ export async function handleLegacyRun(request, env) {
   const question = body.question.trim();
   const caseContext = typeof body.context === "string" ? body.context : "";
 
-  // Run council (no history — single-shot)
   let councilResult;
   try {
     councilResult = await runCouncil({
@@ -560,8 +417,6 @@ export async function handleLegacyRun(request, env) {
     return errorResponse(`LLM Council error: ${err.message}`, 503);
   }
 
-  // Return Flask-compatible shape:
-  // {question, case_context, models, opinions, moderator, retrieved_cases}
   return jsonResponse({
     question: councilResult.question,
     case_context: councilResult.case_context,
@@ -573,27 +428,14 @@ export async function handleLegacyRun(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// handleStreamCouncil  (Sprint 2 — SSE streaming for 3-column live UI)
+// handleStreamCouncil
 // ---------------------------------------------------------------------------
 
-/**
- * POST /stream
- *
- * Body: {message, case_id?, case_context?}
- *
- * Returns text/event-stream with multiplexed SSE events from 3 parallel
- * experts + final moderator. See streamCouncil() in runner.js for the
- * full event taxonomy.
- *
- * No session persistence (ephemeral, like /run). The frontend is
- * responsible for capturing the council.done event and persisting via the
- * existing /sessions endpoint if continuity is needed.
- *
- * @param {Request} request
- * @param {object} env
- * @returns {Promise<Response>}
- */
 export async function handleStreamCouncil(request, env, _path, ctx) {
+  const authResult = await requireSessionAuth(request, env);
+  if (authResult instanceof Response) return authResult;
+  const { claims } = authResult;
+
   const rl = await applyRateLimit(request, env);
   if (!rl.success) {
     return errorResponse("Rate limit exceeded — try again shortly", 429);
@@ -613,9 +455,6 @@ export async function handleStreamCouncil(request, env, _path, ctx) {
   const caseContext = typeof body.case_context === "string" ? body.case_context : "";
   const caseId = body.case_id || null;
 
-  // Pre-mint session identity so we can emit it as a `council.session` SSE
-  // event early in the stream (so the frontend can show the retrieve code
-  // even before the orchestration completes).
   const sessionId = nanoid21();
   const sessionToken = await mintToken(env, sessionId);
   const retrieveCode = generateRetrieveCode();
@@ -629,8 +468,6 @@ export async function handleStreamCouncil(request, env, _path, ctx) {
       question: message,
       caseContext,
       prevTurns: [],
-      // Optional metadata — runner.js emits a `council.session` SSE event
-      // immediately after the stream opens when this is provided.
       sessionMeta: {
         session_id: sessionId,
         session_token: sessionToken,
@@ -641,31 +478,27 @@ export async function handleStreamCouncil(request, env, _path, ctx) {
     return errorResponse(`LLM Council stream error: ${err.message}`, 503);
   }
 
-  // Persist on done — runs after the stream's orchestration completes.
-  // result.work resolves to the final {opinions, moderator, ...} object on
-  // success, or to null on terminal error. ctx.waitUntil keeps this alive
-  // even if the client disconnects mid-stream.
   const persistTask = result.work.then(async (councilResult) => {
     if (!councilResult || typeof councilResult !== "object") return;
     try {
-      // Retry once on retrieve_code UNIQUE collision.
       let codeUsed = retrieveCode;
       try {
         await createSession({
-          env, sessionId, caseId, title,
+          env, claims, sessionId, caseId, title,
           hmacSig: sessionToken, retrieveCode: codeUsed,
         });
       } catch (err) {
         if (String(err?.message || "").includes("retrieve_code")) {
           codeUsed = generateRetrieveCode();
           await createSession({
-            env, sessionId, caseId, title,
+            env, claims, sessionId, caseId, title,
             hmacSig: sessionToken, retrieveCode: codeUsed,
           });
         } else { throw err; }
       }
       await addTurn({
         env,
+        claims,
         sessionId,
         turnId,
         turnIndex: 0,
@@ -677,7 +510,6 @@ export async function handleStreamCouncil(request, env, _path, ctx) {
         totalLatencyMs: null,
       });
     } catch (err) {
-      // Persistence is best-effort — never break the user-facing stream.
       console.error("[stream-persist] failed:", err?.message || err);
     }
   });
@@ -701,25 +533,11 @@ export async function handleStreamCouncil(request, env, _path, ctx) {
 // handleRestoreByCode
 // ---------------------------------------------------------------------------
 
-/**
- * POST /sessions/restore
- *
- * Body: {code}
- *
- * Looks up a session by its 6-char retrieve_code and returns
- * {session_id, session_token} so the frontend can navigate to the existing
- * GET /sessions/:id flow with proper auth.
- *
- * Auth model: HMAC-derived session_token is recomputed server-side from
- * sessionId + CSRF_SECRET (deterministic via mintToken), so we do NOT
- * leak the original token from the DB — we mint a fresh one. Either is
- * valid because verifyToken just checks HMAC equality.
- *
- * @param {Request} request
- * @param {object} env
- * @returns {Promise<Response>}
- */
 export async function handleRestoreByCode(request, env) {
+  const authResult = await requireSessionAuth(request, env);
+  if (authResult instanceof Response) return authResult;
+  const { claims } = authResult;
+
   const rl = await applyRateLimit(request, env);
   if (!rl.success) {
     return errorResponse("Rate limit exceeded — try again shortly", 429);
@@ -736,17 +554,15 @@ export async function handleRestoreByCode(request, env) {
   if (!code || code.length !== 6) {
     return errorResponse("code must be a 6-character string", 400);
   }
-  // Reject anything that isn't in the alphabet (avoid SQL probing noise).
   if (!/^[2-9A-HJ-NP-Z]{6}$/.test(code)) {
     return errorResponse("code contains invalid characters", 400);
   }
 
-  const session = await getSessionByCode({ env, code });
+  const session = await getSessionByCode({ env, claims, code });
   if (!session) {
     return errorResponse("Code not found", 404);
   }
 
-  // Recompute the deterministic HMAC token (matches what verifyToken expects).
   const sessionToken = await mintToken(env, session.session_id);
 
   return jsonResponse({

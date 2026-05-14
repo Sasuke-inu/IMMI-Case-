@@ -53,6 +53,8 @@ import {
   handleRestoreByCode,
 } from "./llm-council/handlers.js";
 import { handleTelegramLogin, handleAuthMe, handleAuthLogout, handleAuthRefresh, handleAuthSwitchTenant } from "./auth/handlers.js";
+import { verifyJwt } from "./auth/jwt.js";
+import { requireAuth } from "./db/getSqlAsUser.js";
 export { AuthNonce } from "./auth/nonce_do.js";
 
 // ── Table / column constants ──────────────────────────────────────────────────
@@ -2594,6 +2596,50 @@ export async function dispatchLlmCouncil(request, env, url, path, method, ctx) {
   return null;
 }
 
+// ── Case-write auth helpers (plan §1.2) ──────────────────────────────────────
+//
+// Native case writes (POST/PUT/DELETE /api/v1/cases*, batch, admin ops) MUST
+// be JWT-gated *and* tied to a live tenant_members row.  Anonymous writes were
+// previously possible — see plan §1.2.
+
+async function verifyTenantMembership(env, claims) {
+  if (!claims?.sub || !claims?.tenant_id) return false;
+  const sql = postgres(env.HYPERDRIVE.connectionString, {
+    max: 1,
+    idle_timeout: 5,
+  });
+  try {
+    const rows = await sql`
+      SELECT 1
+      FROM tenant_members
+      WHERE tenant_id = ${claims.tenant_id}::uuid
+        AND user_id   = ${claims.sub}::uuid
+      LIMIT 1
+    `;
+    return rows.length > 0;
+  } finally {
+    await sql.end();
+  }
+}
+
+async function requireCaseWriter(request, env) {
+  if (env.AUTH_ENABLED === "false") return { claims: null };
+  const authResult = await requireAuth(request, env, verifyJwt);
+  if (authResult instanceof Response) return authResult;
+  const { claims } = authResult;
+  const ok = await verifyTenantMembership(env, claims);
+  if (!ok) {
+    return new Response(
+      JSON.stringify({
+        error: "Not a member of this tenant",
+        code: "tenant_revoked",
+      }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
+  }
+  return { claims };
+}
+
 // ── Flask proxy helper ────────────────────────────────────────────────────────
 
 async function proxyToFlask(request, env) {
@@ -2673,6 +2719,16 @@ export default {
 
         const csrfFail = await requireCsrf(request, env);
         if (csrfFail) return csrfFail;
+
+        // Plan §1.2 — anonymous writes are forbidden. requireCaseWriter
+        // returns a 401 (no/invalid JWT) or 403 (membership revoked) Response
+        // when the caller is not allowed; we MUST propagate it directly
+        // (do not let the outer catch fall back to Flask, which would
+        // silently bypass the new auth gate).
+        const writerAuth = await requireCaseWriter(request, env);
+        if (writerAuth instanceof Response) return writerAuth;
+        // writerAuth.claims is null only when AUTH_ENABLED=false (kill switch).
+
         if (path === "/api/v1/cases" && method === "POST") {
           return await handlePostCase(request, env);
         }

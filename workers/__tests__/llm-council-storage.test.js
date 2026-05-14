@@ -1,457 +1,351 @@
 /**
  * llm-council-storage.test.js
  *
- * Vitest unit tests for workers/llm-council/storage.js
- *
- * WHY MOCKING IS REQUIRED:
- *   The postgres package opens real TCP connections to Hyperdrive/PostgreSQL.
- *   In a unit-test environment there is no Hyperdrive binding and no DB.
- *   We mock the entire `postgres` module so we can intercept the SQL
- *   tagged-template calls and assert on the string + parameters produced
- *   by each storage function — without any network I/O.
- *
- * MOCK SCOPE:
- *   vi.mock("postgres") replaces the module for this test file only.
- *   Each test configures mockSqlFn.mockReturnValue(...) to control what
- *   the fake sql`` call returns.
+ * Vitest unit tests for workers/llm-council/storage.js (post plan §1.3-§1.5
+ * rewrite — tenant-aware, JWT-claims-bound, with lifecycle helpers).
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ---------------------------------------------------------------------------
-// Mock setup — must be declared before the module under test is imported
-// ---------------------------------------------------------------------------
+const mockTxFn = vi.fn();
+function makeTx() {
+  const tx = (...args) => mockTxFn(...args);
+  tx.json = (val) => ({ __json: val });
+  return tx;
+}
 
-/** The fake tagged-template function returned by postgres(connectionString) */
-const mockSqlFn = vi.fn();
+const mockGetSqlAsUser = vi.fn(() => ({
+  tx: async (fn) => fn(makeTx()),
+}));
 
-/**
- * postgres(connectionString, opts) returns the sql tagged-template fn.
- * We also need sql.json(val) for JSONB params.
- */
+vi.mock("../db/getSqlAsUser.js", () => ({
+  getSqlAsUser: (...a) => mockGetSqlAsUser(...a),
+}));
+
 vi.mock("postgres", () => {
-  const sqlFn = vi.fn((...args) => mockSqlFn(...args));
-  // sql.json wraps a value so storage.js can call sql.json(payload)
+  const sqlFn = vi.fn();
   sqlFn.json = (val) => ({ __json: val });
-  // postgres() factory returns sqlFn
+  sqlFn.end = vi.fn().mockResolvedValue(undefined);
   const postgresFactory = vi.fn(() => sqlFn);
   return { default: postgresFactory };
 });
 
-// Import AFTER mock is set up
 import {
   getSql,
+  withSql,
+  withSqlAsUser,
   createSession,
   addTurn,
   getSession,
+  getSessionByCode,
   listSessions,
   deleteSession,
   loadHistory,
+  LIST_SESSION_COLUMNS,
+  generateRetrieveCode,
 } from "../llm-council/storage.js";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+const ENV = { HYPERDRIVE: { connectionString: "postgres://test/test" } };
 
-/** Fake env with a minimal HYPERDRIVE binding */
-const makeEnv = () => ({
-  HYPERDRIVE: { connectionString: "postgres://test:test@localhost/test" },
-});
+const CLAIMS = {
+  sub: "11111111-2222-3333-4444-555555555555",
+  tenant_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  tenants: ["aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"],
+  role: "member",
+  kid: "v1",
+};
 
-/** Extract the raw SQL string from a tagged-template call.
- *  vitest captures args[0] (the TemplateStringsArray) and args[1..] (values).
- *  We join the strings array to get the SQL text for assertion. */
-function capturedSql(callArgs) {
-  // callArgs[0] is the TemplateStringsArray (strings); rest are interpolated values
+function sqlOf(callArgs) {
   return callArgs[0].join("?").trim();
+}
+
+function txYields(...rowsPerCall) {
+  mockTxFn.mockReset();
+  for (const rows of rowsPerCall) mockTxFn.mockResolvedValueOnce(rows);
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default: most calls return an empty array (no rows)
-  mockSqlFn.mockResolvedValue([]);
+  mockTxFn.mockReset();
+  mockGetSqlAsUser.mockImplementation(() => ({
+    tx: async (fn) => fn(makeTx()),
+  }));
 });
 
-// ---------------------------------------------------------------------------
-// getSql
-// ---------------------------------------------------------------------------
+describe("generateRetrieveCode", () => {
+  it("returns a 6-character base32 code from the safe alphabet", () => {
+    const code = generateRetrieveCode();
+    expect(code).toHaveLength(6);
+    expect(/^[2-9A-HJ-NP-Z]{6}$/.test(code)).toBe(true);
+  });
+});
 
-describe("getSql", () => {
-  it("calls postgres() with env.HYPERDRIVE.connectionString", async () => {
+describe("LIST_SESSION_COLUMNS whitelist", () => {
+  it("contains only the 7 safe columns plan §1.3 specifies", () => {
+    expect([...LIST_SESSION_COLUMNS]).toEqual([
+      "session_id", "case_id", "title", "status",
+      "total_turns", "created_at", "updated_at",
+    ]);
+  });
+
+  it("explicitly excludes hmac_sig / session_token / retrieve_code", () => {
+    expect(LIST_SESSION_COLUMNS).not.toContain("hmac_sig");
+    expect(LIST_SESSION_COLUMNS).not.toContain("session_token");
+    expect(LIST_SESSION_COLUMNS).not.toContain("retrieve_code");
+  });
+});
+
+describe("getSql / withSql / withSqlAsUser lifecycle", () => {
+  it("getSql calls postgres(connectionString, {max:1, idle_timeout:5})", async () => {
     const { default: postgres } = await import("postgres");
-    const env = makeEnv();
-    getSql(env);
+    getSql(ENV);
     expect(postgres).toHaveBeenCalledWith(
-      "postgres://test:test@localhost/test",
-      expect.objectContaining({ max: 1 })
+      "postgres://test/test",
+      expect.objectContaining({ max: 1, idle_timeout: 5 }),
     );
   });
 
-  it("returns a new client on every call (never singleton)", async () => {
+  it("getSql returns a NEW client every call (never singleton)", async () => {
     const { default: postgres } = await import("postgres");
-    const env = makeEnv();
-    getSql(env);
-    getSql(env);
-    // Two separate calls to the postgres factory
+    getSql(ENV); getSql(ENV);
     expect(postgres).toHaveBeenCalledTimes(2);
   });
-});
 
-// ---------------------------------------------------------------------------
-// createSession
-// ---------------------------------------------------------------------------
+  it("withSql guarantees sql.end() runs even when fn throws", async () => {
+    const { default: postgres } = await import("postgres");
+    const sql = postgres(ENV.HYPERDRIVE.connectionString, {});
+    await expect(
+      withSql(ENV, async () => { throw new Error("boom"); }),
+    ).rejects.toThrow("boom");
+    expect(sql.end).toHaveBeenCalled();
+  });
+
+  it("withSqlAsUser delegates to getSqlAsUser(env, claims).tx(fn)", async () => {
+    let txArg = null;
+    mockGetSqlAsUser.mockImplementation((env, claims) => ({
+      tx: async (fn) => {
+        txArg = { env, claims };
+        return fn(makeTx());
+      },
+    }));
+    await withSqlAsUser(ENV, CLAIMS, async () => "ok");
+    expect(txArg).toEqual({ env: ENV, claims: CLAIMS });
+  });
+});
 
 describe("createSession", () => {
-  it("issues INSERT INTO council_sessions ... RETURNING *", async () => {
-    const fakeRow = {
-      session_id: "sess_abc",
-      case_id: null,
-      title: "Test session",
-      hmac_sig: "sig123",
-      status: "active",
-      total_turns: 0,
-    };
-    mockSqlFn.mockResolvedValue([fakeRow]);
-
-    const result = await createSession({
-      env: makeEnv(),
-      sessionId: "sess_abc",
-      caseId: null,
-      title: "Test session",
-      hmacSig: "sig123",
-    });
-
-    expect(result).toEqual(fakeRow);
-
-    const sqlStr = capturedSql(mockSqlFn.mock.calls[0]);
-    expect(sqlStr).toContain("INSERT INTO council_sessions");
-    expect(sqlStr).toContain("RETURNING *");
+  it("throws when claims is missing tenant_id (plan §1.4)", async () => {
+    await expect(
+      createSession({
+        env: ENV,
+        claims: { sub: CLAIMS.sub },
+        sessionId: "s1", caseId: null, title: null, hmacSig: "sig",
+      }),
+    ).rejects.toThrow(/tenant_id/);
   });
 
-  it("passes hmacSig as a parameter (not embedded in SQL string)", async () => {
-    mockSqlFn.mockResolvedValue([{ session_id: "s1", hmac_sig: "mysig" }]);
+  it("throws when claims is missing sub", async () => {
+    await expect(
+      createSession({
+        env: ENV,
+        claims: { tenant_id: CLAIMS.tenant_id },
+        sessionId: "s1", caseId: null, title: null, hmacSig: "sig",
+      }),
+    ).rejects.toThrow(/sub/);
+  });
 
-    await createSession({
-      env: makeEnv(),
-      sessionId: "s1",
-      caseId: null,
-      title: null,
-      hmacSig: "mysig",
+  it("issues INSERT INTO council_sessions with tenant_id + created_by params", async () => {
+    txYields([{ session_id: "s1", tenant_id: CLAIMS.tenant_id }]);
+
+    const row = await createSession({
+      env: ENV, claims: CLAIMS,
+      sessionId: "s1", caseId: null, title: "T",
+      hmacSig: "sig", retrieveCode: "ABCDEF",
     });
 
-    // The interpolated values passed to the tagged template should include the hmacSig
-    const callArgs = mockSqlFn.mock.calls[0];
-    const interpolatedValues = callArgs.slice(1);
-    expect(interpolatedValues).toContain("mysig");
+    expect(row.session_id).toBe("s1");
+
+    const sql = sqlOf(mockTxFn.mock.calls[0]);
+    expect(sql).toContain("INSERT INTO council_sessions");
+    expect(sql).toContain("tenant_id");
+    expect(sql).toContain("created_by");
+    expect(sql).toContain("RETURNING *");
+
+    const params = mockTxFn.mock.calls[0].slice(1);
+    expect(params).toContain(CLAIMS.tenant_id);
+    expect(params).toContain(CLAIMS.sub);
   });
 });
-
-// ---------------------------------------------------------------------------
-// addTurn — normal path
-// ---------------------------------------------------------------------------
-
-describe("addTurn (normal path)", () => {
-  it("issues INSERT INTO council_turns with ON CONFLICT DO NOTHING RETURNING", async () => {
-    const fakeTurnRow = {
-      turn_id: "turn_001",
-      session_id: "sess_abc",
-      turn_index: 0,
-      user_message: "What are the grounds?",
-    };
-    // First call = INSERT (returns the row); second call = UPDATE session
-    mockSqlFn
-      .mockResolvedValueOnce([fakeTurnRow])  // INSERT ... RETURNING
-      .mockResolvedValueOnce([]);             // UPDATE council_sessions
-
-    const result = await addTurn({
-      env: makeEnv(),
-      sessionId: "sess_abc",
-      turnId: "turn_001",
-      turnIndex: 0,
-      userMessage: "What are the grounds?",
-      userCaseContext: null,
-      payload: { moderator: { composed_answer: "Answer" } },
-      retrievedCases: null,
-      totalTokens: 500,
-      totalLatencyMs: 1200,
-    });
-
-    expect(result).toEqual(fakeTurnRow);
-
-    const sqlStr = capturedSql(mockSqlFn.mock.calls[0]);
-    expect(sqlStr).toContain("INSERT INTO council_turns");
-    expect(sqlStr).toContain("ON CONFLICT (session_id, turn_index) DO NOTHING");
-    expect(sqlStr).toContain("RETURNING *");
-  });
-
-  it("also UPDATE council_sessions (bumps total_turns) after successful insert", async () => {
-    mockSqlFn
-      .mockResolvedValueOnce([{ turn_id: "t1" }])
-      .mockResolvedValueOnce([]);
-
-    await addTurn({
-      env: makeEnv(),
-      sessionId: "sess_xyz",
-      turnId: "t1",
-      turnIndex: 1,
-      userMessage: "Follow up",
-      userCaseContext: null,
-      payload: { moderator: { composed_answer: "" } },
-      retrievedCases: null,
-      totalTokens: null,
-      totalLatencyMs: null,
-    });
-
-    // Two sql calls total: INSERT + UPDATE
-    expect(mockSqlFn).toHaveBeenCalledTimes(2);
-    const updateSql = capturedSql(mockSqlFn.mock.calls[1]);
-    expect(updateSql).toContain("UPDATE council_sessions");
-    expect(updateSql).toContain("total_turns = total_turns + 1");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// addTurn — race condition (ON CONFLICT returns no rows → null)
-// ---------------------------------------------------------------------------
-
-describe("addTurn (race condition)", () => {
-  it("returns null when INSERT conflicts (duplicate turn_index)", async () => {
-    // DB returns empty array — the ON CONFLICT DO NOTHING swallowed the insert
-    mockSqlFn.mockResolvedValueOnce([]);
-
-    const result = await addTurn({
-      env: makeEnv(),
-      sessionId: "sess_abc",
-      turnId: "turn_dup",
-      turnIndex: 0,            // same index as an existing turn → conflict
-      userMessage: "Duplicate",
-      userCaseContext: null,
-      payload: { moderator: { composed_answer: "" } },
-      retrievedCases: null,
-      totalTokens: null,
-      totalLatencyMs: null,
-    });
-
-    expect(result).toBeNull();
-  });
-
-  it("does NOT call UPDATE council_sessions when there is a conflict", async () => {
-    mockSqlFn.mockResolvedValueOnce([]); // conflict → no rows
-
-    await addTurn({
-      env: makeEnv(),
-      sessionId: "sess_abc",
-      turnId: "turn_dup",
-      turnIndex: 0,
-      userMessage: "Duplicate",
-      userCaseContext: null,
-      payload: { moderator: { composed_answer: "" } },
-      retrievedCases: null,
-      totalTokens: null,
-      totalLatencyMs: null,
-    });
-
-    // Only one sql call (the INSERT); the UPDATE must NOT fire
-    expect(mockSqlFn).toHaveBeenCalledTimes(1);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// getSession
-// ---------------------------------------------------------------------------
-
-describe("getSession", () => {
-  it("returns null when session is not found", async () => {
-    mockSqlFn.mockResolvedValue([]); // empty for both queries
-
-    const result = await getSession({ env: makeEnv(), sessionId: "missing" });
-    expect(result).toBeNull();
-  });
-
-  it("returns {session, turns} when session exists", async () => {
-    const fakeSession = { session_id: "sess_abc", total_turns: 2 };
-    const fakeTurns = [
-      { turn_id: "t1", turn_index: 0 },
-      { turn_id: "t2", turn_index: 1 },
-    ];
-
-    mockSqlFn
-      .mockResolvedValueOnce([fakeSession]) // SELECT council_sessions
-      .mockResolvedValueOnce(fakeTurns);    // SELECT council_turns
-
-    const result = await getSession({ env: makeEnv(), sessionId: "sess_abc" });
-
-    expect(result).not.toBeNull();
-    expect(result.session).toEqual(fakeSession);
-    expect(result.turns).toHaveLength(2);
-  });
-
-  it("issues SELECT ... WHERE session_id = ? for sessions", async () => {
-    const fakeSession = { session_id: "sess_abc" };
-    mockSqlFn
-      .mockResolvedValueOnce([fakeSession])
-      .mockResolvedValueOnce([]);
-
-    await getSession({ env: makeEnv(), sessionId: "sess_abc" });
-
-    const sqlStr = capturedSql(mockSqlFn.mock.calls[0]);
-    expect(sqlStr).toContain("SELECT * FROM council_sessions");
-    expect(sqlStr).toContain("WHERE session_id =");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// listSessions
-// ---------------------------------------------------------------------------
 
 describe("listSessions", () => {
-  it("issues SELECT from council_sessions ORDER BY updated_at DESC", async () => {
-    mockSqlFn.mockResolvedValue([{ session_id: "s1" }]);
-
-    await listSessions({ env: makeEnv() });
-
-    const sqlStr = capturedSql(mockSqlFn.mock.calls[0]);
-    expect(sqlStr).toContain("SELECT * FROM council_sessions");
-    expect(sqlStr).toContain("ORDER BY updated_at DESC");
+  it("throws without claims (plan §1.3 — no anonymous listing)", async () => {
+    await expect(
+      listSessions({ env: ENV, limit: 10 }),
+    ).rejects.toThrow(/authenticated claims/);
   });
 
-  it("adds WHERE updated_at < cursor when before is provided", async () => {
-    mockSqlFn.mockResolvedValue([]);
-
-    await listSessions({
-      env: makeEnv(),
-      limit: 10,
-      before: "2026-04-01T00:00:00Z",
-    });
-
-    const sqlStr = capturedSql(mockSqlFn.mock.calls[0]);
-    expect(sqlStr).toContain("WHERE updated_at <");
+  it("SELECTs only whitelist columns — no hmac_sig / session_token / retrieve_code", async () => {
+    txYields([]);
+    await listSessions({ env: ENV, claims: CLAIMS, limit: 20 });
+    const sql = sqlOf(mockTxFn.mock.calls[0]);
+    for (const col of ["session_id", "case_id", "title", "status",
+                       "total_turns", "created_at", "updated_at"]) {
+      expect(sql).toContain(col);
+    }
+    expect(sql).not.toContain("hmac_sig");
+    expect(sql).not.toContain("session_token");
+    expect(sql).not.toContain("retrieve_code");
+    expect(sql).not.toMatch(/SELECT \*/);
   });
 
   it("clamps limit to 100", async () => {
-    mockSqlFn.mockResolvedValue([]);
-
-    await listSessions({ env: makeEnv(), limit: 999 });
-
-    // The clamped value (100) should be among the interpolated params
-    const callArgs = mockSqlFn.mock.calls[0];
-    const interpolatedValues = callArgs.slice(1);
-    expect(interpolatedValues).toContain(100);
+    txYields([]);
+    await listSessions({ env: ENV, claims: CLAIMS, limit: 9999 });
+    const params = mockTxFn.mock.calls[0].slice(1);
+    expect(params).toContain(100);
   });
 
-  it("returns empty array when no sessions exist", async () => {
-    mockSqlFn.mockResolvedValue([]);
-    const result = await listSessions({ env: makeEnv() });
-    expect(result).toEqual([]);
+  it("issues `before` cursor when provided", async () => {
+    txYields([]);
+    await listSessions({
+      env: ENV, claims: CLAIMS,
+      limit: 10, before: "2026-04-01T00:00:00Z",
+    });
+    const sql = sqlOf(mockTxFn.mock.calls[0]);
+    expect(sql).toContain("WHERE updated_at <");
   });
 });
 
-// ---------------------------------------------------------------------------
-// deleteSession
-// ---------------------------------------------------------------------------
+describe("getSession", () => {
+  it("throws without claims", async () => {
+    await expect(
+      getSession({ env: ENV, sessionId: "s1" }),
+    ).rejects.toThrow(/authenticated claims/);
+  });
+
+  it("returns null when session is not found", async () => {
+    txYields([]);
+    const res = await getSession({ env: ENV, claims: CLAIMS, sessionId: "missing" });
+    expect(res).toBeNull();
+  });
+
+  it("returns {session, turns} when session exists", async () => {
+    txYields(
+      [{ session_id: "s1", total_turns: 2 }],
+      [{ turn_id: "t1" }, { turn_id: "t2" }],
+    );
+    const res = await getSession({ env: ENV, claims: CLAIMS, sessionId: "s1" });
+    expect(res.session.session_id).toBe("s1");
+    expect(res.turns).toHaveLength(2);
+  });
+});
+
+describe("getSessionByCode", () => {
+  it("throws without claims", async () => {
+    await expect(
+      getSessionByCode({ env: ENV, code: "ABCDEF" }),
+    ).rejects.toThrow(/authenticated claims/);
+  });
+
+  it("rejects code lengths other than 6 without DB hit", async () => {
+    const out = await getSessionByCode({ env: ENV, claims: CLAIMS, code: "abc" });
+    expect(out).toBeNull();
+    expect(mockTxFn).not.toHaveBeenCalled();
+  });
+
+  it("SELECTs only safe columns (session_id, retrieve_code, tenant_id, created_by)", async () => {
+    txYields([{ session_id: "s1", retrieve_code: "ABCDEF" }]);
+    await getSessionByCode({ env: ENV, claims: CLAIMS, code: "ABCDEF" });
+    const sql = sqlOf(mockTxFn.mock.calls[0]);
+    expect(sql).toContain("session_id");
+    expect(sql).toContain("retrieve_code");
+    expect(sql).not.toContain("hmac_sig");
+    expect(sql).not.toMatch(/SELECT \*/);
+  });
+});
+
+describe("addTurn", () => {
+  it("throws without claims", async () => {
+    await expect(
+      addTurn({
+        env: ENV, sessionId: "s1", turnId: "t1", turnIndex: 0,
+        userMessage: "x", userCaseContext: null,
+        payload: {}, retrievedCases: null,
+        totalTokens: null, totalLatencyMs: null,
+      }),
+    ).rejects.toThrow(/authenticated claims/);
+  });
+
+  it("inserts with ON CONFLICT DO NOTHING + RETURNING; bumps total_turns on success", async () => {
+    txYields([{ turn_id: "t1" }], []);
+    const out = await addTurn({
+      env: ENV, claims: CLAIMS,
+      sessionId: "s1", turnId: "t1", turnIndex: 0,
+      userMessage: "hi", userCaseContext: null,
+      payload: { moderator: { composed_answer: "x" } },
+      retrievedCases: null, totalTokens: null, totalLatencyMs: null,
+    });
+    expect(out).toEqual({ turn_id: "t1" });
+    const insertSql = sqlOf(mockTxFn.mock.calls[0]);
+    expect(insertSql).toContain("INSERT INTO council_turns");
+    expect(insertSql).toContain("ON CONFLICT (session_id, turn_index) DO NOTHING");
+    const updateSql = sqlOf(mockTxFn.mock.calls[1]);
+    expect(updateSql).toContain("UPDATE council_sessions");
+    expect(updateSql).toContain("total_turns = total_turns + 1");
+  });
+
+  it("returns null on conflict + skips the UPDATE", async () => {
+    txYields([]);
+    const out = await addTurn({
+      env: ENV, claims: CLAIMS,
+      sessionId: "s1", turnId: "t1", turnIndex: 0,
+      userMessage: "hi", userCaseContext: null,
+      payload: {}, retrievedCases: null,
+      totalTokens: null, totalLatencyMs: null,
+    });
+    expect(out).toBeNull();
+    expect(mockTxFn).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("deleteSession", () => {
-  it("issues DELETE FROM council_sessions WHERE session_id = ?", async () => {
-    mockSqlFn.mockResolvedValue([{ session_id: "sess_abc" }]);
-
-    await deleteSession({ env: makeEnv(), sessionId: "sess_abc" });
-
-    const sqlStr = capturedSql(mockSqlFn.mock.calls[0]);
-    expect(sqlStr).toContain("DELETE FROM council_sessions");
-    expect(sqlStr).toContain("WHERE session_id =");
+  it("throws without claims", async () => {
+    await expect(
+      deleteSession({ env: ENV, sessionId: "s1" }),
+    ).rejects.toThrow(/authenticated claims/);
   });
 
-  it("returns true when a row was deleted", async () => {
-    mockSqlFn.mockResolvedValue([{ session_id: "sess_abc" }]);
-
-    const result = await deleteSession({
-      env: makeEnv(),
-      sessionId: "sess_abc",
-    });
-    expect(result).toBe(true);
+  it("returns true when a row is deleted", async () => {
+    txYields([{ session_id: "s1" }]);
+    const out = await deleteSession({ env: ENV, claims: CLAIMS, sessionId: "s1" });
+    expect(out).toBe(true);
   });
 
-  it("returns false when session was not found (no rows returned)", async () => {
-    mockSqlFn.mockResolvedValue([]);
-
-    const result = await deleteSession({
-      env: makeEnv(),
-      sessionId: "nonexistent",
-    });
-    expect(result).toBe(false);
+  it("returns false when RLS hides the row / no match", async () => {
+    txYields([]);
+    const out = await deleteSession({ env: ENV, claims: CLAIMS, sessionId: "foreign" });
+    expect(out).toBe(false);
   });
 });
 
-// ---------------------------------------------------------------------------
-// loadHistory
-// ---------------------------------------------------------------------------
-
 describe("loadHistory", () => {
-  it("returns array of {user_message, assistant_message} pairs", async () => {
-    mockSqlFn.mockResolvedValue([
-      {
-        user_message: "What are the grounds?",
-        payload: { moderator: { composed_answer: "The main grounds are..." } },
-      },
-      {
-        user_message: "Can you elaborate?",
-        payload: { moderator: { composed_answer: "Elaborating..." } },
-      },
+  it("throws without claims", async () => {
+    await expect(
+      loadHistory({ env: ENV, sessionId: "s1" }),
+    ).rejects.toThrow(/authenticated claims/);
+  });
+
+  it("maps payload.moderator.composed_answer → assistant_message", async () => {
+    txYields([
+      { user_message: "q1", payload: { moderator: { composed_answer: "a1" } } },
+      { user_message: "q2", payload: { moderator: {} } },
+      { user_message: "q3", payload: {} },
     ]);
-
-    const result = await loadHistory({ env: makeEnv(), sessionId: "sess_abc" });
-
-    expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({
-      user_message: "What are the grounds?",
-      assistant_message: "The main grounds are...",
-    });
-    expect(result[1]).toEqual({
-      user_message: "Can you elaborate?",
-      assistant_message: "Elaborating...",
-    });
-  });
-
-  it("uses empty string when payload.moderator.composed_answer is missing", async () => {
-    mockSqlFn.mockResolvedValue([
-      {
-        user_message: "Question without answer",
-        payload: { moderator: {} }, // no composed_answer key
-      },
+    const history = await loadHistory({ env: ENV, claims: CLAIMS, sessionId: "s1" });
+    expect(history).toEqual([
+      { user_message: "q1", assistant_message: "a1" },
+      { user_message: "q2", assistant_message: "" },
+      { user_message: "q3", assistant_message: "" },
     ]);
-
-    const result = await loadHistory({ env: makeEnv(), sessionId: "sess_abc" });
-
-    expect(result[0].assistant_message).toBe("");
-  });
-
-  it("uses empty string when payload.moderator is entirely absent", async () => {
-    mockSqlFn.mockResolvedValue([
-      {
-        user_message: "Another question",
-        payload: {}, // no moderator at all
-      },
-    ]);
-
-    const result = await loadHistory({ env: makeEnv(), sessionId: "sess_abc" });
-
-    expect(result[0].assistant_message).toBe("");
-  });
-
-  it("issues SELECT user_message, payload FROM council_turns ORDER BY turn_index ASC", async () => {
-    mockSqlFn.mockResolvedValue([]);
-
-    await loadHistory({ env: makeEnv(), sessionId: "sess_abc" });
-
-    const sqlStr = capturedSql(mockSqlFn.mock.calls[0]);
-    expect(sqlStr).toContain("SELECT user_message, payload");
-    expect(sqlStr).toContain("FROM council_turns");
-    expect(sqlStr).toContain("ORDER BY turn_index ASC");
-  });
-
-  it("returns empty array when no turns exist", async () => {
-    mockSqlFn.mockResolvedValue([]);
-    const result = await loadHistory({ env: makeEnv(), sessionId: "sess_abc" });
-    expect(result).toEqual([]);
   });
 });

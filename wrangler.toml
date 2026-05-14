@@ -58,7 +58,10 @@ localConnectionString = "postgresql://postgres:postgres@localhost:5432/immi_case
 [durable_objects]
 bindings = [
   { name = "FlaskBackend", class_name = "FlaskBackend" },
-  { name = "AUTH_NONCE_DO", class_name = "AuthNonce" }
+  # IMPORTANT: binding name must match env property read by workers/auth/nonce_do.js
+  # (env.AUTH_NONCE). A previous "AUTH_NONCE_DO" name caused checkNonce() to
+  # fail-closed on every Telegram login because env.AUTH_NONCE was undefined.
+  { name = "AUTH_NONCE", class_name = "AuthNonce" }
 ]
 
 [[migrations]]
