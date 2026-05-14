@@ -2,7 +2,6 @@ import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
-  RefreshCw,
   Search,
   ChevronRight,
   Scale,
@@ -15,7 +14,6 @@ import {
   useLegislations,
   useLegislationSearch,
   useLegislationUpdateStatus,
-  useStartLegislationUpdate,
 } from "@/hooks/use-legislations";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { Breadcrumb } from "@/components/shared/Breadcrumb";
@@ -53,7 +51,6 @@ export function LegislationsPage() {
 
   // Use appropriate hook based on whether we're searching
   const updateStatus = useLegislationUpdateStatus();
-  const startUpdate = useStartLegislationUpdate();
   const job = updateStatus.data?.status;
 
   const {
@@ -167,26 +164,6 @@ export function LegislationsPage() {
                 })}
               </span>
             ) : null
-          }
-          actions={
-            <button
-              type="button"
-              onClick={() => startUpdate.mutate(undefined)}
-              disabled={job?.running || startUpdate.isPending}
-              className={cn(
-                "flex shrink-0 items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium",
-                "text-foreground transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50",
-              )}
-            >
-              <RefreshCw
-                className={cn("h-3.5 w-3.5", job?.running && "animate-spin")}
-              />
-              {job?.running
-                ? t("legislations.updating", { defaultValue: "Updating..." })
-                : t("legislations.update_laws", {
-                    defaultValue: "Update Laws",
-                  })}
-            </button>
           }
         />
 

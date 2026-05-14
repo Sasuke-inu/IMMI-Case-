@@ -44,19 +44,24 @@ export function CaseComparePage() {
 
   if (ids.length < 2) {
     return (
-      <EmptyState
-        icon={<GitCompare className="h-8 w-8" />}
-        title={t("pages.case_comparison.select_cases")}
-        description={t("pages.case_comparison.description")}
-        action={
-          <button
-            onClick={() => navigate("/cases")}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
-          >
-            {t("pages.case_comparison.go_to_cases")}
-          </button>
-        }
-      />
+      <div className="space-y-6">
+        <h1 className="sr-only">
+          {t("cases.comparison", { defaultValue: "Case Comparison" })}
+        </h1>
+        <EmptyState
+          icon={<GitCompare className="h-8 w-8" />}
+          title={t("pages.case_comparison.select_cases")}
+          description={t("pages.case_comparison.description")}
+          action={
+            <button
+              onClick={() => navigate("/cases")}
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
+            >
+              {t("pages.case_comparison.go_to_cases")}
+            </button>
+          }
+        />
+      </div>
     );
   }
 
@@ -114,6 +119,13 @@ export function CaseComparePage() {
           { label: `${t("cases.comparison")} (${cases.length})` },
         ]}
       />
+
+      <h1 className="font-heading text-2xl font-semibold text-foreground">
+        {t("cases.comparison", { defaultValue: "Case Comparison" })}
+        <span className="ml-2 text-base font-normal text-muted-text">
+          ({cases.length})
+        </span>
+      </h1>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="min-w-max text-sm">

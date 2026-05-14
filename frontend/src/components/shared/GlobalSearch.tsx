@@ -56,6 +56,11 @@ function GlobalSearchDialog({ onClose }: GlobalSearchDialogProps) {
               aria-haspopup="listbox"
               aria-controls="global-search-listbox"
               aria-autocomplete="list"
+              aria-activedescendant={
+                hasResults && cases[clampedActiveIdx]
+                  ? `global-search-option-${cases[clampedActiveIdx].case_id}`
+                  : undefined
+              }
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -103,6 +108,7 @@ function GlobalSearchDialog({ onClose }: GlobalSearchDialogProps) {
                 <li key={c.case_id}>
                   <button
                     role="option"
+                    id={`global-search-option-${c.case_id}`}
                     aria-selected={idx === clampedActiveIdx}
                     onClick={() => {
                       navigate(`/cases/${c.case_id}`);

@@ -71,6 +71,10 @@ export function CaseAddPage() {
         ]}
       />
 
+      <h1 className="font-heading text-2xl font-semibold text-foreground">
+        {t("pages.case_add.breadcrumb_add", { defaultValue: "Add Case" })}
+      </h1>
+
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left: Main fields — grouped sections */}
